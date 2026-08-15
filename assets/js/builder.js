@@ -1027,8 +1027,8 @@ var allTerrainFormsBuilder = function(exports) {
       field.label,
       "Write the question…",
       "atf-label",
-      (value) => handlers.edit(() => {
-        field.label = value;
+      (value) => handlers.edit((live) => {
+        live.label = value;
       }),
       // Committed on blur rather than per keystroke: the label appears in other
       // cards' condition chips and in the merge-tag picker, and repainting the
@@ -1080,8 +1080,8 @@ var allTerrainFormsBuilder = function(exports) {
               field.label || "",
               "What are they agreeing to?…",
               "atf-toggle__label",
-              (value) => handlers.edit(() => {
-                field.label = value;
+              (value) => handlers.edit((live) => {
+                live.label = value;
               }),
               () => handlers.restructure(() => {
               })
@@ -1114,8 +1114,8 @@ var allTerrainFormsBuilder = function(exports) {
       field.placeholder ?? "",
       "select" === field.type || "country" === field.type ? "Choose…" : "Placeholder…",
       `${className} atfb-preview__box${tall ? " atfb-preview__box--tall" : ""}`,
-      (value) => handlers.edit(() => {
-        field.placeholder = value;
+      (value) => handlers.edit((live) => {
+        live.placeholder = value;
       })
     );
     box.setAttribute("aria-label", "Placeholder");
@@ -1134,11 +1134,15 @@ var allTerrainFormsBuilder = function(exports) {
               "Option…",
               "atf-choice__label",
               (value) => {
-                handlers.edit(() => {
-                  choice.label = value;
-                  if (!choice.value || choice.value === slug(choice.label)) {
-                    choice.value = slug(value);
+                handlers.edit((live) => {
+                  const target = live.choices?.[index];
+                  if (!target) {
+                    return;
                   }
+                  if (!target.value || target.value === slug(target.label)) {
+                    target.value = slug(value);
+                  }
+                  target.label = value;
                 });
               }
             ),
@@ -1151,8 +1155,8 @@ var allTerrainFormsBuilder = function(exports) {
                 pointerdown: (event) => event.stopPropagation(),
                 click: (event) => {
                   event.stopPropagation();
-                  handlers.restructure(() => {
-                    field.choices.splice(index, 1);
+                  handlers.restructure((live) => {
+                    live.choices.splice(index, 1);
                   });
                 }
               },
@@ -1170,9 +1174,9 @@ var allTerrainFormsBuilder = function(exports) {
           pointerdown: (event) => event.stopPropagation(),
           click: (event) => {
             event.stopPropagation();
-            handlers.restructure(() => {
-              const next = field.choices.length + 1;
-              field.choices.push({ label: `Option ${next}`, value: `option-${next}` });
+            handlers.restructure((live) => {
+              const next = live.choices.length + 1;
+              live.choices.push({ label: `Option ${next}`, value: `option-${next}` });
             });
           }
         },
@@ -1187,8 +1191,8 @@ var allTerrainFormsBuilder = function(exports) {
         field.label,
         "Section heading…",
         "atf-heading",
-        (value) => handlers.edit(() => {
-          field.label = value;
+        (value) => handlers.edit((live) => {
+          live.label = value;
         }),
         () => handlers.restructure(() => {
         })
@@ -2592,6 +2596,37 @@ var allTerrainFormsBuilder = function(exports) {
       );
     }
     /**
+     * The field with this id in the *current* schema.
+     *
+     * Returns undefined when it has gone — deleted in another window, or dropped
+     * by the server's normalisation — which is a write that should simply not
+     * happen rather than one that should throw.
+     *
+     * @param fieldId The field's id.
+     * @return The live field, if it is still there.
+     */
+    liveField(fieldId) {
+      return this.schema?.fields.find((candidate) => candidate.id === fieldId);
+    }
+    /**
+     * Rebuilds the canvas so its cards point at the current schema objects.
+     *
+     * Deferred while the canvas holds focus. An autosave fires 2.5 seconds after
+     * the last keystroke, which is exactly when somebody has paused mid-sentence
+     * with the caret still in a label — and rebuilding then would take the caret
+     * away for no reason they could see. Waiting for the blur costs nothing: the
+     * card on screen already shows what they typed, and the rebind only has to
+     * happen before the *next* edit.
+     */
+    rebindCanvas() {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && this.canvas.contains(focused)) {
+        focused.addEventListener("blur", () => this.rebindCanvas(), { once: true });
+        return;
+      }
+      this.renderCanvas();
+    }
+    /**
      * Takes a history snapshot.
      *
      * Called before a *structural* change — adding, moving, duplicating or
@@ -2757,6 +2792,7 @@ var allTerrainFormsBuilder = function(exports) {
         this.form = saved;
         this.schema = saved.schema;
         this.dirty = false;
+        this.rebindCanvas();
         forgetMergeTags(saved.id);
         const summary = this.forms.find((candidate) => candidate.id === saved.id);
         if (summary) {
@@ -3365,13 +3401,25 @@ var allTerrainFormsBuilder = function(exports) {
               // The field itself, drawn with the real front-end classes and the
               // form's own theme, with its text editable where it sits.
               renderFieldPreview(field, type, {
+                // The live field is looked up by id on every write. A save
+                // replaces `this.schema` with the server's normalised copy,
+                // so the object this card was rendered from stops being the
+                // one that gets serialised — see `PreviewHandlers`.
                 edit: (apply) => {
-                  apply();
+                  const live = this.liveField(field.id);
+                  if (!live) {
+                    return;
+                  }
+                  apply(live);
                   this.markDirty();
                 },
                 restructure: (apply) => {
+                  const live = this.liveField(field.id);
+                  if (!live) {
+                    return;
+                  }
                   this.snapshot();
-                  apply();
+                  apply(live);
                   this.markDirty();
                   this.renderCanvas();
                   this.renderInspector();
@@ -3631,7 +3679,12 @@ var allTerrainFormsBuilder = function(exports) {
     /** Selects a field and shows it in the inspector. */
     selectField(fieldId) {
       this.selected = fieldId;
-      this.renderCanvas();
+      for (const card of this.canvas.querySelectorAll("[data-atfb-card]")) {
+        const isSelected = card.dataset.atfbCard === fieldId;
+        card.classList.toggle("is-selected", isSelected);
+        card.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      }
+      this.logicMap?.highlight(fieldId);
       this.renderInspector();
     }
     /** A field id not already in use. */

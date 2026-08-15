@@ -373,6 +373,42 @@ export class Builder {
 	}
 
 	/**
+	 * The field with this id in the *current* schema.
+	 *
+	 * Returns undefined when it has gone — deleted in another window, or dropped
+	 * by the server's normalisation — which is a write that should simply not
+	 * happen rather than one that should throw.
+	 *
+	 * @param fieldId The field's id.
+	 * @return The live field, if it is still there.
+	 */
+	private liveField( fieldId: string ): Field | undefined {
+		return this.schema?.fields.find( ( candidate ) => candidate.id === fieldId );
+	}
+
+	/**
+	 * Rebuilds the canvas so its cards point at the current schema objects.
+	 *
+	 * Deferred while the canvas holds focus. An autosave fires 2.5 seconds after
+	 * the last keystroke, which is exactly when somebody has paused mid-sentence
+	 * with the caret still in a label — and rebuilding then would take the caret
+	 * away for no reason they could see. Waiting for the blur costs nothing: the
+	 * card on screen already shows what they typed, and the rebind only has to
+	 * happen before the *next* edit.
+	 */
+	private rebindCanvas(): void {
+		const focused = document.activeElement;
+
+		if ( focused instanceof HTMLElement && this.canvas.contains( focused ) ) {
+			focused.addEventListener( 'blur', () => this.rebindCanvas(), { once: true } );
+
+			return;
+		}
+
+		this.renderCanvas();
+	}
+
+	/**
 	 * Takes a history snapshot.
 	 *
 	 * Called before a *structural* change — adding, moving, duplicating or
@@ -598,9 +634,18 @@ export class Builder {
 			// The server's normalisation is authoritative — it may have issued
 			// ids, dropped an unusable field or clamped a setting — so its copy
 			// replaces the local one rather than being merged into it.
+			//
+			// Replacing it orphans every card on the canvas: each one closes over
+			// the field object it was rendered from, and those objects are now the
+			// *previous* schema's. Typing into a label after an autosave would
+			// update an object nothing serialises, and the edit would vanish at the
+			// next save with no error anywhere. So the canvas is rebuilt to rebind
+			// — but not out from under somebody who is still typing in it.
 			this.form = saved;
 			this.schema = saved.schema;
 			this.dirty = false;
+
+			this.rebindCanvas();
 
 			// The merge-tag picker lists this form's questions by label, and the
 			// server builds that list from the *saved* schema. Without this, a
@@ -1396,13 +1441,29 @@ export class Builder {
 						// The field itself, drawn with the real front-end classes and the
 						// form's own theme, with its text editable where it sits.
 						renderFieldPreview( field, type, {
+							// The live field is looked up by id on every write. A save
+							// replaces `this.schema` with the server's normalised copy,
+							// so the object this card was rendered from stops being the
+							// one that gets serialised — see `PreviewHandlers`.
 							edit: ( apply ) => {
-								apply();
+								const live = this.liveField( field.id );
+
+								if ( ! live ) {
+									return;
+								}
+
+								apply( live );
 								this.markDirty();
 							},
 							restructure: ( apply ) => {
+								const live = this.liveField( field.id );
+
+								if ( ! live ) {
+									return;
+								}
+
 								this.snapshot();
-								apply();
+								apply( live );
 								this.markDirty();
 								this.renderCanvas();
 								this.renderInspector();
@@ -1759,7 +1820,26 @@ export class Builder {
 	/** Selects a field and shows it in the inspector. */
 	private selectField( fieldId: string ): void {
 		this.selected = fieldId;
-		this.renderCanvas();
+
+		// Selection repaints the *selected state*, not the canvas.
+		//
+		// It used to call `renderCanvas()`, which rebuilds every card — and since
+		// the card now contains the field's own editable label and options, that
+		// destroyed the element the click had just put the caret in. Clicking into
+		// a question to rewrite it therefore focused it and immediately lost it,
+		// which read as the field being un-typeable.
+		//
+		// Nothing about the canvas's *structure* changes when the selection moves,
+		// so nothing needs rebuilding: two class toggles say the same thing, keep
+		// the caret, and are faster besides.
+		for ( const card of this.canvas.querySelectorAll< HTMLElement >( '[data-atfb-card]' ) ) {
+			const isSelected = card.dataset.atfbCard === fieldId;
+
+			card.classList.toggle( 'is-selected', isSelected );
+			card.setAttribute( 'aria-pressed', isSelected ? 'true' : 'false' );
+		}
+
+		this.logicMap?.highlight( fieldId );
 		this.renderInspector();
 	}
 

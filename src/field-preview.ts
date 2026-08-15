@@ -112,12 +112,26 @@ export function hasPlaceholder( type: string ): boolean {
 	return [ 'text', 'textarea', 'select' ].includes( shapeFor( type ) );
 }
 
-/** What the callbacks the preview needs to change a field. */
+/**
+ * How the preview writes a change back.
+ *
+ * Both hand the caller the **live** field rather than letting it keep the one it
+ * was rendered from, and that indirection is load-bearing. A save replaces
+ * `this.schema` wholesale with the server's normalised copy, so a card that
+ * closed over its own `field` object is writing to a detached one the moment an
+ * autosave lands — and an autosave lands 2.5 seconds after the last keystroke,
+ * which is exactly when somebody pauses mid-sentence and then carries on typing.
+ * The text went into an object nothing serialises and vanished at the next
+ * render, with no error anywhere.
+ *
+ * Resolving by id at write time makes the number of times the schema has been
+ * replaced irrelevant.
+ */
 export interface PreviewHandlers {
 	/** A value changed but nothing moved — update the model, do not re-render. */
-	edit: ( apply: () => void ) => void;
+	edit: ( apply: ( field: Field ) => void ) => void;
 	/** The field's shape changed — snapshot, update, re-render. */
-	restructure: ( apply: () => void ) => void;
+	restructure: ( apply: ( field: Field ) => void ) => void;
 }
 
 /**
@@ -209,7 +223,7 @@ export function renderFieldPreview( field: Field, type: FieldType | undefined, h
 		field.label,
 		'Write the question…',
 		'atf-label',
-		( value ) => handlers.edit( () => { field.label = value; } ),
+		( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 		// Committed on blur rather than per keystroke: the label appears in other
 		// cards' condition chips and in the merge-tag picker, and repainting the
 		// canvas on every character would take the caret with it.
@@ -274,7 +288,7 @@ function control(
 						field.label || '',
 						'What are they agreeing to?…',
 						'atf-toggle__label',
-						( value ) => handlers.edit( () => { field.label = value; } ),
+						( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 						() => handlers.restructure( () => {} )
 					),
 				],
@@ -320,7 +334,7 @@ function placeholderBox(
 		field.placeholder ?? '',
 		'select' === field.type || 'country' === field.type ? 'Choose…' : 'Placeholder…',
 		`${ className } atfb-preview__box${ tall ? ' atfb-preview__box--tall' : '' }`,
-		( value ) => handlers.edit( () => { field.placeholder = value; } )
+		( value ) => handlers.edit( ( live ) => { live.placeholder = value; } )
 	);
 
 	box.setAttribute( 'aria-label', 'Placeholder' );
@@ -350,16 +364,25 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 						'Option…',
 						'atf-choice__label',
 						( value ) => {
-							handlers.edit( () => {
-								choice.label = value;
+							handlers.edit( ( live ) => {
+								// By index into the *live* field, not the choice object
+								// this row was rendered from — same reason as the field
+								// itself: a save replaces them all.
+								const target = live.choices?.[ index ];
+
+								if ( ! target ) {
+									return;
+								}
 
 								// The stored value follows the label while it still
 								// looks generated. Once somebody sets a value of their
 								// own — an id their CRM expects — renaming the label
 								// must not silently change what gets submitted.
-								if ( ! choice.value || choice.value === slug( choice.label ) ) {
-									choice.value = slug( value );
+								if ( ! target.value || target.value === slug( target.label ) ) {
+									target.value = slug( value );
 								}
+
+								target.label = value;
 							} );
 						}
 					),
@@ -372,8 +395,8 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 							pointerdown: ( event: Event ) => event.stopPropagation(),
 							click: ( event: Event ) => {
 								event.stopPropagation();
-								handlers.restructure( () => {
-									field.choices.splice( index, 1 );
+								handlers.restructure( ( live ) => {
+									live.choices.splice( index, 1 );
 								} );
 							},
 						},
@@ -392,16 +415,16 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 				pointerdown: ( event: Event ) => event.stopPropagation(),
 				click: ( event: Event ) => {
 					event.stopPropagation();
-					handlers.restructure( () => {
+					handlers.restructure( ( live ) => {
 						// Named rather than blank, and that is not cosmetic:
 						// `atf_normalize_choices()` drops a choice whose label and
 						// value are both empty, and the schema is normalised on every
 						// save. A blank new option therefore looked fine, and then
 						// disappeared a couple of seconds later when the autosave
 						// came back — with nothing to tell anybody why.
-						const next = field.choices.length + 1;
+						const next = live.choices.length + 1;
 
-						field.choices.push( { label: `Option ${ next }`, value: `option-${ next }` } );
+						live.choices.push( { label: `Option ${ next }`, value: `option-${ next }` } );
 					} );
 				},
 			},
@@ -419,7 +442,7 @@ function staticBlock( field: Field, type: FieldType | undefined, handlers: Previ
 			field.label,
 			'Section heading…',
 			'atf-heading',
-			( value ) => handlers.edit( () => { field.label = value; } ),
+			( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 			() => handlers.restructure( () => {} )
 		);
 	}
