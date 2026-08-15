@@ -62,7 +62,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-editor-paragraph',
 			'value'       => 'text',
-			'supports'    => atf_input_supports( array( 'minlength', 'maxlength', 'rows', 'counter' ) ),
+			'supports'    => atf_input_supports( array( 'minlength', 'maxlength', 'rows' ) ),
 			'settings'    => array( 'rows' => 5 ),
 			'position'    => 20,
 		)
@@ -76,7 +76,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-email',
 			'value'       => 'string',
-			'supports'    => atf_input_supports( array( 'confirm', 'unique' ) ),
+			'supports'    => atf_input_supports( array( 'unique' ) ),
 			'sanitize'    => static function ( $raw ) {
 				return sanitize_email( (string) ( is_scalar( $raw ) ? $raw : '' ) );
 			},
@@ -138,7 +138,7 @@ function atf_register_builtin_field_types() {
 			'group'    => 'text',
 			'icon'     => 'dashicons-calculator',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'min', 'max', 'step', 'calc' ) ),
+			'supports' => atf_input_supports( array( 'min', 'max', 'step' ) ),
 			'settings' => array( 'step' => '' ),
 			'position' => 60,
 		)
@@ -152,7 +152,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-lock',
 			'value'       => 'string',
-			'supports'    => atf_input_supports( array( 'minlength', 'confirm' ) ),
+			'supports'    => atf_input_supports( array( 'minlength' ) ),
 			// A password is the one value the entry must not keep. The
 			// registration action reads it out of the submission while it is
 			// still in memory; by storage time this has replaced it, so an
@@ -187,7 +187,7 @@ function atf_register_builtin_field_types() {
 			'icon'     => 'dashicons-arrow-down-alt2',
 			'value'    => 'string',
 			'choices'  => true,
-			'supports' => atf_input_supports( array( 'choices', 'placeholder', 'searchable' ) ),
+			'supports' => atf_input_supports( array( 'choices', 'placeholder' ) ),
 			'format'   => 'atf_format_choice_value',
 			'position' => 10,
 		)
@@ -272,7 +272,7 @@ function atf_register_builtin_field_types() {
 			'group'    => 'datetime',
 			'icon'     => 'dashicons-calendar-alt',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'mindate', 'maxdate', 'disabledays' ) ),
+			'supports' => atf_input_supports( array( 'mindate', 'maxdate' ) ),
 			'validate' => 'atf_validate_date_value',
 			'position' => 10,
 		)
@@ -379,11 +379,8 @@ function atf_register_builtin_field_types() {
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-star-filled',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'max', 'icon' ) ),
-			'settings' => array(
-				'max'  => 5,
-				'icon' => 'star',
-			),
+			'supports' => atf_input_supports( array( 'max' ) ),
+			'settings' => array( 'max' => 5 ),
 			'position' => 30,
 		)
 	);
@@ -430,7 +427,7 @@ function atf_register_builtin_field_types() {
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-leftright',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'min', 'max', 'step', 'calc' ) ),
+			'supports' => atf_input_supports( array( 'min', 'max', 'step' ) ),
 			'settings' => array(
 				'min'  => 0,
 				'max'  => 100,
@@ -500,7 +497,7 @@ function atf_register_builtin_field_types() {
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-location',
 			'value'    => 'object',
-			'supports' => atf_input_supports( array( 'parts', 'defaultcountry' ) ),
+			'supports' => atf_input_supports( array( 'parts' ) ),
 			'settings' => array(
 				'parts' => array( 'line1', 'line2', 'city', 'region', 'postcode', 'country' ),
 			),
@@ -540,7 +537,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-plus-alt',
 			'value'       => 'array',
-			'supports'    => array( 'label', 'hint', 'required', 'width', 'css', 'logic', 'minrows', 'maxrows' ),
+			'supports'    => array( 'label', 'hint', 'required', 'width', 'css', 'logic', 'minrows', 'maxrows', 'addlabel' ),
 			'settings'    => array(
 				'fields'   => array(),
 				'minRows'  => 1,
@@ -681,11 +678,10 @@ function atf_register_builtin_field_types() {
 			'icon'        => 'dashicons-awards',
 			'value'       => 'string',
 			'choices'     => true,
-			'supports'    => atf_input_supports( array( 'choices', 'correct', 'points', 'explanation' ) ),
+			'supports'    => atf_input_supports( array( 'choices', 'correct', 'points' ) ),
 			'settings'    => array(
-				'correct'     => '',
-				'points'      => 1,
-				'explanation' => '',
+				'correct' => '',
+				'points'  => 1,
 			),
 			'format'      => 'atf_format_choice_value',
 			'position'    => 30,

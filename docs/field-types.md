@@ -66,11 +66,67 @@ make an optional number field look answered and a required one pass validation.
 
 ### `supports` — what the inspector shows
 
+A flag here makes the inspector draw the control for that setting. Every one of
+them is real: a flag the builder has no control for is a setting nobody can
+reach, and `tests/vitest/field-settings.test.ts` fails if one appears.
+
+**Common to every input** — `atf_input_supports()` adds these:
+
 `label`, `placeholder`, `hint`, `required`, `default`, `width`, `css`, `prefill`,
-`logic`, `choices`, `min`, `max`, `step`, `minlength`, `maxlength`, `pattern`,
-`unique`, `confirm`, `other`, `inline`, `multiple`, `minchoices`, `maxchoices`,
-`mindate`, `maxdate`, `filetypes`, `maxsize`, `maxfiles`, `formula`, `currency`,
-`rows`, `parts`, `correct`, `points`.
+`logic`.
+
+**Content and layout**
+
+| Flag | Writes | Control |
+|---|---|---|
+| `choices` | `choices` | The choices editor, and the option list on the canvas |
+| `correct` | `correct` | Marks the right answer in the choices editor |
+| `rows` | `rows` | A line count on a textarea; the statement list on a Likert matrix |
+| `parts` | `parts` | A tick box per part, listed by the server |
+| `level` | `level` | Heading level, 2–6 |
+| `content` | `content` | The markup in an HTML block |
+| `height` | `height` | A spacer's height in pixels |
+| `consenttext` | `consentText` | What a consent tick box is agreeing to |
+| `columns` | `columns` | How many pictures sit side by side |
+| `multiple` | `multiple` | Whether more than one may be chosen |
+| `inline` | `inline` | Lays the options out in a row |
+| `other` | `other` | Adds an "Other" option with a box |
+
+**Wording**
+
+| Flag | Writes | Control |
+|---|---|---|
+| `nextlabel` | `nextLabel` | The page break's forward button, edited on the button itself |
+| `prevlabel` | `prevLabel` | The button that comes back from the page after |
+| `addlabel` | `addLabel` | The repeater's add button |
+| `endlabels` | `minLabel`, `maxLabel` | The words on the ends of a scale |
+
+**Bounds and validation**
+
+| Flag | Writes | Control |
+|---|---|---|
+| `min` / `max` | `min`, `max` | A pair, or `max` alone where a type has no floor |
+| `step` | `step` | The interval a number or time moves in |
+| `minlength` / `maxlength` | `minlength`, `maxlength` | A pair |
+| `mindate` / `maxdate` | `minDate`, `maxDate` | A pair |
+| `mintime` / `maxtime` | `minTime`, `maxTime` | A pair |
+| `minchoices` / `maxchoices` | `minChoices`, `maxChoices` | How many may be picked |
+| `minrows` / `maxrows` | `minRows`, `maxRows` | How many repeater rows |
+| `maxsize` / `maxfiles` | `maxsize`, `maxfiles` | Largest file, and how many |
+| `filetypes` | `filetypes` | Accepted extensions, typed with commas |
+| `pattern` | `pattern` | A regular expression |
+| `unique` | `unique` | No two submissions may share the value |
+| `formula` / `currency` | `formula`, `currency` | A calculation and its symbol |
+| `points` | `points` | What a quiz answer is worth |
+
+The flag is lower-case, by WordPress convention; the property it writes is
+camelCase. They differ often enough — `minrows` writes `minRows` — that the two
+are worth reading as separate things.
+
+Note that `supports` describes settings that exist. `calc`, `confirm`, `counter`,
+`searchable`, `disabledays`, `defaultcountry`, `explanation` and a rating `icon`
+were declared before 0.1.0 and read by nothing; they have been removed rather
+than given controls that would do nothing.
 
 `atf_input_supports()` gives you the common set:
 

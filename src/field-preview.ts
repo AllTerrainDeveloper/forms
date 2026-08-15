@@ -134,6 +134,51 @@ export interface PreviewHandlers {
 	restructure: ( apply: ( field: Field ) => void ) => void;
 }
 
+/** What an inline-editable piece of text needs to know about itself. */
+interface Editable {
+	/** The current text. */
+	value: string;
+	/** Shown, greyed, while the text is empty. */
+	placeholder: string;
+	/** The front-end class, so the theme styles it. */
+	class: string;
+	/**
+	 * Which field property this edits, if the inspector edits it too.
+	 *
+	 * The two panes show the same value, so both have to move when either does.
+	 * Naming the property here rather than in a list somewhere else is what keeps
+	 * that true: `syncCanvas()` and `syncInspector()` walk `[data-atfb-bind]` and
+	 * resolve the key through {@link boundValue}, so a new editable is mirrored in
+	 * both directions by virtue of existing. The alternative — a hand-kept list of
+	 * keys in each sync function — was two lists to forget instead of none.
+	 */
+	bind?: string;
+	/** Called on every keystroke. */
+	onInput: ( value: string ) => void;
+	/** Called on blur, when a change needs the rest of the builder repainted. */
+	onCommit?: () => void;
+}
+
+/**
+ * The value a bound key currently holds on a field.
+ *
+ * The one place that knows how a `data-atfb-bind` key maps onto the schema, used
+ * by both sync directions so they cannot disagree about what `hint` means.
+ *
+ * @param field The field.
+ * @param key   The bind key, e.g. `label` or `choice:2:value`.
+ * @return The value, or an empty string when the field has nothing there.
+ */
+export function boundValue( field: Field, key: string ): string {
+	const choice = /^choice:(\d+):(label|value)$/.exec( key );
+
+	if ( choice ) {
+		return String( field.choices?.[ Number( choice[ 1 ] ) ]?.[ choice[ 2 ] as 'label' | 'value' ] ?? '' );
+	}
+
+	return String( field[ key ] ?? '' );
+}
+
 /**
  * An editable piece of text that looks like the text it replaces.
  *
@@ -145,23 +190,23 @@ export interface PreviewHandlers {
  *
  * `plaintext-only` keeps a paste from bringing markup with it.
  */
-function editableText(
-	value: string,
-	placeholder: string,
-	className: string,
-	onInput: ( value: string ) => void,
-	onCommit?: () => void
-): HTMLElement {
+function editableText( options: Editable ): HTMLElement {
+	const { value, onInput, onCommit } = options;
+
 	const node = el( 'span', {
-		class: `${ className } atfb-editable`,
+		class: `${ options.class } atfb-editable`,
 		text: value,
 		attrs: {
 			contenteditable: 'plaintext-only',
 			role: 'textbox',
 			spellcheck: 'false',
-			'data-placeholder': placeholder,
+			'data-placeholder': options.placeholder,
 		},
 	} );
+
+	if ( options.bind ) {
+		node.dataset.atfbBind = options.bind;
+	}
 
 	// Dragging the card must not start from inside the text somebody is editing,
 	// and a click has to place the caret rather than being swallowed as a
@@ -219,21 +264,24 @@ function optionInputFor( type: string ): HTMLElement {
 export function renderFieldPreview( field: Field, type: FieldType | undefined, handlers: PreviewHandlers ): HTMLElement {
 	const shape = shapeFor( field.type );
 
-	const label = editableText(
-		field.label,
-		'Write the question…',
-		'atf-label',
-		( value ) => handlers.edit( ( live ) => { live.label = value; } ),
+	const label = editableText( {
+		value: field.label,
+		placeholder: 'Write the question…',
+		class: 'atf-label',
+		bind: 'label',
+		onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 		// Committed on blur rather than per keystroke: the label appears in other
 		// cards' condition chips and in the merge-tag picker, and repainting the
 		// canvas on every character would take the caret with it.
-		() => handlers.restructure( () => {} )
-	);
+		onCommit: () => handlers.restructure( () => {} ),
+	} );
 
 	const parts: Array< HTMLElement | null > = [
-		'static' === shape ? null : label,
-		field.hint ? el( 'p', { class: 'atf-hint', text: field.hint } ) : null,
+		// A toggle draws its own label beside the switch, exactly as the front end
+		// does — a second one above it was the same words twice.
+		'static' === shape || 'toggle' === shape ? null : label,
 		control( field, type, shape, handlers ),
+		hint( field, type, handlers ),
 	];
 
 	return el( 'div', {
@@ -248,6 +296,37 @@ export function renderFieldPreview( field: Field, type: FieldType | undefined, h
 			} ),
 		],
 	} );
+}
+
+/**
+ * The hint line, editable wherever the type offers one.
+ *
+ * Offered whenever the *type* supports a hint rather than only when the field
+ * already has one, which is the difference between a feature you can find and a
+ * feature you have to already know about: an empty hint rendered nothing, so the
+ * only way to discover hints was to notice the row in the inspector.
+ *
+ * Below the control, because that is where the front end puts it — above would
+ * be a preview that quietly disagrees with the page.
+ */
+function hint( field: Field, type: FieldType | undefined, handlers: PreviewHandlers ): HTMLElement | null {
+	// No registered type means a third-party field the config has not described.
+	// Offering it a hint it may not render is worse than leaving it alone.
+	if ( ! type?.supports.includes( 'hint' ) ) {
+		return null;
+	}
+
+	const node = editableText( {
+		value: field.hint ?? '',
+		placeholder: 'Add a hint…',
+		class: 'atf-hint',
+		bind: 'hint',
+		onInput: ( value ) => handlers.edit( ( live ) => { live.hint = value; } ),
+	} );
+
+	node.setAttribute( 'aria-label', 'Hint' );
+
+	return el( 'p', { class: 'atfb-preview__hint', children: [ node ] } );
 }
 
 /** The control itself, per shape. */
@@ -275,7 +354,10 @@ function control(
 
 		case 'toggle':
 			return el( 'div', {
-				class: 'atf-toggle',
+				// The modifier matters: a switch and a consent tick box are the same
+				// shape here but not the same control on the page, and the front end
+				// tells them apart by exactly this class.
+				class: 'switch' === field.type ? 'atf-toggle atf-toggle--switch' : 'atf-toggle',
 				children: [
 					( () => {
 						const box = el( 'input', { class: 'atf-toggle__input', type: 'checkbox' } );
@@ -284,13 +366,14 @@ function control(
 
 						return box;
 					} )(),
-					editableText(
-						field.label || '',
-						'What are they agreeing to?…',
-						'atf-toggle__label',
-						( value ) => handlers.edit( ( live ) => { live.label = value; } ),
-						() => handlers.restructure( () => {} )
-					),
+					editableText( {
+						value: field.label || '',
+						placeholder: 'consent' === field.type ? 'What are they agreeing to?…' : 'What does this turn on?…',
+						class: 'atf-toggle__label',
+						bind: 'label',
+						onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
+						onCommit: () => handlers.restructure( () => {} ),
+					} ),
 				],
 			} );
 
@@ -316,9 +399,19 @@ function control(
 			// The elaborate controls — a Likert matrix, a signature pad — say what
 			// they are rather than pretending. A preview that is subtly wrong is
 			// worse than one that is honestly a summary.
-			return el( 'p', {
-				class: 'atfb-preview__summary',
-				text: `${ type?.label ?? field.type } — set this up in the panel on the right.`,
+			return el( 'div', {
+				class: 'atfb-preview__stack',
+				children: [
+					el( 'p', {
+						class: 'atfb-preview__summary',
+						text: `${ type?.label ?? field.type } — set this up in the panel on the right.`,
+					} ),
+					// A repeater's one visible piece of chrome is the button that adds
+					// another row, and its wording is already a setting. Drawing the
+					// real button is both the honest preview and the only place the
+					// wording was reachable.
+					'repeater' === field.type ? repeatButton( field, handlers ) : null,
+				],
 			} );
 	}
 }
@@ -330,16 +423,65 @@ function placeholderBox(
 	handlers: PreviewHandlers,
 	tall = false
 ): HTMLElement {
-	const box = editableText(
-		field.placeholder ?? '',
-		'select' === field.type || 'country' === field.type ? 'Choose…' : 'Placeholder…',
-		`${ className } atfb-preview__box${ tall ? ' atfb-preview__box--tall' : '' }`,
-		( value ) => handlers.edit( ( live ) => { live.placeholder = value; } )
-	);
+	const box = editableText( {
+		value: field.placeholder ?? '',
+		placeholder: 'select' === field.type || 'country' === field.type ? 'Choose…' : 'Placeholder…',
+		class: `${ className } atfb-preview__box${ tall ? ' atfb-preview__box--tall' : '' }`,
+		bind: 'placeholder',
+		onInput: ( value ) => handlers.edit( ( live ) => { live.placeholder = value; } ),
+	} );
 
 	box.setAttribute( 'aria-label', 'Placeholder' );
 
 	return box;
+}
+
+/**
+ * A button whose own wording is the editable part.
+ *
+ * Used for the page break's Next and Back and the repeater's Add another. All
+ * three are already settings on the schema and all three had no control anywhere
+ * — the form shipped a button saying "Next" and the only way to change it was to
+ * edit the JSON. Drawing the real button and letting the words be typed makes the
+ * setting both visible and reachable in one move.
+ *
+ * The placeholder carries the default the renderer falls back to, so an empty
+ * value reads as "this will say Next" rather than as a blank button.
+ */
+function labelledButton(
+	text: string,
+	fallback: string,
+	className: string,
+	bind: string,
+	handlers: PreviewHandlers,
+	write: ( live: Field, value: string ) => void
+): HTMLElement {
+	return el( 'span', {
+		class: `atf-button ${ className } atfb-preview__button`,
+		children: [
+			editableText( {
+				value: text,
+				placeholder: fallback,
+				class: 'atfb-preview__button-text',
+				bind,
+				onInput: ( value ) => handlers.edit( ( live ) => write( live, value ) ),
+			} ),
+		],
+	} );
+}
+
+/** The repeater's "Add another" button, with its wording editable. */
+function repeatButton( field: Field, handlers: PreviewHandlers ): HTMLElement {
+	return labelledButton(
+		String( field.addLabel ?? '' ),
+		'Add another',
+		'atf-button--secondary',
+		'addLabel',
+		handlers,
+		( live, value ) => {
+			live.addLabel = value;
+		}
+	);
 }
 
 /**
@@ -359,11 +501,12 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 				class: 'atf-choice atfb-preview__option',
 				children: [
 					optionInputFor( field.type ),
-					editableText(
-						choice.label,
-						'Option…',
-						'atf-choice__label',
-						( value ) => {
+					editableText( {
+						value: choice.label,
+						placeholder: 'Option…',
+						class: 'atf-choice__label',
+						bind: `choice:${ index }:label`,
+						onInput: ( value ) => {
 							handlers.edit( ( live ) => {
 								// By index into the *live* field, not the choice object
 								// this row was rendered from — same reason as the field
@@ -392,8 +535,8 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 									target.value = value;
 								}
 							} );
-						}
-					),
+						},
+					} ),
 					el( 'button', {
 						class: 'atfb-preview__remove',
 						type: 'button',
@@ -446,13 +589,14 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 /** The layout blocks, which are their own content. */
 function staticBlock( field: Field, type: FieldType | undefined, handlers: PreviewHandlers ): HTMLElement | null {
 	if ( 'heading' === field.type ) {
-		return editableText(
-			field.label,
-			'Section heading…',
-			'atf-heading',
-			( value ) => handlers.edit( ( live ) => { live.label = value; } ),
-			() => handlers.restructure( () => {} )
-		);
+		return editableText( {
+			value: field.label,
+			placeholder: 'Section heading…',
+			class: 'atf-heading',
+			bind: 'label',
+			onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
+			onCommit: () => handlers.restructure( () => {} ),
+		} );
 	}
 
 	if ( 'divider' === field.type ) {
@@ -460,7 +604,58 @@ function staticBlock( field: Field, type: FieldType | undefined, handlers: Previ
 	}
 
 	if ( 'page_break' === field.type ) {
-		return el( 'p', { class: 'atfb-preview__summary', text: 'Everything after this is a new page.' } );
+		// The break's visible consequences are the name of the step in the
+		// progress indicator and the pair of buttons that closes the page. All
+		// three words are settings, and two of them could not be reached from
+		// anywhere: a form in any language other than English shipped a button
+		// saying "Next".
+		return el( 'div', {
+			class: 'atfb-preview__stack',
+			children: [
+				el( 'p', {
+					class: 'atfb-progress-name',
+					children: [
+						editableText( {
+							value: field.label,
+							placeholder: 'Name this step…',
+							class: 'atf-progress__label',
+							bind: 'label',
+							onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
+							// The name appears in the step indicator on every page of
+							// the form, so the preview has to be repainted once the
+							// wording settles.
+							onCommit: () => handlers.restructure( () => {} ),
+						} ),
+					],
+				} ),
+				el( 'p', { class: 'atfb-preview__summary', text: 'Everything after this is a new page.' } ),
+				el( 'div', {
+					class: 'atf-nav atfb-preview__nav',
+					children: [
+						labelledButton(
+							String( field.prevLabel ?? '' ),
+							'Back',
+							'atf-button--secondary',
+							'prevLabel',
+							handlers,
+							( live, value ) => {
+								live.prevLabel = value;
+							}
+						),
+						labelledButton(
+							String( field.nextLabel ?? '' ),
+							'Next',
+							'',
+							'nextLabel',
+							handlers,
+							( live, value ) => {
+								live.nextLabel = value;
+							}
+						),
+					],
+				} ),
+			],
+		} );
 	}
 
 	return el( 'p', {

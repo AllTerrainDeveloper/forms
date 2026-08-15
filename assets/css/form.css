@@ -923,6 +923,49 @@
 	justify-content: space-between;
 }
 
+/* Every button in a form, reset against the site's theme.
+ *
+ * A form is dropped into somebody else's theme, and themes style bare `button`
+ * elements — Astra's inline CSS sets `padding: 15px 30px`, a box-shadow and a
+ * background on `.menu-toggle, button, .ast-button, …`. Ours declared `border`
+ * and `background` and left everything else, so the repeater's 28px × turned
+ * into a 60×30 slab with a drop shadow hanging over the row's corner.
+ *
+ * Declaring only the properties we happen to care about is what loses these
+ * fights. A form has to look the same on any theme, so every button starts from
+ * the same place and the rules below paint from there. `.atf-form button` weighs
+ * (0,1,1), which beats the bare `button` in a theme's selector list.
+ *
+ * Wrapped in `:where()`, which contributes nothing to specificity — so this
+ * weighs (0,1,0): enough to beat a theme's bare `button`, and low enough that
+ * every `.atf-button` rule below still wins on source order. Written plainly as
+ * `.atf-form button` it weighed (0,1,1) and beat our own components instead,
+ * which stripped the submit button and the repeater's "Add another" back to
+ * bare text — a reset that resets the wrong side of the fight.
+ *
+ * Anything a theme commonly sets belongs in this list; if a control starts
+ * looking wrong on one theme and right on another, this is the first place to
+ * look. */
+.atf-form :where( button ) {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	line-height: var( --atf-line-height );
+	letter-spacing: inherit;
+	text-transform: none;
+	text-decoration: none;
+	min-inline-size: 0;
+	block-size: auto;
+	inline-size: auto;
+	appearance: none;
+}
+
+
 .atf-button {
 	display: inline-flex;
 	align-items: center;
@@ -1252,5 +1295,76 @@
 	.atf-form .atf-toggle__input::before {
 		forced-color-adjust: none;
 		background-color: Highlight;
+	}
+}
+
+/* --- The Toggle, drawn as a switch -----------------------------------------
+ *
+ * `switch` and `consent` are the same control underneath — one checkbox — and
+ * they should not look the same. A switch says "this setting is on"; consent
+ * says "I have agreed", which is a statement a tick box makes and a switch does
+ * not. A field type called Toggle that rendered a checkbox was the name lying
+ * about the control.
+ *
+ * Sized in `em` from the field's own font, so it scales with a theme's type
+ * rather than needing tokens of its own — a theme that sets a bigger base size
+ * gets a bigger switch without touching anything. */
+.atf-form .atf-toggle--switch .atf-toggle__input {
+	inline-size: 2.2em;
+	block-size: 1.25em;
+	border-radius: 1em;
+	/* The track, not a box: the switch's own shape overrides the tick box's
+	   radius token, which is the one place a theme's `radius-check` must not
+	   apply. */
+	padding: 0;
+	flex: 0 0 auto;
+	position: relative;
+	transition: background-color var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+/* The knob. `::before` is the tick box's mark, reused — so the checked state
+   moves the knob rather than drawing a tick. */
+.atf-form .atf-toggle--switch .atf-toggle__input::before {
+	content: "";
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-start: 0.12em;
+	inline-size: 0.95em;
+	block-size: 0.95em;
+	border-radius: 50%;
+	background-color: var( --atf-border );
+	transform: translateY( -50% ) scale( 1 );
+	clip-path: none;
+	transition: inset-inline-start var( --atf-transition-duration ) var( --atf-transition-easing ),
+		background-color var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+.atf-form .atf-toggle--switch .atf-toggle__input:checked::before {
+	inset-inline-start: calc( 100% - 1.07em );
+	background-color: var( --atf-accent-text );
+	transform: translateY( -50% ) scale( 1 );
+}
+
+/* The track fills with the accent when on, which is what the tick box does too
+   — the state reads the same across every control in the form. */
+.atf-form .atf-toggle--switch .atf-toggle__input:checked {
+	background-color: var( --atf-accent );
+	border-color: var( --atf-accent );
+}
+
+/* A switch is a control, not a word: it sits on the line with its label rather
+   than being nudged onto the first line of a paragraph like a tick box. */
+.atf-form .atf-toggle--switch {
+	align-items: center;
+}
+
+.atf-form .atf-toggle--switch .atf-toggle__label {
+	margin-block-start: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atf-form .atf-toggle--switch .atf-toggle__input,
+	.atf-form .atf-toggle--switch .atf-toggle__input::before {
+		transition: none;
 	}
 }

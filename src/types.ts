@@ -217,6 +217,9 @@ export interface FieldType {
 	choices: boolean;
 	supports: string[];
 	settings: Record< string, unknown >;
+
+	/** For a composite type, the parts it can be told to show. */
+	parts?: Array< { key: string; label: string } >;
 }
 
 /** A design token and the control that edits it. */

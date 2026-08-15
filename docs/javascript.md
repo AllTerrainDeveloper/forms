@@ -182,6 +182,12 @@ Namespace `allterrain-forms/v1`. Everything but two routes requires
 | `/themes` | GET, POST | `atf_edit_forms` |
 | `/themes/<id>` | DELETE | `atf_edit_forms` |
 
+`/config` returns every registered field type with its `supports`, its
+`settings` defaults, and — for a composite — the `parts` it can be told to
+show, resolved through `atf_name_parts` / `atf_address_parts`. The builder
+draws its controls from that, so a field type registered by a plugin gets the
+same inspector the built-ins do without shipping any JavaScript.
+
 `/submit` is public **by definition** — it is how a stranger sends a form. It is
 the one route with a `permission_callback` returning true, and everything
 downstream of it treats its input as hostile. The checks that would normally live

@@ -114,7 +114,18 @@ function atf_render_form( $form_id, $args = array() ) {
 		esc_attr( $instance )
 	);
 
-	$css = atf_tokens_to_css( $scope . ' .atf-form', $tokens );
+	// Scoped to the wrapper, not to the form.
+	//
+	// The title is rendered *outside* the `<form>` — it is the heading for the
+	// thing, not a part of it — so tokens declared on `.atf-form` never reached
+	// it. Every one of its `var( --atf-* )` values was therefore invalid, which
+	// takes the whole declaration with it: the title has been wearing the site
+	// theme's `h2` rather than the form's, and its bottom margin resolved to
+	// nothing, leaving it sitting on top of the step indicator.
+	//
+	// The wrapper carries the instance id already, so scoping there costs nothing
+	// and covers everything the renderer emits for this form.
+	$css = atf_tokens_to_css( $scope, $tokens );
 
 	if ( '' !== $css ) {
 		// Inline rather than enqueued, because the tokens depend on which form
@@ -196,7 +207,14 @@ function atf_render_form( $form_id, $args = array() ) {
 	}
 
 	foreach ( $pages as $index => $page ) {
-		$out .= atf_render_page( $page, $index, count( $pages ), $schema, $values, $args['errors'], $instance );
+		// A break separates two pages, and both of its buttons belong to that one
+		// transition: its `nextLabel` is the forward button on the page it closes,
+		// and its `prevLabel` is the button that comes back from the page after.
+		// So a page's Back button is worded by the *previous* page's break — the
+		// same break whose Next brought the visitor here.
+		$arrived_by = $index > 0 && isset( $pages[ $index - 1 ]['break'] ) ? $pages[ $index - 1 ]['break'] : null;
+
+		$out .= atf_render_page( $page, $index, count( $pages ), $schema, $values, $args['errors'], $instance, $arrived_by );
 	}
 
 	// After the last page, so a multi-page form asks its question at the end
@@ -542,16 +560,19 @@ function atf_render_progress( $pages, $settings ) {
  *
  * @since 0.1.0
  *
- * @param array  $page     The page.
- * @param int    $index    Its zero-based index.
- * @param int    $total    How many pages there are.
- * @param array  $schema   The form schema.
- * @param array  $values   Current values.
- * @param array  $errors   Field id => message.
- * @param string $instance The render's DOM id prefix.
+ * @param array  $page       The page.
+ * @param int    $index      Its zero-based index.
+ * @param int    $total      How many pages there are.
+ * @param array  $schema     The form schema.
+ * @param array  $values     Current values.
+ * @param array  $errors     Field id => message.
+ * @param string $instance   The render's DOM id prefix.
+ * @param array  $arrived_by The break that closes the previous page, whose
+ *                           `prevLabel` words this page's back button. Null on
+ *                           the first page, which has nothing to go back to.
  * @return string
  */
-function atf_render_page( $page, $index, $total, $schema, $values, $errors, $instance ) {
+function atf_render_page( $page, $index, $total, $schema, $values, $errors, $instance, $arrived_by = null ) {
 	$multi = $total > 1;
 
 	$out = sprintf(
@@ -576,8 +597,8 @@ function atf_render_page( $page, $index, $total, $schema, $values, $errors, $ins
 		$out .= '<div class="atf-nav">';
 
 		if ( $index > 0 ) {
-			$previous = $page['break'] && ! empty( $page['break']['prevLabel'] )
-				? $page['break']['prevLabel']
+			$previous = $arrived_by && ! empty( $arrived_by['prevLabel'] )
+				? $arrived_by['prevLabel']
 				: __( 'Back', 'allterrain-forms' );
 
 			$out .= sprintf(
