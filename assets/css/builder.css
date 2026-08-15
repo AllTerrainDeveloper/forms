@@ -2105,3 +2105,220 @@ os-checkbox-label.atfb-check {
 .atfb-row > .atfb-field {
 	margin: 0;
 }
+
+/* --- The field, drawn as it will look --------------------------------------
+ *
+ * The canvas renders each field with the real front-end classes inside
+ * `.atfb-preview`, and `builder.css` is registered with `form.css` as a
+ * dependency — so the theme's radius, borders, spacing and colours apply here
+ * because it is the same stylesheet, not a copy of it.
+ *
+ * What these rules add is only the *editing* layer: where the caret goes, what
+ * an empty value looks like, and how a hover says "you can change this". None of
+ * them may restate anything the theme decides, or the canvas stops being a
+ * preview and starts being an impression of one. */
+
+.atfb-preview {
+	/* The theme paints the form's own card; on the canvas the builder's card is
+	   already that surface, so the preview contributes only its contents. */
+	background: none;
+	border: 0;
+	box-shadow: none;
+	padding: 0;
+	margin-block-start: 4px;
+}
+
+/* Anything editable in place. Invisible until pointed at, because a canvas of
+   twelve outlined boxes reads as a form full of errors. */
+.atfb-editable {
+	display: inline-block;
+	min-inline-size: 2ch;
+	border-radius: 3px;
+	outline: 1px dashed transparent;
+	outline-offset: 2px;
+	cursor: text;
+	transition: outline-color 120ms ease, background-color 120ms ease;
+}
+
+.atfb-editable:hover {
+	outline-color: var( --atfb-border-strong );
+}
+
+.atfb-editable:focus {
+	outline: 1px solid var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+/* An empty value has to occupy space and say what belongs there, or the row
+   collapses to nothing and there is no target to click. */
+.atfb-editable:empty::before {
+	content: attr( data-placeholder );
+	opacity: 0.55;
+	font-style: italic;
+}
+
+/* The faux control. It is a `contenteditable` wearing `.atf-input`, so the
+   theme's border, radius and padding are the real ones — only the text inside
+   is ours. */
+.atfb-preview__box {
+	display: block;
+	inline-size: 100%;
+	min-block-size: 1lh;
+	cursor: text;
+}
+
+.atfb-preview__box--tall {
+	min-block-size: 3lh;
+}
+
+/* The dropdown's chevron, drawn on the wrapper so the box itself stays a plain
+   editable area. */
+.atfb-preview__select {
+	position: relative;
+}
+
+.atfb-preview__select::after {
+	content: "";
+	position: absolute;
+	inset-inline-end: 12px;
+	inset-block-start: 50%;
+	inline-size: 7px;
+	block-size: 7px;
+	border-inline-end: 2px solid currentColor;
+	border-block-end: 2px solid currentColor;
+	transform: translateY( -70% ) rotate( 45deg );
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.atfb-preview__ghost {
+	display: inline-block;
+	min-block-size: 1lh;
+	flex: 1 1 0;
+}
+
+.atfb-preview__option {
+	align-items: center;
+	gap: 8px;
+}
+
+/* Reveals on hover rather than sitting there: a column of × buttons beside every
+   option is a canvas that looks like it is asking to be dismantled. */
+.atfb-preview__remove {
+	margin-inline-start: auto;
+	padding: 0 6px;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var( --atfb-muted );
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 120ms ease, color 120ms ease;
+}
+
+.atfb-preview__option:hover .atfb-preview__remove,
+.atfb-preview__remove:focus-visible {
+	opacity: 1;
+}
+
+.atfb-preview__remove:hover,
+.atfb-preview__remove:focus-visible {
+	color: var( --atfb-danger );
+	background: var( --atfb-danger-soft );
+}
+
+.atfb-preview__add {
+	margin-block-start: 2px;
+	padding: 2px 6px;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var( --atfb-accent );
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.atfb-preview__add:hover,
+.atfb-preview__add:focus-visible {
+	background: var( --atfb-accent-soft );
+}
+
+/* What an elaborate control says instead of pretending to be itself. */
+.atfb-preview__summary {
+	margin: 0;
+	padding: 8px 10px;
+	border: 1px dashed var( --atfb-border );
+	border-radius: 6px;
+	color: var( --atfb-muted );
+	font-size: 11px;
+}
+
+/* Required, as a switch rather than a badge. */
+.atfb-req {
+	padding: 1px 7px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 999px;
+	background: none;
+	color: var( --atfb-muted );
+	font: inherit;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+	transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.atfb-req:hover {
+	border-color: var( --atfb-accent );
+	color: var( --atfb-accent );
+}
+
+.atfb-req.is-on {
+	background: var( --atfb-accent-soft );
+	border-color: transparent;
+	color: var( --atfb-accent );
+	font-weight: 700;
+}
+
+.atfb-req:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}
+
+/* The card's own head is now a caption — the type and its switches — because
+   the field's name moved into the preview where it belongs. */
+.atfb-card__head {
+	gap: 8px;
+	opacity: 0.85;
+}
+
+.atfb-card__head .atfb-card__type {
+	font-size: 11px;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfb-editable,
+	.atfb-preview__remove,
+	.atfb-req {
+		transition: none;
+	}
+}
+
+/* The card is now as tall as the field it draws, so its furniture aligns to the
+   top rather than floating at the middle of a five-option list. */
+.atfb-card {
+	align-items: flex-start;
+}
+
+.atfb-card__grip,
+.atfb-card__actions {
+	margin-block-start: 2px;
+}
+
+.atfb-card__body {
+	min-inline-size: 0;
+	flex: 1 1 auto;
+}
