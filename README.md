@@ -1,9 +1,11 @@
 <div align="center">
 
+<img src=".wordpress-org/banner-1544x500.png" alt="AllTerrain Forms — every premium feature, free" width="840">
+
 # AllTerrain Forms
 
 **Forms for WordPress with every premium feature free — built as an
-[OpenStation](https://github.com/WordPress/openstation) desktop app with a
+[OpenStation](https://wordpress.org/plugins/desktop-mode/) desktop app with a
 drag-and-drop builder, ten themes, and no paywall anywhere in it.**
 
 [![WordPress 6.0+](https://img.shields.io/badge/WordPress-6.0%2B-21759b)](https://wordpress.org)

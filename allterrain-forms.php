@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       AllTerrain Forms
- * Plugin URI:        https://github.com/AllTerrainDeveloper/allterrain-forms
+ * Plugin URI:        https://github.com/AllTerrainDeveloper/forms
  * Description:       Forms for WordPress with every premium feature free — conditional logic, calculations, multi-page, file uploads, signatures, repeaters, entry management, ten themes — built as an OpenStation desktop app with a drag-and-drop builder.
  * Version:           0.1.0
  * Requires at least: 6.0

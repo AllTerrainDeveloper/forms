@@ -1,103 +1,221 @@
-=== AllTerrain Forms ===
+=== AllTerrain Forms – Drag & Drop Form Builder with Conditional Logic ===
 Contributors: allterraindeveloper
-Tags: forms, contact form, form builder, survey, quiz
+Tags: contact form, form builder, forms, conditional logic, survey
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 7.0
 Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Forms with every premium feature free. Conditional logic, calculations, multi-page, file uploads, signatures, entry management and ten themes. No paywall.
+Drag-and-drop form builder with conditional logic, calculations, file uploads, entry management and 10 themes. Every premium feature, free.
 
 == Description ==
 
-A forms plugin with no paid tier, because there is no technical reason for one.
+**Every feature other form plugins sell you, in the free one.**
 
-Conditional logic, calculations, multi-page forms, file uploads, signatures, repeaters, save-and-resume, entry management, CSV export, conditional notifications, webhooks, surveys, quizzes, user registration and front-end post submission are the paid add-ons of every other forms plugin. All of them are here, in the free plugin.
+Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.
+Save and resume. Entry management with CSV export. Webhooks. Quizzes and
+surveys. User registration. Ten themes you can rebuild without writing CSS.
 
-= Build by dragging =
+There is no Pro version, no upsell notice in your dashboard, no feature that
+turns out to need a licence key. None of these things are hard to build. They
+were only ever sold separately because somebody could.
 
-Drag a field from the palette onto the canvas. Reorder by dragging. Every palette entry is also a real button, and Alt with an arrow key moves a field — dragging is never the only way to do anything.
+= Build a form by dragging =
 
-With the [OpenStation](https://github.com/WordPress/openstation) desktop shell installed the builder becomes a native window, which is what lets you drag a field between two open forms, drop an image straight from WP Explorer onto an image-choice option, or drag a submission out of the Entries window onto another plugin entirely. Without OpenStation it is an ordinary admin page and everything else still works.
+Drag a field from the palette onto the canvas. Drop it where you want it. Type
+the label. That is the whole learning curve — 37 field types, from a text box to
+a signature pad to a Likert matrix, and every one behaves the same way.
 
-= Thirty-seven field types =
+Then paste one shortcode into a page, or drop in the **Form** block and pick it
+from a list.
 
-Single line, paragraph, email, website, phone, number, password, hidden, dropdown, multi-select, radios, checkboxes, image choice, toggle, date, time, date & time, date range, file upload, signature, star rating, opinion scale, Likert matrix, slider, colour, name, address, country, repeater, section heading, HTML block, divider, spacer, page break, consent, calculated total and quiz question.
+`[allterrain_form id="12"]`
 
-Adding your own is one `atf_register_field_type()` call.
+= Conditional logic you can actually see =
+
+Most builders tell you a field *has* a rule and leave you to go and find out
+what it says. This one writes it on the card — **Shown when · Can you make it? ·
+is · Yes** — and draws a line from the question that decides to the fields it
+decides, labelled with the answer that triggers them.
+
+Hover a field and everything it does not touch fades. A rule pointing at a
+question you deleted turns red, because that form is stuck and you would never
+otherwise know.
+
+= Merge tags nobody has to learn =
+
+Every email and confirmation box has an **Insert a value** button. It lists your
+own questions by the label you wrote — not `{field:f2}` — grouped with the
+person, the submission, the form and your site, each showing what it will
+actually say on *your* site. Underneath, a live preview of the finished text.
+
+= What you normally pay for =
+
+Compared by feature rather than by brand. Every one of these is something the
+well-known form plugins put behind a paid tier or a paid add-on, and every one of
+them is included here:
+
+* Conditional logic — show and hide fields, pages, emails and confirmations
+* Calculations and running totals
+* Multi-page forms with per-step validation
+* File uploads, with per-field type and size limits
+* A signature field
+* Save and continue later
+* Entry management, search, filters and CSV or JSON export
+* Conditional notifications, with CC, BCC, reply-to and attachments
+* Webhooks, signed with HMAC-SHA256
+* Quizzes with scoring, and survey reporting
+* User registration and profile updates
+* Post submission from the front end
+* Anti-spam without a CAPTCHA
+* Themes and full design control
+
+Fourteen things, none of them technically hard, all of them normally the reason
+you upgrade.
 
 = Ten themes, and an eleventh you make yourself =
 
 Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial and Holo.
 
-A theme is a map of 69 design tokens — colour, corner radius, shadows, borders, spacing, type, label position, button shape, focus ring, motion and effects. There is no theme CSS to write. Open Theme Studio, duplicate a theme, move the sliders, save. It becomes selectable everywhere, and exports as JSON so you can use it on another site.
+A theme here is a flat list of 69 design tokens — no theme PHP, no template, no
+stylesheet. **Theme Studio** gives you a control for every one of them and a live
+preview beside it. Six plain-language dials cover the common case: Accent,
+Roundness, Density, Depth, Fields, Labels. Nobody thinks *"radius-field: 14px"* —
+they think *rounder*.
 
-= Spam blocking without a captcha =
+Save it, and it is a theme you can pick on any form, export as JSON, and import
+on another site. No code, no build step.
 
-A honeypot, a signed time trap, a per-address rate limit, a word blocklist, and Akismet when you already have it. Nothing asks your visitors to identify traffic lights — that charges them for your spam problem and locks out people who cannot pass it.
+= Anti-spam that does not charge your visitors =
 
-Anything judged spam is stored in a spam folder, never silently deleted. False positives are recoverable.
+A honeypot, a signed time trap, a per-address rate limit, a word blocklist, and
+Akismet if you already have it. Nothing asks a visitor to identify traffic
+lights, because a CAPTCHA charges the visitor for the site's spam problem and
+fails accessibility for a good number of people.
 
-= It works without JavaScript =
+Anything judged spam is **kept**, in a spam folder, never silently thrown away.
 
-The form is a real form. With scripting switched off it submits, validates on the server, and comes back with errors against the right fields and the answers still in place. Everything else is enhancement on top of something that already worked.
+= Accessible because it was built that way =
 
-= Accessible =
+Real labels bound to real controls. Grouped inputs in a fieldset with a legend.
+Hints and errors wired with `aria-describedby`. An error summary that takes
+focus. Required announced properly rather than with an asterisk a screen reader
+reads as "asterisk". Every theme meets WCAG AA contrast, and the test suite fails
+if one stops.
 
-Real labels bound to their controls. Grouped controls in fieldsets with legends. Hints and errors wired with aria-describedby. An error summary that takes focus. Required announced properly rather than with an asterisk a screen reader reads as "asterisk". All ten themes meet WCAG AA contrast, and the test suite fails if one stops.
+And the form works with JavaScript switched off — a real POST, real server-side
+validation, errors against the right fields, answers still in the boxes.
 
-= Privacy =
+= Everything is a post =
 
-A retention policy that deletes old submissions automatically, IP anonymisation, and integration with WordPress's own export and erase tools, so a data request reaches form submissions without anyone having to remember they live somewhere separate.
+A form is a post. An entry is a post. A note on an entry is a comment. Nothing
+lives in a custom table, so the REST API, user capabilities, search, the trash,
+and WordPress's own privacy exporter and eraser already work on your form data
+without a line of integration code.
 
-Deleting the plugin does **not** delete your submissions. They are somebody's enquiries and applications, and uninstalling a plugin is not consent to destroy them. Define `ATF_REMOVE_ALL_DATA` if that is genuinely what you want.
+= Optional: a desktop for your admin =
+
+AllTerrain Forms is built to shine inside [OpenStation](https://wordpress.org/plugins/desktop-mode/),
+which turns wp-admin into a windowed desktop. There the builder is a real window
+you can put beside your entries, drag a field from one form into another, and
+drop an image straight from the media browser onto a choice.
+
+**OpenStation is entirely optional.** Without it you get the same plugin as an
+ordinary admin page under **Forms**, with every feature intact.
+
+= Built in the open =
+
+Source, issue tracker and full developer documentation:
+[github.com/AllTerrainDeveloper/forms](https://github.com/AllTerrainDeveloper/forms)
+
+631 automated tests, and the conditional-logic and calculation engines are
+tested against one shared table of cases in both PHP and JavaScript — because if
+the browser and the server ever disagreed about which fields were required, you
+would be shown a form you could not submit.
 
 == Installation ==
 
-1. Upload the plugin to `/wp-content/plugins/`, or install it through Plugins → Add New.
+1. Install through **Plugins → Add New**, or upload the ZIP under
+   **Plugins → Add New → Upload Plugin**.
 2. Activate it.
-3. Go to **Forms** and start from a template.
-4. Place the form with the shortcode the builder shows you, or with the **Form** block.
+3. Go to **Forms** and build one.
+4. Paste the shortcode it shows you into any page or post, or add the **Form**
+   block.
+
+No account, no licence key, no connection to any external service.
 
 == Frequently Asked Questions ==
 
 = Is anything paid? =
 
-No. There is no pro version, no add-on store and no upsell.
+No. There is no Pro version and no paid add-on. Everything described here is in
+this plugin.
 
-= Do I need OpenStation? =
+= Do I need the OpenStation plugin? =
 
-No. It is optional. With it the builder is a desktop window with cross-window drag and drop; without it, an ordinary admin page.
+No. It makes the builder nicer — a real window you can drag things between — but
+every feature works without it, as an ordinary admin page.
 
-= Where are submissions stored? =
+= Will my forms keep working if I deactivate the plugin? =
 
-As posts, in your own database. Nothing is sent anywhere. Uploaded files go to a directory that is not reachable by URL.
+Your data stays: forms and entries are ordinary posts, so deactivating leaves
+them in your database untouched. Uninstalling removes them, which is what
+uninstalling should do — export your entries to CSV first if you want them.
 
-= Can I add my own field type? =
+= Can I move a form to another site? =
 
-Yes — one `atf_register_field_type()` call. Every one of the thirty-seven built-in types uses exactly that API, so there is no privileged path.
+Yes. Export the form as JSON and import it on the other site. Themes export and
+import the same way.
 
-= Does it work with page caching? =
+= Does it work with page builders and the block editor? =
 
-Yes. The one per-user value in the page is the REST nonce, which is deliberately empty for logged-out visitors so a cache cannot serve one person's nonce to everybody.
+Yes. Use the **Form** block in the block editor, or the shortcode anywhere a
+shortcode works, including page builders and widgets.
+
+= Does it send my data anywhere? =
+
+No. Nothing is sent to us or to any third party. Akismet is used only if you
+already have it installed and configured.
+
+= Is it accessible? =
+
+That was a design requirement rather than an afterthought — see the
+accessibility section above. If you find something that is not, please open an
+issue; it will be treated as a bug.
+
+= Can developers extend it? =
+
+Yes, and it is documented. 55 filters and 15 actions, a field-type registry that
+built-in fields use exactly as a third-party plugin would, a theme token API, and
+a REST namespace. Full reference in the repository.
 
 == Screenshots ==
 
-1. The builder — palette, canvas and inspector.
-2. Ten themes, previewed live.
-3. Theme Studio: a control per design token.
-4. The entries window, with filters and export.
-5. A form on the front end.
+1. The builder. Drag a field from the palette onto the canvas; the inspector on the right changes what you selected.
+2. Conditional logic drawn on the canvas — every card states its condition, and a line joins the question that decides to the fields it decides.
+3. The Insert a value picker, listing your own questions by name with an example of what each one will say.
+4. Theme Studio. Ten built-in themes, plain-language dials, and a live preview of a real form.
+5. Entries. Search, filter and star submissions; read one beside the list; export to CSV or JSON.
+6. A form on the front end, in the Clean theme.
 
 == Changelog ==
 
 = 0.1.0 =
 * First release.
-* Thirty-seven field types, drag-and-drop builder, ten themes and Theme Studio.
-* Conditional logic, calculations, multi-page forms, repeaters, file uploads, signatures.
-* Entry management, CSV export, per-form analytics, quiz scoring.
-* Conditional notifications, confirmations, webhooks, post creation and user registration.
-* Anti-spam without a captcha. GDPR retention, export and erasure.
-* OpenStation integration: three native windows, a wallpaper icon, a widget, a title-bar preview button and cross-window drag and drop.
+* Drag-and-drop builder with 37 field types.
+* Conditional logic, drawn on the canvas, with calculations and multi-page forms.
+* Merge-tag picker that lists your own questions by name.
+* Ten themes and a no-code Theme Studio over 69 design tokens.
+* Entry management, CSV and JSON export, per-form analytics.
+* Conditional notifications, confirmations, webhooks and post-submit actions.
+* Anti-spam without a CAPTCHA; spam is kept, not discarded.
+* Save and continue later, quizzes, surveys, user registration.
+* Works without JavaScript and meets WCAG AA in every theme.
+* Optional OpenStation desktop integration.
+
+== Upgrade Notice ==
+
+= 0.1.0 =
+First release.
