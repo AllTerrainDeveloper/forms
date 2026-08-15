@@ -17,6 +17,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Themes, tokens and the stylesheet that reads them.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Themes extends WP_UnitTestCase {
 
 	/**

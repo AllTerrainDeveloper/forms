@@ -11,6 +11,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * The submission pipeline.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Submission extends WP_UnitTestCase {
 
 	/**
@@ -712,8 +717,14 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 						'id'      => 'why',
 						'type'    => 'select',
 						'choices' => array(
-							array( 'label' => 'Support', 'value' => 'support' ),
-							array( 'label' => 'Sales', 'value' => 'sales' ),
+							array(
+								'label' => 'Support',
+								'value' => 'support',
+							),
+							array(
+								'label' => 'Sales',
+								'value' => 'sales',
+							),
 						),
 					),
 				),
@@ -764,12 +775,58 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Captures what the plugin asks WordPress to send, without sending it.
+	 *
+	 * `pre_wp_mail` short-circuits before PHPMailer is involved at all, which is
+	 * what makes these assertions about *this plugin* rather than about the
+	 * machine running them.
+	 *
+	 * The mock mailer was the obvious tool and the wrong one. It records what
+	 * PHPMailer accepted, so it records nothing when PHPMailer refuses the
+	 * message for a reason that has nothing to do with us — and the default From
+	 * address is built from the site's own domain, which differs between a
+	 * WordPress develop checkout and a `wp-env` container. The test passed on one
+	 * and failed on the other with identical plugin code.
+	 *
+	 * Worse was the mirror image: `test_spam_is_not_emailed()` asserts that
+	 * *nothing* was sent, so in an environment where nothing can ever be sent it
+	 * passed while proving nothing. A test that cannot fail is not protecting the
+	 * behaviour it names.
+	 *
+	 * Returns an `ArrayObject` rather than an array, and that is load-bearing: an
+	 * array returned from here is a *copy*, so the closure would go on appending
+	 * to this function's own local while the caller inspected an empty one — and
+	 * a capture that always reports nothing makes the negative test pass for free
+	 * and the positive test fail for no reason. An object is a handle.
+	 *
+	 * @return ArrayObject Collected `wp_mail()` argument arrays, filled as they are sent.
+	 */
+	private function capture_mail() {
+		$sent = new ArrayObject();
+
+		add_filter(
+			'pre_wp_mail',
+			static function ( $short_circuit, $atts ) use ( $sent ) {
+				$sent[] = $atts;
+
+				// True, not null: the caller is told the mail was handled, so
+				// nothing further runs and no transport is touched.
+				return true;
+			},
+			10,
+			2
+		);
+
+		return $sent;
+	}
+
+	/**
 	 * A notification is sent, with the answers in it.
 	 *
 	 * @covers ::atf_send_notifications
 	 */
 	public function test_notification_is_sent() {
-		reset_phpmailer_instance();
+		$sent = $this->capture_mail();
 
 		atf_process_submission(
 			$this->form_id,
@@ -781,12 +838,14 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$mailer = tests_retrieve_phpmailer_instance();
-		$sent   = $mailer->get_sent();
+		$this->assertCount( 1, $sent, 'A form with no notifications configured must still email the administrator.' );
 
-		$this->assertNotFalse( $sent, 'A form with no notifications configured must still email the administrator.' );
-		$this->assertStringContainsString( 'Ada Lovelace', $sent->body );
-		$this->assertStringContainsString( get_option( 'admin_email' ), $sent->header . $sent->to[0][0] );
+		$mail = $sent[0];
+		$to   = is_array( $mail['to'] ) ? implode( ',', $mail['to'] ) : (string) $mail['to'];
+
+		$this->assertStringContainsString( get_option( 'admin_email' ), $to );
+		$this->assertStringContainsString( 'Ada Lovelace', $mail['message'] );
+		$this->assertNotEmpty( $mail['subject'], 'A notification with no subject is a notification nobody opens.' );
 	}
 
 	/**
@@ -795,17 +854,18 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * @covers ::atf_process_submission
 	 */
 	public function test_spam_is_not_emailed() {
-		reset_phpmailer_instance();
+		$sent = $this->capture_mail();
 
 		$request                = $this->request( array( 'f1' => 'Bot' ) );
 		$request['atf_website'] = 'https://spam.example';
 
 		atf_process_submission( $this->form_id, $request );
 
-		$this->assertFalse(
-			tests_retrieve_phpmailer_instance()->get_sent(),
-			'A submission filed as spam must not be emailed.'
-		);
+		// Captured through `pre_wp_mail` rather than read off the mock mailer,
+		// so this asserts that nothing was *attempted* — in an environment where
+		// nothing can be delivered, the mock is empty either way and the test
+		// would pass without the plugin doing anything right.
+		$this->assertSame( array(), $sent->getArrayCopy(), 'A submission filed as spam must not be emailed.' );
 	}
 
 	/**

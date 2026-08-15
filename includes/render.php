@@ -610,8 +610,9 @@ function atf_render_page( $page, $index, $total, $schema, $values, $errors, $ins
  *
  * @since 0.1.0
  *
- * @param array $settings The form settings.
- * @param bool  $wrap     Whether to wrap it in its own actions row.
+ * @param array  $settings The form settings.
+ * @param bool   $wrap     Whether to wrap it in its own actions row.
+ * @param string $extra    Markup placed beside the button, inside the row.
  * @return string
  */
 function atf_render_submit( $settings, $wrap = true, $extra = '' ) {

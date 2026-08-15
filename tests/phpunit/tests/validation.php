@@ -10,6 +10,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Server-side validation.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Validation extends WP_UnitTestCase {
 
 	/**

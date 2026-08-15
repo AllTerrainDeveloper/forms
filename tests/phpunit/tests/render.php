@@ -15,6 +15,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * The renderer, and what it promises.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Render extends WP_UnitTestCase {
 
 	/**

@@ -127,7 +127,10 @@ function atf_send_notification( $notification, $context ) {
 
 	$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
-	foreach ( array( 'cc' => 'Cc', 'bcc' => 'Bcc' ) as $key => $header ) {
+	foreach ( array(
+		'cc'  => 'Cc',
+		'bcc' => 'Bcc',
+	) as $key => $header ) {
 		$addresses = atf_resolve_recipients( $notification[ $key ], $context );
 
 		foreach ( $addresses as $address ) {

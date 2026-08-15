@@ -10,6 +10,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Entries, export, uploads and retention.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Entries extends WP_UnitTestCase {
 
 	/**

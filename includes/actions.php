@@ -418,16 +418,16 @@ function atf_action_webhook( $settings, $context ) {
 	}
 
 	$payload = array(
-		'form'      => array(
+		'form'   => array(
 			'id'    => $context['form_id'],
 			'title' => get_the_title( $context['form_id'] ),
 		),
-		'entry'     => array(
+		'entry'  => array(
 			'id'   => $context['entry_id'],
 			'date' => current_time( 'c' ),
 		),
-		'fields'    => $fields,
-		'site'      => home_url(),
+		'fields' => $fields,
+		'site'   => home_url(),
 	);
 
 	/**

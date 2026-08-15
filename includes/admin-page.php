@@ -122,6 +122,7 @@ function atf_register_hidden_page( $title, $capability, $slug, $callback ) {
 	add_action(
 		"load-{$hook}",
 		static function () use ( $title ) {
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Setting the screen title *is* the fix; see the docblock above.
 			$GLOBALS['title'] = $title;
 		}
 	);

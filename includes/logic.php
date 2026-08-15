@@ -268,7 +268,7 @@ function atf_visible_fields( $schema, $values ) {
 		$effective = array();
 
 		foreach ( $fields as $field ) {
-			$id                = $field['id'];
+			$id               = $field['id'];
 			$effective[ $id ] = ! empty( $visible[ $id ] ) && array_key_exists( $id, $values ) ? $values[ $id ] : null;
 		}
 

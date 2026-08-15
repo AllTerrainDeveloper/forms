@@ -240,9 +240,11 @@ function atf_resume_values( $token ) {
 function atf_clear_partial_on_submit( $entry_id, $form_id, $values ) {
 	// The token travels in the submission that finishes the form, which is the
 	// only thing tying the two together -- the partial is anonymous by design.
-	$token = isset( $_POST[ ATF_RESUME_QUERY ] ) // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The submission's own nonce was verified before this action fired.
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- The submission's own nonce was verified before this action fired.
+	$token = isset( $_POST[ ATF_RESUME_QUERY ] )
 		? sanitize_text_field( wp_unslash( $_POST[ ATF_RESUME_QUERY ] ) )
 		: '';
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 	if ( '' === $token ) {
 		return;
@@ -295,7 +297,7 @@ function atf_expire_partials() {
 		}
 
 		atf_delete_entry_completely( $entry_id );
-		$removed++;
+		++$removed;
 	}
 
 	return $removed;

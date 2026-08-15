@@ -12,6 +12,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Conditional logic, server side.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Logic extends WP_UnitTestCase {
 
 	/**
@@ -198,11 +203,17 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 			array(
 				'fields' => array(
 					array(
-						'id'   => 'f1',
-						'type' => 'radio',
+						'id'      => 'f1',
+						'type'    => 'radio',
 						'choices' => array(
-							array( 'label' => 'Yes', 'value' => 'yes' ),
-							array( 'label' => 'No', 'value' => 'no' ),
+							array(
+								'label' => 'Yes',
+								'value' => 'yes',
+							),
+							array(
+								'label' => 'No',
+								'value' => 'no',
+							),
 						),
 					),
 					array(
@@ -230,11 +241,23 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 		// Hidden: the empty required field must not be an error.
 		$this->assertSame(
 			array(),
-			atf_validate_submission( $schema, array( 'f1' => 'no', 'f2' => '' ) )
+			atf_validate_submission(
+				$schema,
+				array(
+					'f1' => 'no',
+					'f2' => '',
+				)
+			)
 		);
 
 		// Shown: it must be.
-		$errors = atf_validate_submission( $schema, array( 'f1' => 'yes', 'f2' => '' ) );
+		$errors = atf_validate_submission(
+			$schema,
+			array(
+				'f1' => 'yes',
+				'f2' => '',
+			)
+		);
 
 		$this->assertArrayHasKey( 'f2', $errors );
 	}

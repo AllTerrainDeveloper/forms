@@ -16,6 +16,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * The merge-tag catalogue.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 
 	/**
@@ -57,7 +62,12 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 		);
 	}
 
-	/** Every tag the catalogue lists, flattened. */
+	/**
+	 * Every tag the catalogue lists, flattened.
+	 *
+	 * @param int $form_id The form to build the catalogue for.
+	 * @return string[] Every advertised tag.
+	 */
 	private function catalogued_tags( $form_id ) {
 		$tags = array();
 
@@ -96,7 +106,7 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 			// An empty result is fine and often correct — `{user:email}` is empty
 			// for a visitor who was not logged in. Getting the tag *back* is not:
 			// that is the resolver saying it has never heard of it.
-			if ( $tag === atf_replace_merge_tags( $tag, $context ) ) {
+			if ( atf_replace_merge_tags( $tag, $context ) === $tag ) {
 				$unresolved[] = $tag;
 			}
 		}

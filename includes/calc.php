@@ -219,7 +219,7 @@ function atf_calc_tokenize( $formula ) {
 		$char = $formula[ $i ];
 
 		if ( ' ' === $char || "\t" === $char || "\n" === $char || "\r" === $char ) {
-			$i++;
+			++$i;
 			continue;
 		}
 
@@ -228,7 +228,7 @@ function atf_calc_tokenize( $formula ) {
 
 			while ( $i < $length && ( ctype_digit( $formula[ $i ] ) || '.' === $formula[ $i ] ) ) {
 				$number .= $formula[ $i ];
-				$i++;
+				++$i;
 			}
 
 			if ( ! is_numeric( $number ) ) {
@@ -247,7 +247,7 @@ function atf_calc_tokenize( $formula ) {
 
 			while ( $i < $length && ( ctype_alnum( $formula[ $i ] ) || '_' === $formula[ $i ] ) ) {
 				$name .= $formula[ $i ];
-				$i++;
+				++$i;
 			}
 
 			$name = strtolower( $name );
@@ -268,7 +268,7 @@ function atf_calc_tokenize( $formula ) {
 				'type'  => $char,
 				'value' => $char,
 			);
-			$i++;
+			++$i;
 			continue;
 		}
 
@@ -277,7 +277,7 @@ function atf_calc_tokenize( $formula ) {
 				'type'  => 'comma',
 				'value' => ',',
 			);
-			$i++;
+			++$i;
 			continue;
 		}
 
@@ -293,7 +293,7 @@ function atf_calc_tokenize( $formula ) {
 				'type'  => $is_unary ? 'unary' : 'operator',
 				'value' => $char,
 			);
-			$i++;
+			++$i;
 			continue;
 		}
 
@@ -313,15 +313,36 @@ function atf_calc_tokenize( $formula ) {
  */
 function atf_calc_operator_info( $operator ) {
 	$table = array(
-		'+' => array( 'precedence' => 1, 'right' => false ),
-		'-' => array( 'precedence' => 1, 'right' => false ),
-		'*' => array( 'precedence' => 2, 'right' => false ),
-		'/' => array( 'precedence' => 2, 'right' => false ),
-		'%' => array( 'precedence' => 2, 'right' => false ),
-		'^' => array( 'precedence' => 4, 'right' => true ),
+		'+' => array(
+			'precedence' => 1,
+			'right'      => false,
+		),
+		'-' => array(
+			'precedence' => 1,
+			'right'      => false,
+		),
+		'*' => array(
+			'precedence' => 2,
+			'right'      => false,
+		),
+		'/' => array(
+			'precedence' => 2,
+			'right'      => false,
+		),
+		'%' => array(
+			'precedence' => 2,
+			'right'      => false,
+		),
+		'^' => array(
+			'precedence' => 4,
+			'right'      => true,
+		),
 	);
 
-	return isset( $table[ $operator ] ) ? $table[ $operator ] : array( 'precedence' => 0, 'right' => false );
+	return isset( $table[ $operator ] ) ? $table[ $operator ] : array(
+		'precedence' => 0,
+		'right'      => false,
+	);
 }
 
 /**
@@ -389,7 +410,7 @@ function atf_calc_to_postfix( $tokens ) {
 				}
 
 				if ( $arity ) {
-					$arity[ count( $arity ) - 1 ]++;
+					++$arity[ count( $arity ) - 1 ];
 				}
 				break;
 
@@ -646,7 +667,7 @@ function atf_apply_calculations( $schema, $values ) {
 			continue;
 		}
 
-		$decimals              = isset( $field['decimals'] ) ? absint( $field['decimals'] ) : 2;
+		$decimals               = isset( $field['decimals'] ) ? absint( $field['decimals'] ) : 2;
 		$values[ $field['id'] ] = round( $result, $decimals );
 	}
 

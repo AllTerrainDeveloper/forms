@@ -16,6 +16,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Calculations, server side.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Calc extends WP_UnitTestCase {
 
 	/**

@@ -36,12 +36,48 @@ defined( 'ABSPATH' ) || exit;
  * @since 0.1.0
  */
 const ATF_FORBIDDEN_EXTENSIONS = array(
-	'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phps', 'phtml', 'phar',
-	'pl', 'py', 'rb', 'cgi', 'sh', 'bash', 'zsh',
-	'exe', 'com', 'bat', 'cmd', 'msi', 'scr', 'dll', 'so',
-	'jsp', 'jspx', 'asp', 'aspx', 'ashx', 'asmx',
-	'htaccess', 'htpasswd', 'ini', 'conf',
-	'js', 'mjs', 'html', 'htm', 'xhtml', 'svg', 'swf', 'jar',
+	'php',
+	'php3',
+	'php4',
+	'php5',
+	'php7',
+	'php8',
+	'phps',
+	'phtml',
+	'phar',
+	'pl',
+	'py',
+	'rb',
+	'cgi',
+	'sh',
+	'bash',
+	'zsh',
+	'exe',
+	'com',
+	'bat',
+	'cmd',
+	'msi',
+	'scr',
+	'dll',
+	'so',
+	'jsp',
+	'jspx',
+	'asp',
+	'aspx',
+	'ashx',
+	'asmx',
+	'htaccess',
+	'htpasswd',
+	'ini',
+	'conf',
+	'js',
+	'mjs',
+	'html',
+	'htm',
+	'xhtml',
+	'svg',
+	'swf',
+	'jar',
 );
 
 /**
@@ -233,12 +269,12 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	}
 
 	$overrides = array(
-		'test_form' => false,
+		'test_form'                => false,
 		'unique_filename_callback' => 'atf_unique_upload_filename',
 		// `mimes` is scoped to what this field allows, so `wp_handle_upload()`
 		// refuses anything outside it even if the checks above were somehow
 		// bypassed by a filter.
-		'mimes'     => atf_allowed_mimes_for( $allowed ),
+		'mimes'                    => atf_allowed_mimes_for( $allowed ),
 	);
 
 	add_filter( 'upload_dir', 'atf_upload_directory' );

@@ -10,6 +10,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Schema normalisation.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Schema extends WP_UnitTestCase {
 
 	/**

@@ -18,6 +18,7 @@ if ( ! $atf_tests_dir ) {
 }
 
 if ( ! file_exists( $atf_tests_dir . '/includes/functions.php' ) ) {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI output, and this runs before WordPress is loaded, so esc_html() does not exist yet.
 	echo "Could not find the WordPress test library at {$atf_tests_dir}.\n";
 	echo "Set WP_TESTS_DIR, or install it with:\n";
 	echo "  bin/install-wp-tests.sh wordpress_test root '' localhost latest\n";
@@ -50,17 +51,20 @@ require $atf_tests_dir . '/includes/bootstrap.php';
  *
  * @param string $name Fixture file name, without the extension.
  * @return array The decoded fixture.
+ * @throws RuntimeException When the fixture is missing or does not decode.
  */
 function atf_test_fixture( $name ) {
 	$path = dirname( __DIR__ ) . '/fixtures/' . $name . '.json';
 
 	if ( ! file_exists( $path ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- A file path in a CLI test failure, never rendered as HTML.
 		throw new RuntimeException( "Missing fixture: {$path}" );
 	}
 
 	$decoded = json_decode( file_get_contents( $path ), true );
 
 	if ( ! is_array( $decoded ) ) {
+		// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- A file path in a CLI test failure, never rendered as HTML.
 		throw new RuntimeException( "Unreadable fixture: {$path}" );
 	}
 

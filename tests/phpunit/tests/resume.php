@@ -11,6 +11,11 @@
  * @group allterrain-forms
  */
 
+/**
+ * Save and continue later.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Resume extends WP_UnitTestCase {
 
 	/**
@@ -283,8 +288,8 @@ class ATF_Test_Resume extends WP_UnitTestCase {
 	public function test_expiry_sweep() {
 		$form_id = $this->resumable_form();
 
-		$live    = atf_save_partial( $form_id, array( 'f1' => 'Live' ) );
-		$stale   = atf_save_partial( $form_id, array( 'f1' => 'Stale' ) );
+		$live     = atf_save_partial( $form_id, array( 'f1' => 'Live' ) );
+		$stale    = atf_save_partial( $form_id, array( 'f1' => 'Stale' ) );
 		$stale_id = atf_find_partial( $stale['token'] )->ID;
 
 		update_post_meta(

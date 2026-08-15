@@ -16,9 +16,20 @@
  * @group allterrain-forms
  */
 
+/**
+ * Pre-filling a field’s opening value.
+ *
+ * @group allterrain-forms
+ */
 class ATF_Test_Prefill extends WP_UnitTestCase {
 
-	/** A one-field schema whose field pre-fills from a source. */
+	/**
+	 * A one-field schema whose field pre-fills from a source.
+	 *
+	 * @param string $source The prefill source.
+	 * @param string $type   The field type.
+	 * @return array The normalised schema.
+	 */
 	private function schema_with( $source, $type = 'text' ) {
 		return atf_normalize_schema(
 			array(
@@ -34,7 +45,12 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 		);
 	}
 
-	/** The field, normalised, so the resolver gets what it would in production. */
+	/**
+	 * The field, normalised, so the resolver gets what it would in production.
+	 *
+	 * @param string $type The field type.
+	 * @return array The normalised field.
+	 */
 	private function field( $type = 'text' ) {
 		return $this->schema_with( '', $type )['fields'][0];
 	}

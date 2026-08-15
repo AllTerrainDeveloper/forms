@@ -210,7 +210,7 @@ function atf_maybe_render_preview() {
 		// `preview => true` is what makes this honest: the submission runs the
 		// whole pipeline, including validation, and then stops short of storing
 		// an entry or sending an email.
-		echo atf_render_form( // phpcs:ignore WordPress.Security.EscapingOutput.OutputNotEscaped -- Assembled and escaped by the renderer.
+		echo atf_render_form( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Assembled and escaped by the renderer.
 			$form_id,
 			array(
 				'theme'   => $theme,
