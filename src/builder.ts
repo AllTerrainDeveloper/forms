@@ -42,6 +42,7 @@ import {
 } from './ui';
 import { handOffToWindow, watchHandoffButton } from './handoff';
 import { LogicMap, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
+import { renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
@@ -116,6 +117,25 @@ export class Builder {
 
 	/** The conditional-logic overlay, when the canvas has one. */
 	private logicMap: LogicMap | null = null;
+
+	/** The form theme's custom properties, applied to the canvas previews. */
+	private readonly canvasTheme = el( 'style' );
+
+	/** Which theme the canvas is currently painted with, so it repaints once. */
+	private canvasThemeSignature = '';
+
+	/**
+	 * Which disclosure panels are open, by key.
+	 *
+	 * A `<details>` keeps its open state in the element, and the inspector and the
+	 * canvas rebuild their elements on every change — so without this, opening
+	 * Conditional logic and then editing anything inside it folds the panel up
+	 * around the control you are still using.
+	 *
+	 * Keyed rather than positional so it survives a field being reordered,
+	 * renamed or deleted: the key names the *thing*, not the row it was in.
+	 */
+	private openSections = new Map< string, boolean >();
 
 	/**
 	 * Whether to draw the logic connections.
@@ -952,6 +972,10 @@ export class Builder {
 
 		this.registerCanvasTarget( list );
 		this.paintLogicMap( inner );
+
+		// Repaints only when the theme or its overrides actually changed, so the
+		// canvas does not ask the server for a render on every keystroke.
+		void this.paintCanvasTheme();
 	}
 
 	/**
@@ -1208,6 +1232,44 @@ export class Builder {
 	}
 
 	/**
+	 * A disclosure panel that remembers whether it was open.
+	 *
+	 * `openByDefault` decides only what happens the *first* time a key is seen —
+	 * a field that already has a condition opens showing it, because arriving at
+	 * a field and being told nothing about a rule that governs it is worse than a
+	 * little extra height. After that the person's own choice wins.
+	 *
+	 * What this deliberately does not do is derive `open` from the data inside
+	 * it. Conditional logic used to: `open: logic.enabled`, so unticking "Only
+	 * show this field sometimes" collapsed the panel around the checkbox that had
+	 * just been clicked. Whether a panel is open is a question about the
+	 * *person's attention*; whether a feature is on is a question about the
+	 * *form*. Binding one to the other means neither can be set independently.
+	 *
+	 * @param key           Stable identity for this panel.
+	 * @param summary       The panel's heading.
+	 * @param children      What it contains.
+	 * @param openByDefault Whether to open it the first time it is rendered.
+	 * @return The panel.
+	 */
+	private section(
+		key: string,
+		summary: string,
+		children: Array< Node | string | null | undefined | false >,
+		openByDefault = false
+	): HTMLElement {
+		const details = el( 'details', {
+			class: 'atfb-section',
+			attrs: { open: this.openSections.get( key ) ?? openByDefault },
+			children: [ el( 'summary', { text: summary } ), ...children ],
+		} );
+
+		details.addEventListener( 'toggle', () => this.openSections.set( key, details.open ) );
+
+		return details;
+	}
+
+	/**
 	 * The toolbar's toggle for the logic overlay.
 	 *
 	 * Hidden entirely on a form with no conditions. A control for a thing that
@@ -1320,8 +1382,8 @@ export class Builder {
 							class: 'atfb-card__head',
 							children: [
 								icon( type?.icon ?? 'dashicons-forms' ),
-								el( 'strong', { text: field.label || i18n( 'untitledField', 'Untitled field' ) } ),
-								field.required ? el( 'span', { class: 'atfb-badge', text: 'required' } ) : null,
+								el( 'span', { class: 'atfb-card__type', text: type?.label ?? field.type } ),
+								this.requiredToggle( field ),
 								controls
 									? el( 'span', {
 											class: 'atfb-badge atfb-badge--controls',
@@ -1331,7 +1393,21 @@ export class Builder {
 									: null,
 							],
 						} ),
-						el( 'span', { class: 'atfb-card__type', text: type?.label ?? field.type } ),
+						// The field itself, drawn with the real front-end classes and the
+						// form's own theme, with its text editable where it sits.
+						renderFieldPreview( field, type, {
+							edit: ( apply ) => {
+								apply();
+								this.markDirty();
+							},
+							restructure: ( apply ) => {
+								this.snapshot();
+								apply();
+								this.markDirty();
+								this.renderCanvas();
+								this.renderInspector();
+							},
+						} ),
 						condition.length ? this.renderCondition( condition ) : null,
 					],
 				} ),
@@ -1399,6 +1475,38 @@ export class Builder {
 		} );
 
 		return card;
+	}
+
+	/**
+	 * The required flag, as a toggle on the card rather than a badge.
+	 *
+	 * It was already displayed here as a read-only badge, and the switch that set
+	 * it was in the inspector — so the canvas told you a field was required and
+	 * made you go somewhere else to change it. Marking a question required is a
+	 * decision you make while writing it, not afterwards.
+	 */
+	private requiredToggle( field: Field ): HTMLElement {
+		const toggle = el( 'button', {
+			class: `atfb-req${ field.required ? ' is-on' : '' }`,
+			type: 'button',
+			text: field.required ? 'Required' : 'Optional',
+			title: field.required ? 'This must be answered. Click to make it optional.' : 'Click to make this required.',
+			attrs: { 'aria-pressed': field.required ? 'true' : 'false' },
+			on: {
+				// The card is draggable and clicking it selects the field; neither
+				// should happen when the target was this switch.
+				pointerdown: ( event: Event ) => event.stopPropagation(),
+				click: ( event: Event ) => {
+					event.stopPropagation();
+					field.required = ! field.required;
+					this.markDirty();
+					this.renderCanvas();
+					this.renderInspector();
+				},
+			},
+		} );
+
+		return toggle;
 	}
 
 	/** A small icon button on a field card. */
@@ -2037,10 +2145,7 @@ export class Builder {
 			)
 		);
 
-		return el( 'details', {
-			class: 'atfb-section',
-			children: [ el( 'summary', { text: 'Validation' } ), ...rows ],
-		} );
+		return this.section( `validation:${ field.id }`, 'Validation', rows );
 	}
 
 	/** The conditional-logic editor. */
@@ -2098,11 +2203,10 @@ export class Builder {
 			);
 		} );
 
-		return el( 'details', {
-			class: 'atfb-section',
-			attrs: { open: logic.enabled },
-			children: [
-				el( 'summary', { text: 'Conditional logic' } ),
+		return this.section(
+			`logic:${ field.id }`,
+			'Conditional logic',
+			[
 				checkbox( 'Only show this field sometimes', logic.enabled, ( value ) => {
 					logic.enabled = value;
 					update( 'logic', logic );
@@ -2159,7 +2263,11 @@ export class Builder {
 					  } )
 					: null,
 			],
-		} );
+			// A field that already has a condition opens showing it: being told a
+			// rule governs this field and not what it says is the problem the
+			// whole logic display exists to solve.
+			logic.enabled
+		);
 	}
 
 	/* ------------------------------------------------------------ Tab panes */
@@ -2205,6 +2313,63 @@ export class Builder {
 		}
 
 		return this.renderConfirmationsPane();
+	}
+
+	/**
+	 * Puts the form's own theme tokens onto the canvas.
+	 *
+	 * The previews on the canvas use the real front-end classes, so they are
+	 * already styled by `form.css` — but `form.css` reads everything from custom
+	 * properties, and without them it falls back to the built-in defaults. The
+	 * result would be a canvas that looks like Clean whatever theme the form is
+	 * set to, which is the one thing a WYSIWYG canvas must not do.
+	 *
+	 * The values come from the server's own renderer rather than being resolved
+	 * again here. A form's theme is a base theme plus per-form overrides plus
+	 * whatever `atf_theme_tokens` filters did to it, and a second resolver in
+	 * TypeScript would be a second answer to "what colour is this" — the same
+	 * twin-engine problem the logic and calculation code goes to some length to
+	 * avoid. One render is asked for, its `<style>` block is lifted, and its
+	 * selector is repointed at the canvas.
+	 *
+	 * Failure is silent on purpose: no tokens means the previews render in the
+	 * default theme, which is a worse-looking canvas and a working builder.
+	 */
+	private async paintCanvasTheme(): Promise< void > {
+		if ( ! this.form || ! this.schema ) {
+			return;
+		}
+
+		const theme = this.schema.settings.theme;
+		const signature = JSON.stringify( [ theme, this.schema.settings.themeOverrides ] );
+
+		if ( signature === this.canvasThemeSignature ) {
+			return;
+		}
+
+		this.canvasThemeSignature = signature;
+
+		try {
+			const html = await this.previewHtml( theme, this.schema.settings.themeOverrides ?? {} );
+			const block = /<style>([\s\S]*?)<\/style>/.exec( html );
+
+			if ( ! block ) {
+				return;
+			}
+
+			// The server scopes the block to the instance it rendered
+			// (`#atf-12-1 .atf-form`). The canvas has many previews and no
+			// instance, so the scope becomes the class they all carry.
+			const css = block[ 1 ].replace( /#atf-[\d-]+\s+\.atf-form/g, '.atfb .atfb-preview' );
+
+			this.canvasTheme.textContent = css;
+
+			if ( ! this.canvasTheme.isConnected ) {
+				this.root.append( this.canvasTheme );
+			}
+		} catch {
+			// See above: the canvas simply keeps the default look.
+		}
 	}
 
 	/** Renders the current schema to HTML for a preview. */
@@ -2550,10 +2715,10 @@ export class Builder {
 
 		notifications.forEach( ( notification, index ) => {
 			list.append(
-				el( 'details', {
-					class: 'atfb-section',
-					children: [
-						el( 'summary', { text: notification.name || `Notification ${ index + 1 }` } ),
+				this.section(
+					`notification:${ notification.id }`,
+					notification.name || `Notification ${ index + 1 }`,
+					[
 						row(
 							'Name',
 							textInput( notification.name, ( value ) => {
@@ -2605,8 +2770,8 @@ export class Builder {
 							},
 							'danger'
 						),
-					],
-				} )
+					]
+				)
 			);
 		} );
 
@@ -2779,10 +2944,10 @@ export class Builder {
 			paintDetail();
 
 			list.append(
-				el( 'details', {
-					class: 'atfb-section',
-					children: [
-						el( 'summary', { text: confirmation.name || `Confirmation ${ index + 1 }` } ),
+				this.section(
+					`confirmation:${ confirmation.id }`,
+					confirmation.name || `Confirmation ${ index + 1 }`,
+					[
 						row(
 							'Name',
 							textInput( confirmation.name, ( value ) => {
@@ -2816,8 +2981,8 @@ export class Builder {
 							},
 							'danger'
 						),
-					],
-				} )
+					]
+				)
 			);
 		} );
 

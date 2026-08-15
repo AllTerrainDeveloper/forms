@@ -410,20 +410,20 @@ var allTerrainFormsBuilder = function(exports) {
   function clear(node) {
     node.replaceChildren();
   }
-  function icon(slug) {
+  function icon(slug2) {
     return el("span", {
-      class: `dashicons ${slug.startsWith("dashicons-") ? slug : `dashicons-${slug}`}`,
+      class: `dashicons ${slug2.startsWith("dashicons-") ? slug2 : `dashicons-${slug2}`}`,
       attrs: { "aria-hidden": "true" }
     });
   }
-  function row(label, control, hint) {
-    const id = control.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
-    control.id = id;
+  function row(label, control2, hint) {
+    const id = control2.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
+    control2.id = id;
     return el("div", {
       class: "atfb-row",
       children: [
         el("label", { class: "atfb-row__label", text: label, attrs: { for: id } }),
-        control,
+        control2,
         hint ? el("p", { class: "atfb-row__hint", text: hint }) : null
       ]
     });
@@ -944,6 +944,270 @@ var allTerrainFormsBuilder = function(exports) {
       this.svg.append(text);
     }
   }
+  const SHAPES = {
+    text: "text",
+    email: "text",
+    url: "text",
+    tel: "text",
+    number: "text",
+    password: "text",
+    date: "text",
+    time: "text",
+    datetime: "text",
+    date_range: "composite",
+    textarea: "textarea",
+    select: "select",
+    country: "select",
+    multiselect: "options",
+    radio: "options",
+    checkboxes: "options",
+    image_choice: "options",
+    quiz: "options",
+    switch: "toggle",
+    consent: "toggle",
+    file: "file",
+    range: "range",
+    rating: "summary",
+    scale: "summary",
+    likert: "summary",
+    signature: "summary",
+    repeater: "summary",
+    color: "text",
+    name: "composite",
+    address: "composite",
+    total: "text",
+    hidden: "static",
+    heading: "static",
+    html: "static",
+    divider: "static",
+    spacer: "static",
+    page_break: "static"
+  };
+  function shapeFor(type) {
+    return SHAPES[type] ?? "text";
+  }
+  function editableText(value, placeholder, className, onInput, onCommit) {
+    const node = el("span", {
+      class: `${className} atfb-editable`,
+      text: value,
+      attrs: {
+        contenteditable: "plaintext-only",
+        role: "textbox",
+        spellcheck: "false",
+        "data-placeholder": placeholder
+      }
+    });
+    node.addEventListener("pointerdown", (event) => event.stopPropagation());
+    node.addEventListener("input", () => onInput(node.textContent ?? ""));
+    node.addEventListener("keydown", (event) => {
+      if ("Enter" === event.key) {
+        event.preventDefault();
+        node.blur();
+      }
+      if ("Escape" === event.key) {
+        node.textContent = value;
+        node.blur();
+      }
+      event.stopPropagation();
+    });
+    node.addEventListener("blur", () => onCommit?.());
+    return node;
+  }
+  function optionInputFor(type) {
+    const input = el("input", {
+      class: "atf-choice__input",
+      type: "checkboxes" === type || "multiselect" === type ? "checkbox" : "radio"
+    });
+    input.disabled = true;
+    return input;
+  }
+  function renderFieldPreview(field, type, handlers) {
+    const shape = shapeFor(field.type);
+    const label = editableText(
+      field.label,
+      "Write the question…",
+      "atf-label",
+      (value) => handlers.edit(() => {
+        field.label = value;
+      }),
+      // Committed on blur rather than per keystroke: the label appears in other
+      // cards' condition chips and in the merge-tag picker, and repainting the
+      // canvas on every character would take the caret with it.
+      () => handlers.restructure(() => {
+      })
+    );
+    const parts = [
+      "static" === shape ? null : label,
+      field.hint ? el("p", { class: "atf-hint", text: field.hint }) : null,
+      control(field, type, shape, handlers)
+    ];
+    return el("div", {
+      // `.atf-form` is what the theme's custom properties are scoped to, and
+      // `.atf-field` is what gives the control its spacing. Both are the real
+      // front-end classes: the look here is the stylesheet, not a copy of it.
+      class: "atfb-preview atf-form",
+      children: [
+        el("div", {
+          class: `atf-field atf-field--${field.type}`,
+          children: parts
+        })
+      ]
+    });
+  }
+  function control(field, type, shape, handlers) {
+    switch (shape) {
+      case "text":
+        return placeholderBox(field, "atf-input", handlers);
+      case "textarea":
+        return placeholderBox(field, "atf-input atf-textarea", handlers, true);
+      case "select":
+        return el("div", {
+          class: "atfb-preview__select",
+          children: [placeholderBox(field, "atf-input atf-select", handlers)]
+        });
+      case "options":
+        return optionList(field, handlers);
+      case "toggle":
+        return el("div", {
+          class: "atf-toggle",
+          children: [
+            (() => {
+              const box = el("input", { class: "atf-toggle__input", type: "checkbox" });
+              box.disabled = true;
+              return box;
+            })(),
+            editableText(
+              field.label || "",
+              "What are they agreeing to?…",
+              "atf-toggle__label",
+              (value) => handlers.edit(() => {
+                field.label = value;
+              }),
+              () => handlers.restructure(() => {
+              })
+            )
+          ]
+        });
+      case "file":
+        return el("div", { class: "atf-file", children: [el("input", { class: "atf-file__input", type: "file" })] });
+      case "range":
+        return el("input", { class: "atf-range__input", type: "range" });
+      case "composite":
+        return el("div", {
+          class: "atf-composite__parts",
+          children: [
+            el("span", { class: "atf-input atfb-preview__ghost", text: "" }),
+            el("span", { class: "atf-input atfb-preview__ghost", text: "" })
+          ]
+        });
+      case "static":
+        return staticBlock(field, type, handlers);
+      default:
+        return el("p", {
+          class: "atfb-preview__summary",
+          text: `${type?.label ?? field.type} — set this up in the panel on the right.`
+        });
+    }
+  }
+  function placeholderBox(field, className, handlers, tall = false) {
+    const box = editableText(
+      field.placeholder ?? "",
+      "select" === field.type || "country" === field.type ? "Choose…" : "Placeholder…",
+      `${className} atfb-preview__box${tall ? " atfb-preview__box--tall" : ""}`,
+      (value) => handlers.edit(() => {
+        field.placeholder = value;
+      })
+    );
+    box.setAttribute("aria-label", "Placeholder");
+    return box;
+  }
+  function optionList(field, handlers) {
+    const list = el("div", { class: "atf-choices__list" });
+    (field.choices ?? []).forEach((choice, index) => {
+      list.append(
+        el("div", {
+          class: "atf-choice atfb-preview__option",
+          children: [
+            optionInputFor(field.type),
+            editableText(
+              choice.label,
+              "Option…",
+              "atf-choice__label",
+              (value) => {
+                handlers.edit(() => {
+                  choice.label = value;
+                  if (!choice.value || choice.value === slug(choice.label)) {
+                    choice.value = slug(value);
+                  }
+                });
+              }
+            ),
+            el("button", {
+              class: "atfb-preview__remove",
+              type: "button",
+              title: "Remove this option",
+              attrs: { "aria-label": `Remove ${choice.label || "this option"}` },
+              on: {
+                pointerdown: (event) => event.stopPropagation(),
+                click: (event) => {
+                  event.stopPropagation();
+                  handlers.restructure(() => {
+                    field.choices.splice(index, 1);
+                  });
+                }
+              },
+              children: [el("span", { text: "×" })]
+            })
+          ]
+        })
+      );
+    });
+    list.append(
+      el("button", {
+        class: "atfb-preview__add",
+        type: "button",
+        on: {
+          pointerdown: (event) => event.stopPropagation(),
+          click: (event) => {
+            event.stopPropagation();
+            handlers.restructure(() => {
+              const next = field.choices.length + 1;
+              field.choices.push({ label: `Option ${next}`, value: `option-${next}` });
+            });
+          }
+        },
+        children: [el("span", { text: "+ Add option" })]
+      })
+    );
+    return el("fieldset", { class: "atf-choices", children: [list] });
+  }
+  function staticBlock(field, type, handlers) {
+    if ("heading" === field.type) {
+      return editableText(
+        field.label,
+        "Section heading…",
+        "atf-heading",
+        (value) => handlers.edit(() => {
+          field.label = value;
+        }),
+        () => handlers.restructure(() => {
+        })
+      );
+    }
+    if ("divider" === field.type) {
+      return el("hr", { class: "atf-divider" });
+    }
+    if ("page_break" === field.type) {
+      return el("p", { class: "atfb-preview__summary", text: "Everything after this is a new page." });
+    }
+    return el("p", {
+      class: "atfb-preview__summary",
+      text: `${type?.label ?? field.type} — nothing is shown to the visitor here.`
+    });
+  }
+  function slug(label) {
+    return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
   const cache = /* @__PURE__ */ new Map();
   function mergeTags(formId) {
     let pending2 = cache.get(formId);
@@ -1423,7 +1687,7 @@ var allTerrainFormsBuilder = function(exports) {
       const tokens = currentTokens();
       for (const dial of quickDials()) {
         const at = dial.read(tokens);
-        let control;
+        let control2;
         if (dial.kind === "colour") {
           const picker = el("input", {
             class: "atfs-color",
@@ -1434,7 +1698,7 @@ var allTerrainFormsBuilder = function(exports) {
               input: (event) => applyDial(dial, event.target.value)
             }
           });
-          control = el("div", {
+          control2 = el("div", {
             class: "atfs-color-row",
             children: [
               picker,
@@ -1442,7 +1706,7 @@ var allTerrainFormsBuilder = function(exports) {
             ]
           });
         } else {
-          control = el("div", {
+          control2 = el("div", {
             class: `atfs-segmented atfs-segmented--${dial.kind}`,
             attrs: { role: "group", "aria-label": dial.label },
             children: (dial.steps ?? []).map(
@@ -1467,7 +1731,7 @@ var allTerrainFormsBuilder = function(exports) {
                   el("span", { class: "atfs-dial__hint", text: dial.hint })
                 ]
               }),
-              control
+              control2
             ]
           })
         );
@@ -1517,7 +1781,7 @@ var allTerrainFormsBuilder = function(exports) {
         options.onOverride(token.token, next);
         repaint();
       };
-      let control;
+      let control2;
       if (token.control === "color") {
         const picker = el("input", {
           class: "atfs-color",
@@ -1536,9 +1800,9 @@ var allTerrainFormsBuilder = function(exports) {
           picker.value = normaliseHex(next);
           change(next);
         });
-        control = el("div", { class: "atfs-color-row", children: [picker, text] });
+        control2 = el("div", { class: "atfs-color-row", children: [picker, text] });
       } else if (token.control === "select") {
-        control = select(
+        control2 = select(
           value,
           (token.options ?? []).map((option) => ({ value: option, label: option })),
           change
@@ -1564,11 +1828,11 @@ var allTerrainFormsBuilder = function(exports) {
           range.value = String(parseFloat(next) || 0);
           change(next);
         });
-        control = el("div", { class: "atfs-length-row", children: [range, text] });
+        control2 = el("div", { class: "atfs-length-row", children: [range, text] });
       } else {
-        control = textInput(value, change);
+        control2 = textInput(value, change);
       }
-      const wrapper = row(token.label, control);
+      const wrapper = row(token.label, control2);
       const dial = dialOwning(token.token);
       if (dial) {
         wrapper.classList.add("is-dialled");
@@ -1785,8 +2049,8 @@ var allTerrainFormsBuilder = function(exports) {
             activeSlug,
             overrides,
             standalone: true,
-            onTheme: (slug) => {
-              activeSlug = slug;
+            onTheme: (slug2) => {
+              activeSlug = slug2;
             },
             onOverride: (token, value) => {
               if (value === "") {
@@ -1795,11 +2059,11 @@ var allTerrainFormsBuilder = function(exports) {
                 overrides[token] = value;
               }
             },
-            previewFor: async (slug, tokens) => {
+            previewFor: async (slug2, tokens) => {
               const form = await api.getForm(previewForm.id);
-              form.schema.settings.theme = slug;
+              form.schema.settings.theme = slug2;
               form.schema.settings.themeOverrides = tokens;
-              const { html } = await api.preview(previewForm.id, { schema: form.schema, theme: slug });
+              const { html } = await api.preview(previewForm.id, { schema: form.schema, theme: slug2 });
               return html;
             },
             onThemesChanged: (next) => {
@@ -2051,6 +2315,9 @@ var allTerrainFormsBuilder = function(exports) {
       this.selected = null;
       this.tab = "build";
       this.logicMap = null;
+      this.canvasTheme = el("style");
+      this.canvasThemeSignature = "";
+      this.openSections = /* @__PURE__ */ new Map();
       this.logicMapOn = "off" !== readSetting(LOGIC_MAP_SETTING);
       this.dirty = false;
       this.teardowns = [];
@@ -2685,8 +2952,8 @@ var allTerrainFormsBuilder = function(exports) {
         }
       });
       this.palette.append(search);
-      for (const [slug, label] of Object.entries(this.config.groups)) {
-        const types = grouped.get(slug);
+      for (const [slug2, label] of Object.entries(this.config.groups)) {
+        const types = grouped.get(slug2);
         if (!types?.length) {
           continue;
         }
@@ -2777,6 +3044,7 @@ var allTerrainFormsBuilder = function(exports) {
       this.canvas.append(inner);
       this.registerCanvasTarget(list);
       this.paintLogicMap(inner);
+      void this.paintCanvasTheme();
     }
     /**
      * Where a field's opening value comes from, asked in plain language.
@@ -2973,6 +3241,36 @@ var allTerrainFormsBuilder = function(exports) {
       return el("span", { class: classes[token.kind], text: token.text });
     }
     /**
+     * A disclosure panel that remembers whether it was open.
+     *
+     * `openByDefault` decides only what happens the *first* time a key is seen —
+     * a field that already has a condition opens showing it, because arriving at
+     * a field and being told nothing about a rule that governs it is worse than a
+     * little extra height. After that the person's own choice wins.
+     *
+     * What this deliberately does not do is derive `open` from the data inside
+     * it. Conditional logic used to: `open: logic.enabled`, so unticking "Only
+     * show this field sometimes" collapsed the panel around the checkbox that had
+     * just been clicked. Whether a panel is open is a question about the
+     * *person's attention*; whether a feature is on is a question about the
+     * *form*. Binding one to the other means neither can be set independently.
+     *
+     * @param key           Stable identity for this panel.
+     * @param summary       The panel's heading.
+     * @param children      What it contains.
+     * @param openByDefault Whether to open it the first time it is rendered.
+     * @return The panel.
+     */
+    section(key, summary, children, openByDefault = false) {
+      const details = el("details", {
+        class: "atfb-section",
+        attrs: { open: this.openSections.get(key) ?? openByDefault },
+        children: [el("summary", { text: summary }), ...children]
+      });
+      details.addEventListener("toggle", () => this.openSections.set(key, details.open));
+      return details;
+    }
+    /**
      * The toolbar's toggle for the logic overlay.
      *
      * Hidden entirely on a form with no conditions. A control for a thing that
@@ -3055,8 +3353,8 @@ var allTerrainFormsBuilder = function(exports) {
                 class: "atfb-card__head",
                 children: [
                   icon(type?.icon ?? "dashicons-forms"),
-                  el("strong", { text: field.label || i18n("untitledField", "Untitled field") }),
-                  field.required ? el("span", { class: "atfb-badge", text: "required" }) : null,
+                  el("span", { class: "atfb-card__type", text: type?.label ?? field.type }),
+                  this.requiredToggle(field),
                   controls ? el("span", {
                     class: "atfb-badge atfb-badge--controls",
                     text: 1 === controls ? "controls 1 field" : `controls ${controls} fields`,
@@ -3064,7 +3362,21 @@ var allTerrainFormsBuilder = function(exports) {
                   }) : null
                 ]
               }),
-              el("span", { class: "atfb-card__type", text: type?.label ?? field.type }),
+              // The field itself, drawn with the real front-end classes and the
+              // form's own theme, with its text editable where it sits.
+              renderFieldPreview(field, type, {
+                edit: (apply) => {
+                  apply();
+                  this.markDirty();
+                },
+                restructure: (apply) => {
+                  this.snapshot();
+                  apply();
+                  this.markDirty();
+                  this.renderCanvas();
+                  this.renderInspector();
+                }
+              }),
               condition.length ? this.renderCondition(condition) : null
             ]
           }),
@@ -3114,6 +3426,36 @@ var allTerrainFormsBuilder = function(exports) {
         });
       });
       return card;
+    }
+    /**
+     * The required flag, as a toggle on the card rather than a badge.
+     *
+     * It was already displayed here as a read-only badge, and the switch that set
+     * it was in the inspector — so the canvas told you a field was required and
+     * made you go somewhere else to change it. Marking a question required is a
+     * decision you make while writing it, not afterwards.
+     */
+    requiredToggle(field) {
+      const toggle = el("button", {
+        class: `atfb-req${field.required ? " is-on" : ""}`,
+        type: "button",
+        text: field.required ? "Required" : "Optional",
+        title: field.required ? "This must be answered. Click to make it optional." : "Click to make this required.",
+        attrs: { "aria-pressed": field.required ? "true" : "false" },
+        on: {
+          // The card is draggable and clicking it selects the field; neither
+          // should happen when the target was this switch.
+          pointerdown: (event) => event.stopPropagation(),
+          click: (event) => {
+            event.stopPropagation();
+            field.required = !field.required;
+            this.markDirty();
+            this.renderCanvas();
+            this.renderInspector();
+          }
+        }
+      });
+      return toggle;
     }
     /** A small icon button on a field card. */
     cardAction(iconSlug, label, onClick) {
@@ -3491,10 +3833,7 @@ var allTerrainFormsBuilder = function(exports) {
           "Leave empty for the default wording."
         )
       );
-      return el("details", {
-        class: "atfb-section",
-        children: [el("summary", { text: "Validation" }), ...rows]
-      });
+      return this.section(`validation:${field.id}`, "Validation", rows);
     }
     /** The conditional-logic editor. */
     renderLogicSection(field, update) {
@@ -3548,11 +3887,10 @@ var allTerrainFormsBuilder = function(exports) {
           })
         );
       });
-      return el("details", {
-        class: "atfb-section",
-        attrs: { open: logic.enabled },
-        children: [
-          el("summary", { text: "Conditional logic" }),
+      return this.section(
+        `logic:${field.id}`,
+        "Conditional logic",
+        [
           checkbox("Only show this field sometimes", logic.enabled, (value) => {
             logic.enabled = value;
             update("logic", logic);
@@ -3606,8 +3944,12 @@ var allTerrainFormsBuilder = function(exports) {
               )
             ]
           }) : null
-        ]
-      });
+        ],
+        // A field that already has a condition opens showing it: being told a
+        // rule governs this field and not what it says is the problem the
+        // whole logic display exists to solve.
+        logic.enabled
+      );
     }
     /* ------------------------------------------------------------ Tab panes */
     /** The canvas contents for the non-Build tabs. */
@@ -3621,8 +3963,8 @@ var allTerrainFormsBuilder = function(exports) {
           tokens: this.config?.tokens ?? [],
           activeSlug: this.schema.settings.theme,
           overrides: this.schema.settings.themeOverrides,
-          onTheme: (slug) => {
-            this.schema.settings.theme = slug;
+          onTheme: (slug2) => {
+            this.schema.settings.theme = slug2;
             this.markDirty();
           },
           onOverride: (token, value) => {
@@ -3633,7 +3975,7 @@ var allTerrainFormsBuilder = function(exports) {
             }
             this.markDirty();
           },
-          previewFor: (slug, overrides) => this.previewHtml(slug, overrides),
+          previewFor: (slug2, overrides) => this.previewHtml(slug2, overrides),
           onThemesChanged: (themes) => {
             this.themes = themes;
           }
@@ -3646,6 +3988,50 @@ var allTerrainFormsBuilder = function(exports) {
         return this.renderNotificationsPane();
       }
       return this.renderConfirmationsPane();
+    }
+    /**
+     * Puts the form's own theme tokens onto the canvas.
+     *
+     * The previews on the canvas use the real front-end classes, so they are
+     * already styled by `form.css` — but `form.css` reads everything from custom
+     * properties, and without them it falls back to the built-in defaults. The
+     * result would be a canvas that looks like Clean whatever theme the form is
+     * set to, which is the one thing a WYSIWYG canvas must not do.
+     *
+     * The values come from the server's own renderer rather than being resolved
+     * again here. A form's theme is a base theme plus per-form overrides plus
+     * whatever `atf_theme_tokens` filters did to it, and a second resolver in
+     * TypeScript would be a second answer to "what colour is this" — the same
+     * twin-engine problem the logic and calculation code goes to some length to
+     * avoid. One render is asked for, its `<style>` block is lifted, and its
+     * selector is repointed at the canvas.
+     *
+     * Failure is silent on purpose: no tokens means the previews render in the
+     * default theme, which is a worse-looking canvas and a working builder.
+     */
+    async paintCanvasTheme() {
+      if (!this.form || !this.schema) {
+        return;
+      }
+      const theme = this.schema.settings.theme;
+      const signature = JSON.stringify([theme, this.schema.settings.themeOverrides]);
+      if (signature === this.canvasThemeSignature) {
+        return;
+      }
+      this.canvasThemeSignature = signature;
+      try {
+        const html = await this.previewHtml(theme, this.schema.settings.themeOverrides ?? {});
+        const block = /<style>([\s\S]*?)<\/style>/.exec(html);
+        if (!block) {
+          return;
+        }
+        const css = block[1].replace(/#atf-[\d-]+\s+\.atf-form/g, ".atfb .atfb-preview");
+        this.canvasTheme.textContent = css;
+        if (!this.canvasTheme.isConnected) {
+          this.root.append(this.canvasTheme);
+        }
+      } catch {
+      }
     }
     /** Renders the current schema to HTML for a preview. */
     async previewHtml(theme, overrides) {
@@ -3953,10 +4339,10 @@ var allTerrainFormsBuilder = function(exports) {
       }
       notifications.forEach((notification, index) => {
         list.append(
-          el("details", {
-            class: "atfb-section",
-            children: [
-              el("summary", { text: notification.name || `Notification ${index + 1}` }),
+          this.section(
+            `notification:${notification.id}`,
+            notification.name || `Notification ${index + 1}`,
+            [
               row(
                 "Name",
                 textInput(notification.name, (value) => {
@@ -4009,7 +4395,7 @@ var allTerrainFormsBuilder = function(exports) {
                 "danger"
               )
             ]
-          })
+          )
         );
       });
       return el("div", {
@@ -4140,10 +4526,10 @@ var allTerrainFormsBuilder = function(exports) {
         };
         paintDetail();
         list.append(
-          el("details", {
-            class: "atfb-section",
-            children: [
-              el("summary", { text: confirmation.name || `Confirmation ${index + 1}` }),
+          this.section(
+            `confirmation:${confirmation.id}`,
+            confirmation.name || `Confirmation ${index + 1}`,
+            [
               row(
                 "Name",
                 textInput(confirmation.name, (value) => {
@@ -4178,7 +4564,7 @@ var allTerrainFormsBuilder = function(exports) {
                 "danger"
               )
             ]
-          })
+          )
         );
       });
       return el("div", {
