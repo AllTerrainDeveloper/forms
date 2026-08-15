@@ -60,6 +60,28 @@ import { formIdentity, setIdentity } from './relations';
 const LOGIC_MAP_SETTING = 'allterrain-forms/logic-map-v2';
 
 /**
+ * Marks an inspector control as the twin of something on the canvas.
+ *
+ * The canvas and the inspector edit the same values, so they have to agree while
+ * you are typing — rewriting a label on the card and watching the Label box keep
+ * the old text reads as one of them being stale, with no way to tell which.
+ *
+ * The tag is what lets a canvas edit write through to its counterpart without
+ * rebuilding the whole pane on every keystroke. Rebuilding would also work, and
+ * is what a structural change does — but it recreates every shell component in
+ * the inspector, sixty times a second, to change one string.
+ *
+ * @param control The inspector control.
+ * @param key     What it edits: `label`, `placeholder`, `choice:<n>:label`, …
+ * @return The same control.
+ */
+function bind< T extends HTMLElement >( control: T, key: string ): T {
+	control.dataset.atfbBind = key;
+
+	return control;
+}
+
+/**
  * The prefill sources, in the order they are offered.
  *
  * `tag` names the merge tag that resolves to the same thing, which is how the
@@ -384,6 +406,91 @@ export class Builder {
 	 */
 	private liveField( fieldId: string ): Field | undefined {
 		return this.schema?.fields.find( ( candidate ) => candidate.id === fieldId );
+	}
+
+	/**
+	 * Writes a field's current values into the inspector's matching controls.
+	 *
+	 * Only when the inspector is actually showing that field — editing a card that
+	 * is not selected must not rewrite the pane describing a different one.
+	 *
+	 * Deliberately one-directional and value-only: the inspector's own handlers
+	 * already write to the schema, and firing them from here would put the two
+	 * panes in a loop, each telling the other about a change it had just made.
+	 *
+	 * @param field The field that was edited on the canvas.
+	 */
+	/**
+	 * Writes a field's current values into its card on the canvas.
+	 *
+	 * The mirror image of `syncInspector()`, for the same reason: the two panes
+	 * edit one value and have to agree while it is being typed. The inspector's
+	 * `update()` already repaints the canvas wholesale, but the choices editor
+	 * mutates in place and only marks the form dirty — which was invisible until
+	 * the canvas started drawing the options.
+	 *
+	 * Writes `textContent` rather than re-rendering, so the caret in the
+	 * inspector is untouched.
+	 *
+	 * @param field The field that was edited in the inspector.
+	 */
+	private syncCanvas( field: Field ): void {
+		const card = this.canvas.querySelector< HTMLElement >(
+			`[data-atfb-card="${ CSS.escape( field.id ) }"]`
+		);
+
+		if ( ! card ) {
+			return;
+		}
+
+		const label = card.querySelector< HTMLElement >( '.atf-label.atfb-editable' );
+
+		if ( label && label.textContent !== field.label ) {
+			label.textContent = field.label;
+		}
+
+		const options = card.querySelectorAll< HTMLElement >( '.atf-choice__label.atfb-editable' );
+
+		( field.choices ?? [] ).forEach( ( choice, index ) => {
+			const option = options[ index ];
+
+			if ( option && option.textContent !== choice.label ) {
+				option.textContent = choice.label;
+			}
+		} );
+	}
+
+	private syncInspector( field: Field ): void {
+		if ( this.selected !== field.id ) {
+			return;
+		}
+
+		const write = ( key: string, value: string ) => {
+			const control = this.inspector.querySelector< HTMLElement & { value?: string } >(
+				`[data-atfb-bind="${ CSS.escape( key ) }"]`
+			);
+
+			if ( ! control ) {
+				return;
+			}
+
+			// `value` is a property on a native input and on the shell's field
+			// components alike; the attribute is the fallback for anything that
+			// only reflects it.
+			if ( 'value' in control ) {
+				control.value = value;
+			} else {
+				control.setAttribute( 'value', value );
+			}
+		};
+
+		write( 'label', field.label ?? '' );
+		write( 'placeholder', field.placeholder ?? '' );
+
+		( field.choices ?? [] ).forEach( ( choice, index ) => {
+			write( `choice:${ index }:label`, choice.label ?? '' );
+			write( `choice:${ index }:value`, choice.value ?? '' );
+		} );
 	}
 
 	/**
@@ -1454,6 +1561,7 @@ export class Builder {
 
 								apply( live );
 								this.markDirty();
+								this.syncInspector( live );
 							},
 							restructure: ( apply ) => {
 								const live = this.liveField( field.id );
@@ -1912,7 +2020,7 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Label',
-					textInput( field.label, ( value ) => update( 'label', value ) )
+					bind( textInput( field.label, ( value ) => update( 'label', value ) ), 'label' )
 				)
 			);
 		}
@@ -1921,7 +2029,7 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Placeholder',
-					textInput( field.placeholder, ( value ) => update( 'placeholder', value ) )
+					bind( textInput( field.placeholder, ( value ) => update( 'placeholder', value ) ), 'placeholder' )
 				)
 			);
 		}
@@ -2004,26 +2112,35 @@ export class Builder {
 						// pictures. Everywhere else it would be a column of
 						// empty boxes for a setting that does nothing.
 						field.type === 'image_choice' ? this.choiceImageWell( choice, index, field ) : null,
-						textInput( choice.label, ( value ) => {
+						bind( textInput( choice.label, ( value ) => {
+							// Read *before* the assignment. This compared
+							// `choice.value` with `choices[ index ].value` — the
+							// same object — so it was always true and the value
+							// followed the label unconditionally, which is the
+							// one thing the comment says it must not do: an
+							// entry stores the value, and rewriting it orphans
+							// every submission already recorded under it.
+							const mirroring = ! choice.value || choice.value === choice.label;
+
 							choice.label = value;
 
-							// A choice whose value was only ever a mirror of its
-							// label keeps mirroring it. Once somebody sets a
-							// value by hand it stops, because an entry stores
-							// the value and rewriting it would orphan history.
-							if ( ! choice.value || choice.value === choices[ index ].value ) {
+							if ( mirroring ) {
 								choice.value = value;
 							}
 
 							this.markDirty();
-						} ),
-						textInput(
-							choice.value,
-							( value ) => {
-								choice.value = value;
-								this.markDirty();
-							},
-							'value'
+							this.syncCanvas( field );
+						} ), `choice:${ index }:label` ),
+						bind(
+							textInput(
+								choice.value,
+								( value ) => {
+									choice.value = value;
+									this.markDirty();
+								},
+								'value'
+							),
+							`choice:${ index }:value`
 						),
 						field.type === 'quiz' || choice.points !== undefined
 							? numberInput( String( choice.points ?? '' ), ( value ) => {

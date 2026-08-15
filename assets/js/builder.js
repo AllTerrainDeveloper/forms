@@ -410,9 +410,9 @@ var allTerrainFormsBuilder = function(exports) {
   function clear(node) {
     node.replaceChildren();
   }
-  function icon(slug2) {
+  function icon(slug) {
     return el("span", {
-      class: `dashicons ${slug2.startsWith("dashicons-") ? slug2 : `dashicons-${slug2}`}`,
+      class: `dashicons ${slug.startsWith("dashicons-") ? slug : `dashicons-${slug}`}`,
       attrs: { "aria-hidden": "true" }
     });
   }
@@ -1139,10 +1139,11 @@ var allTerrainFormsBuilder = function(exports) {
                   if (!target) {
                     return;
                   }
-                  if (!target.value || target.value === slug(target.label)) {
-                    target.value = slug(value);
-                  }
+                  const mirroring = !target.value || target.value === target.label;
                   target.label = value;
+                  if (mirroring) {
+                    target.value = value;
+                  }
                 });
               }
             ),
@@ -1176,7 +1177,7 @@ var allTerrainFormsBuilder = function(exports) {
             event.stopPropagation();
             handlers.restructure((live) => {
               const next = live.choices.length + 1;
-              live.choices.push({ label: `Option ${next}`, value: `option-${next}` });
+              live.choices.push({ label: `Option ${next}`, value: `Option ${next}` });
             });
           }
         },
@@ -1208,9 +1209,6 @@ var allTerrainFormsBuilder = function(exports) {
       class: "atfb-preview__summary",
       text: `${type?.label ?? field.type} — nothing is shown to the visitor here.`
     });
-  }
-  function slug(label) {
-    return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   }
   const cache = /* @__PURE__ */ new Map();
   function mergeTags(formId) {
@@ -2053,8 +2051,8 @@ var allTerrainFormsBuilder = function(exports) {
             activeSlug,
             overrides,
             standalone: true,
-            onTheme: (slug2) => {
-              activeSlug = slug2;
+            onTheme: (slug) => {
+              activeSlug = slug;
             },
             onOverride: (token, value) => {
               if (value === "") {
@@ -2063,11 +2061,11 @@ var allTerrainFormsBuilder = function(exports) {
                 overrides[token] = value;
               }
             },
-            previewFor: async (slug2, tokens) => {
+            previewFor: async (slug, tokens) => {
               const form = await api.getForm(previewForm.id);
-              form.schema.settings.theme = slug2;
+              form.schema.settings.theme = slug;
               form.schema.settings.themeOverrides = tokens;
-              const { html } = await api.preview(previewForm.id, { schema: form.schema, theme: slug2 });
+              const { html } = await api.preview(previewForm.id, { schema: form.schema, theme: slug });
               return html;
             },
             onThemesChanged: (next) => {
@@ -2295,6 +2293,10 @@ var allTerrainFormsBuilder = function(exports) {
   const FIELD_PAYLOAD_TYPE = "allterrain-forms/field";
   const MEDIA_PAYLOAD_TYPES = ["openstation/file", "desktop-mode/file", "openstation/attachment"];
   const LOGIC_MAP_SETTING = "allterrain-forms/logic-map-v2";
+  function bind(control2, key) {
+    control2.dataset.atfbBind = key;
+    return control2;
+  }
   const PREFILL_SOURCES = [
     { value: "user:email", label: "Their email address", group: "About the person filling it in", tag: "{user:email}" },
     { value: "user:display_name", label: "Their name", group: "About the person filling it in", tag: "{user:display_name}" },
@@ -2370,7 +2372,7 @@ var allTerrainFormsBuilder = function(exports) {
           this.inspector.append(
             row(
               "Label",
-              textInput(field.label, (value) => update("label", value))
+              bind(textInput(field.label, (value) => update("label", value)), "label")
             )
           );
         }
@@ -2378,7 +2380,7 @@ var allTerrainFormsBuilder = function(exports) {
           this.inspector.append(
             row(
               "Placeholder",
-              textInput(field.placeholder, (value) => update("placeholder", value))
+              bind(textInput(field.placeholder, (value) => update("placeholder", value)), "placeholder")
             )
           );
         }
@@ -2607,6 +2609,75 @@ var allTerrainFormsBuilder = function(exports) {
      */
     liveField(fieldId) {
       return this.schema?.fields.find((candidate) => candidate.id === fieldId);
+    }
+    /**
+     * Writes a field's current values into the inspector's matching controls.
+     *
+     * Only when the inspector is actually showing that field — editing a card that
+     * is not selected must not rewrite the pane describing a different one.
+     *
+     * Deliberately one-directional and value-only: the inspector's own handlers
+     * already write to the schema, and firing them from here would put the two
+     * panes in a loop, each telling the other about a change it had just made.
+     *
+     * @param field The field that was edited on the canvas.
+     */
+    /**
+     * Writes a field's current values into its card on the canvas.
+     *
+     * The mirror image of `syncInspector()`, for the same reason: the two panes
+     * edit one value and have to agree while it is being typed. The inspector's
+     * `update()` already repaints the canvas wholesale, but the choices editor
+     * mutates in place and only marks the form dirty — which was invisible until
+     * the canvas started drawing the options.
+     *
+     * Writes `textContent` rather than re-rendering, so the caret in the
+     * inspector is untouched.
+     *
+     * @param field The field that was edited in the inspector.
+     */
+    syncCanvas(field) {
+      const card = this.canvas.querySelector(
+        `[data-atfb-card="${CSS.escape(field.id)}"]`
+      );
+      if (!card) {
+        return;
+      }
+      const label = card.querySelector(".atf-label.atfb-editable");
+      if (label && label.textContent !== field.label) {
+        label.textContent = field.label;
+      }
+      const options = card.querySelectorAll(".atf-choice__label.atfb-editable");
+      (field.choices ?? []).forEach((choice, index) => {
+        const option = options[index];
+        if (option && option.textContent !== choice.label) {
+          option.textContent = choice.label;
+        }
+      });
+    }
+    syncInspector(field) {
+      if (this.selected !== field.id) {
+        return;
+      }
+      const write = (key, value) => {
+        const control2 = this.inspector.querySelector(
+          `[data-atfb-bind="${CSS.escape(key)}"]`
+        );
+        if (!control2) {
+          return;
+        }
+        if ("value" in control2) {
+          control2.value = value;
+        } else {
+          control2.setAttribute("value", value);
+        }
+      };
+      write("label", field.label ?? "");
+      write("placeholder", field.placeholder ?? "");
+      (field.choices ?? []).forEach((choice, index) => {
+        write(`choice:${index}:label`, choice.label ?? "");
+        write(`choice:${index}:value`, choice.value ?? "");
+      });
     }
     /**
      * Rebuilds the canvas so its cards point at the current schema objects.
@@ -2988,8 +3059,8 @@ var allTerrainFormsBuilder = function(exports) {
         }
       });
       this.palette.append(search);
-      for (const [slug2, label] of Object.entries(this.config.groups)) {
-        const types = grouped.get(slug2);
+      for (const [slug, label] of Object.entries(this.config.groups)) {
+        const types = grouped.get(slug);
         if (!types?.length) {
           continue;
         }
@@ -3412,6 +3483,7 @@ var allTerrainFormsBuilder = function(exports) {
                   }
                   apply(live);
                   this.markDirty();
+                  this.syncInspector(live);
                 },
                 restructure: (apply) => {
                   const live = this.liveField(field.id);
@@ -3708,20 +3780,25 @@ var allTerrainFormsBuilder = function(exports) {
             // pictures. Everywhere else it would be a column of
             // empty boxes for a setting that does nothing.
             field.type === "image_choice" ? this.choiceImageWell(choice, index, field) : null,
-            textInput(choice.label, (value) => {
+            bind(textInput(choice.label, (value) => {
+              const mirroring = !choice.value || choice.value === choice.label;
               choice.label = value;
-              if (!choice.value || choice.value === choices[index].value) {
+              if (mirroring) {
                 choice.value = value;
               }
               this.markDirty();
-            }),
-            textInput(
-              choice.value,
-              (value) => {
-                choice.value = value;
-                this.markDirty();
-              },
-              "value"
+              this.syncCanvas(field);
+            }), `choice:${index}:label`),
+            bind(
+              textInput(
+                choice.value,
+                (value) => {
+                  choice.value = value;
+                  this.markDirty();
+                },
+                "value"
+              ),
+              `choice:${index}:value`
             ),
             field.type === "quiz" || choice.points !== void 0 ? numberInput(String(choice.points ?? ""), (value) => {
               choice.points = value === "" ? void 0 : Number(value);
@@ -4016,8 +4093,8 @@ var allTerrainFormsBuilder = function(exports) {
           tokens: this.config?.tokens ?? [],
           activeSlug: this.schema.settings.theme,
           overrides: this.schema.settings.themeOverrides,
-          onTheme: (slug2) => {
-            this.schema.settings.theme = slug2;
+          onTheme: (slug) => {
+            this.schema.settings.theme = slug;
             this.markDirty();
           },
           onOverride: (token, value) => {
@@ -4028,7 +4105,7 @@ var allTerrainFormsBuilder = function(exports) {
             }
             this.markDirty();
           },
-          previewFor: (slug2, overrides) => this.previewHtml(slug2, overrides),
+          previewFor: (slug, overrides) => this.previewHtml(slug, overrides),
           onThemesChanged: (themes) => {
             this.themes = themes;
           }

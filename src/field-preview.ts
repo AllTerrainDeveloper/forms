@@ -374,15 +374,23 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 									return;
 								}
 
-								// The stored value follows the label while it still
-								// looks generated. Once somebody sets a value of their
+								// The stored value follows the label while it is still
+								// a mirror of it. Once somebody sets a value of their
 								// own — an id their CRM expects — renaming the label
-								// must not silently change what gets submitted.
-								if ( ! target.value || target.value === slug( target.label ) ) {
-									target.value = slug( value );
-								}
+								// must not silently change what gets submitted, because
+								// entries are stored against the value.
+								//
+								// Mirrors verbatim rather than slugifying, which is the
+								// convention the inspector and `atf_normalize_choices()`
+								// already use; two spellings of "the value follows the
+								// label" would disagree the moment you used both panes.
+								const mirroring = ! target.value || target.value === target.label;
 
 								target.label = value;
+
+								if ( mirroring ) {
+									target.value = value;
+								}
 							} );
 						}
 					),
@@ -424,7 +432,7 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 						// came back — with nothing to tell anybody why.
 						const next = live.choices.length + 1;
 
-						live.choices.push( { label: `Option ${ next }`, value: `option-${ next }` } );
+						live.choices.push( { label: `Option ${ next }`, value: `Option ${ next }` } );
 					} );
 				},
 			},
@@ -459,13 +467,4 @@ function staticBlock( field: Field, type: FieldType | undefined, handlers: Previ
 		class: 'atfb-preview__summary',
 		text: `${ type?.label ?? field.type } — nothing is shown to the visitor here.`,
 	} );
-}
-
-/** A stored value derived from a label. */
-function slug( label: string ): string {
-	return label
-		.toLowerCase()
-		.trim()
-		.replace( /[^a-z0-9]+/g, '-' )
-		.replace( /^-+|-+$/g, '' );
 }
