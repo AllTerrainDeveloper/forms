@@ -1,0 +1,22 @@
+node_modules/
+
+# Anchored, so it means Composer's directory at the repository root rather than
+# any `vendor/` further down the tree.
+/vendor/
+
+.DS_Store
+*.log
+.phpunit.result.cache
+
+# Release output. Rebuilt by `npm run plugin:package`, so it is never a source of
+# truth and there is nothing to lose by not keeping it.
+/dist/
+
+# Per-machine wp-env overrides. CI writes one to drop the sibling OpenStation
+# mapping, which exists only on a development machine — see
+# .github/workflows/ci.yml.
+/.wp-env.override.json
+
+# assets/js is deliberately committed. It is what makes "download the zip from a
+# tag and install it" work with no npm install, and CI fails if the committed
+# bundles stop matching their TypeScript.

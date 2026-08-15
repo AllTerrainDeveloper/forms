@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+	The plugin's own PHPUnit configuration.
+
+	Runs independently of any host repository's suite. Every test in this plugin
+	carries `@group allterrain-forms`, and the group filter below is what keeps a
+	run scoped to this plugin even when the test library is shared with a Core
+	checkout.
+-->
+<phpunit
+	bootstrap="bootstrap.php"
+	backupGlobals="false"
+	colors="true"
+	beStrictAboutTestsThatDoNotTestAnything="true"
+	convertDeprecationsToExceptions="true"
+	convertErrorsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertWarningsToExceptions="true"
+	>
+	<testsuites>
+		<testsuite name="allterrain-forms">
+			<directory suffix=".php">tests</directory>
+		</testsuite>
+	</testsuites>
+	<groups>
+		<include>
+			<group>allterrain-forms</group>
+		</include>
+	</groups>
+</phpunit>

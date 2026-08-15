@@ -1,0 +1,1256 @@
+/**
+ * The front-end stylesheet.
+ *
+ * Every value in this file that a theme could plausibly want to change is read
+ * from a custom property, and every one of those properties is declared in
+ * `atf_theme_token_defaults()`. That is the contract the whole theme system
+ * rests on: a theme is a token map, so a rule with a hard-coded colour or radius
+ * is a rule no theme can reach, and the PHPUnit suite asserts in both directions
+ * that this file and the token table agree.
+ *
+ * The custom properties themselves are emitted per form, inline, scoped to that
+ * form's instance id -- so two forms wearing two different themes can sit on the
+ * same page.
+ *
+ * Logical properties throughout (`margin-inline-start`, not `margin-left`), so
+ * RTL works without a second stylesheet.
+ *
+ * @package AllTerrain_Forms
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Wrapper                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atf-form-wrap {
+	container-type: inline-size;
+	container-name: atf-form;
+}
+
+.atf-form {
+	background: var( --atf-bg );
+	color: var( --atf-text );
+	font-family: var( --atf-font-family );
+	font-size: var( --atf-size-base );
+	line-height: var( --atf-line-height );
+	letter-spacing: var( --atf-letter-spacing );
+	border-radius: var( --atf-radius-card );
+	padding: var( --atf-pad-card );
+	box-shadow: var( --atf-shadow-card );
+	border: var( --atf-card-border );
+	background-image: var( --atf-card-gradient );
+	box-sizing: border-box;
+}
+
+/* A blurred surface only makes sense where the theme asked for one, and
+   `backdrop-filter: none` still promotes the element to its own layer in some
+   browsers — so the property is only set when it has work to do. */
+.atf-form {
+	backdrop-filter: var( --atf-backdrop-blur );
+}
+
+.atf-form *,
+.atf-form *::before,
+.atf-form *::after {
+	box-sizing: inherit;
+}
+
+.atf-form__title {
+	font-family: var( --atf-font-family-heading );
+	font-size: var( --atf-size-heading );
+	font-weight: var( --atf-weight-heading );
+	color: var( --atf-heading );
+	margin: 0 0 var( --atf-gap-fields );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Field grid                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.atf-fields {
+	display: grid;
+	grid-template-columns: repeat( 12, 1fr );
+	gap: var( --atf-gap-fields );
+	align-items: start;
+}
+
+.atf-field {
+	grid-column: span 12;
+	min-width: 0;
+}
+
+.atf-field--half {
+	grid-column: span 6;
+}
+
+.atf-field--third {
+	grid-column: span 4;
+}
+
+.atf-field--two-thirds {
+	grid-column: span 8;
+}
+
+.atf-field--quarter {
+	grid-column: span 3;
+}
+
+/* Container query, not a media query: a form inside a narrow OpenStation window
+   or a sidebar needs to stack for exactly the same reason a form on a phone
+   does, and the viewport cannot tell you about either. */
+@container atf-form ( max-width: 560px ) {
+	.atf-field--half,
+	.atf-field--third,
+	.atf-field--two-thirds,
+	.atf-field--quarter {
+		grid-column: span 12;
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+/* Labels                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atf-label {
+	display: block;
+	margin-block-end: var( --atf-gap-label );
+	font-size: var( --atf-size-label );
+	font-weight: var( --atf-weight-label );
+	letter-spacing: var( --atf-letter-spacing-label );
+	text-transform: var( --atf-transform-label );
+	color: var( --atf-text );
+}
+
+.atf-label--sub {
+	font-size: var( --atf-size-hint );
+	font-weight: 400;
+	text-transform: none;
+	opacity: 0.85;
+}
+
+.atf-required {
+	color: var( --atf-error );
+	margin-inline-start: 0.25em;
+}
+
+.atf-hint {
+	margin: calc( var( --atf-gap-label ) * 0.75 ) 0 0;
+	font-size: var( --atf-size-hint );
+	color: var( --atf-text-muted );
+}
+
+/* `hidden` keeps the label in the accessibility tree and takes it out of the
+   visual one. Throwing the element away instead would leave every control in
+   the form without an accessible name. */
+.atf-labels-hidden .atf-label:not( .atf-label--sub ) {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+	border: 0;
+}
+
+.atf-labels-left .atf-field {
+	display: grid;
+	grid-template-columns: var( --atf-label-width ) 1fr;
+	gap: var( --atf-gap-label ) 20px;
+	align-items: start;
+}
+
+.atf-labels-left .atf-field > .atf-label {
+	margin-block: 0;
+	padding-block-start: var( --atf-pad-field-y );
+	grid-column: 1;
+}
+
+.atf-labels-left .atf-field > :not( .atf-label ) {
+	grid-column: 2;
+}
+
+@container atf-form ( max-width: 560px ) {
+	.atf-labels-left .atf-field {
+		grid-template-columns: 1fr;
+	}
+
+	.atf-labels-left .atf-field > .atf-label,
+	.atf-labels-left .atf-field > :not( .atf-label ) {
+		grid-column: 1;
+	}
+
+	.atf-labels-left .atf-field > .atf-label {
+		padding-block-start: 0;
+	}
+}
+
+/* Floating labels sit inside the field and lift on focus or once the control
+   holds a value. `:placeholder-shown` is the only selector that can tell those
+   apart without JavaScript — which is why a floating theme needs a placeholder,
+   and why the space is reserved with a non-breaking placeholder when there
+   isn't one. */
+.atf-labels-floating .atf-field {
+	position: relative;
+	padding-block-start: 0;
+}
+
+.atf-labels-floating .atf-label {
+	position: absolute;
+	inset-block-start: var( --atf-pad-field-y );
+	inset-inline-start: calc( var( --atf-pad-field-x ) + var( --atf-border-width ) );
+	margin: 0;
+	pointer-events: none;
+	transform-origin: left top;
+	transition: transform var( --atf-transition-duration ) var( --atf-transition-easing ),
+		color var( --atf-transition-duration ) var( --atf-transition-easing );
+	color: var( --atf-text-muted );
+}
+
+.atf-labels-floating .atf-input:not( :placeholder-shown ) ~ .atf-label,
+.atf-labels-floating .atf-input:focus ~ .atf-label {
+	transform: translateY( -0.85em ) scale( 0.78 );
+	color: var( --atf-accent );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inputs                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atf-form .atf-input {
+	display: block;
+	width: 100%;
+	min-height: var( --atf-field-height );
+	padding: var( --atf-pad-field-y ) var( --atf-pad-field-x );
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	color: var( --atf-text );
+	background-color: var( --atf-surface );
+	background-image: var( --atf-field-gradient );
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	box-shadow: var( --atf-shadow-field );
+	transition: border-color var( --atf-transition-duration ) var( --atf-transition-easing ),
+		box-shadow var( --atf-transition-duration ) var( --atf-transition-easing ),
+		transform var( --atf-transition-duration ) var( --atf-transition-easing );
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+.atf-form .atf-input::placeholder {
+	color: var( --atf-placeholder );
+	opacity: 1;
+}
+
+.atf-form .atf-input:hover:not( :disabled ) {
+	border-color: var( --atf-border-focus );
+}
+
+.atf-form .atf-input:focus {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+	border-color: var( --atf-border-focus );
+	box-shadow: var( --atf-shadow-field-focus );
+	transform: var( --atf-field-lift );
+}
+
+.atf-form .atf-input:disabled,
+.atf-form .atf-input[ readonly ] {
+	opacity: 0.7;
+	cursor: default;
+}
+
+.atf-form .atf-textarea {
+	resize: vertical;
+	min-height: 6em;
+}
+
+/* The chevron is drawn with a gradient rather than a background image, because a
+   `url()` — even a data URI — is refused by the token sanitiser, and a select
+   arrow that could not follow the theme's text colour would be invisible on
+   half the themes that ship. */
+.atf-form .atf-select {
+	padding-inline-end: calc( var( --atf-pad-field-x ) * 2.5 );
+	background-image:
+		linear-gradient( 45deg, transparent 50%, currentColor 50% ),
+		linear-gradient( 135deg, currentColor 50%, transparent 50% );
+	background-position:
+		right calc( var( --atf-pad-field-x ) + 5px ) center,
+		right var( --atf-pad-field-x ) center;
+	background-size: 5px 5px, 5px 5px;
+	background-repeat: no-repeat;
+}
+
+.atf-form[ dir="rtl" ] .atf-select,
+[ dir="rtl" ] .atf-select {
+	background-position:
+		left var( --atf-pad-field-x ) center,
+		left calc( var( --atf-pad-field-x ) + 5px ) center;
+}
+
+.atf-form .atf-multiselect {
+	min-height: 8em;
+	background-image: none;
+	padding-inline-end: var( --atf-pad-field-x );
+}
+
+/* --- Field styles --------------------------------------------------------- */
+
+.atf-fields-filled .atf-input {
+	background-color: var( --atf-surface-alt );
+	border-color: transparent;
+}
+
+.atf-fields-filled .atf-input:focus {
+	border-color: var( --atf-border-focus );
+}
+
+.atf-fields-underline .atf-input {
+	border-width: 0 0 var( --atf-border-width ) 0;
+	border-radius: 0;
+	background-color: transparent;
+	padding-inline: 0;
+}
+
+.atf-fields-none .atf-input {
+	border-color: transparent;
+	background-color: transparent;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Choices                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atf-choices,
+.atf-composite,
+.atf-rating,
+.atf-scale,
+.atf-images {
+	border: 0;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+
+.atf-choices__list {
+	display: grid;
+	gap: calc( var( --atf-gap-label ) + 2px );
+}
+
+.atf-choices--inline .atf-choices__list {
+	grid-auto-flow: column;
+	grid-auto-columns: max-content;
+	gap: 20px;
+}
+
+@container atf-form ( max-width: 480px ) {
+	.atf-choices--inline .atf-choices__list {
+		grid-auto-flow: row;
+		gap: calc( var( --atf-gap-label ) + 2px );
+	}
+}
+
+.atf-choice {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6em;
+}
+
+/* Centred on the first line of its label, computed rather than nudged.
+ *
+ * Two things break the obvious `margin-top: 0.2em`. WordPress's `forms.css` sets
+ * `input[type="checkbox"] { margin: -0.25rem … }` at (0,1,1), which outranks a
+ * single class of ours — hence the `.atf-form` prefix on every control rule in
+ * this file. And `textarea, input { font-size: 14px }` means an `em` on the box
+ * resolves against 14px while the label's resolves against 16px, so any nudge
+ * expressed in the box's own `em` is measuring the wrong thing.
+ *
+ * So: the font-size is re-inherited, and the offset is half the difference
+ * between the label's line box and the box — which is the definition of
+ * "vertically centred on the first line", and holds at any theme's line-height.
+ */
+.atf-form .atf-choice__input {
+	font-size: inherit;
+	/* Pinned, not inherited. A site theme setting `input { line-height: 1.65 }`
+	   applies a *specified* value, which beats inheritance from the form — so
+	   without this the box centres itself on a 26.4px line while its label sits
+	   on a 24px one, and the two disagree by exactly that difference. */
+	line-height: var( --atf-line-height );
+	inline-size: 1.15em;
+	block-size: 1.15em;
+	margin: 0;
+	margin-block-start: calc( ( var( --atf-line-height ) * 1em - 1.15em ) / 2 );
+	flex: 0 0 auto;
+}
+
+/* `lh` says the same thing exactly, and keeps working if a theme expresses
+   `--atf-line-height` in px, where the multiplication above is invalid. It is
+   only correct because the line-height is pinned above. */
+@supports ( margin-block-start: 1lh ) {
+	.atf-form .atf-choice__input,
+	.atf-form .atf-toggle__input {
+		margin-block-start: calc( ( 1lh - 1.15em ) / 2 );
+	}
+}
+
+/* Drawn here rather than left to the browser, and that is a correction.
+ *
+ * `accent-color` only colours a control the browser is still painting itself.
+ * WordPress's `forms.css` sets `appearance: none` on every `input[type=checkbox]`
+ * and `input[type=radio]` in the admin, which retires the native control
+ * entirely — so `accent-color` became a no-op and the tick was painted by
+ * whichever admin stylesheet claimed the `:checked::before` marker. Inside an
+ * OpenStation window that is the shell, and the mark came out in the shell's own
+ * brand pink no matter what accent the theme asked for.
+ *
+ * Turning `appearance` back on would fix the colour and cost the theme every
+ * other property: a native control ignores `border-radius`, `border-width` and
+ * background, so `radius-check` and Brutal's 3px border would quietly stop
+ * meaning anything. Since a theme here is meant to reach "anything you might
+ * imagine, like shadow or even round corners", the control has to be ours.
+ *
+ * Declaring `appearance: none` ourselves also settles a difference nobody had
+ * noticed yet: the admin preview was showing WordPress's stripped box and the
+ * front end — where `forms.css` never loads — was showing the native one. Same
+ * form, same theme, two different controls. Now there is one.
+ */
+.atf-form .atf-choice__input,
+.atf-form .atf-toggle__input {
+	appearance: none;
+	-webkit-appearance: none;
+	box-sizing: border-box;
+	display: inline-grid;
+	place-content: center;
+	background-color: var( --atf-surface );
+	border: var( --atf-border-width ) solid var( --atf-border );
+	/* Round by default, because this rule covers radios too and a square radio
+	   reads as a checkbox whatever the theme intended. Checkboxes take their own
+	   radius below. */
+	border-radius: 50%;
+	color: var( --atf-accent-text );
+	cursor: pointer;
+	transition: background-color var( --atf-transition-duration ) var( --atf-transition-easing ),
+		border-color var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+/* A checkbox gets its own radius token, because a theme that squares off its
+   text fields usually still wants the tick box square and the radio round —
+   `radius-field` cannot say both. */
+.atf-form .atf-choice__input[ type="checkbox" ],
+.atf-form .atf-toggle__input[ type="checkbox" ] {
+	border-radius: var( --atf-radius-check );
+}
+
+.atf-form .atf-choice__input:checked,
+.atf-form .atf-toggle__input:checked {
+	background-color: var( --atf-accent );
+	border-color: var( --atf-accent );
+}
+
+.atf-form .atf-choice__input:disabled,
+.atf-form .atf-toggle__input:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+/* The mark itself. Always present so it has something to scale from — a mark
+   that appears at full size the instant the box is clicked reads as a repaint,
+   not as an answer being recorded. */
+.atf-form .atf-choice__input::before,
+.atf-form .atf-toggle__input::before {
+	content: "";
+	background-color: currentColor;
+	transform: scale( 0 );
+	transition: transform var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+.atf-form .atf-choice__input:checked::before,
+.atf-form .atf-toggle__input:checked::before {
+	transform: scale( 1 );
+}
+
+/* A radio's mark is a dot; a checkbox's is a tick. The tick is a clipped
+   rectangle rather than a background image, so it inherits the accent's
+   contrast colour and needs no second asset at any resolution. */
+.atf-form .atf-choice__input[ type="radio" ]::before {
+	inline-size: 0.5em;
+	block-size: 0.5em;
+	border-radius: 50%;
+}
+
+.atf-form .atf-choice__input[ type="checkbox" ]::before,
+.atf-form .atf-toggle__input[ type="checkbox" ]::before {
+	inline-size: 0.75em;
+	block-size: 0.75em;
+	clip-path: polygon( 14% 44%, 0 65%, 43% 96%, 100% 20%, 82% 7%, 40% 66% );
+}
+
+.atf-form .atf-choice__input:focus-visible,
+.atf-form .atf-toggle__input:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+.atf-form .atf-choice__label {
+	font-size: var( --atf-size-base );
+	line-height: var( --atf-line-height );
+	cursor: pointer;
+}
+
+.atf-choice__other {
+	margin-inline-start: 0.6em;
+	max-inline-size: 16em;
+}
+
+.atf-toggle {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6em;
+}
+
+.atf-form .atf-toggle__input {
+	font-size: inherit;
+	line-height: var( --atf-line-height );
+	inline-size: 1.15em;
+	block-size: 1.15em;
+	margin: 0;
+	margin-block-start: calc( ( var( --atf-line-height ) * 1em - 1.15em ) / 2 );
+	flex: 0 0 auto;
+}
+
+.atf-form .atf-toggle__label {
+	line-height: var( --atf-line-height );
+	cursor: pointer;
+}
+
+/* --- Image choice --------------------------------------------------------- */
+
+.atf-images__grid {
+	display: grid;
+	grid-template-columns: repeat( var( --atf-image-columns, 3 ), 1fr );
+	gap: 12px;
+	margin-block-start: var( --atf-gap-label );
+}
+
+@container atf-form ( max-width: 480px ) {
+	.atf-images__grid {
+		grid-template-columns: repeat( 2, 1fr );
+	}
+}
+
+.atf-form .atf-images__input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.atf-images__label {
+	display: block;
+	cursor: pointer;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	overflow: hidden;
+	transition: border-color var( --atf-transition-duration ) var( --atf-transition-easing ),
+		box-shadow var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+.atf-images__img {
+	display: block;
+	inline-size: 100%;
+	block-size: auto;
+	aspect-ratio: 4 / 3;
+	object-fit: cover;
+}
+
+.atf-images__caption {
+	display: block;
+	padding: 8px 10px;
+	font-size: var( --atf-size-hint );
+	text-align: center;
+}
+
+.atf-images__input:checked + .atf-images__label {
+	border-color: var( --atf-accent );
+	box-shadow: 0 0 0 2px var( --atf-accent );
+}
+
+.atf-images__input:focus-visible + .atf-images__label {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rating and scale                                                            */
+/* -------------------------------------------------------------------------- */
+
+.atf-rating__stars {
+	display: flex;
+	gap: 4px;
+	margin-block-start: var( --atf-gap-label );
+}
+
+.atf-form .atf-rating__input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.atf-rating__star {
+	inline-size: 1.6em;
+	block-size: 1.6em;
+	cursor: pointer;
+	background: var( --atf-border );
+	transition: background var( --atf-transition-duration ) var( --atf-transition-easing );
+	/* A star drawn in CSS, so it inherits the theme's colours instead of being
+	   an image that cannot. */
+	clip-path: polygon(
+		50% 0%, 61% 35%, 98% 35%, 68% 57%,
+		79% 91%, 50% 70%, 21% 91%, 32% 57%,
+		2% 35%, 39% 35%
+	);
+}
+
+/* Every star up to and including the checked one lights up. `:has()` reads
+   forwards, which is the direction this needs and the reason it cannot be done
+   with a sibling combinator alone. */
+.atf-rating__stars:has( .atf-rating__input:checked ) .atf-rating__star {
+	background: var( --atf-accent );
+}
+
+.atf-rating__input:checked ~ .atf-rating__star {
+	background: var( --atf-border );
+}
+
+.atf-rating__stars:hover .atf-rating__star {
+	background: var( --atf-accent );
+}
+
+.atf-rating__star:hover ~ .atf-rating__star {
+	background: var( --atf-border );
+}
+
+.atf-rating__input:focus-visible + .atf-rating__star {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: 2px;
+}
+
+.atf-scale__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block-start: var( --atf-gap-label );
+}
+
+.atf-form .atf-scale__input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.atf-scale__label {
+	display: grid;
+	place-items: center;
+	min-inline-size: 2.4em;
+	padding: 0.5em 0.4em;
+	cursor: pointer;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface );
+	transition: background var( --atf-transition-duration ) var( --atf-transition-easing ),
+		color var( --atf-transition-duration ) var( --atf-transition-easing );
+}
+
+.atf-scale__input:checked + .atf-scale__label {
+	background: var( --atf-accent );
+	color: var( --atf-accent-text );
+	border-color: var( --atf-accent );
+}
+
+.atf-scale__input:focus-visible + .atf-scale__label {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+.atf-scale__ends {
+	display: flex;
+	justify-content: space-between;
+	margin-block-start: 6px;
+	font-size: var( --atf-size-hint );
+	color: var( --atf-text-muted );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Likert                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atf-likert__table {
+	inline-size: 100%;
+	border-collapse: collapse;
+	margin-block-start: var( --atf-gap-label );
+}
+
+.atf-likert__table th,
+.atf-likert__table td {
+	padding: 10px 8px;
+	text-align: center;
+	border-block-end: 1px solid var( --atf-border );
+	font-size: var( --atf-size-hint );
+	font-weight: 400;
+}
+
+.atf-likert__table th[ scope="row" ] {
+	text-align: start;
+	font-weight: var( --atf-weight-label );
+	font-size: var( --atf-size-label );
+}
+
+.atf-form .atf-likert__table input {
+	accent-color: var( --atf-accent );
+	font-size: inherit;
+	inline-size: 1.15em;
+	block-size: 1.15em;
+	margin: 0;
+}
+
+/* A matrix is the one control that genuinely cannot shrink to a phone. Below
+   this width it scrolls sideways inside its own box rather than forcing the
+   whole page to. */
+.atf-likert {
+	overflow-x: auto;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Range, file, signature, total                                               */
+/* -------------------------------------------------------------------------- */
+
+.atf-range {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.atf-form .atf-range__input {
+	flex: 1;
+	accent-color: var( --atf-accent );
+}
+
+.atf-range__output {
+	min-inline-size: 3em;
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+	color: var( --atf-text-muted );
+}
+
+.atf-form .atf-file__input {
+	display: block;
+	inline-size: 100%;
+	padding: var( --atf-pad-field-y ) var( --atf-pad-field-x );
+	border: var( --atf-border-width ) dashed var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface );
+	color: var( --atf-text );
+	cursor: pointer;
+}
+
+.atf-form .atf-file__input:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+.atf-file__types {
+	margin: 6px 0 0;
+	font-size: var( --atf-size-hint );
+	color: var( --atf-text-muted );
+}
+
+.atf-file.is-dropping .atf-file__input {
+	border-color: var( --atf-accent );
+	background: var( --atf-accent-soft );
+}
+
+.atf-signature__pad {
+	inline-size: 100%;
+	block-size: auto;
+	aspect-ratio: 3 / 1;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface );
+	touch-action: none;
+	cursor: crosshair;
+}
+
+.atf-signature__actions {
+	margin-block-start: 8px;
+}
+
+.atf-total {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.atf-total__currency {
+	font-size: var( --atf-size-label );
+	color: var( --atf-text-muted );
+}
+
+.atf-form .atf-total__input {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Composite and repeater                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atf-composite__parts {
+	display: grid;
+	grid-template-columns: repeat( 2, 1fr );
+	gap: 12px;
+	margin-block-start: var( --atf-gap-label );
+}
+
+.atf-composite__part--line1,
+.atf-composite__part--line2 {
+	grid-column: span 2;
+}
+
+@container atf-form ( max-width: 480px ) {
+	.atf-composite__parts {
+		grid-template-columns: 1fr;
+	}
+
+	.atf-composite__part--line1,
+	.atf-composite__part--line2 {
+		grid-column: span 1;
+	}
+}
+
+.atf-repeater__rows {
+	display: grid;
+	gap: 12px;
+	margin-block-start: var( --atf-gap-label );
+}
+
+.atf-repeater__row {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat( 12, 1fr );
+	gap: 12px;
+	padding: 14px;
+	padding-inline-end: 44px;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface-alt );
+}
+
+.atf-repeater__field {
+	grid-column: span 12;
+}
+
+.atf-repeater__field.atf-field--half {
+	grid-column: span 6;
+}
+
+.atf-repeater__field.atf-field--third {
+	grid-column: span 4;
+}
+
+.atf-repeater__remove {
+	position: absolute;
+	inset-block-start: 8px;
+	inset-inline-end: 8px;
+	inline-size: 28px;
+	block-size: 28px;
+	display: grid;
+	place-items: center;
+	border: 0;
+	border-radius: var( --atf-radius-button );
+	background: transparent;
+	color: var( --atf-text-muted );
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.atf-repeater__remove:hover {
+	background: var( --atf-error-soft );
+	color: var( --atf-error );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Layout fields                                                               */
+/* -------------------------------------------------------------------------- */
+
+.atf-heading {
+	font-family: var( --atf-font-family-heading );
+	font-size: var( --atf-size-heading );
+	font-weight: var( --atf-weight-heading );
+	color: var( --atf-heading );
+	margin: 0;
+}
+
+.atf-divider {
+	border: 0;
+	border-block-start: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	margin: 0;
+}
+
+.atf-html > *:first-child {
+	margin-block-start: 0;
+}
+
+.atf-html > *:last-child {
+	margin-block-end: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atf-actions,
+.atf-nav {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-block-start: var( --atf-gap-fields );
+	justify-content: var( --atf-button-align );
+}
+
+.atf-nav {
+	justify-content: space-between;
+}
+
+.atf-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: var( --atf-button-pad-y ) var( --atf-button-pad-x );
+	font-family: inherit;
+	font-size: var( --atf-size-button );
+	font-weight: var( --atf-weight-button );
+	text-transform: var( --atf-button-transform );
+	color: var( --atf-button-text );
+	background: var( --atf-button-bg );
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-button-border );
+	border-radius: var( --atf-radius-button );
+	box-shadow: var( --atf-shadow-button );
+	cursor: pointer;
+	transition: background var( --atf-transition-duration ) var( --atf-transition-easing ),
+		box-shadow var( --atf-transition-duration ) var( --atf-transition-easing ),
+		transform var( --atf-transition-duration ) var( --atf-transition-easing );
+	inline-size: var( --atf-button-width );
+}
+
+.atf-button:hover:not( :disabled ) {
+	background: var( --atf-button-bg-hover );
+	box-shadow: var( --atf-shadow-button-hover );
+	transform: var( --atf-field-lift );
+}
+
+.atf-button:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: calc( var( --atf-focus-ring-offset ) + 1px );
+}
+
+.atf-button:disabled {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+.atf-button--secondary,
+.atf-button--ghost {
+	background: transparent;
+	color: var( --atf-text );
+	border-color: var( --atf-border );
+	box-shadow: none;
+}
+
+.atf-button--secondary:hover:not( :disabled ),
+.atf-button--ghost:hover:not( :disabled ) {
+	background: var( --atf-accent-soft );
+	box-shadow: none;
+}
+
+.atf-button__spinner {
+	display: none;
+	inline-size: 1em;
+	block-size: 1em;
+	border: 2px solid currentColor;
+	border-block-start-color: transparent;
+	border-radius: 50%;
+	animation: atf-spin 700ms linear infinite;
+}
+
+.atf-button.is-busy .atf-button__spinner {
+	display: block;
+}
+
+@keyframes atf-spin {
+	to {
+		transform: rotate( 360deg );
+	}
+}
+
+.atf-status {
+	font-size: var( --atf-size-hint );
+	color: var( --atf-text-muted );
+}
+
+.atf-actions--resume {
+	justify-content: flex-start;
+}
+
+.atf-resume-panel {
+	display: grid;
+	gap: 8px;
+	margin-block-start: var( --atf-gap-label );
+	padding: 14px 16px;
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface-alt );
+	border-inline-start: 4px solid var( --atf-success );
+	color: var( --atf-text );
+}
+
+.atf-resume-panel p {
+	margin: 0;
+	font-size: var( --atf-size-hint );
+}
+
+.atf-resume-panel:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Progress                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.atf-progress--bar {
+	block-size: var( --atf-progress-height );
+	background: var( --atf-surface-alt );
+	border-radius: 999px;
+	overflow: hidden;
+	margin-block-end: var( --atf-gap-fields );
+}
+
+.atf-progress__fill {
+	block-size: 100%;
+	background: var( --atf-accent );
+	transition: inline-size 240ms var( --atf-transition-easing );
+}
+
+.atf-progress--steps {
+	display: flex;
+	gap: 8px;
+	list-style: none;
+	margin: 0 0 var( --atf-gap-fields );
+	padding: 0;
+	flex-wrap: wrap;
+}
+
+.atf-progress__step {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var( --atf-size-hint );
+	color: var( --atf-text-muted );
+}
+
+.atf-progress__step + .atf-progress__step::before {
+	content: "";
+	inline-size: 20px;
+	block-size: 1px;
+	background: var( --atf-border );
+}
+
+.atf-progress__dot {
+	display: grid;
+	place-items: center;
+	inline-size: 1.9em;
+	block-size: 1.9em;
+	border-radius: 999px;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+	font-variant-numeric: tabular-nums;
+}
+
+.atf-progress__step.is-current .atf-progress__dot,
+.atf-progress__step.is-done .atf-progress__dot {
+	background: var( --atf-accent );
+	color: var( --atf-accent-text );
+	border-color: var( --atf-accent );
+}
+
+.atf-progress__step.is-current {
+	color: var( --atf-text );
+	font-weight: var( --atf-weight-label );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Errors, notices, confirmation                                               */
+/* -------------------------------------------------------------------------- */
+
+.atf-errors {
+	margin-block-end: var( --atf-gap-fields );
+	padding: 14px 16px;
+	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-error );
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-error-soft );
+	color: var( --atf-text );
+}
+
+.atf-errors:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+.atf-errors__title {
+	margin: 0 0 8px;
+	font-weight: 600;
+}
+
+.atf-errors ul {
+	margin: 0;
+	padding-inline-start: 1.2em;
+}
+
+.atf-errors a {
+	color: var( --atf-error );
+}
+
+.atf-error {
+	margin: 6px 0 0;
+	font-size: var( --atf-size-hint );
+	color: var( --atf-error );
+}
+
+.atf-field.has-error .atf-input,
+.atf-field.has-error .atf-file__input {
+	border-color: var( --atf-error );
+}
+
+/* An invalid field's own ring beats the shared focus ring, so a field in error
+   focuses in red rather than in the accent colour. */
+.atf-field.has-error .atf-input:focus {
+	outline-color: var( --atf-error );
+	box-shadow: none;
+}
+
+.atf-notice {
+	padding: 14px 16px;
+	border-radius: var( --atf-radius-field );
+	background: var( --atf-surface-alt );
+	color: var( --atf-text );
+}
+
+.atf-notice--error {
+	border: 1px solid var( --atf-error );
+	background: var( --atf-error-soft );
+}
+
+.atf-confirmation {
+	padding: 20px;
+	border-radius: var( --atf-radius-card );
+	background: var( --atf-surface-alt );
+	color: var( --atf-text );
+	/* The one place the success colour earns its keep. A leading edge rather
+	   than a tint, so the message stays legible on the dark themes where a
+	   green wash behind body text would not be. */
+	border-inline-start: 4px solid var( --atf-success );
+}
+
+/* A field that passed validation after having failed it. Marked quietly — the
+   point is to confirm the fix, not to decorate every answered field. */
+.atf-field.is-valid .atf-input {
+	border-color: var( --atf-success );
+}
+
+.atf-confirmation:focus-visible {
+	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
+	outline-offset: var( --atf-focus-ring-offset );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The honeypot                                                                */
+/* -------------------------------------------------------------------------- */
+
+/* Off-screen rather than `display: none`. A field that is `display: none` is
+   skipped by the bots this catches; one that is merely positioned away is
+   filled in, which is the entire mechanism. */
+.atf-hp {
+	position: absolute !important;
+	inset-inline-start: -9999px;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utilities                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.atf-form .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+	border: 0;
+}
+
+.atf-page[ hidden ],
+.atf-field[ hidden ] {
+	display: none !important;
+}
+
+/* Every transition in the file is a nicety. Someone who has asked their
+   operating system to stop moving things has asked for all of them. */
+@media ( prefers-reduced-motion: reduce ) {
+	.atf-form *,
+	.atf-form *::before,
+	.atf-form *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* Windows high-contrast mode replaces every colour with a system one, and the
+   themes that signal state with background alone would lose that state
+   entirely. A border restores it. */
+@media ( forced-colors: active ) {
+	.atf-input,
+	.atf-button,
+	.atf-scale__label,
+	.atf-images__label {
+		border: 1px solid;
+	}
+
+	.atf-scale__input:checked + .atf-scale__label,
+	.atf-images__input:checked + .atf-images__label {
+		outline: 3px solid;
+		outline-offset: -3px;
+	}
+
+	/* Drawing the tick box ourselves means high-contrast mode no longer gets a
+	   native control to substitute for. `background-color` is forced to the
+	   system Canvas there, so a checked box would come out identical to an
+	   unchecked one; `forced-color-adjust: none` on the mark alone keeps the
+	   tick visible while the box itself still follows the user's palette. */
+	.atf-form .atf-choice__input,
+	.atf-form .atf-toggle__input {
+		border: 1px solid;
+	}
+
+	.atf-form .atf-choice__input::before,
+	.atf-form .atf-toggle__input::before {
+		forced-color-adjust: none;
+		background-color: Highlight;
+	}
+}

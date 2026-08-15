@@ -1,0 +1,4271 @@
+var allTerrainFormsBuilder = function(exports) {
+  "use strict";
+  const DRAG_THRESHOLD_PX = 4;
+  const CLICK_GUARD_MS = 500;
+  class FallbackDragManager {
+    constructor() {
+      this.targets = [];
+      this.active = null;
+      this.lastEndMs = 0;
+    }
+    start(opts) {
+      if (this.active || opts.origin.button !== 0) {
+        return null;
+      }
+      const { payload, origin } = opts;
+      const startX = origin.clientX;
+      const startY = origin.clientY;
+      let lifted = false;
+      let finished = false;
+      let ghost = null;
+      let hovered = null;
+      let offsetX = 0;
+      let offsetY = 0;
+      const cleanup = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
+        document.removeEventListener("keydown", onKey);
+        window.removeEventListener("blur", onCancel);
+        ghost?.remove();
+        ghost = null;
+        payload.source.classList.remove("atf-is-dragging");
+        hovered?.onLeave?.(session);
+        hovered = null;
+        this.active = null;
+        this.lastEndMs = Date.now();
+      };
+      const session = {
+        payload,
+        isFinished: () => finished,
+        cancel: (reason = "caller") => {
+          if (finished) {
+            return;
+          }
+          finished = true;
+          cleanup();
+          opts.onCancel?.(reason);
+        }
+      };
+      const lift = (event) => {
+        lifted = true;
+        payload.source.classList.add("atf-is-dragging");
+        const rect = payload.source.getBoundingClientRect();
+        offsetX = payload.ghost?.offsetX ?? startX - rect.left;
+        offsetY = payload.ghost?.offsetY ?? startY - rect.top;
+        ghost = payload.ghost?.element ?? payload.source.cloneNode(true);
+        ghost.classList.add("atf-drag-ghost");
+        ghost.style.width = `${rect.width}px`;
+        document.body.appendChild(ghost);
+        position(event);
+      };
+      const position = (event) => {
+        if (ghost) {
+          ghost.style.transform = `translate3d(${event.clientX - offsetX}px, ${event.clientY - offsetY}px, 0)`;
+        }
+      };
+      const onMove = (event) => {
+        if (finished) {
+          return;
+        }
+        if (!lifted) {
+          if (Math.hypot(event.clientX - startX, event.clientY - startY) < DRAG_THRESHOLD_PX) {
+            return;
+          }
+          lift(event);
+        }
+        position(event);
+        const next = this.hitTest(event.clientX, event.clientY);
+        if (next !== hovered) {
+          hovered?.onLeave?.(session);
+          hovered = next;
+          hovered?.onEnter?.(session);
+        }
+      };
+      const onUp = (event) => {
+        if (finished) {
+          return;
+        }
+        if (!lifted) {
+          finished = true;
+          cleanup();
+          opts.onClickOnly?.();
+          return;
+        }
+        const target = hovered;
+        finished = true;
+        cleanup();
+        if (target && target.accept(payload)) {
+          opts.onCommit?.(target);
+          void target.onDrop(session, { clientX: event.clientX, clientY: event.clientY });
+          return;
+        }
+        opts.onCancel?.(target ? "rejected" : "no-target");
+      };
+      const onCancel = () => session.cancel("pointercancel");
+      const onKey = (event) => {
+        if (event.key === "Escape") {
+          session.cancel("escape");
+        }
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
+      document.addEventListener("keydown", onKey);
+      window.addEventListener("blur", onCancel);
+      this.active = session;
+      return session;
+    }
+    registerDropTarget(target) {
+      this.targets = this.targets.filter((candidate) => candidate.id !== target.id);
+      this.targets.push(target);
+      return () => {
+        this.targets = this.targets.filter((candidate) => candidate.id !== target.id);
+      };
+    }
+    isDragging() {
+      return this.active !== null;
+    }
+    recentlyEndedDrag(withinMs = CLICK_GUARD_MS) {
+      return Date.now() - this.lastEndMs < withinMs;
+    }
+    /**
+     * The registered target the cursor is most specifically over.
+     *
+     * Depth first, so a target nested inside another wins — that is what makes
+     * dropping on a field mean something more specific than dropping on the
+     * canvas that holds it.
+     *
+     * Ties go to whichever element comes *later* in document order, which for
+     * overlapping siblings is the one painted on top and therefore the one the
+     * user believes they are aiming at. Without the tie-break, two overlapping
+     * siblings resolve by registration order instead, and a small target sitting
+     * on top of a large one never receives a drop at all — including when its
+     * job was to refuse one.
+     */
+    hitTest(x, y) {
+      let best = null;
+      let bestDepth = -1;
+      for (const target of this.targets) {
+        const rect = target.element.getBoundingClientRect();
+        if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+          continue;
+        }
+        const depth = depthOf(target.element);
+        if (depth > bestDepth) {
+          best = target;
+          bestDepth = depth;
+          continue;
+        }
+        if (depth === bestDepth && best && follows(target.element, best.element)) {
+          best = target;
+        }
+      }
+      return best;
+    }
+  }
+  function depthOf(element) {
+    let depth = 0;
+    let node = element;
+    while (node) {
+      depth++;
+      node = node.parentElement;
+    }
+    return depth;
+  }
+  function follows(a, b) {
+    return (b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }
+  function getShell() {
+    const wp = window.wp;
+    return wp?.os ?? null;
+  }
+  let fallback = null;
+  function getDragManager() {
+    const shell2 = getShell();
+    if (shell2?.dragManager) {
+      return shell2.dragManager;
+    }
+    if (!fallback) {
+      fallback = new FallbackDragManager();
+    }
+    return fallback;
+  }
+  function watchShellDragVisuals(payloadTypes) {
+    const sourceOf = (event) => {
+      const payload = event.detail?.payload;
+      return payload && payloadTypes.includes(payload.type) ? payload.source : null;
+    };
+    const onStart = (event) => sourceOf(event)?.classList.add("atf-is-dragging");
+    const onEnd = (event) => sourceOf(event)?.classList.remove("atf-is-dragging");
+    document.addEventListener("os.drag.start", onStart);
+    document.addEventListener("os.drag.end", onEnd);
+    return () => {
+      document.removeEventListener("os.drag.start", onStart);
+      document.removeEventListener("os.drag.end", onEnd);
+    };
+  }
+  function buildPayload(type, source, data, origin, ghost) {
+    const rect = source.getBoundingClientRect();
+    if (ghost) {
+      ghost.style.width = `${Math.round(rect.width)}px`;
+      ghost.style.maxWidth = `${Math.round(rect.width)}px`;
+      ghost.style.boxSizing = "border-box";
+    }
+    return {
+      type,
+      source,
+      data,
+      ghost: {
+        element: ghost,
+        offsetX: origin.clientX - rect.left,
+        offsetY: origin.clientY - rect.top,
+        hint: {
+          neutral: "",
+          accept: "",
+          // Only the reject case earns a chip. "Drop here" over a canvas
+          // the field is visibly hovering says nothing the drop indicator
+          // hasn't already said; "can't drop here" is information.
+          reject: "",
+          hidden: true
+        }
+      }
+    };
+  }
+  function insertionIndex(container, selector, clientY, ignore) {
+    const children = Array.from(container.querySelectorAll(selector)).filter(
+      (child) => child !== ignore && !child.classList.contains("atf-drag-ghost")
+    );
+    for (let index = 0; index < children.length; index++) {
+      const rect = children[index].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) {
+        return index;
+      }
+    }
+    return children.length;
+  }
+  const config = window.allTerrainForms;
+  class ApiError extends Error {
+    constructor(message, status, code = "") {
+      super(message);
+      this.name = "ApiError";
+      this.status = status;
+      this.code = code;
+    }
+  }
+  async function request(path, init = {}) {
+    if (!config?.restUrl) {
+      throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
+    }
+    const url = `${config.restUrl}${path}`;
+    const headers = {
+      "Content-Type": "application/json",
+      ...init.headers ?? {}
+    };
+    if (config.nonce) {
+      headers["X-WP-Nonce"] = config.nonce;
+    }
+    const shell2 = getShell();
+    const doFetch = shell2?.fetch ? (input, options) => shell2.fetch(input, options, { source: "allterrain-forms" }) : (input, options) => fetch(input, options);
+    const response = await doFetch(url, {
+      credentials: "same-origin",
+      ...init,
+      headers
+    });
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}.`;
+      let code = "";
+      try {
+        const body = await response.json();
+        message = body.message ?? message;
+        code = body.code ?? "";
+      } catch {
+      }
+      throw new ApiError(message, response.status, code);
+    }
+    if (response.status === 204) {
+      return void 0;
+    }
+    return await response.json();
+  }
+  const get = (path) => request(path);
+  async function wpGet(route) {
+    if (!config?.wpRestUrl) {
+      throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
+    }
+    const headers = config.nonce ? { "X-WP-Nonce": config.nonce } : {};
+    const shell2 = getShell();
+    const url = `${config.wpRestUrl}${route}`;
+    const response = shell2?.fetch ? await shell2.fetch(url, { credentials: "same-origin", headers }, { source: "allterrain-forms" }) : await fetch(url, { credentials: "same-origin", headers });
+    if (!response.ok) {
+      throw new ApiError(`Request failed with status ${response.status}.`, response.status);
+    }
+    return await response.json();
+  }
+  function decodeEntities(html) {
+    if (!html || !html.includes("&")) {
+      return html;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = html;
+    return textarea.value;
+  }
+  const post = (path, body) => request(path, { method: "POST", body: JSON.stringify(body) });
+  const del = (path) => request(path, { method: "DELETE" });
+  function query(params) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === void 0 || value === "" || value === false) {
+        continue;
+      }
+      search.set(key, String(value));
+    }
+    const string = search.toString();
+    return string ? `?${string}` : "";
+  }
+  const api = {
+    config: () => get("/config"),
+    listForms: () => get("/forms"),
+    getForm: (id) => get(`/forms/${id}`),
+    createForm: (body) => post("/forms", body),
+    updateForm: (id, body) => post(`/forms/${id}`, body),
+    duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}),
+    deleteForm: (id) => del(`/forms/${id}`),
+    preview: (id, body) => post(`/forms/${id}/preview`, body),
+    /**
+     * The site's published pages, for the "send them to a page" confirmation.
+     *
+     * Core's own route rather than one of ours: `wp/v2/pages` already knows about
+     * capabilities, pagination and the page hierarchy, and a plugin re-exposing
+     * the same list is a second thing to keep in step with it. `_fields` keeps the
+     * payload to the two values the picker shows — a full page response carries
+     * rendered content, and a hundred of those is megabytes.
+     */
+    pages: () => wpGet(
+      "wp/v2/pages?per_page=100&status=publish&orderby=title&order=asc&_fields=id,title"
+    ).then(
+      (pages) => pages.map((page) => ({
+        id: page.id,
+        // The REST API returns titles HTML-encoded; `el()` sets text through
+        // `textContent`, so without decoding, a page called "Q&A" shows as
+        // "Q&amp;A" in the picker.
+        title: decodeEntities(page.title?.rendered ?? "") || `#${page.id}`
+      }))
+    ),
+    mergeTags: (id) => get(`/forms/${id}/merge-tags`).then((response) => response.groups),
+    analytics: (id) => get(`/forms/${id}/analytics`),
+    listEntries: (params) => get(`/entries${query(params)}`),
+    getEntry: (id) => get(`/entries/${id}`),
+    updateEntry: (id, body) => post(`/entries/${id}`, body),
+    deleteEntry: (id) => del(`/entries/${id}`),
+    exportEntries: (params) => get(`/entries/export${query(params)}`),
+    listThemes: () => get("/themes"),
+    saveTheme: (body) => post("/themes", body),
+    deleteTheme: (id) => del(`/themes/${id}`)
+  };
+  function el(tag, options = {}) {
+    const node = document.createElement(tag);
+    if (options.class) {
+      node.className = options.class;
+    }
+    if (options.text !== void 0) {
+      node.textContent = options.text;
+    }
+    if (options.html !== void 0) {
+      node.innerHTML = options.html;
+    }
+    if (options.title) {
+      node.title = options.title;
+    }
+    if (options.type && "type" in node) {
+      node.type = options.type;
+    }
+    if (options.value !== void 0 && "value" in node) {
+      node.value = options.value;
+    }
+    if (options.placeholder !== void 0 && "placeholder" in node) {
+      node.placeholder = options.placeholder;
+    }
+    if (options.href && "href" in node) {
+      node.href = options.href;
+    }
+    for (const [name, value] of Object.entries(options.attrs ?? {})) {
+      if (value === void 0 || value === false) {
+        continue;
+      }
+      node.setAttribute(name, value === true ? "" : String(value));
+    }
+    Object.assign(node.style, options.style ?? {});
+    for (const [event, handler] of Object.entries(options.on ?? {})) {
+      node.addEventListener(event, handler);
+    }
+    for (const child of options.children ?? []) {
+      if (child === null || child === void 0 || child === false) {
+        continue;
+      }
+      node.append(child);
+    }
+    return node;
+  }
+  function clear(node) {
+    node.replaceChildren();
+  }
+  function icon(slug) {
+    return el("span", {
+      class: `dashicons ${slug.startsWith("dashicons-") ? slug : `dashicons-${slug}`}`,
+      attrs: { "aria-hidden": "true" }
+    });
+  }
+  function row(label, control, hint) {
+    const id = control.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
+    control.id = id;
+    return el("div", {
+      class: "atfb-row",
+      children: [
+        el("label", { class: "atfb-row__label", text: label, attrs: { for: id } }),
+        control,
+        hint ? el("p", { class: "atfb-row__hint", text: hint }) : null
+      ]
+    });
+  }
+  function textInput(value, onChange, placeholder = "") {
+    return el("input", {
+      class: "atfb-input",
+      type: "text",
+      value,
+      placeholder,
+      on: {
+        input: (event) => onChange(event.target.value)
+      }
+    });
+  }
+  function numberInput(value, onChange) {
+    if (hasComponent("os-number-field")) {
+      const host = document.createElement("os-number-field");
+      host.setAttribute("value", value);
+      host.classList.add("atfb-field");
+      host.addEventListener("os-input-change", (event) => {
+        onChange(String(event.detail?.value ?? ""));
+      });
+      return host;
+    }
+    return el("input", {
+      class: "atfb-input",
+      type: "number",
+      value,
+      on: {
+        input: (event) => onChange(event.target.value)
+      }
+    });
+  }
+  function textArea(value, onChange, rows = 4) {
+    const node = el("textarea", {
+      class: "atfb-input atfb-input--area",
+      attrs: { rows },
+      on: {
+        input: (event) => onChange(event.target.value)
+      }
+    });
+    node.value = value;
+    return node;
+  }
+  function select(value, options, onChange) {
+    if (hasComponent("os-select") && hasComponent("os-option")) {
+      const host = document.createElement("os-select");
+      host.setAttribute("value", value);
+      host.classList.add("atfb-field");
+      for (const option of options) {
+        const item = document.createElement("os-option");
+        item.setAttribute("value", option.value);
+        item.textContent = option.label;
+        host.append(item);
+      }
+      host.addEventListener("os-pick", (event) => {
+        onChange(String(event.detail?.value ?? ""));
+      });
+      return host;
+    }
+    return el("select", {
+      class: "atfb-input atfb-select",
+      on: {
+        change: (event) => onChange(event.target.value)
+      },
+      children: options.map(
+        (option) => el("option", {
+          value: option.value,
+          text: option.label,
+          attrs: { selected: option.value === value }
+        })
+      )
+    });
+  }
+  function checkbox(label, checked, onChange) {
+    if (hasComponent("os-checkbox-label")) {
+      const host = document.createElement("os-checkbox-label");
+      host.setAttribute("label", label);
+      host.classList.add("atfb-check");
+      if (checked) {
+        host.setAttribute("checked", "");
+      }
+      host.addEventListener("os-checkbox-change", (event) => {
+        onChange(Boolean(event.detail?.checked));
+      });
+      return host;
+    }
+    const input = el("input", {
+      type: "checkbox",
+      on: {
+        change: (event) => onChange(event.target.checked)
+      }
+    });
+    input.checked = checked;
+    return el("label", {
+      class: "atfb-check",
+      children: [input, el("span", { text: label })]
+    });
+  }
+  function button(label, onClick, variant = "secondary", iconSlug) {
+    const children = [iconSlug ? icon(iconSlug) : null, el("span", { text: label })];
+    if (hasComponent("os-button")) {
+      const host = document.createElement("os-button");
+      host.setAttribute("variant", variant);
+      host.setAttribute("type", "button");
+      host.classList.add("atfb-button", `atfb-button--${variant}`);
+      host.addEventListener("click", onClick);
+      for (const child of children) {
+        if (child) {
+          host.append(child);
+        }
+      }
+      return host;
+    }
+    return el("button", {
+      class: `atfb-button atfb-button--${variant}`,
+      type: "button",
+      on: { click: onClick },
+      children
+    });
+  }
+  function hasComponent(tag) {
+    return typeof customElements !== "undefined" && Boolean(customElements.get(tag));
+  }
+  const COMPONENTS = [
+    "os-button",
+    "os-checkbox-label",
+    "os-number-field",
+    "os-select",
+    "os-option",
+    "os-segmented",
+    "os-segment",
+    "os-color-field",
+    "os-empty-state"
+  ];
+  let componentsPending = null;
+  function whenComponents() {
+    if (componentsPending) {
+      return componentsPending;
+    }
+    const shell2 = window.wp?.os;
+    componentsPending = shell2?.loadComponents ? shell2.loadComponents(COMPONENTS).catch(() => void 0) : Promise.resolve();
+    return componentsPending;
+  }
+  async function confirmAction(message, title = "") {
+    const shell2 = window.wp?.os;
+    if (shell2?.confirm) {
+      return shell2.confirm({ title, message, danger: true });
+    }
+    return window.confirm(message);
+  }
+  function notify(title, body = "", type = "info") {
+    const shell2 = window.wp?.os;
+    if (shell2?.notify) {
+      shell2.notify({ title, body, type });
+      return;
+    }
+    console.info(`[AllTerrain Forms] ${title}${body ? `: ${body}` : ""}`);
+  }
+  function raf(fn) {
+    let queued = 0;
+    let last;
+    return (...args) => {
+      last = args;
+      if (queued) {
+        return;
+      }
+      queued = window.requestAnimationFrame(() => {
+        queued = 0;
+        fn(...last);
+      });
+    };
+  }
+  function debounce(fn, wait) {
+    let timer = 0;
+    return (...args) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => fn(...args), wait);
+    };
+  }
+  function readSetting(key) {
+    try {
+      return window.localStorage.getItem(key) ?? "";
+    } catch {
+      return "";
+    }
+  }
+  function writeSetting(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+    }
+  }
+  function hosts() {
+    const found = [window];
+    try {
+      if (window.parent && window.parent !== window) {
+        found.push(window.parent);
+      }
+    } catch {
+    }
+    return found;
+  }
+  function ownWindow(host) {
+    const all = host.wp?.os?.windowManager?.getAll?.() ?? [];
+    for (const win of all) {
+      const frame = win.iframe ?? win.element?.querySelector?.("iframe");
+      if (frame && frame.contentWindow === window) {
+        return win;
+      }
+    }
+    return null;
+  }
+  const ATTACH_TIMEOUT_MS$1 = 4e3;
+  const ATTACH_POLL_MS$1 = 100;
+  function closeOwnWindow(host, openedId) {
+    const deadline = Date.now() + ATTACH_TIMEOUT_MS$1;
+    const attempt = () => {
+      const own = ownWindow(host);
+      if (own && own.id !== openedId) {
+        if (typeof own.close === "function") {
+          own.close();
+        } else {
+          host.wp?.os?.windowManager?.remove?.(own.id);
+        }
+        return;
+      }
+      if (!own && Date.now() < deadline) {
+        window.setTimeout(attempt, ATTACH_POLL_MS$1);
+      }
+    };
+    attempt();
+  }
+  function handOffToWindow() {
+    const pointer = document.querySelector("[data-atf-handoff]");
+    if (!pointer) {
+      return;
+    }
+    const id = pointer.getAttribute("data-atf-handoff") ?? "";
+    if (!id) {
+      return;
+    }
+    const form = Number(new URLSearchParams(window.location.search).get("form")) || 0;
+    const params = form > 0 ? { form } : void 0;
+    if (form > 0) {
+      rememberRequestedForm(form);
+    }
+    for (const host of hosts()) {
+      if (!host.wp?.os?.openWindow?.(id, { source: "handoff", params })) {
+        continue;
+      }
+      window.setTimeout(() => closeOwnWindow(host, id), 0);
+      return;
+    }
+  }
+  function watchHandoffButton() {
+    document.addEventListener("click", (event) => {
+      const button2 = event.target?.closest?.("[data-atf-open-window]");
+      if (!button2) {
+        return;
+      }
+      event.preventDefault();
+      const id = button2.getAttribute("data-atf-open-window") ?? "";
+      for (const host of hosts()) {
+        if (host.wp?.os?.openWindow?.(id, { source: "handoff" })) {
+          return;
+        }
+      }
+    });
+  }
+  const REQUESTED_FORM_KEY = "allterrain-forms/requested-form";
+  function rememberRequestedForm(formId) {
+    try {
+      window.sessionStorage.setItem(REQUESTED_FORM_KEY, String(formId));
+    } catch {
+    }
+  }
+  const OPERATORS = {
+    is: "is",
+    is_not: "is not",
+    contains: "contains",
+    not_contains: "does not contain",
+    starts_with: "starts with",
+    ends_with: "ends with",
+    greater: "is more than",
+    less: "is less than",
+    greater_equal: "is at least",
+    less_equal: "is at most",
+    empty: "is empty",
+    not_empty: "has any answer"
+  };
+  const VALUELESS = ["empty", "not_empty"];
+  function labelOf(fields, id) {
+    const field = fields.find((candidate) => candidate.id === id);
+    if (!field) {
+      return null;
+    }
+    return field.label || "an untitled question";
+  }
+  function valueOf(fields, id, value) {
+    const field = fields.find((candidate) => candidate.id === id);
+    const choice = field?.choices?.find((candidate) => candidate.value === value);
+    return choice?.label || value;
+  }
+  function describeTrigger(rule, fields) {
+    const operator = OPERATORS[rule.operator] ?? String(rule.operator);
+    if (VALUELESS.includes(rule.operator)) {
+      return operator;
+    }
+    const value = valueOf(fields, rule.field, rule.value);
+    const prefix = "is" === rule.operator ? "" : `${operator} `;
+    return `${prefix}${value !== "" ? value : "(nothing)"}`;
+  }
+  function ruleTokens(rule, fields) {
+    const subject = labelOf(fields, rule.field);
+    const operator = OPERATORS[rule.operator] ?? String(rule.operator);
+    if (subject === null) {
+      return [{ kind: "field", text: "a question that no longer exists", fieldId: rule.field, missing: true }];
+    }
+    const tokens = [
+      { kind: "field", text: subject, fieldId: rule.field, missing: false },
+      { kind: "operator", text: operator }
+    ];
+    if (VALUELESS.includes(rule.operator)) {
+      return tokens;
+    }
+    const value = valueOf(fields, rule.field, rule.value);
+    tokens.push({ kind: "value", text: value !== "" ? value : "(nothing)" });
+    return tokens;
+  }
+  function logicTokens(field, fields) {
+    const logic = field.logic;
+    if (!logic?.enabled || !logic.rules.length) {
+      return [];
+    }
+    const tokens = [
+      { kind: "verb", text: logic.action === "hide" ? "Hidden when" : "Shown when" }
+    ];
+    logic.rules.forEach((rule, index) => {
+      if (index > 0) {
+        tokens.push({ kind: "join", text: logic.match === "all" ? "and" : "or" });
+      }
+      tokens.push(...ruleTokens(rule, fields));
+    });
+    return tokens;
+  }
+  function tokensToText(tokens) {
+    return tokens.map((token) => token.text).join(" ");
+  }
+  function describeRule(rule, fields) {
+    return tokensToText(ruleTokens(rule, fields));
+  }
+  function logicEdges(fields) {
+    const edges = [];
+    for (const field of fields) {
+      const logic = field.logic;
+      if (!logic?.enabled) {
+        continue;
+      }
+      for (const rule of logic.rules) {
+        if (!rule.field || rule.field === field.id) {
+          continue;
+        }
+        edges.push({
+          from: rule.field,
+          to: field.id,
+          label: describeRule(rule, fields),
+          short: describeTrigger(rule, fields),
+          action: logic.action,
+          broken: labelOf(fields, rule.field) === null
+        });
+      }
+    }
+    return edges;
+  }
+  function controlCounts(fields) {
+    const counts = /* @__PURE__ */ new Map();
+    const seen = /* @__PURE__ */ new Set();
+    for (const edge of logicEdges(fields)) {
+      const pair = `${edge.from}->${edge.to}`;
+      if (edge.broken || seen.has(pair)) {
+        continue;
+      }
+      seen.add(pair);
+      counts.set(edge.from, (counts.get(edge.from) ?? 0) + 1);
+    }
+    return counts;
+  }
+  const MARGIN = 10;
+  const LABEL_MAX = 22;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  class LogicMap {
+    constructor(host) {
+      this.edges = [];
+      this.teardowns = [];
+      this.frame = 0;
+      this.host = host;
+      this.svg = document.createElementNS(SVG_NS, "svg");
+      this.svg.setAttribute("class", "atfb-logicmap");
+      this.svg.setAttribute("aria-hidden", "true");
+      this.svg.setAttribute("focusable", "false");
+      host.append(this.svg);
+      const redraw = () => this.schedule();
+      window.addEventListener("resize", redraw);
+      this.teardowns.push(() => window.removeEventListener("resize", redraw));
+      const scroller = host.closest(".atfb__canvas") ?? host;
+      scroller.addEventListener("scroll", redraw, { passive: true });
+      this.teardowns.push(() => scroller.removeEventListener("scroll", redraw));
+      if (typeof ResizeObserver !== "undefined") {
+        const observer = new ResizeObserver(redraw);
+        observer.observe(host);
+        this.teardowns.push(() => observer.disconnect());
+      }
+    }
+    /** Replaces the connections and redraws. */
+    setEdges(edges) {
+      this.edges = edges;
+      this.schedule();
+    }
+    /**
+     * Dims every curve that does not touch a field.
+     *
+     * Passing an empty id restores them all. Applied as a class on the layer
+     * rather than per-path styles so the transition is one paint.
+     */
+    highlight(fieldId) {
+      this.svg.classList.toggle("is-focused", Boolean(fieldId));
+      this.svg.querySelectorAll("[data-from]").forEach((node) => {
+        const touches = fieldId && (node.dataset.from === fieldId || node.dataset.to === fieldId);
+        node.classList.toggle("is-lit", Boolean(touches));
+      });
+    }
+    /** Removes the layer and every listener. */
+    destroy() {
+      this.teardowns.forEach((teardown) => teardown());
+      this.teardowns = [];
+      this.svg.remove();
+      if (this.frame) {
+        cancelAnimationFrame(this.frame);
+      }
+    }
+    /** Coalesces redraw requests to one per frame. */
+    schedule() {
+      if (this.frame) {
+        return;
+      }
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        this.draw();
+      });
+    }
+    /** Measures the cards and rebuilds every path. */
+    draw() {
+      this.svg.replaceChildren();
+      const host = this.host.getBoundingClientRect();
+      this.svg.setAttribute("viewBox", `0 0 ${host.width} ${host.height}`);
+      this.svg.setAttribute("width", String(host.width));
+      this.svg.setAttribute("height", String(host.height));
+      const lanes = /* @__PURE__ */ new Map();
+      for (const edge of this.edges) {
+        const from = this.cardRect(edge.from);
+        const to = this.cardRect(edge.to);
+        if (!from || !to) {
+          continue;
+        }
+        const lane = lanes.get(edge.from) ?? 0;
+        lanes.set(edge.from, lane + 1);
+        this.drawEdge(edge, from, to, host, lane);
+      }
+    }
+    /** One card's box, in the host's coordinate space. */
+    cardRect(fieldId) {
+      const card = this.host.querySelector(
+        `[data-atfb-card="${CSS.escape(fieldId)}"]`
+      );
+      return card ? card.getBoundingClientRect() : null;
+    }
+    /** Draws one connection and its label. */
+    drawEdge(edge, from, to, host, lane) {
+      const startX = from.right - host.left;
+      const startY = from.top + from.height / 2 - host.top;
+      const endX = to.right - host.left;
+      const endY = to.top + to.height / 2 - host.top;
+      const available = Math.max(0, host.width - MARGIN - Math.max(startX, endX));
+      const wanted2 = 22 + lane * 11 + Math.min(22, Math.abs(endY - startY) / 8);
+      const reach = Math.max(12, Math.min(wanted2, available * 0.4));
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute(
+        "d",
+        `M ${startX} ${startY} C ${startX + reach} ${startY}, ${endX + reach} ${endY}, ${endX} ${endY}`
+      );
+      path.setAttribute("class", `atfb-logicmap__path is-${edge.action}${edge.broken ? " is-broken" : ""}`);
+      path.dataset.from = edge.from;
+      path.dataset.to = edge.to;
+      const title = document.createElementNS(SVG_NS, "title");
+      title.textContent = edge.label;
+      path.append(title);
+      const dot = document.createElementNS(SVG_NS, "circle");
+      dot.setAttribute("cx", String(endX));
+      dot.setAttribute("cy", String(endY));
+      dot.setAttribute("r", "3.5");
+      dot.setAttribute("class", `atfb-logicmap__dot is-${edge.action}${edge.broken ? " is-broken" : ""}`);
+      dot.dataset.from = edge.from;
+      dot.dataset.to = edge.to;
+      this.svg.append(path, dot);
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", String(host.width - MARGIN));
+      text.setAttribute("y", String(endY + 3));
+      text.setAttribute("text-anchor", "end");
+      text.setAttribute("class", "atfb-logicmap__label");
+      text.dataset.from = edge.from;
+      text.dataset.to = edge.to;
+      text.textContent = edge.short.length > LABEL_MAX ? `${edge.short.slice(0, LABEL_MAX - 1)}…` : edge.short;
+      const labelTitle = document.createElementNS(SVG_NS, "title");
+      labelTitle.textContent = edge.label;
+      text.append(labelTitle);
+      this.svg.append(text);
+    }
+  }
+  const cache = /* @__PURE__ */ new Map();
+  function mergeTags(formId) {
+    let pending2 = cache.get(formId);
+    if (!pending2) {
+      pending2 = api.mergeTags(formId).catch(() => []);
+      cache.set(formId, pending2);
+    }
+    return pending2;
+  }
+  function forgetMergeTags(formId) {
+    cache.delete(formId);
+  }
+  function flatten(groups) {
+    const all = /* @__PURE__ */ new Map();
+    for (const group of groups) {
+      for (const item of group.items) {
+        all.set(item.tag, item);
+      }
+    }
+    return all;
+  }
+  function resolvePreview(text, groups) {
+    const all = flatten(groups);
+    return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
+      const known = all.get(match.toLowerCase());
+      return known ? known.sample : match;
+    });
+  }
+  function hasTags(text) {
+    return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
+  }
+  let openPicker = null;
+  function closePicker() {
+    openPicker?.remove();
+    openPicker = null;
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("pointerdown", (event) => {
+      if (openPicker && !openPicker.contains(event.target)) {
+        closePicker();
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if ("Escape" === event.key && openPicker) {
+        closePicker();
+        event.stopPropagation();
+      }
+    });
+  }
+  function insertAtCursor(field, text) {
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? field.value.length;
+    field.value = field.value.slice(0, start) + text + field.value.slice(end);
+    const caret = start + text.length;
+    field.setSelectionRange(caret, caret);
+    field.focus();
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  function clipBottom(from) {
+    let node = from.parentElement;
+    while (node && node !== document.body) {
+      const overflow = getComputedStyle(node).overflowY;
+      if ("auto" === overflow || "scroll" === overflow || "hidden" === overflow) {
+        return node.getBoundingClientRect().bottom;
+      }
+      node = node.parentElement;
+    }
+    return window.innerHeight;
+  }
+  function buildPicker(groups, onPick) {
+    const search = el("input", {
+      class: "atfb-input atfb-tagpick__search",
+      type: "search",
+      placeholder: "Search values…",
+      attrs: { "aria-label": "Search values" }
+    });
+    const list = el("div", { class: "atfb-tagpick__list" });
+    const paint = (query2) => {
+      list.replaceChildren();
+      const needle = query2.trim().toLowerCase();
+      let shown = 0;
+      for (const group of groups) {
+        const matches = group.items.filter(
+          (item) => !needle || item.label.toLowerCase().includes(needle) || item.tag.toLowerCase().includes(needle)
+        );
+        if (!matches.length) {
+          if (group.empty && !needle && !group.items.length) {
+            list.append(
+              el("p", { class: "atfb-tagpick__group", text: group.label }),
+              el("p", { class: "atfb-tagpick__empty", text: group.empty })
+            );
+          }
+          continue;
+        }
+        list.append(el("p", { class: "atfb-tagpick__group", text: group.label }));
+        for (const item of matches) {
+          shown += 1;
+          list.append(
+            el("button", {
+              class: "atfb-tagpick__item",
+              type: "button",
+              on: {
+                click: () => {
+                  onPick(item.tag);
+                  closePicker();
+                }
+              },
+              children: [
+                el("span", {
+                  class: "atfb-tagpick__item-main",
+                  children: [
+                    el("span", { class: "atfb-tagpick__label", text: item.label }),
+                    el("code", { class: "atfb-tagpick__tag", text: item.tag })
+                  ]
+                }),
+                item.hint || item.sample ? el("span", {
+                  class: "atfb-tagpick__meta",
+                  // The sample is the part people actually read, so it
+                  // leads; the hint explains the cases where it is empty.
+                  text: item.sample ? `e.g. ${item.sample}` : item.hint
+                }) : null
+              ]
+            })
+          );
+        }
+      }
+      if (!shown && needle) {
+        list.append(el("p", { class: "atfb-tagpick__empty", text: `Nothing matches “${query2}”.` }));
+      }
+    };
+    paint("");
+    search.addEventListener("input", () => paint(search.value));
+    return el("div", {
+      class: "atfb-tagpick",
+      attrs: { role: "dialog", "aria-label": "Insert a value" },
+      children: [
+        el("p", {
+          class: "atfb-tagpick__intro",
+          text: "Pick something to drop in. It is filled in when the form is submitted."
+        }),
+        search,
+        list
+      ]
+    });
+  }
+  function taggable(field, options) {
+    const insert = el("button", {
+      class: "atfb-button atfb-button--ghost atfb-tagpick__open",
+      type: "button",
+      title: "Insert a value from the submission",
+      children: [icon("shortcode"), el("span", { text: "Insert a value" })]
+    });
+    const wrapper = el("div", {
+      class: "atfb-taggable",
+      children: [field, el("div", { class: "atfb-taggable__tools", children: [insert] })]
+    });
+    const preview = options.preview === false ? null : el("p", { class: "atfb-taggable__preview" });
+    if (preview) {
+      wrapper.append(preview);
+    }
+    const repaint = () => {
+      if (!preview) {
+        return;
+      }
+      if (!hasTags(field.value)) {
+        preview.textContent = "";
+        preview.hidden = true;
+        return;
+      }
+      void mergeTags(options.formId).then((groups) => {
+        preview.hidden = false;
+        preview.replaceChildren(
+          el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
+          el("span", { text: resolvePreview(field.value, groups) })
+        );
+      });
+    };
+    field.addEventListener("input", repaint);
+    repaint();
+    insert.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (openPicker && wrapper.contains(openPicker)) {
+        closePicker();
+        return;
+      }
+      closePicker();
+      void mergeTags(options.formId).then((groups) => {
+        const picker = buildPicker(groups, (tag) => {
+          insertAtCursor(field, tag);
+          repaint();
+        });
+        wrapper.append(picker);
+        openPicker = picker;
+        if (window.innerHeight - picker.getBoundingClientRect().top < picker.offsetHeight) {
+          picker.classList.add("atfb-tagpick--above");
+        } else if (picker.getBoundingClientRect().bottom > clipBottom(wrapper)) {
+          picker.classList.add("atfb-tagpick--above");
+        }
+        picker.querySelector(".atfb-tagpick__search")?.focus();
+      });
+    });
+    return wrapper;
+  }
+  function px(value, fallback2) {
+    const parsed = parseFloat(String(value ?? ""));
+    return Number.isFinite(parsed) ? parsed : fallback2;
+  }
+  function nearest(value, steps) {
+    let best = steps[0];
+    for (const step of steps) {
+      if (Math.abs(step.at - value) < Math.abs(best.at - value)) {
+        best = step;
+      }
+    }
+    return best.value;
+  }
+  const ROUNDNESS = [
+    { value: "square", label: "Square", at: 0 },
+    { value: "soft", label: "Soft", at: 4 },
+    { value: "rounded", label: "Rounded", at: 10 },
+    { value: "pill", label: "Pill", at: 999 }
+  ];
+  const DENSITY = [
+    { value: "compact", label: "Compact", at: 7 },
+    { value: "cosy", label: "Cosy", at: 9 },
+    { value: "roomy", label: "Roomy", at: 13 }
+  ];
+  const SHADOW = [
+    { value: "none", label: "None" },
+    { value: "subtle", label: "Subtle" },
+    { value: "lifted", label: "Lifted" },
+    { value: "hard", label: "Hard" }
+  ];
+  const FIELD_STYLE = [
+    { value: "outline", label: "Outlined" },
+    { value: "filled", label: "Filled" },
+    { value: "underline", label: "Underline" },
+    { value: "none", label: "Bare" }
+  ];
+  const LABELS = [
+    { value: "top", label: "Above" },
+    { value: "floating", label: "Floating" },
+    { value: "left", label: "In the margin" },
+    { value: "hidden", label: "Hidden" }
+  ];
+  function quickDials() {
+    return [
+      {
+        id: "accent",
+        label: "Accent",
+        hint: "The colour of buttons, focus rings and anything selected.",
+        kind: "colour",
+        owns: ["accent", "accent-soft", "border-focus", "focus-ring-color", "button-bg", "button-bg-hover"],
+        read: (current) => current.accent ?? "#2271b1",
+        apply: (value) => ({
+          accent: value,
+          // The soft wash and the focus ring are the accent at other
+          // strengths. Setting them together is the difference between
+          // "changed the accent" and "changed one of six places the accent
+          // appears, and now they disagree".
+          "accent-soft": `color-mix( in srgb, ${value} 12%, transparent )`,
+          "border-focus": value,
+          "focus-ring-color": value,
+          "button-bg": value,
+          "button-bg-hover": `color-mix( in srgb, ${value} 88%, #000 )`
+        })
+      },
+      {
+        id: "roundness",
+        label: "Roundness",
+        hint: "Corners, everywhere at once.",
+        kind: "scale",
+        steps: ROUNDNESS.map(({ value, label }) => ({ value, label })),
+        owns: ["radius-field", "radius-button", "radius-card", "radius-check"],
+        read: (current) => nearest(px(current["radius-field"], 4), ROUNDNESS),
+        apply: (step) => {
+          const base = ROUNDNESS.find((r) => r.value === step)?.at ?? 4;
+          return {
+            "radius-field": `${base}px`,
+            "radius-button": `${base}px`,
+            "radius-card": `${Math.min(base * 2, 28)}px`,
+            "radius-check": `${Math.min(base, 6)}px`
+          };
+        }
+      },
+      {
+        id: "density",
+        label: "Density",
+        hint: "How much air the form has.",
+        kind: "scale",
+        steps: DENSITY.map(({ value, label }) => ({ value, label })),
+        owns: ["pad-field-x", "pad-field-y", "gap-fields", "gap-label", "button-pad-x", "button-pad-y"],
+        read: (current) => nearest(px(current["pad-field-y"], 9), DENSITY),
+        apply: (step) => {
+          const y = DENSITY.find((d) => d.value === step)?.at ?? 9;
+          return {
+            "pad-field-y": `${y}px`,
+            "pad-field-x": `${Math.round(y * 1.4)}px`,
+            "gap-fields": `${Math.round(y * 2.2)}px`,
+            "gap-label": `${Math.max(4, Math.round(y * 0.7))}px`,
+            "button-pad-y": `${y + 2}px`,
+            "button-pad-x": `${Math.round(y * 2.2)}px`
+          };
+        }
+      },
+      {
+        id: "shadow",
+        label: "Depth",
+        hint: "How far the form sits off the page.",
+        kind: "scale",
+        steps: SHADOW,
+        owns: ["shadow-field", "shadow-field-focus", "shadow-button", "shadow-button-hover", "shadow-card"],
+        read: (current) => {
+          const card = current["shadow-card"] ?? "none";
+          if (card === "none" || card.trim() === "") {
+            return current["shadow-field"] && current["shadow-field"] !== "none" ? "hard" : "none";
+          }
+          return card.includes("0 1px") || card.includes("2px") ? "subtle" : "lifted";
+        },
+        apply: (step) => {
+          switch (step) {
+            case "subtle":
+              return {
+                "shadow-field": "none",
+                "shadow-field-focus": "none",
+                "shadow-button": "0 1px 2px rgba( 0, 0, 0, 0.12 )",
+                "shadow-button-hover": "0 2px 4px rgba( 0, 0, 0, 0.16 )",
+                "shadow-card": "0 1px 3px rgba( 0, 0, 0, 0.1 )"
+              };
+            case "lifted":
+              return {
+                "shadow-field": "none",
+                "shadow-field-focus": "0 4px 12px rgba( 0, 0, 0, 0.12 )",
+                "shadow-button": "0 4px 10px rgba( 0, 0, 0, 0.16 )",
+                "shadow-button-hover": "0 8px 20px rgba( 0, 0, 0, 0.2 )",
+                "shadow-card": "0 10px 30px rgba( 0, 0, 0, 0.14 )"
+              };
+            case "hard":
+              return {
+                "shadow-field": "3px 3px 0 currentColor",
+                "shadow-field-focus": "5px 5px 0 currentColor",
+                "shadow-button": "4px 4px 0 currentColor",
+                "shadow-button-hover": "2px 2px 0 currentColor",
+                "shadow-card": "none"
+              };
+            default:
+              return {
+                "shadow-field": "none",
+                "shadow-field-focus": "none",
+                "shadow-button": "none",
+                "shadow-button-hover": "none",
+                "shadow-card": "none"
+              };
+          }
+        }
+      },
+      {
+        id: "field-style",
+        label: "Fields",
+        hint: "How an input is drawn.",
+        kind: "choice",
+        steps: FIELD_STYLE,
+        owns: ["field-style"],
+        read: (current) => current["field-style"] ?? "outline",
+        apply: (step) => ({ "field-style": step })
+      },
+      {
+        id: "labels",
+        label: "Labels",
+        hint: "Where the question sits relative to the answer.",
+        kind: "choice",
+        steps: LABELS,
+        owns: ["label-position"],
+        read: (current) => current["label-position"] ?? "top",
+        apply: (step) => ({ "label-position": step })
+      }
+    ];
+  }
+  function dialOwning(token) {
+    return quickDials().find((dial) => dial.owns.includes(token)) ?? null;
+  }
+  function mountThemeControls(options) {
+    let active = options.activeSlug;
+    let overrides = { ...options.overrides };
+    let themes = options.themes;
+    const preview = el("div", { class: "atfs-preview__frame" });
+    const controls = el("div", { class: "atfs-controls__body" });
+    const quick = el("div", { class: "atfs-quick" });
+    const swatches = el("div", { class: "atfs-themes" });
+    const repaint = debounce(async () => {
+      try {
+        const html = await options.previewFor(active, overrides);
+        preview.innerHTML = html;
+        document.dispatchEvent(new CustomEvent("atf-refresh"));
+      } catch (error) {
+        clear(preview);
+        preview.append(
+          el("p", { class: "atfb-error", text: error instanceof Error ? error.message : "Preview failed." })
+        );
+      }
+    }, 180);
+    const resolve = (token) => {
+      if (overrides[token.token] !== void 0) {
+        return overrides[token.token];
+      }
+      const theme = themes.find((candidate) => candidate.slug === active);
+      return theme?.resolved?.[token.token] ?? token.default;
+    };
+    const renderThemes = () => {
+      clear(swatches);
+      for (const theme of themes) {
+        const card = el("button", {
+          class: `atfs-theme${theme.slug === active ? " is-active" : ""}`,
+          type: "button",
+          attrs: { "aria-pressed": theme.slug === active, title: theme.description },
+          children: [
+            // A miniature of the theme, painted from its own resolved
+            // tokens — so the picker previews each theme rather than
+            // showing ten identical cards with different names.
+            el("span", {
+              class: "atfs-theme__chip",
+              style: {
+                background: theme.resolved["surface"] ?? "#fff",
+                borderColor: theme.resolved["border"] ?? "#ccc",
+                borderRadius: theme.resolved["radius-field"] ?? "4px",
+                boxShadow: theme.resolved["shadow-card"] ?? "none"
+              },
+              children: [
+                el("span", {
+                  class: "atfs-theme__accent",
+                  style: {
+                    background: theme.resolved["accent"] ?? "#2271b1",
+                    borderRadius: theme.resolved["radius-button"] ?? "4px"
+                  }
+                })
+              ]
+            }),
+            el("span", { class: "atfs-theme__name", text: theme.label }),
+            theme.custom ? el("span", { class: "atfb-badge", text: "yours" }) : null
+          ],
+          on: {
+            click: () => {
+              active = theme.slug;
+              overrides = {};
+              options.onTheme(active);
+              renderThemes();
+              renderQuick();
+              renderControls();
+              repaint();
+              syncDeleteButton();
+            }
+          }
+        });
+        swatches.append(card);
+      }
+    };
+    const currentTokens = () => {
+      const theme = themes.find((candidate) => candidate.slug === active);
+      const resolved = { ...theme?.resolved ?? {} };
+      for (const [name, value] of Object.entries(overrides)) {
+        resolved[name] = value;
+      }
+      return resolved;
+    };
+    const applyDial = (dial, step) => {
+      const written = dial.apply(step, currentTokens());
+      for (const [token, value] of Object.entries(written)) {
+        overrides[token] = value;
+        options.onOverride(token, value);
+      }
+      renderQuick();
+      renderControls();
+      repaint();
+    };
+    const renderQuick = () => {
+      clear(quick);
+      const tokens = currentTokens();
+      for (const dial of quickDials()) {
+        const at = dial.read(tokens);
+        let control;
+        if (dial.kind === "colour") {
+          const picker = el("input", {
+            class: "atfs-color",
+            type: "color",
+            value: normaliseHex(at),
+            attrs: { "aria-label": dial.label },
+            on: {
+              input: (event) => applyDial(dial, event.target.value)
+            }
+          });
+          control = el("div", {
+            class: "atfs-color-row",
+            children: [
+              picker,
+              textInput(at, (value) => applyDial(dial, value))
+            ]
+          });
+        } else {
+          control = el("div", {
+            class: `atfs-segmented atfs-segmented--${dial.kind}`,
+            attrs: { role: "group", "aria-label": dial.label },
+            children: (dial.steps ?? []).map(
+              (step) => el("button", {
+                class: `atfs-segment${step.value === at ? " is-on" : ""}`,
+                type: "button",
+                text: step.label,
+                attrs: { "aria-pressed": step.value === at },
+                on: { click: () => applyDial(dial, step.value) }
+              })
+            )
+          });
+        }
+        quick.append(
+          el("div", {
+            class: "atfs-dial",
+            children: [
+              el("div", {
+                class: "atfs-dial__head",
+                children: [
+                  el("span", { class: "atfs-dial__label", text: dial.label }),
+                  el("span", { class: "atfs-dial__hint", text: dial.hint })
+                ]
+              }),
+              control
+            ]
+          })
+        );
+      }
+    };
+    const renderControls = () => {
+      clear(controls);
+      const grouped = /* @__PURE__ */ new Map();
+      for (const token of options.tokens) {
+        const list = grouped.get(token.group) ?? [];
+        list.push(token);
+        grouped.set(token.group, list);
+      }
+      const groupLabels = {
+        colour: "Colour",
+        shape: "Corners and borders",
+        shadow: "Shadows",
+        fields: "Field style",
+        space: "Spacing",
+        type: "Type",
+        labels: "Labels",
+        button: "Buttons",
+        focus: "Focus ring",
+        motion: "Motion"
+      };
+      for (const [group, tokens] of grouped) {
+        controls.append(
+          el("details", {
+            class: "atfs-group",
+            attrs: { open: group === "colour" },
+            children: [
+              el("summary", { text: groupLabels[group] ?? group }),
+              ...tokens.map((token) => renderTokenControl(token))
+            ]
+          })
+        );
+      }
+    };
+    const renderTokenControl = (token) => {
+      const value = resolve(token);
+      const change = (next) => {
+        if (next === "") {
+          delete overrides[token.token];
+        } else {
+          overrides[token.token] = next;
+        }
+        options.onOverride(token.token, next);
+        repaint();
+      };
+      let control;
+      if (token.control === "color") {
+        const picker = el("input", {
+          class: "atfs-color",
+          type: "color",
+          value: normaliseHex(value),
+          attrs: { "aria-label": `${token.label} colour` },
+          on: {
+            input: (event) => {
+              const next = event.target.value;
+              text.value = next;
+              change(next);
+            }
+          }
+        });
+        const text = textInput(value, (next) => {
+          picker.value = normaliseHex(next);
+          change(next);
+        });
+        control = el("div", { class: "atfs-color-row", children: [picker, text] });
+      } else if (token.control === "select") {
+        control = select(
+          value,
+          (token.options ?? []).map((option) => ({ value: option, label: option })),
+          change
+        );
+      } else if (token.control === "length") {
+        const numeric = parseFloat(value) || 0;
+        const unit = token.unit ?? "px";
+        const max = token.token.includes("radius") ? 60 : 80;
+        const range = el("input", {
+          class: "atfs-range",
+          type: "range",
+          value: String(numeric),
+          attrs: { min: "0", max: String(max), step: "1", "aria-label": token.label },
+          on: {
+            input: (event) => {
+              const next = `${event.target.value}${unit}`;
+              text.value = next;
+              change(next);
+            }
+          }
+        });
+        const text = textInput(value, (next) => {
+          range.value = String(parseFloat(next) || 0);
+          change(next);
+        });
+        control = el("div", { class: "atfs-length-row", children: [range, text] });
+      } else {
+        control = textInput(value, change);
+      }
+      const wrapper = row(token.label, control);
+      const dial = dialOwning(token.token);
+      if (dial) {
+        wrapper.classList.add("is-dialled");
+        wrapper.append(el("span", { class: "atfs-owned", text: dial.label }));
+      }
+      if (overrides[token.token] !== void 0) {
+        wrapper.classList.add("is-overridden");
+        wrapper.append(
+          el("button", {
+            class: "atfs-reset",
+            type: "button",
+            text: "Reset",
+            attrs: { "aria-label": `Reset ${token.label} to the theme's value` },
+            on: {
+              click: () => {
+                change("");
+                renderControls();
+              }
+            }
+          })
+        );
+      }
+      return wrapper;
+    };
+    const saveAsTheme = async () => {
+      const source = themes.find((candidate) => candidate.slug === active);
+      const suggested = source ? `${source.label} (mine)` : "My theme";
+      const label = window.prompt("Name this theme", suggested);
+      if (!label) {
+        return;
+      }
+      try {
+        const resolved = {};
+        for (const token of options.tokens) {
+          const value = resolve(token);
+          if (value !== token.default) {
+            resolved[token.token] = value;
+          }
+        }
+        const saved = await api.saveTheme({ label, tokens: resolved });
+        themes = [...themes.filter((candidate) => candidate.slug !== saved.slug), saved];
+        options.onThemesChanged(themes);
+        active = saved.slug;
+        overrides = {};
+        options.onTheme(active);
+        renderThemes();
+        renderControls();
+        repaint();
+        notify("Theme saved", saved.label);
+      } catch (error) {
+        notify("Could not save the theme", error instanceof Error ? error.message : "", "error");
+      }
+    };
+    const deleteTheme = async () => {
+      const theme = themes.find((candidate) => candidate.slug === active);
+      if (!theme?.custom) {
+        return;
+      }
+      if (!await confirmAction(`Delete “${theme.label}”? Forms using it fall back to Clean.`, "Delete theme")) {
+        return;
+      }
+      try {
+        await api.deleteTheme(theme.id);
+        themes = themes.filter((candidate) => candidate.slug !== theme.slug);
+        options.onThemesChanged(themes);
+        active = "clean";
+        overrides = {};
+        options.onTheme(active);
+        renderThemes();
+        renderControls();
+        repaint();
+      } catch (error) {
+        notify("Could not delete the theme", error instanceof Error ? error.message : "", "error");
+      }
+    };
+    const exportTheme = async () => {
+      const theme = themes.find((candidate) => candidate.slug === active);
+      const payload = {
+        label: theme?.label ?? active,
+        tokens: { ...theme?.tokens ?? {}, ...overrides }
+      };
+      const json = JSON.stringify(payload, null, "	");
+      try {
+        await navigator.clipboard.writeText(json);
+        notify("Theme copied", "Paste it into another site to import it.");
+      } catch {
+        window.prompt("Copy this theme", json);
+      }
+    };
+    const importTheme = () => {
+      const json = window.prompt("Paste a theme");
+      if (!json) {
+        return;
+      }
+      try {
+        const parsed = JSON.parse(json);
+        if (!parsed.tokens || typeof parsed.tokens !== "object") {
+          throw new Error("That does not look like a theme.");
+        }
+        for (const [name, value] of Object.entries(parsed.tokens)) {
+          overrides[name] = String(value);
+          options.onOverride(name, String(value));
+        }
+        renderControls();
+        repaint();
+      } catch (error) {
+        notify("Could not read that theme", error instanceof Error ? error.message : "", "error");
+      }
+    };
+    const deleteButton = button("Delete", () => void deleteTheme(), "danger");
+    const syncDeleteButton = () => {
+      const theme = themes.find((candidate) => candidate.slug === active);
+      deleteButton.hidden = !theme?.custom;
+    };
+    renderThemes();
+    renderQuick();
+    renderControls();
+    repaint();
+    syncDeleteButton();
+    return el("div", {
+      class: "atf-studio",
+      children: [
+        el("div", {
+          class: "atf-studio__top",
+          children: [
+            el("div", {
+              class: "atf-studio__picker",
+              children: [
+                el("h2", { class: "atf-studio__heading", text: "Theme" }),
+                swatches
+              ]
+            }),
+            el("div", {
+              class: "atfs__actions",
+              children: [
+                button("Save as a theme", () => void saveAsTheme(), "primary"),
+                button("Export", () => void exportTheme()),
+                button("Import", importTheme),
+                deleteButton
+              ]
+            })
+          ]
+        }),
+        el("div", {
+          class: "atf-studio__panes",
+          children: [
+            el("aside", {
+              class: "atf-studio__controls",
+              children: [
+                el("p", {
+                  class: "atfb-hint",
+                  text: "Changes apply to this form only, until you save them as a theme."
+                }),
+                quick,
+                // Everything, for the cases the dials above cannot
+                // express. Closed by default: a list of 69 controls
+                // is a reference, not a starting point — but a
+                // control you cannot escape is worse than none, so
+                // it is always one click away.
+                el("details", {
+                  class: "atfs-advanced",
+                  children: [
+                    el("summary", { text: "Every setting" }),
+                    el("p", {
+                      class: "atfb-hint",
+                      text: "The full token list. The dials above write into it."
+                    }),
+                    controls
+                  ]
+                })
+              ]
+            }),
+            el("main", {
+              class: "atf-studio__preview",
+              children: [el("h2", { class: "screen-reader-text", text: "Live preview" }), preview]
+            })
+          ]
+        })
+      ]
+    });
+  }
+  async function mountThemeStudio() {
+    const root = document.querySelector("[data-atfs-root]");
+    if (!root || root.dataset.atfsMounted) {
+      return;
+    }
+    root.dataset.atfsMounted = "1";
+    const bar = root.querySelector("[data-atfs-bar]");
+    const body = root.querySelector(".atfs__body") ?? root;
+    try {
+      const [config2, themes, forms] = await Promise.all([api.config(), api.listThemes(), api.listForms()]);
+      if (!forms.length) {
+        clear(body);
+        body.append(
+          el("div", {
+            class: "atfb-empty",
+            children: [
+              el("h2", { text: "No forms to preview" }),
+              el("p", { text: "Make a form first — a theme needs something to dress." })
+            ]
+          })
+        );
+        return;
+      }
+      let previewForm = forms[0];
+      let overrides = {};
+      let activeSlug = previewForm.theme;
+      const render = () => {
+        clear(body);
+        body.append(
+          mountThemeControls({
+            themes,
+            tokens: config2.tokens,
+            activeSlug,
+            overrides,
+            standalone: true,
+            onTheme: (slug) => {
+              activeSlug = slug;
+            },
+            onOverride: (token, value) => {
+              if (value === "") {
+                delete overrides[token];
+              } else {
+                overrides[token] = value;
+              }
+            },
+            previewFor: async (slug, tokens) => {
+              const form = await api.getForm(previewForm.id);
+              form.schema.settings.theme = slug;
+              form.schema.settings.themeOverrides = tokens;
+              const { html } = await api.preview(previewForm.id, { schema: form.schema, theme: slug });
+              return html;
+            },
+            onThemesChanged: (next) => {
+              themes.length = 0;
+              themes.push(...next);
+            }
+          })
+        );
+      };
+      if (bar) {
+        clear(bar);
+        bar.append(
+          el("span", { class: "atfs__label", text: "Preview against" }),
+          select(
+            String(previewForm.id),
+            forms.map((form) => ({ value: String(form.id), label: form.title || "(untitled)" })),
+            (value) => {
+              previewForm = forms.find((form) => String(form.id) === value) ?? forms[0];
+              overrides = {};
+              render();
+            }
+          )
+        );
+      }
+      render();
+    } catch (error) {
+      clear(body);
+      body.append(
+        el("p", { class: "atfb-error", text: error instanceof Error ? error.message : "Could not load themes." })
+      );
+    }
+  }
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => void mountThemeStudio());
+    } else {
+      void mountThemeStudio();
+    }
+    document.addEventListener("os-window-content-loaded", () => void mountThemeStudio());
+  }
+  function normaliseHex(value) {
+    const trimmed = value.trim();
+    if (/^#[0-9a-f]{6}$/i.test(trimmed)) {
+      return trimmed;
+    }
+    if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+      return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
+    }
+    return "#888888";
+  }
+  function shell() {
+    return window.wp?.os ?? null;
+  }
+  const BUTTON_ID = "allterrain-forms/preview";
+  const PREVIEW_WINDOW_ID = "allterrain-forms-preview";
+  function registerPreviewButton(source) {
+    const os = shell();
+    if (!os?.registerTitleBarButton) {
+      return () => {
+      };
+    }
+    const register = () => {
+      try {
+        os.registerTitleBarButton({
+          id: BUTTON_ID,
+          label: "Preview this form",
+          icon: "dashicons-visibility",
+          placement: "right",
+          // Just before the shell's own Related button, so the builder's
+          // eye lands where every other window's eye is.
+          order: 90,
+          // Only the builder window. The predicate is called against a live
+          // `Window`, and a throw counts as "does not match" — so a shell
+          // whose `Window` shape differs simply does not show the button
+          // rather than erroring on every repaint.
+          match: (window2) => {
+            const id = window2?.id ?? window2?.config?.id ?? "";
+            return id === "allterrain-forms" || id.startsWith("allterrain-forms#");
+          },
+          onClick: () => void openPreview(source),
+          owner: "allterrain-forms-builder"
+        });
+      } catch {
+      }
+    };
+    if (os.ready) {
+      os.ready(register);
+    } else {
+      register();
+    }
+    return () => {
+      try {
+        os.unregisterTitleBarButton?.(BUTTON_ID);
+      } catch {
+      }
+    };
+  }
+  async function openPreview(source) {
+    if (source.isDirty()) {
+      await source.save();
+    }
+    const form = source.current();
+    if (!form) {
+      return;
+    }
+    openPreviewWindow(form.id, form.title, form.previewUrl);
+  }
+  function openPreviewWindow(formId, title, url) {
+    const os = shell();
+    if (!os?.windowManager?.open) {
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    os.windowManager.open({
+      id: `${PREVIEW_WINDOW_ID}-${formId}`,
+      baseId: PREVIEW_WINDOW_ID,
+      url,
+      title: `Preview: ${title}`,
+      icon: "dashicons-visibility"
+    });
+  }
+  function refreshPreview(formId, title, url) {
+    const os = shell();
+    if (!os?.windowManager?.open) {
+      return;
+    }
+    const open = document.querySelector(`[data-window-id^="${PREVIEW_WINDOW_ID}-${formId}"]`);
+    if (!open) {
+      return;
+    }
+    const separator = url.includes("?") ? "&" : "?";
+    openPreviewWindow(formId, title, `${url}${separator}atf_r=${Date.now()}`);
+  }
+  const FORM_TYPE = "allterrain-forms/form";
+  function relations() {
+    const os = window.wp?.os;
+    return os?.relations ?? null;
+  }
+  function windowIdOf(element) {
+    const host = element.closest("[data-window-id], .os-window");
+    if (!host) {
+      return null;
+    }
+    const attribute = host.getAttribute("data-window-id");
+    if (attribute) {
+      return attribute;
+    }
+    const id = host.id ?? "";
+    return id ? id.replace(/^wp-window-/, "") : null;
+  }
+  const ATTACH_TIMEOUT_MS = 6e3;
+  const ATTACH_POLL_MS = 120;
+  function setIdentity(element, ref) {
+    const api2 = relations();
+    wanted.set(element, ref);
+    if (!api2?.set) {
+      return;
+    }
+    const attempt = (deadline) => {
+      if (pending.get(element) !== token) {
+        return;
+      }
+      const windowId = windowIdOf(element);
+      if (!windowId) {
+        if (Date.now() < deadline) {
+          window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
+        }
+        return;
+      }
+      try {
+        api2.set(windowId, ref);
+      } catch (error) {
+        if (!warned) {
+          warned = true;
+          console.error("[AllTerrain Forms] The shell refused a window identity.", error, ref);
+        }
+        pending.delete(element);
+        return;
+      }
+      const stuck = !ref || api2.get?.(windowId)?.id === ref.id;
+      if (stuck || Date.now() >= deadline) {
+        pending.delete(element);
+        return;
+      }
+      window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
+    };
+    const token = Symbol("atf-identity");
+    pending.set(element, token);
+    attempt(Date.now() + ATTACH_TIMEOUT_MS);
+  }
+  let warned = false;
+  const pending = /* @__PURE__ */ new WeakMap();
+  const wanted = /* @__PURE__ */ new Map();
+  function reapply() {
+    for (const [element, ref] of wanted) {
+      if (!element.isConnected) {
+        wanted.delete(element);
+        continue;
+      }
+      setIdentity(element, ref);
+    }
+  }
+  if (typeof document !== "undefined") {
+    for (const event of ["os-window-content-loaded", "os-window-opened"]) {
+      document.addEventListener(event, () => reapply());
+    }
+  }
+  function formIdentity(form, adminUrl) {
+    return {
+      type: FORM_TYPE,
+      id: form.id,
+      label: form.title || "Untitled form",
+      related: [
+        {
+          id: `allterrain-forms/entries-${form.id}`,
+          label: "Entries for this form",
+          url: `${adminUrl}admin.php?page=allterrain-forms-entries&form=${form.id}`,
+          group: "allterrain-forms",
+          groupLabel: "Forms",
+          icon: "dashicons-list-view"
+        }
+      ]
+    };
+  }
+  const FIELD_PAYLOAD_TYPE = "allterrain-forms/field";
+  const MEDIA_PAYLOAD_TYPES = ["openstation/file", "desktop-mode/file", "openstation/attachment"];
+  const LOGIC_MAP_SETTING = "allterrain-forms/logic-map-v2";
+  const PREFILL_SOURCES = [
+    { value: "user:email", label: "Their email address", group: "About the person filling it in", tag: "{user:email}" },
+    { value: "user:display_name", label: "Their name", group: "About the person filling it in", tag: "{user:display_name}" },
+    { value: "user:first_name", label: "Their first name", group: "About the person filling it in" },
+    { value: "user:last_name", label: "Their last name", group: "About the person filling it in" },
+    { value: "user:login", label: "Their username", group: "About the person filling it in" },
+    { value: "date:today", label: "Today’s date", group: "The date and time", tag: "{date}" },
+    { value: "date:now", label: "The time right now", group: "The date and time", tag: "{time}" },
+    { value: "site", label: "This site’s name", group: "About this site", tag: "{site}" },
+    { value: "site:url", label: "This site’s address", group: "About this site", tag: "{site:url}" },
+    { value: "site:admin_email", label: "The site administrator’s email", group: "About this site", tag: "{admin_email}" }
+  ];
+  const PREFILL_GROUPS = ["About the person filling it in", "The date and time", "About this site"];
+  const i18n = (key, fallback2) => config?.i18n?.[key] ?? fallback2;
+  class Builder {
+    constructor(root) {
+      this.config = null;
+      this.themes = [];
+      this.forms = [];
+      this.form = null;
+      this.schema = null;
+      this.selected = null;
+      this.tab = "build";
+      this.logicMap = null;
+      this.logicMapOn = "off" !== readSetting(LOGIC_MAP_SETTING);
+      this.dirty = false;
+      this.teardowns = [];
+      this.history = [];
+      this.historyAt = -1;
+      this.autosave = debounce(() => {
+        void this.save(true);
+      }, 2500);
+      this.renderInspector = raf(() => {
+        clear(this.inspector);
+        if (!this.schema) {
+          return;
+        }
+        this.root.classList.toggle("atfb--build-only-panes", this.tab !== "build");
+        if (this.tab !== "build") {
+          return;
+        }
+        const field = this.schema.fields.find((candidate) => candidate.id === this.selected);
+        if (!field) {
+          this.inspector.append(
+            el("div", {
+              class: "atfb-placeholder",
+              children: [
+                el("p", { text: "Select a field to change it." }),
+                el("p", {
+                  class: "atfb-hint",
+                  text: "Drag a field from the palette, or press one to add it to the end."
+                })
+              ]
+            })
+          );
+          return;
+        }
+        const definition = this.config?.fieldTypes.find((candidate) => candidate.type === field.type);
+        const supports = definition?.supports ?? [];
+        const update = (key, value) => {
+          field[key] = value;
+          this.markDirty();
+          this.renderCanvas();
+        };
+        this.inspector.append(
+          el("h3", { class: "atfb-inspector__title", text: definition?.label ?? field.type }),
+          el("p", { class: "atfb-hint", text: `Reference this field as {field:${field.id}}` })
+        );
+        if (supports.includes("label")) {
+          this.inspector.append(
+            row(
+              "Label",
+              textInput(field.label, (value) => update("label", value))
+            )
+          );
+        }
+        if (supports.includes("placeholder")) {
+          this.inspector.append(
+            row(
+              "Placeholder",
+              textInput(field.placeholder, (value) => update("placeholder", value))
+            )
+          );
+        }
+        if (supports.includes("hint")) {
+          this.inspector.append(
+            row(
+              "Hint",
+              textInput(field.hint, (value) => update("hint", value)),
+              "Shown under the field, and read out with it."
+            )
+          );
+        }
+        if (supports.includes("required")) {
+          this.inspector.append(
+            checkbox("Required", field.required, (value) => update("required", value))
+          );
+        }
+        if (supports.includes("width")) {
+          this.inspector.append(
+            row(
+              "Width",
+              select(
+                field.width,
+                [
+                  { value: "full", label: "Full width" },
+                  { value: "two-thirds", label: "Two thirds" },
+                  { value: "half", label: "Half" },
+                  { value: "third", label: "One third" },
+                  { value: "quarter", label: "One quarter" }
+                ],
+                (value) => update("width", value)
+              )
+            )
+          );
+        }
+        if (definition?.choices) {
+          this.inspector.append(this.renderChoicesEditor(field, update));
+        }
+        if (field.type === "total" || supports.includes("formula")) {
+          this.inspector.append(
+            row(
+              "Formula",
+              textInput(String(field.formula ?? ""), (value) => update("formula", value)),
+              "Reference fields with braces: {f1} * {f2} + 10. Functions: min, max, sum, avg, round, ceil, floor, abs, sqrt, pow."
+            ),
+            row("Currency symbol", textInput(String(field.currency ?? ""), (value) => update("currency", value)))
+          );
+        }
+        this.inspector.append(this.renderValidationSection(field, supports, update));
+        this.inspector.append(this.renderLogicSection(field, update));
+        if (supports.includes("prefill")) {
+          this.inspector.append(this.prefillControl(field, update));
+        }
+        if (supports.includes("css")) {
+          this.inspector.append(
+            row("CSS class", textInput(field.cssClass, (value) => update("cssClass", value)))
+          );
+        }
+      });
+      this.root = root;
+      this.bar = root.querySelector("[data-atfb-bar]") ?? el("div");
+      this.palette = root.querySelector("[data-atfb-palette]") ?? el("div");
+      this.canvas = root.querySelector("[data-atfb-canvas]") ?? el("div");
+      this.inspector = root.querySelector("[data-atfb-inspector]") ?? el("div");
+    }
+    /** Loads everything and paints. */
+    async start() {
+      try {
+        const [config2, themes, forms] = await Promise.all([api.config(), api.listThemes(), api.listForms()]);
+        this.config = config2;
+        this.themes = themes;
+        this.forms = forms;
+      } catch (error) {
+        this.fail(error);
+        return;
+      }
+      this.teardowns.push(watchShellDragVisuals([FIELD_PAYLOAD_TYPE]));
+      this.teardowns.push(
+        registerPreviewButton({
+          current: () => this.form ? { id: this.form.id, title: this.form.title, previewUrl: this.form.previewUrl } : null,
+          isDirty: () => this.dirty,
+          save: () => this.save(true)
+        })
+      );
+      const beforeUnload = (event) => {
+        if (this.dirty) {
+          event.preventDefault();
+          event.returnValue = "";
+        }
+      };
+      window.addEventListener("beforeunload", beforeUnload);
+      this.teardowns.push(() => window.removeEventListener("beforeunload", beforeUnload));
+      const onKey = (event) => {
+        if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") {
+          return;
+        }
+        const target = event.target;
+        if (target?.closest("input, textarea, [contenteditable]")) {
+          return;
+        }
+        event.preventDefault();
+        this.travel(event.shiftKey ? 1 : -1);
+      };
+      this.root.addEventListener("keydown", onKey);
+      this.teardowns.push(() => this.root.removeEventListener("keydown", onKey));
+      this.renderBar();
+      this.renderPalette();
+      if (this.forms.length) {
+        await this.open(this.forms[0].id);
+      } else {
+        this.renderFormsList();
+      }
+    }
+    /** Releases every listener this instance registered. */
+    destroy() {
+      this.teardowns.forEach((teardown) => teardown());
+      this.teardowns = [];
+    }
+    /** Shows a load failure rather than an empty window. */
+    fail(error) {
+      clear(this.bar);
+      this.bar.append(
+        el("p", {
+          class: "atfb-error",
+          text: error instanceof Error ? error.message : "Something went wrong loading your forms."
+        })
+      );
+    }
+    /* ------------------------------------------------------------- Toolbar */
+    /** The top bar: form picker, tabs, save. */
+    renderBar() {
+      clear(this.bar);
+      const picker = select(
+        String(this.form?.id ?? ""),
+        [
+          ...this.forms.map((form) => ({ value: String(form.id), label: form.title || "(untitled)" }))
+        ],
+        (value) => void this.open(Number(value))
+      );
+      picker.setAttribute("aria-label", "Choose a form");
+      const title = el("input", {
+        class: "atfb-title",
+        type: "text",
+        value: this.form?.title ?? "",
+        placeholder: "Untitled form",
+        attrs: { "aria-label": "Form title" },
+        on: {
+          input: (event) => {
+            if (this.form) {
+              this.form.title = event.target.value;
+              this.markDirty();
+            }
+          }
+        }
+      });
+      const tabs = el("div", {
+        class: "atfb-tabs",
+        attrs: { role: "tablist" },
+        children: [
+          ["build", "Build"],
+          ["theme", "Theme"],
+          ["settings", "Settings"],
+          ["notify", "Notifications"],
+          ["confirm", "Confirmations"]
+        ].map(
+          ([id, label]) => el("button", {
+            class: `atfb-tab${this.tab === id ? " is-active" : ""}`,
+            type: "button",
+            text: label,
+            attrs: { role: "tab", "aria-selected": this.tab === id },
+            on: {
+              click: () => {
+                this.tab = id;
+                this.renderBar();
+                this.renderInspector();
+                this.renderCanvas();
+              }
+            }
+          })
+        )
+      });
+      this.bar.append(
+        el("div", {
+          class: "atfb-bar__left",
+          children: [this.forms.length > 1 ? picker : null, title]
+        }),
+        tabs,
+        el("div", {
+          class: "atfb-bar__right",
+          children: [
+            // No save-status label here. OpenStation's title bar already
+            // carries one — the activity ring that `wp.os.fetch` drives,
+            // which every request in `api.ts` goes through — so a second
+            // one in the toolbar is the same information twice, in the
+            // less prominent place. The Save button below shows whether
+            // there is anything to save; the window says what happened
+            // to it.
+            //
+            // Undo and redo are also Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z; the
+            // buttons exist because a builder whose only undo is a
+            // shortcut is a builder most people never discover has one.
+            this.historyButton("undo", "Undo", -1),
+            this.historyButton("redo", "Redo", 1),
+            button("New", () => void this.showTemplates(), "secondary", "plus-alt2"),
+            button("Export", () => void this.exportForm(), "secondary", "download"),
+            button("Import", () => void this.importForm(), "secondary", "upload"),
+            // The same action the title bar's eye performs, for the admin
+            // page — where there is no title bar to put an eye in.
+            button("Preview", () => void this.preview(), "secondary", "visibility"),
+            button("Entries", () => this.openEntries(), "secondary", "list-view"),
+            this.logicMapButton(),
+            this.saveButton()
+          ]
+        })
+      );
+    }
+    /**
+     * Takes a history snapshot.
+     *
+     * Called before a *structural* change — adding, moving, duplicating or
+     * deleting a field — and not on every keystroke. Snapshotting each character
+     * typed into a label would make undo mean "remove one letter", which is not
+     * what anybody reaches for it to do.
+     */
+    snapshot() {
+      if (!this.schema) {
+        return;
+      }
+      const json = JSON.stringify(this.schema);
+      if (this.history[this.historyAt] === json) {
+        return;
+      }
+      this.history = this.history.slice(0, this.historyAt + 1);
+      this.history.push(json);
+      if (this.history.length > 60) {
+        this.history.shift();
+      }
+      this.historyAt = this.history.length - 1;
+    }
+    /** Steps backwards or forwards through the history. */
+    travel(delta) {
+      const next = this.historyAt + delta;
+      if (!this.schema || next < 0 || next >= this.history.length) {
+        return;
+      }
+      this.historyAt = next;
+      this.schema = JSON.parse(this.history[next]);
+      if (!this.schema.fields.some((field) => field.id === this.selected)) {
+        this.selected = null;
+      }
+      this.dirty = true;
+      this.autosave();
+      this.renderBar();
+      this.renderCanvas();
+      this.renderInspector();
+    }
+    /** An undo or redo button, disabled when there is nowhere to go. */
+    historyButton(iconSlug, label, delta) {
+      const target = this.historyAt + delta;
+      const node = button(label, () => this.travel(delta), "secondary", iconSlug);
+      node.disabled = target < 0 || target >= this.history.length;
+      return node;
+    }
+    /**
+     * Downloads the current form as JSON.
+     *
+     * The exported document is the schema and the title — the same shape
+     * `/forms` accepts on the way back in, so an export from one site is an
+     * import on another with nothing in between. Entry data is deliberately not
+     * in it: this is the form, not what people said in it.
+     */
+    exportForm() {
+      if (!this.form || !this.schema) {
+        return;
+      }
+      const payload = {
+        plugin: "allterrain-forms",
+        version: config?.version ?? "",
+        title: this.form.title,
+        schema: this.schema
+      };
+      const blob = new Blob([JSON.stringify(payload, null, "	")], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = el("a", {
+        href: url,
+        attrs: { download: `${this.form.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "form"}.json` }
+      });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1e3);
+    }
+    /**
+     * Creates a form from an exported JSON document.
+     *
+     * A new form rather than an overwrite of the open one. Import is the sort of
+     * action people try to see what happens, and "see what happens" must never
+     * mean "replace the form I spent an afternoon on".
+     *
+     * The schema is normalised server-side on the way in, so a hand-edited or
+     * out-of-date document cannot put anything unusable into the database.
+     */
+    async importForm() {
+      const picker = el("input", { type: "file", attrs: { accept: "application/json,.json" } });
+      picker.addEventListener("change", async () => {
+        const file = picker.files?.[0];
+        if (!file) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(await file.text());
+          if (!parsed.schema) {
+            throw new Error("That file does not contain a form.");
+          }
+          const created = await api.createForm({
+            title: parsed.title ?? file.name.replace(/\.json$/i, ""),
+            schema: parsed.schema
+          });
+          this.forms.unshift({
+            id: created.id,
+            title: created.title,
+            status: created.status,
+            modified: created.modified,
+            fields: created.schema.fields.length,
+            theme: created.schema.settings.theme,
+            entries: 0,
+            unread: 0,
+            views: 0,
+            submissions: 0,
+            shortcode: created.shortcode
+          });
+          this.form = created;
+          this.schema = created.schema;
+          this.selected = null;
+          this.dirty = false;
+          this.history = [];
+          this.historyAt = -1;
+          this.snapshot();
+          this.renderBar();
+          this.renderCanvas();
+          this.renderInspector();
+          notify("Form imported", created.title);
+        } catch (error) {
+          notify("Could not import that file", error instanceof Error ? error.message : "", "error");
+        }
+      });
+      picker.click();
+    }
+    /**
+     * The Save button, which is the only place unsaved state is shown.
+     *
+     * Disabled while there is nothing to save, so the button itself answers "is
+     * my work in?" without a label beside it repeating the answer.
+     */
+    saveButton() {
+      const node = button("Save", () => void this.save(), "primary");
+      node.disabled = !this.dirty;
+      node.setAttribute("data-atfb-save", "");
+      return node;
+    }
+    /** Marks the form as having unsaved changes and schedules an autosave. */
+    markDirty() {
+      this.dirty = true;
+      const save = this.bar.querySelector("[data-atfb-save]");
+      if (save) {
+        save.disabled = false;
+      }
+      this.autosave();
+    }
+    /** Writes the form back. */
+    async save(silent = false) {
+      if (!this.form || !this.schema) {
+        return;
+      }
+      try {
+        const saved = await api.updateForm(this.form.id, {
+          title: this.form.title,
+          schema: this.schema
+        });
+        this.form = saved;
+        this.schema = saved.schema;
+        this.dirty = false;
+        forgetMergeTags(saved.id);
+        const summary = this.forms.find((candidate) => candidate.id === saved.id);
+        if (summary) {
+          summary.title = saved.title;
+        }
+        const save = this.bar.querySelector("[data-atfb-save]");
+        if (save) {
+          save.disabled = true;
+        }
+        refreshPreview(saved.id, saved.title, saved.previewUrl);
+        if (!silent) {
+          notify("Form saved", saved.title);
+        }
+      } catch (error) {
+        notify(
+          i18n("saveFailed", "Could not save"),
+          error instanceof Error ? error.message : "",
+          "error"
+        );
+      }
+    }
+    /* ---------------------------------------------------------------- Forms */
+    /** Opens a form. */
+    async open(id) {
+      if (this.dirty && !await confirmAction("You have unsaved changes. Discard them?")) {
+        return;
+      }
+      try {
+        this.form = await api.getForm(id);
+        this.schema = this.form.schema;
+        this.selected = null;
+        this.dirty = false;
+        this.history = [];
+        this.historyAt = -1;
+        this.snapshot();
+      } catch (error) {
+        this.fail(error);
+        return;
+      }
+      this.renderBar();
+      this.renderCanvas();
+      this.renderInspector();
+      this.announceIdentity();
+    }
+    /**
+     * Tells the shell which form this window is showing.
+     *
+     * That one call is what makes an entries window for the same form draw a tie
+     * to this one, and what fills the title bar's Related menu. Re-announced on
+     * every open, because the identity is the *form*, not the window.
+     */
+    announceIdentity() {
+      if (!this.form) {
+        return;
+      }
+      setIdentity(this.root, formIdentity(this.form, config?.adminUrl ?? ""));
+    }
+    /** The template picker, for a new form. */
+    async showTemplates() {
+      if (!this.config) {
+        return;
+      }
+      const overlay = el("div", { class: "atfb-overlay" });
+      const close = () => overlay.remove();
+      const grid = el("div", {
+        class: "atfb-templates",
+        children: this.config.templates.map(
+          (template) => el("button", {
+            class: "atfb-template",
+            type: "button",
+            on: {
+              click: async () => {
+                close();
+                try {
+                  const created = await api.createForm({ template: template.slug });
+                  this.forms.unshift({
+                    id: created.id,
+                    title: created.title,
+                    status: created.status,
+                    modified: created.modified,
+                    fields: created.schema.fields.length,
+                    theme: created.schema.settings.theme,
+                    entries: 0,
+                    unread: 0,
+                    views: 0,
+                    submissions: 0,
+                    shortcode: created.shortcode
+                  });
+                  this.form = created;
+                  this.schema = created.schema;
+                  this.selected = null;
+                  this.dirty = false;
+                  this.renderBar();
+                  this.renderCanvas();
+                  this.renderInspector();
+                  this.announceIdentity();
+                } catch (error) {
+                  notify("Could not create the form", error instanceof Error ? error.message : "", "error");
+                }
+              }
+            },
+            children: [
+              icon(template.icon),
+              el("strong", { text: template.label }),
+              el("span", { text: template.description })
+            ]
+          })
+        )
+      });
+      overlay.append(
+        el("div", {
+          class: "atfb-modal",
+          attrs: { role: "dialog", "aria-label": "Start a new form" },
+          children: [
+            el("h2", { text: "Start a new form" }),
+            grid,
+            el("div", { class: "atfb-modal__actions", children: [button("Cancel", close)] })
+          ]
+        })
+      );
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          close();
+        }
+      });
+      document.addEventListener(
+        "keydown",
+        (event) => {
+          if (event.key === "Escape") {
+            close();
+          }
+        },
+        { once: true }
+      );
+      this.root.append(overlay);
+      grid.querySelector("button")?.focus();
+    }
+    /** Shown when the site has no forms at all. */
+    renderFormsList() {
+      clear(this.canvas);
+      this.canvas.append(
+        el("div", {
+          class: "atfb-empty",
+          children: [
+            el("h2", { text: "No forms yet" }),
+            el("p", { text: "Start from a template, or build one from nothing." }),
+            button("New form", () => void this.showTemplates(), "primary", "plus-alt2")
+          ]
+        })
+      );
+    }
+    /** Opens the entries window, or the entries admin page. */
+    openEntries() {
+      const shell2 = window.wp?.os;
+      if (shell2?.openWindow) {
+        shell2.openWindow("allterrain-forms-entries");
+        return;
+      }
+      window.location.assign(`${config?.adminUrl ?? ""}admin.php?page=allterrain-forms-entries`);
+    }
+    /* -------------------------------------------------------------- Palette */
+    /** Draws the field palette, grouped. */
+    renderPalette() {
+      if (!this.config) {
+        return;
+      }
+      clear(this.palette);
+      const grouped = /* @__PURE__ */ new Map();
+      for (const type of this.config.fieldTypes) {
+        const list = grouped.get(type.group) ?? [];
+        list.push(type);
+        grouped.set(type.group, list);
+      }
+      const search = el("input", {
+        class: "atfb-input atfb-palette__search",
+        type: "search",
+        placeholder: "Search fields",
+        attrs: { "aria-label": "Search field types" },
+        on: {
+          input: (event) => {
+            const term = event.target.value.toLowerCase().trim();
+            this.palette.querySelectorAll(".atfb-chip").forEach((chip) => {
+              const label = (chip.textContent ?? "").toLowerCase();
+              chip.hidden = term !== "" && !label.includes(term);
+            });
+            this.palette.querySelectorAll(".atfb-group").forEach((group) => {
+              const visible = Array.from(group.querySelectorAll(".atfb-chip")).some(
+                (chip) => !chip.hidden
+              );
+              group.hidden = !visible;
+            });
+          }
+        }
+      });
+      this.palette.append(search);
+      for (const [slug, label] of Object.entries(this.config.groups)) {
+        const types = grouped.get(slug);
+        if (!types?.length) {
+          continue;
+        }
+        this.palette.append(
+          el("div", {
+            class: "atfb-group",
+            children: [
+              el("h3", { class: "atfb-group__title", text: label }),
+              el("div", {
+                class: "atfb-group__items",
+                children: types.map((type) => this.paletteChip(type))
+              })
+            ]
+          })
+        );
+      }
+    }
+    /**
+     * One palette entry.
+     *
+     * A real `<button>`, so it is reachable by keyboard and activating it adds
+     * the field to the end of the form. The drag is layered on top of that
+     * rather than replacing it — `onClickOnly` is what the drag manager calls
+     * when a press never travelled far enough to become a drag, so one element
+     * serves both interactions without a click firing after a drop.
+     */
+    paletteChip(type) {
+      const chip = el("button", {
+        class: "atfb-chip",
+        type: "button",
+        title: type.description,
+        attrs: { "data-atf-type": type.type },
+        children: [icon(type.icon), el("span", { text: type.label })]
+      });
+      chip.addEventListener("pointerdown", (event) => {
+        const ghost = el("div", {
+          class: "atfb-chip atfb-chip--ghost",
+          children: [icon(type.icon), el("span", { text: type.label })]
+        });
+        getDragManager().start({
+          payload: buildPayload(FIELD_PAYLOAD_TYPE, chip, { fieldType: type.type, isNew: true }, event, ghost),
+          origin: event,
+          onClickOnly: () => this.addField(type.type)
+        });
+      });
+      chip.addEventListener("click", (event) => {
+        if (getDragManager().recentlyEndedDrag()) {
+          event.preventDefault();
+        }
+      });
+      return chip;
+    }
+    /* --------------------------------------------------------------- Canvas */
+    /** Draws the canvas for the current tab. */
+    renderCanvas() {
+      clear(this.canvas);
+      if (!this.schema || !this.form) {
+        this.renderFormsList();
+        return;
+      }
+      if (this.tab !== "build") {
+        this.canvas.append(this.renderTabCanvas());
+        return;
+      }
+      const list = el("div", { class: "atfb-canvas__list", attrs: { "data-atfb-list": "" } });
+      if (!this.schema.fields.length) {
+        list.append(
+          el("div", {
+            class: "atfb-placeholder",
+            text: i18n("emptyCanvas", "Drag a field from the left to begin.")
+          })
+        );
+      }
+      this.schema.fields.forEach((field, index) => {
+        list.append(this.renderFieldCard(field, index));
+      });
+      const inner = el("div", {
+        class: "atfb-canvas__inner",
+        children: [
+          el("p", {
+            class: "atfb-shortcode",
+            text: this.form.shortcode,
+            title: "Paste this anywhere to place the form"
+          }),
+          list
+        ]
+      });
+      this.canvas.append(inner);
+      this.registerCanvasTarget(list);
+      this.paintLogicMap(inner);
+    }
+    /**
+     * Where a field's opening value comes from, asked in plain language.
+     *
+     * This box used to be free text under the hint
+     * `query:utm_source, user:email, user:name, site:name or date:today` — a list
+     * of five examples of a syntax nobody had been taught, two of which
+     * (`user:name`, `site:name`) were not even things the resolver understood. So
+     * the one person who typed exactly what the hint said got an empty field and
+     * no error, because an unrecognised source resolves to nothing.
+     *
+     * The sources are a closed set, so they are offered as a list. The stored
+     * value is still the same string — a form built before this opens in whichever
+     * mode its value already matches, and a plugin adding a source through
+     * `atf_resolve_prefill` still works via Advanced.
+     */
+    prefillControl(field, update) {
+      const isQuery = field.prefill.startsWith("query:");
+      const known = PREFILL_SOURCES.some((source) => source.value === field.prefill);
+      const mode = isQuery ? "query" : known && field.prefill || (field.prefill ? "custom" : "");
+      const detail = el("div", { class: "atfb-prefill__detail" });
+      const preview = el("p", { class: "atfb-row__hint atfb-prefill__preview" });
+      const paint = (current) => {
+        detail.replaceChildren();
+        preview.replaceChildren();
+        if ("query" === current) {
+          const name = field.prefill.startsWith("query:") ? field.prefill.slice(6) : "";
+          detail.append(
+            textInput(
+              name,
+              (value) => {
+                const trimmed = value.trim();
+                update("prefill", trimmed ? `query:${trimmed}` : "");
+                paintPreview(`query:${trimmed}`);
+              },
+              "utm_source"
+            ),
+            el("p", {
+              class: "atfb-row__hint",
+              text: "The name of the parameter in the link people arrive on."
+            })
+          );
+        }
+        if ("custom" === current) {
+          detail.append(
+            textInput(
+              field.prefill,
+              (value) => {
+                update("prefill", value);
+                paintPreview(value);
+              },
+              "myplugin:something"
+            ),
+            el("p", {
+              class: "atfb-row__hint",
+              text: "For a source another plugin has added through atf_resolve_prefill."
+            })
+          );
+        }
+        paintPreview(field.prefill);
+      };
+      const paintPreview = (source) => {
+        preview.replaceChildren();
+        if (!source) {
+          return;
+        }
+        if (source.startsWith("query:")) {
+          const name = source.slice(6);
+          if (name) {
+            preview.textContent = `A visit to …/your-page/?${name}=abc opens the form with “abc” in it.`;
+          }
+          return;
+        }
+        const tag = PREFILL_SOURCES.find((candidate) => candidate.value === source)?.tag;
+        if (!tag) {
+          return;
+        }
+        void mergeTags(this.form?.id ?? 0).then((groups) => {
+          for (const group of groups) {
+            for (const item of group.items) {
+              if (item.tag === tag) {
+                const personal = source.startsWith("user:");
+                if (!item.sample) {
+                  preview.textContent = "Empty unless the visitor is signed in.";
+                  return;
+                }
+                preview.textContent = personal ? `Opens with “${item.sample}” for you — empty for a visitor who is not signed in.` : `Opens with “${item.sample}”.`;
+                return;
+              }
+            }
+          }
+        });
+      };
+      paint(mode);
+      const picker = el("select", {
+        class: "atfb-input atfb-select",
+        on: {
+          change: (event) => {
+            const value = event.target.value;
+            update("prefill", "query" === value || "custom" === value ? "" : value);
+            paint(value);
+          }
+        }
+      });
+      picker.append(
+        el("option", { value: "", text: "Nothing — leave it empty", attrs: { selected: "" === mode } })
+      );
+      for (const group of PREFILL_GROUPS) {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = group;
+        for (const source of PREFILL_SOURCES.filter((candidate) => candidate.group === group)) {
+          optgroup.append(
+            el("option", {
+              value: source.value,
+              text: source.label,
+              attrs: { selected: source.value === mode }
+            })
+          );
+        }
+        picker.append(optgroup);
+      }
+      const link = document.createElement("optgroup");
+      link.label = "From the link they arrived on";
+      link.append(
+        el("option", { value: "query", text: "A parameter in the web address", attrs: { selected: "query" === mode } })
+      );
+      picker.append(
+        link,
+        el("option", { value: "custom", text: "Something else (advanced)", attrs: { selected: "custom" === mode } })
+      );
+      return row(
+        "Pre-fill this with",
+        el("div", { class: "atfb-prefill", children: [picker, detail, preview] }),
+        "What the box already contains when the form opens. They can still change it."
+      );
+    }
+    /**
+     * A field's condition, drawn as its parts rather than as a sentence.
+     *
+     * "Shown when Can you make it? is Yes, I will be there" is five things in a
+     * row with nothing to separate them, and two of the five are text somebody
+     * typed — so the question ends in a question mark and the answer contains a
+     * comma, and the punctuation the sentence relies on for structure is also in
+     * the content. Reading it means parsing it.
+     *
+     * Drawn as parts, no parsing is needed: the referenced question is a chip,
+     * the answer is a chip, and the verb and comparison are quiet text between
+     * them. The whole row still carries the plain sentence as its `aria-label`,
+     * because a screen reader reading five chips as five unrelated fragments
+     * would be worse off than before.
+     *
+     * The question chip is a button that selects that field — the reference is
+     * the useful kind, the kind you can follow.
+     */
+    renderCondition(tokens) {
+      const broken = tokens.some((token) => "field" === token.kind && token.missing);
+      return el("span", {
+        class: `atfb-cond${broken ? " is-broken" : ""}`,
+        attrs: { "aria-label": tokensToText(tokens) },
+        children: [
+          icon("randomize"),
+          ...tokens.map((token) => this.renderConditionToken(token))
+        ]
+      });
+    }
+    /** One tagged part of a condition. */
+    renderConditionToken(token) {
+      if ("field" === token.kind && !token.missing) {
+        const chip = el("button", {
+          class: "atfb-cond__chip atfb-cond__chip--field",
+          type: "button",
+          text: token.text,
+          title: "Go to this question",
+          // The row is inside a card that is itself a button; without this the
+          // click selects the card the chip is *on* rather than the question it
+          // names, which is the opposite of what it offers.
+          on: {
+            click: (event) => {
+              event.stopPropagation();
+              this.selectField(token.fieldId);
+              this.canvas.querySelector(`[data-atfb-card="${CSS.escape(token.fieldId)}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+          }
+        });
+        return chip;
+      }
+      const classes = {
+        verb: "atfb-cond__verb",
+        field: "atfb-cond__chip atfb-cond__chip--missing",
+        operator: "atfb-cond__op",
+        value: "atfb-cond__chip atfb-cond__chip--value",
+        join: "atfb-cond__join"
+      };
+      return el("span", { class: classes[token.kind], text: token.text });
+    }
+    /**
+     * The toolbar's toggle for the logic overlay.
+     *
+     * Hidden entirely on a form with no conditions. A control for a thing that
+     * is not there teaches nothing and takes up a slot in a toolbar that already
+     * has eight.
+     */
+    logicMapButton() {
+      const has = logicEdges(this.schema?.fields ?? []).length > 0;
+      const toggle = button(
+        this.logicMapOn ? "Hide logic" : "Show logic",
+        () => {
+          this.logicMapOn = !this.logicMapOn;
+          writeSetting(LOGIC_MAP_SETTING, this.logicMapOn ? "on" : "off");
+          this.renderBar();
+          this.renderCanvas();
+        },
+        this.logicMapOn ? "primary" : "secondary",
+        "randomize"
+      );
+      toggle.title = "Draw a line from each question to the ones it decides.";
+      toggle.hidden = !has;
+      return toggle;
+    }
+    /**
+     * Draws the conditional-logic connections over the canvas.
+     *
+     * Rebuilt with the canvas rather than kept alive across renders: the layer
+     * measures cards that this render has just replaced, and an instance holding
+     * a `ResizeObserver` on a detached element is a leak that also stops
+     * redrawing. Cheap enough — it is one `<svg>` and a handful of paths.
+     *
+     * @param inner The canvas element the layer covers.
+     */
+    paintLogicMap(inner) {
+      this.logicMap?.destroy();
+      this.logicMap = null;
+      const fields = this.schema?.fields ?? [];
+      const edges = logicEdges(fields);
+      if (!edges.length || !this.logicMapOn) {
+        return;
+      }
+      inner.classList.add("has-logicmap");
+      const map = new LogicMap(inner);
+      map.setEdges(edges);
+      map.highlight(this.selected ?? "");
+      this.logicMap = map;
+      inner.addEventListener("pointerover", (event) => {
+        const card = event.target.closest("[data-atfb-card]");
+        map.highlight(card?.dataset.atfbCard ?? this.selected ?? "");
+      });
+      inner.addEventListener("pointerleave", () => map.highlight(this.selected ?? ""));
+    }
+    /** One field on the canvas. */
+    renderFieldCard(field, index) {
+      const type = this.config?.fieldTypes.find((candidate) => candidate.type === field.type);
+      const selected = this.selected === field.id;
+      const fields = this.schema?.fields ?? [];
+      const condition = logicTokens(field, fields);
+      const controls = controlCounts(fields).get(field.id) ?? 0;
+      const card = el("div", {
+        class: `atfb-card${selected ? " is-selected" : ""}`,
+        attrs: {
+          "data-atfb-card": field.id,
+          "data-index": index,
+          tabindex: "0",
+          role: "button",
+          "aria-pressed": selected,
+          "aria-label": `${field.label || type?.label || field.type}, ${index + 1} of ${this.schema?.fields.length ?? 0}`
+        },
+        children: [
+          el("div", {
+            class: "atfb-card__grip",
+            attrs: { "aria-hidden": "true" },
+            children: [icon("menu")]
+          }),
+          el("div", {
+            class: "atfb-card__body",
+            children: [
+              el("div", {
+                class: "atfb-card__head",
+                children: [
+                  icon(type?.icon ?? "dashicons-forms"),
+                  el("strong", { text: field.label || i18n("untitledField", "Untitled field") }),
+                  field.required ? el("span", { class: "atfb-badge", text: "required" }) : null,
+                  controls ? el("span", {
+                    class: "atfb-badge atfb-badge--controls",
+                    text: 1 === controls ? "controls 1 field" : `controls ${controls} fields`,
+                    title: "Other questions appear or disappear based on this answer."
+                  }) : null
+                ]
+              }),
+              el("span", { class: "atfb-card__type", text: type?.label ?? field.type }),
+              condition.length ? this.renderCondition(condition) : null
+            ]
+          }),
+          el("div", {
+            class: "atfb-card__actions",
+            children: [
+              this.cardAction("admin-page", "Duplicate", () => this.duplicateField(field.id)),
+              this.cardAction("trash", "Delete", () => void this.deleteField(field.id))
+            ]
+          })
+        ]
+      });
+      card.addEventListener("click", (event) => {
+        if (event.target.closest(".atfb-card__actions")) {
+          return;
+        }
+        if (getDragManager().recentlyEndedDrag()) {
+          return;
+        }
+        this.selectField(field.id);
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this.selectField(field.id);
+          return;
+        }
+        if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+          event.preventDefault();
+          this.moveField(field.id, event.key === "ArrowUp" ? index - 1 : index + 1);
+          window.requestAnimationFrame(() => {
+            this.canvas.querySelector(`[data-atfb-card="${CSS.escape(field.id)}"]`)?.focus();
+          });
+        }
+        if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          void this.deleteField(field.id);
+        }
+      });
+      card.addEventListener("pointerdown", (event) => {
+        if (event.target.closest(".atfb-card__actions")) {
+          return;
+        }
+        getDragManager().start({
+          payload: buildPayload(FIELD_PAYLOAD_TYPE, card, { fieldId: field.id, field, isNew: false }, event),
+          origin: event
+        });
+      });
+      return card;
+    }
+    /** A small icon button on a field card. */
+    cardAction(iconSlug, label, onClick) {
+      return el("button", {
+        class: "atfb-card__action",
+        type: "button",
+        title: label,
+        attrs: { "aria-label": label },
+        on: {
+          click: (event) => {
+            event.stopPropagation();
+            onClick();
+          }
+        },
+        children: [icon(iconSlug)]
+      });
+    }
+    /**
+     * Makes the canvas a drop target.
+     *
+     * Accepts this plugin's own field payload — from the palette, from this
+     * canvas, or from a *second* builder window, which is what the shell's
+     * shared drag manager buys and an iframe could not.
+     */
+    registerCanvasTarget(list) {
+      const marker = el("div", { class: "atfb-marker", attrs: { "aria-hidden": "true" } });
+      const teardown = getDragManager().registerDropTarget({
+        id: `atfb-canvas-${this.form?.id ?? 0}`,
+        element: list,
+        accept: (payload) => payload.type === FIELD_PAYLOAD_TYPE,
+        onEnter: () => list.classList.add("is-dropping"),
+        onLeave: () => {
+          list.classList.remove("is-dropping");
+          marker.remove();
+        },
+        onDrop: (session, position) => {
+          list.classList.remove("is-dropping");
+          marker.remove();
+          const data = session.payload.data;
+          const source = data.fieldId ? this.canvas.querySelector(`[data-atfb-card="${CSS.escape(data.fieldId)}"]`) : null;
+          const index = insertionIndex(list, ".atfb-card", position.clientY, source ?? void 0);
+          if (data.isNew && data.fieldType) {
+            this.addField(data.fieldType, index);
+            return;
+          }
+          if (data.fieldId && this.schema?.fields.some((field) => field.id === data.fieldId)) {
+            this.moveField(data.fieldId, index);
+            return;
+          }
+          if (data.field) {
+            this.insertField({ ...data.field, id: "" }, index);
+          }
+        }
+      });
+      this.teardowns.push(teardown);
+      const onMove = (event) => {
+        const detail = event.detail;
+        if (detail?.payload?.type !== FIELD_PAYLOAD_TYPE || !list.classList.contains("is-dropping")) {
+          return;
+        }
+        const y = detail.clientY ?? 0;
+        const index = insertionIndex(list, ".atfb-card", y);
+        const cards = list.querySelectorAll(".atfb-card");
+        if (index >= cards.length) {
+          list.append(marker);
+        } else {
+          cards[index].before(marker);
+        }
+      };
+      document.addEventListener("os.drag.move", onMove);
+      this.teardowns.push(() => document.removeEventListener("os.drag.move", onMove));
+    }
+    /* -------------------------------------------------------- Field editing */
+    /** Adds a field of a type, at an index or at the end. */
+    addField(type, index) {
+      const definition = this.config?.fieldTypes.find((candidate) => candidate.type === type);
+      if (!definition || !this.schema) {
+        return;
+      }
+      const field = {
+        id: this.nextFieldId(),
+        type,
+        label: definition.input ? definition.label : "",
+        placeholder: "",
+        hint: "",
+        required: false,
+        width: "full",
+        cssClass: "",
+        default: "",
+        choices: definition.choices ? [
+          { label: "First choice", value: "first" },
+          { label: "Second choice", value: "second" }
+        ] : [],
+        logic: { enabled: false, action: "show", match: "all", rules: [] },
+        messages: {},
+        prefill: "",
+        ...definition.settings
+      };
+      this.insertField(field, index);
+    }
+    /** Puts a field into the schema. */
+    insertField(field, index) {
+      if (!this.schema) {
+        return;
+      }
+      if (!field.id) {
+        field.id = this.nextFieldId();
+      }
+      this.snapshot();
+      const at = index === void 0 ? this.schema.fields.length : Math.max(0, Math.min(index, this.schema.fields.length));
+      this.schema.fields.splice(at, 0, field);
+      this.selected = field.id;
+      this.markDirty();
+      this.renderCanvas();
+      this.renderInspector();
+      window.requestAnimationFrame(() => {
+        this.canvas.querySelector(`[data-atfb-card="${CSS.escape(field.id)}"]`)?.focus();
+      });
+    }
+    /** Moves a field to an index. */
+    moveField(fieldId, index) {
+      if (!this.schema) {
+        return;
+      }
+      const from = this.schema.fields.findIndex((field2) => field2.id === fieldId);
+      if (from < 0) {
+        return;
+      }
+      const clamped = Math.max(0, Math.min(index, this.schema.fields.length - 1));
+      if (from === clamped) {
+        return;
+      }
+      this.snapshot();
+      const [field] = this.schema.fields.splice(from, 1);
+      this.schema.fields.splice(clamped > from ? clamped - 1 : clamped, 0, field);
+      this.markDirty();
+      this.renderCanvas();
+    }
+    /** Copies a field, id and all but the id. */
+    duplicateField(fieldId) {
+      if (!this.schema) {
+        return;
+      }
+      const index = this.schema.fields.findIndex((field) => field.id === fieldId);
+      if (index < 0) {
+        return;
+      }
+      const copy = JSON.parse(JSON.stringify(this.schema.fields[index]));
+      copy.id = this.nextFieldId();
+      this.insertField(copy, index + 1);
+    }
+    /** Removes a field. */
+    async deleteField(fieldId) {
+      if (!this.schema) {
+        return;
+      }
+      const dependents = this.schema.fields.filter(
+        (field) => field.logic?.rules?.some((rule) => rule.field === fieldId)
+      );
+      const message = dependents.length ? `Delete this field? ${dependents.length} other field${dependents.length === 1 ? "" : "s"} use it in a condition, and those conditions will stop working.` : i18n("confirmDelete", "Delete this? It cannot be undone.");
+      if (!await confirmAction(message, "Delete field")) {
+        return;
+      }
+      this.snapshot();
+      this.schema.fields = this.schema.fields.filter((field) => field.id !== fieldId);
+      if (this.selected === fieldId) {
+        this.selected = null;
+      }
+      this.markDirty();
+      this.renderCanvas();
+      this.renderInspector();
+    }
+    /** Selects a field and shows it in the inspector. */
+    selectField(fieldId) {
+      this.selected = fieldId;
+      this.renderCanvas();
+      this.renderInspector();
+    }
+    /** A field id not already in use. */
+    nextFieldId() {
+      const used = new Set((this.schema?.fields ?? []).map((field) => field.id));
+      let index = used.size + 1;
+      while (used.has(`f${index}`)) {
+        index++;
+      }
+      return `f${index}`;
+    }
+    /** The choices editor, with drag-in image support. */
+    renderChoicesEditor(field, update) {
+      const choices = field.choices ?? [];
+      const list = el("div", { class: "atfb-choices" });
+      choices.forEach((choice, index) => {
+        const rowEl = el("div", {
+          class: "atfb-choice-row",
+          children: [
+            // The image well only exists on a field that shows
+            // pictures. Everywhere else it would be a column of
+            // empty boxes for a setting that does nothing.
+            field.type === "image_choice" ? this.choiceImageWell(choice, index, field) : null,
+            textInput(choice.label, (value) => {
+              choice.label = value;
+              if (!choice.value || choice.value === choices[index].value) {
+                choice.value = value;
+              }
+              this.markDirty();
+            }),
+            textInput(
+              choice.value,
+              (value) => {
+                choice.value = value;
+                this.markDirty();
+              },
+              "value"
+            ),
+            field.type === "quiz" || choice.points !== void 0 ? numberInput(String(choice.points ?? ""), (value) => {
+              choice.points = value === "" ? void 0 : Number(value);
+              this.markDirty();
+            }) : numberInput(String(choice.price ?? ""), (value) => {
+              choice.price = value === "" ? void 0 : Number(value);
+              this.markDirty();
+            }),
+            el("button", {
+              class: "atfb-card__action",
+              type: "button",
+              attrs: { "aria-label": `Remove ${choice.label}` },
+              on: {
+                click: () => {
+                  choices.splice(index, 1);
+                  update("choices", choices);
+                  this.renderInspector();
+                }
+              },
+              children: [icon("trash")]
+            })
+          ]
+        });
+        list.append(rowEl);
+      });
+      return el("div", {
+        class: "atfb-section",
+        children: [
+          el("h4", { text: "Choices" }),
+          el("p", {
+            class: "atfb-hint",
+            text: field.type === "quiz" ? "Label, value, points." : "Label, value, and a price for calculations."
+          }),
+          list,
+          button(
+            "Add choice",
+            () => {
+              choices.push({ label: "", value: "" });
+              update("choices", choices);
+              this.renderInspector();
+            },
+            "ghost",
+            "plus-alt2"
+          ),
+          field.type === "quiz" ? row(
+            "Correct answer",
+            select(
+              String(field.correct ?? ""),
+              [
+                { value: "", label: "—" },
+                ...choices.map((choice) => ({ value: choice.value, label: choice.label }))
+              ],
+              (value) => update("correct", value)
+            )
+          ) : null
+        ]
+      });
+    }
+    /**
+     * The image well on one choice of an image-choice field.
+     *
+     * A drop target for media dragged out of WP Explorer. This is the clearest
+     * demonstration of why the builder is a native window: WP Explorer is a
+     * different window entirely, and its file tiles ride the same
+     * `wp.os.dragManager` this target registers with — so a photograph on the
+     * desktop can be dropped straight onto a form's option. Across an iframe
+     * boundary the two would never meet.
+     *
+     * The attachment id is what gets stored; the URL in the payload is used only
+     * to paint the thumbnail immediately, so the well fills the moment the drop
+     * lands rather than after a round trip.
+     */
+    choiceImageWell(choice, index, field) {
+      const well = el("div", {
+        class: `atfb-well${choice.image ? " has-image" : ""}`,
+        attrs: {
+          "data-choice": index,
+          "aria-label": `Image for ${choice.label || `choice ${index + 1}`}`
+        },
+        children: [choice.image ? el("span", { class: "atfb-well__id", text: `#${choice.image}` }) : icon("format-image")]
+      });
+      const teardown = getDragManager().registerDropTarget({
+        id: `atfb-well-${field.id}-${index}`,
+        element: well,
+        // WP Explorer has used more than one payload slug across shell
+        // versions, so every spelling this plugin knows about is accepted
+        // rather than betting on one.
+        accept: (payload) => MEDIA_PAYLOAD_TYPES.includes(payload.type),
+        onEnter: () => well.classList.add("is-dropping"),
+        onLeave: () => well.classList.remove("is-dropping"),
+        onDrop: (session) => {
+          well.classList.remove("is-dropping");
+          const data = session.payload.data;
+          const id = Number(data.attachmentId ?? data.id ?? data.file?.id ?? 0);
+          if (!id) {
+            notify("That is not an image this field can use", "", "error");
+            return;
+          }
+          choice.image = id;
+          this.markDirty();
+          this.renderInspector();
+        }
+      });
+      this.teardowns.push(teardown);
+      well.addEventListener("click", () => {
+        if (!choice.image) {
+          return;
+        }
+        choice.image = void 0;
+        this.markDirty();
+        this.renderInspector();
+      });
+      return well;
+    }
+    /** Validation settings for a field. */
+    renderValidationSection(field, supports, update) {
+      const rows = [];
+      const pairs = [];
+      if (supports.includes("minlength")) {
+        pairs.push(["minlength", "Minimum characters"], ["maxlength", "Maximum characters"]);
+      }
+      if (supports.includes("min")) {
+        pairs.push(["min", "Minimum"], ["max", "Maximum"]);
+      }
+      if (supports.includes("mindate")) {
+        pairs.push(["minDate", "Earliest date"], ["maxDate", "Latest date"]);
+      }
+      for (const [key, label] of pairs) {
+        rows.push(
+          row(
+            label,
+            textInput(String(field[key] ?? ""), (value) => update(key, value))
+          )
+        );
+      }
+      if (supports.includes("pattern")) {
+        rows.push(
+          row(
+            "Pattern",
+            textInput(String(field.pattern ?? ""), (value) => update("pattern", value)),
+            "A regular expression, without slashes."
+          )
+        );
+      }
+      if (supports.includes("unique")) {
+        rows.push(
+          checkbox(
+            "No two people may submit the same value",
+            Boolean(field.unique),
+            (value) => update("unique", value)
+          )
+        );
+      }
+      const messages = field.messages ?? {};
+      rows.push(
+        row(
+          "Message when required",
+          textInput(messages.required ?? "", (value) => {
+            messages.required = value;
+            update("messages", messages);
+          }),
+          "Leave empty for the default wording."
+        )
+      );
+      return el("details", {
+        class: "atfb-section",
+        children: [el("summary", { text: "Validation" }), ...rows]
+      });
+    }
+    /** The conditional-logic editor. */
+    renderLogicSection(field, update) {
+      const logic = field.logic;
+      const others = (this.schema?.fields ?? []).filter(
+        (candidate) => candidate.id !== field.id && candidate.type !== "page_break"
+      );
+      const rules = el("div", { class: "atfb-rules" });
+      logic.rules.forEach((rule, index) => {
+        rules.append(
+          el("div", {
+            class: "atfb-rule",
+            children: [
+              select(
+                rule.field,
+                others.map((candidate) => ({
+                  value: candidate.id,
+                  label: candidate.label || candidate.id
+                })),
+                (value) => {
+                  rule.field = value;
+                  this.markDirty();
+                }
+              ),
+              select(
+                rule.operator,
+                Object.entries(this.config?.operators ?? {}).map(([value, label]) => ({ value, label })),
+                (value) => {
+                  rule.operator = value;
+                  this.markDirty();
+                }
+              ),
+              textInput(rule.value, (value) => {
+                rule.value = value;
+                this.markDirty();
+              }),
+              el("button", {
+                class: "atfb-card__action",
+                type: "button",
+                attrs: { "aria-label": "Remove this rule" },
+                on: {
+                  click: () => {
+                    logic.rules.splice(index, 1);
+                    update("logic", logic);
+                    this.renderInspector();
+                  }
+                },
+                children: [icon("trash")]
+              })
+            ]
+          })
+        );
+      });
+      return el("details", {
+        class: "atfb-section",
+        attrs: { open: logic.enabled },
+        children: [
+          el("summary", { text: "Conditional logic" }),
+          checkbox("Only show this field sometimes", logic.enabled, (value) => {
+            logic.enabled = value;
+            update("logic", logic);
+            this.renderInspector();
+          }),
+          logic.enabled ? el("div", {
+            children: [
+              el("div", {
+                class: "atfb-rule-head",
+                children: [
+                  select(
+                    logic.action,
+                    [
+                      { value: "show", label: "Show" },
+                      { value: "hide", label: "Hide" }
+                    ],
+                    (value) => {
+                      logic.action = value;
+                      update("logic", logic);
+                    }
+                  ),
+                  el("span", { text: "this field when" }),
+                  select(
+                    logic.match,
+                    [
+                      { value: "all", label: "all" },
+                      { value: "any", label: "any" }
+                    ],
+                    (value) => {
+                      logic.match = value;
+                      update("logic", logic);
+                    }
+                  ),
+                  el("span", { text: "of these match:" })
+                ]
+              }),
+              rules,
+              button(
+                "Add rule",
+                () => {
+                  logic.rules.push({
+                    field: others[0]?.id ?? "",
+                    operator: "is",
+                    value: ""
+                  });
+                  update("logic", logic);
+                  this.renderInspector();
+                },
+                "ghost",
+                "plus-alt2"
+              )
+            ]
+          }) : null
+        ]
+      });
+    }
+    /* ------------------------------------------------------------ Tab panes */
+    /** The canvas contents for the non-Build tabs. */
+    renderTabCanvas() {
+      if (!this.schema) {
+        return el("div");
+      }
+      if (this.tab === "theme") {
+        return mountThemeControls({
+          themes: this.themes,
+          tokens: this.config?.tokens ?? [],
+          activeSlug: this.schema.settings.theme,
+          overrides: this.schema.settings.themeOverrides,
+          onTheme: (slug) => {
+            this.schema.settings.theme = slug;
+            this.markDirty();
+          },
+          onOverride: (token, value) => {
+            if (value === "") {
+              delete this.schema.settings.themeOverrides[token];
+            } else {
+              this.schema.settings.themeOverrides[token] = value;
+            }
+            this.markDirty();
+          },
+          previewFor: (slug, overrides) => this.previewHtml(slug, overrides),
+          onThemesChanged: (themes) => {
+            this.themes = themes;
+          }
+        });
+      }
+      if (this.tab === "settings") {
+        return this.renderSettingsPane();
+      }
+      if (this.tab === "notify") {
+        return this.renderNotificationsPane();
+      }
+      return this.renderConfirmationsPane();
+    }
+    /** Renders the current schema to HTML for a preview. */
+    async previewHtml(theme, overrides) {
+      if (!this.form || !this.schema) {
+        return "";
+      }
+      const schema = JSON.parse(JSON.stringify(this.schema));
+      schema.settings.theme = theme;
+      schema.settings.themeOverrides = overrides;
+      const { html } = await api.preview(this.form.id, { schema, theme });
+      return html;
+    }
+    /** The form's own settings. */
+    renderSettingsPane() {
+      const settings = this.schema.settings;
+      const set = (path, value) => {
+        const parts = path.split(".");
+        let target = settings;
+        for (let i = 0; i < parts.length - 1; i++) {
+          target = target[parts[i]];
+        }
+        target[parts[parts.length - 1]] = value;
+        this.markDirty();
+      };
+      return el("div", {
+        class: "atfb-pane",
+        children: [
+          el("h2", { text: "Settings" }),
+          el("section", {
+            children: [
+              el("h3", { text: "Submitting" }),
+              row("Button label", textInput(settings.submitLabel, (value) => set("submitLabel", value))),
+              checkbox("Submit without reloading the page", settings.ajax, (value) => set("ajax", value)),
+              row(
+                "Progress indicator",
+                select(
+                  settings.progressBar,
+                  [
+                    { value: "steps", label: "Numbered steps" },
+                    { value: "bar", label: "A bar" },
+                    { value: "none", label: "None" }
+                  ],
+                  (value) => set("progressBar", value)
+                ),
+                "Only shown on forms with a page break."
+              )
+            ]
+          }),
+          el("section", {
+            children: [
+              el("h3", { text: "Who can fill this in" }),
+              checkbox("Only logged-in users", settings.requireLogin, (value) => set("requireLogin", value)),
+              row(
+                "Message for everyone else",
+                textInput(settings.loginMessage, (value) => set("loginMessage", value))
+              ),
+              row(
+                "Open from",
+                el("input", {
+                  class: "atfb-input",
+                  type: "datetime-local",
+                  value: settings.schedule.start,
+                  on: {
+                    input: (event) => set("schedule.start", event.target.value)
+                  }
+                })
+              ),
+              row(
+                "Closes",
+                el("input", {
+                  class: "atfb-input",
+                  type: "datetime-local",
+                  value: settings.schedule.end,
+                  on: {
+                    input: (event) => set("schedule.end", event.target.value)
+                  }
+                })
+              ),
+              row(
+                "Message when closed",
+                textInput(settings.schedule.message, (value) => set("schedule.message", value))
+              ),
+              row(
+                "Stop after this many submissions",
+                numberInput(
+                  String(settings.limit.total || ""),
+                  (value) => set("limit.total", Number(value) || 0)
+                ),
+                "0 means no limit."
+              ),
+              row(
+                "Submissions per logged-in user",
+                numberInput(
+                  String(settings.limit.perUser || ""),
+                  (value) => set("limit.perUser", Number(value) || 0)
+                )
+              )
+            ]
+          }),
+          el("section", {
+            children: [
+              el("h3", { text: "Spam" }),
+              el("p", {
+                class: "atfb-hint",
+                text: "No captcha. Nothing here asks the visitor to prove anything."
+              }),
+              checkbox("Honeypot field", settings.spam.honeypot, (value) => set("spam.honeypot", value)),
+              row(
+                "Reject submissions faster than (seconds)",
+                numberInput(
+                  String(settings.spam.timeTrap),
+                  (value) => set("spam.timeTrap", Number(value) || 0)
+                ),
+                "A human cannot fill in a form in under a second. A script can."
+              ),
+              row(
+                "Submissions allowed per hour, per address",
+                numberInput(
+                  String(settings.spam.rateLimit),
+                  (value) => set("spam.rateLimit", Number(value) || 0)
+                )
+              ),
+              row(
+                "Blocked words",
+                textArea(settings.spam.blocklist, (value) => set("spam.blocklist", value), 4),
+                "One per line."
+              ),
+              checkbox(
+                "Use Akismet when it is installed",
+                settings.spam.akismet,
+                (value) => set("spam.akismet", value)
+              ),
+              checkbox(
+                "Ask a simple sum before sending",
+                settings.spam.challenge,
+                (value) => set("spam.challenge", value)
+              ),
+              el("p", {
+                class: "atfb-hint",
+                text: "Only for a form under sustained attack — it is the one check here that asks the visitor to do something. Still kinder than an image captcha: it is answerable by a screen reader, and it hands no data to anyone."
+              })
+            ]
+          }),
+          el("section", {
+            children: [
+              el("h3", { text: "Storage and privacy" }),
+              checkbox("Keep entries", settings.storage.entries, (value) => set("storage.entries", value)),
+              checkbox("Record IP addresses", settings.storage.ip, (value) => set("storage.ip", value)),
+              checkbox(
+                "Anonymise recorded IP addresses",
+                settings.storage.anonymise,
+                (value) => set("storage.anonymise", value)
+              ),
+              row(
+                "Delete entries after (days)",
+                numberInput(
+                  String(settings.storage.retention || ""),
+                  (value) => set("storage.retention", Number(value) || 0)
+                ),
+                "0 keeps them forever. Anything else deletes automatically, every day."
+              )
+            ]
+          }),
+          el("section", {
+            children: [
+              el("h3", { text: "Save and continue later" }),
+              checkbox(
+                "Let people save a half-finished form",
+                settings.resume.enabled,
+                (value) => set("resume.enabled", value)
+              ),
+              row(
+                "Keep a saved form for (days)",
+                numberInput(
+                  String(settings.resume.days),
+                  (value) => set("resume.days", Math.max(1, Number(value) || 30))
+                )
+              ),
+              el("p", {
+                class: "atfb-hint",
+                text: "The link this creates is the only key to those answers — anyone holding it can read them. For genuinely sensitive questions, require login instead."
+              })
+            ]
+          })
+        ]
+      });
+    }
+    /** A one-line input that understands merge tags. */
+    taggableInput(value, onChange, placeholder = "") {
+      return taggable(textInput(value, onChange, placeholder), { formId: this.form.id });
+    }
+    /** A multi-line input that understands merge tags. */
+    taggableArea(value, onChange, rows = 6) {
+      return taggable(textArea(value, onChange, rows), { formId: this.form.id });
+    }
+    /**
+     * Who the notification goes to, asked in plain language.
+     *
+     * Almost every notification is addressed one of three ways, and only one of
+     * them has anything to do with merge tags:
+     *
+     * - to whoever runs the site — `{admin_email}`, and the person should never
+     *   have to learn that;
+     * - to a fixed address they type;
+     * - back to the visitor, at whatever address they gave — which means naming
+     *   one of the form's own email questions, the case where `{field:f2}` used
+     *   to be the entire interface.
+     *
+     * So the choice is offered as a choice, the email questions are listed by
+     * their labels, and the free-text box appears only for the fourth case —
+     * several addresses, or a tag we have not thought of. The stored value is
+     * still a plain string of tags, so nothing about the format changed and a form
+     * built before this existed opens in whichever mode its value already
+     * matches.
+     */
+    recipientControl(notification) {
+      const emailFields = this.schema.fields.filter((field) => "email" === field.type);
+      const modeOf = (value) => {
+        if ("{admin_email}" === value.trim()) {
+          return "admin";
+        }
+        const named = value.trim().match(/^\{field:([a-z0-9_-]+)\}$/i);
+        if (named && emailFields.some((field) => field.id === named[1])) {
+          return `field:${named[1]}`;
+        }
+        return /\{/.test(value) ? "custom" : "address";
+      };
+      const options = [
+        { value: "admin", label: "Whoever runs this site" },
+        ...emailFields.map((field) => ({
+          value: `field:${field.id}`,
+          label: `The person who filled it in — ${field.label || "their email answer"}`
+        })),
+        { value: "address", label: "A specific email address" },
+        { value: "custom", label: "Something else (advanced)" }
+      ];
+      const mode = modeOf(notification.to);
+      const detail = el("div", { class: "atfb-recipient__detail" });
+      const paintDetail = (current) => {
+        detail.replaceChildren();
+        if ("address" === current) {
+          detail.append(
+            textInput(
+              /\{/.test(notification.to) ? "" : notification.to,
+              (value) => {
+                notification.to = value;
+                this.markDirty();
+              },
+              "name@example.com"
+            )
+          );
+          return;
+        }
+        if ("custom" === current) {
+          detail.append(
+            this.taggableInput(
+              notification.to,
+              (value) => {
+                notification.to = value;
+                this.markDirty();
+              },
+              "{admin_email}, sales@example.com"
+            ),
+            el("p", {
+              class: "atfb-row__hint",
+              text: "Separate several addresses with commas."
+            })
+          );
+        }
+      };
+      paintDetail(mode);
+      return row(
+        "Send it to",
+        el("div", {
+          class: "atfb-recipient",
+          children: [
+            select(mode, options, (value) => {
+              if ("admin" === value) {
+                notification.to = "{admin_email}";
+              } else if (value.startsWith("field:")) {
+                notification.to = `{${value}}`;
+              } else if ("address" === value) {
+                notification.to = /\{/.test(notification.to) ? "" : notification.to;
+              }
+              this.markDirty();
+              paintDetail(value);
+            }),
+            detail
+          ]
+        }),
+        emailFields.length ? void 0 : "Add an Email question on the Build tab to reply straight back to the visitor."
+      );
+    }
+    /** The notification editor. */
+    renderNotificationsPane() {
+      const notifications = this.schema.notifications;
+      const list = el("div", { class: "atfb-list" });
+      if (!notifications.length) {
+        list.append(
+          el("p", {
+            class: "atfb-hint",
+            text: "With none set up, one email goes to the site administrator with every answer in it."
+          })
+        );
+      }
+      notifications.forEach((notification, index) => {
+        list.append(
+          el("details", {
+            class: "atfb-section",
+            children: [
+              el("summary", { text: notification.name || `Notification ${index + 1}` }),
+              row(
+                "Name",
+                textInput(notification.name, (value) => {
+                  notification.name = value;
+                  this.markDirty();
+                })
+              ),
+              this.recipientControl(notification),
+              row(
+                "Reply to",
+                this.taggableInput(
+                  notification.replyTo,
+                  (value) => {
+                    notification.replyTo = value;
+                    this.markDirty();
+                  },
+                  "Leave empty to reply to you"
+                ),
+                "Set this to the visitor’s email address and hitting Reply answers them directly."
+              ),
+              row(
+                "Subject",
+                this.taggableInput(notification.subject, (value) => {
+                  notification.subject = value;
+                  this.markDirty();
+                })
+              ),
+              row(
+                "Message",
+                this.taggableArea(
+                  notification.message,
+                  (value) => {
+                    notification.message = value;
+                    this.markDirty();
+                  },
+                  8
+                )
+              ),
+              checkbox("Attach uploaded files", notification.attachFiles, (value) => {
+                notification.attachFiles = value;
+                this.markDirty();
+              }),
+              button(
+                "Delete this notification",
+                () => {
+                  notifications.splice(index, 1);
+                  this.markDirty();
+                  this.renderCanvas();
+                },
+                "danger"
+              )
+            ]
+          })
+        );
+      });
+      return el("div", {
+        class: "atfb-pane",
+        children: [
+          el("h2", { text: "Notifications" }),
+          list,
+          button(
+            "Add a notification",
+            () => {
+              notifications.push({
+                id: `n${notifications.length + 1}`,
+                enabled: true,
+                name: "Notification",
+                to: "{admin_email}",
+                cc: "",
+                bcc: "",
+                replyTo: "",
+                fromName: "",
+                fromEmail: "",
+                subject: "New submission",
+                message: "{all_fields}",
+                attachFiles: false,
+                logic: { enabled: false, action: "show", match: "all", rules: [] }
+              });
+              this.markDirty();
+              this.renderCanvas();
+            },
+            "primary",
+            "plus-alt2"
+          )
+        ]
+      });
+    }
+    /**
+     * The part of a confirmation that depends on what it does.
+     *
+     * "Send them to a page" used to render the same free-text URL box as "Send
+     * them to a URL", which made the two options identical in every visible way
+     * while writing to different fields — so picking the page option and typing an
+     * address stored a URL the confirmation would never read. A page is chosen
+     * from the site's pages, which is the only reading of that option that means
+     * anything.
+     */
+    confirmationDetail(confirmation) {
+      if ("message" === confirmation.type) {
+        return row(
+          "Message",
+          this.taggableArea(
+            confirmation.message,
+            (value) => {
+              confirmation.message = value;
+              this.markDirty();
+            },
+            5
+          ),
+          "Insert an answer to greet them by name, or show back what they sent."
+        );
+      }
+      const query2 = row(
+        "Extra query parameters",
+        this.taggableInput(
+          confirmation.query,
+          (value) => {
+            confirmation.query = value;
+            this.markDirty();
+          },
+          "ref={entry:id}&name={field:f1}"
+        ),
+        "Added to the address, so the page they land on can read them. Leave empty for none."
+      );
+      if ("redirect" === confirmation.type) {
+        return el("div", {
+          children: [
+            row(
+              "Web address",
+              this.taggableInput(
+                confirmation.url,
+                (value) => {
+                  confirmation.url = value;
+                  this.markDirty();
+                },
+                "https://example.com/thank-you"
+              ),
+              "A full address, starting with https://."
+            ),
+            query2
+          ]
+        });
+      }
+      const holder = el("div", { class: "atfb-pagepicker" });
+      const paint = (options) => {
+        holder.replaceChildren(
+          select(String(confirmation.pageId || 0), options, (value) => {
+            confirmation.pageId = Number(value) || 0;
+            this.markDirty();
+          })
+        );
+      };
+      paint([{ value: "0", label: "Loading pages…" }]);
+      void api.pages().then((pages) => {
+        paint([
+          { value: "0", label: "Choose a page…" },
+          ...pages.map((page) => ({ value: String(page.id), label: page.title }))
+        ]);
+      }).catch(() => {
+        paint([{ value: "0", label: "Could not load the pages" }]);
+      });
+      return row(
+        "Page",
+        holder,
+        "They are sent to this page after submitting. Its own content is shown, not the form’s message."
+      );
+    }
+    /** The confirmation editor. */
+    renderConfirmationsPane() {
+      const confirmations = this.schema.confirmations;
+      const list = el("div", { class: "atfb-list" });
+      if (!confirmations.length) {
+        list.append(
+          el("p", { class: "atfb-hint", text: "With none set up, the form says thank you and stops." })
+        );
+      }
+      confirmations.forEach((confirmation, index) => {
+        const detail = el("div", { class: "atfb-confirm__detail" });
+        const paintDetail = () => {
+          detail.replaceChildren(this.confirmationDetail(confirmation));
+        };
+        paintDetail();
+        list.append(
+          el("details", {
+            class: "atfb-section",
+            children: [
+              el("summary", { text: confirmation.name || `Confirmation ${index + 1}` }),
+              row(
+                "Name",
+                textInput(confirmation.name, (value) => {
+                  confirmation.name = value;
+                  this.markDirty();
+                })
+              ),
+              row(
+                "What happens",
+                select(
+                  confirmation.type,
+                  [
+                    { value: "message", label: "Show a message" },
+                    { value: "redirect", label: "Send them to a URL" },
+                    { value: "page", label: "Send them to a page" }
+                  ],
+                  (value) => {
+                    confirmation.type = value;
+                    this.markDirty();
+                    paintDetail();
+                  }
+                )
+              ),
+              detail,
+              button(
+                "Delete this confirmation",
+                () => {
+                  confirmations.splice(index, 1);
+                  this.markDirty();
+                  this.renderCanvas();
+                },
+                "danger"
+              )
+            ]
+          })
+        );
+      });
+      return el("div", {
+        class: "atfb-pane",
+        children: [
+          el("h2", { text: "Confirmations" }),
+          el("p", {
+            class: "atfb-hint",
+            text: "The first one whose conditions match is the one they see."
+          }),
+          list,
+          button(
+            "Add a confirmation",
+            () => {
+              confirmations.push({
+                id: `c${confirmations.length + 1}`,
+                enabled: true,
+                name: "Confirmation",
+                type: "message",
+                message: "Thank you. Your submission has been received.",
+                url: "",
+                pageId: 0,
+                query: "",
+                logic: { enabled: false, action: "show", match: "all", rules: [] }
+              });
+              this.markDirty();
+              this.renderCanvas();
+            },
+            "primary",
+            "plus-alt2"
+          )
+        ]
+      });
+    }
+    /**
+     * Opens the form's real front-end preview.
+     *
+     * The same code path the title bar's eye takes, so the toolbar button and
+     * the eye cannot drift apart. Inside OpenStation it opens a window paired
+     * with this one; on a plain admin page it opens a tab.
+     */
+    async preview() {
+      await openPreview({
+        current: () => this.form ? { id: this.form.id, title: this.form.title, previewUrl: this.form.previewUrl } : null,
+        isDirty: () => this.dirty,
+        save: () => this.save(true)
+      });
+    }
+  }
+  let mounted = null;
+  let mountedRoot = null;
+  function mountBuilder() {
+    if (mountedRoot?.isConnected) {
+      return;
+    }
+    if (mounted) {
+      mounted.destroy();
+      mounted = null;
+      mountedRoot = null;
+    }
+    const root = document.querySelector("[data-atfb-root]:not([data-atfb-mounted])");
+    if (!root) {
+      return;
+    }
+    root.dataset.atfbMounted = "1";
+    mountedRoot = root;
+    void whenComponents().then(() => {
+      if (!root.isConnected) {
+        return;
+      }
+      mounted = new Builder(root);
+      void mounted.start();
+    });
+  }
+  function boot() {
+    mountBuilder();
+    handOffToWindow();
+  }
+  watchHandoffButton();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+  document.addEventListener("os-window-content-loaded", mountBuilder);
+  exports.Builder = Builder;
+  exports.mountBuilder = mountBuilder;
+  Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+  return exports;
+}({});

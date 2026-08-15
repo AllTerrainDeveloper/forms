@@ -1,0 +1,2107 @@
+/**
+ * The builder, entries and Theme Studio windows.
+ *
+ * These render inside OpenStation windows and on plain wp-admin pages, so
+ * everything here resolves the shell's own tokens (`--os-ui-*`) with a wp-admin
+ * fallback. That way a window follows the desktop theme the user picked, and the
+ * same markup on an admin page still looks like wp-admin rather than like a
+ * desktop window that wandered in.
+ *
+ * Nothing in here styles a *form* — that is `form.css`, which the preview panes
+ * load, and which is driven entirely by the form's own theme tokens. Keeping the
+ * two apart is what stops the builder's chrome leaking into the thing being
+ * built.
+ *
+ * @package AllTerrain_Forms
+ */
+
+.atfb,
+.atfe,
+.atfs {
+	/* The window's own surface. A window body must not paint a colour of its
+	   own choosing behind the shell's chrome. */
+	--atfb-bg: var( --os-window-bg, #fff );
+
+	/* Cards and rows sit on `surface`; the side rails are wells, so they take
+	   `surface-sunken`. Several themes give `--os-ui-surface` the same value as
+	   the window background — reading `surface` for both would leave the rails
+	   invisible against the canvas on every one of them. */
+	--atfb-surface: var( --os-ui-surface, #fff );
+	--atfb-well: var( --os-ui-surface-sunken, #f6f7f7 );
+	--atfb-raised: var( --os-ui-surface-elevated, #f6f7f7 );
+
+	--atfb-fg: var( --os-ui-fg, #1e1e1e );
+	--atfb-muted: var( --os-ui-fg-muted, #646970 );
+	--atfb-faint: var( --os-ui-fg-faint, #8c8f94 );
+	--atfb-border: var( --os-ui-border, #dcdcde );
+	--atfb-border-strong: var( --os-ui-border-strong, #c3c4c7 );
+	--atfb-hover: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
+
+	/* `--os-ui-accent` is the accent, and reading anything else was a mistake.
+	 *
+	 * This used to follow `--os-titlebar-bg-focused` on the reasoning that
+	 * `--os-ui-accent` was pinned to the brand's Pulse pink and never changed.
+	 * That is true of the *brand* theme and of nothing else: a desktop theme sets
+	 * `--os-ui-accent` and the whole kit follows it, which is exactly what the
+	 * token is for. Meanwhile a title bar is a *surface* — on a monochrome theme
+	 * it is `#1a1721`, so every accent in this window resolved to near-black:
+	 * unfilled buttons, an active tab that looked inactive, and condition chips
+	 * that were invisible on their own background.
+	 *
+	 * A surface token can never stand in for an accent token. The fallback chain
+	 * ends at wp-admin blue, for the plain admin page where there is no shell. */
+	--atfb-accent: var( --os-ui-accent, #2271b1 );
+	--atfb-accent-strong: var( --os-ui-accent-strong, var( --os-ui-accent, #135e96 ) );
+
+	/* Ink that sits *on* the accent. Not a hardcoded white: an accent light
+	   enough to need dark text exists, and white on it is unreadable. */
+	--atfb-accent-ink: var( --os-ui-fg-on-accent, #fff );
+
+	/* The ambient washes. Derived from whatever the accent actually is rather
+	   than read from `--os-ui-accent-dim`, which a theme may leave at the shell
+	   default while re-pointing the accent — that mismatch paints purple washes
+	   under a blue accent. Two declarations, oldest first: a flat fallback for
+	   browsers without `color-mix()`, then the derived value where it parses. */
+	--atfb-accent-soft: rgba( 34, 113, 177, 0.14 );
+	--atfb-accent-soft: color-mix( in srgb, var( --atfb-accent ) 16%, transparent );
+	--atfb-accent-line: rgba( 34, 113, 177, 0.4 );
+	--atfb-accent-line: color-mix( in srgb, var( --atfb-accent ) 45%, transparent );
+
+	/* Status colours, from the shell's own palette — so a danger button in this
+	   window is the same red as a danger button anywhere else on the desktop.
+	   The `*-fg` spellings are the ones `desktop-themes.md` documents as the
+	   palette; the `--os-ui-badge-*` names this used to read do exist at runtime
+	   but are component-local, so a theme that re-points the palette without
+	   touching them leaves our badges on the old colour. Read the palette. */
+	--atfb-danger: var( --os-ui-danger, #d63638 );
+	--atfb-danger-hover: var( --os-ui-danger-hover, #b32d2e );
+	--atfb-danger-soft: rgba( 214, 54, 56, 0.14 );
+	--atfb-danger-soft: color-mix( in srgb, var( --atfb-danger ) 16%, transparent );
+	--atfb-warning: var( --os-ui-warning-fg, #dba617 );
+	--atfb-success: var( --os-ui-success-fg, #1a7f37 );
+
+	/* The shell's focus rings, so focus looks the same in this window as in the
+	   rest of the desktop. `focus-ring-field` is the quieter one, and a form of
+	   twelve inputs should not look alarmed. */
+	--atfb-focus: var( --os-ui-focus-ring, 0 0 0 2px var( --atfb-accent ) );
+	--atfb-focus-field: var( --os-ui-focus-ring-field, 0 0 0 1px var( --atfb-accent ) );
+
+	--atfb-radius: 8px;
+	--atfb-gap: 12px;
+
+	display: flex;
+	flex-direction: column;
+	block-size: 100%;
+	min-block-size: 0;
+	background: var( --atfb-bg );
+	color: var( --atfb-fg );
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.atfb *,
+.atfe *,
+.atfs * {
+	box-sizing: border-box;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bars                                                                        */
+/* -------------------------------------------------------------------------- */
+
+.atfb__bar,
+.atfe__bar,
+.atfs__bar {
+	display: flex;
+	align-items: center;
+	gap: var( --atfb-gap );
+	padding: 10px 14px;
+	border-block-end: 1px solid var( --atfb-border );
+	/* A bar is a raised strip, which is what `surface-elevated` is for. */
+	background: var( --atfb-raised );
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+}
+
+.atfb__bar-left,
+.atfb-bar__left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-inline-size: 0;
+}
+
+.atfb-bar__right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-inline-start: auto;
+}
+
+.atfb-title {
+	font-size: 15px;
+	font-weight: 600;
+	border: 1px solid transparent;
+	background: transparent;
+	color: inherit;
+	padding: 5px 8px;
+	border-radius: 6px;
+	min-inline-size: 12ch;
+	flex: 1 1 auto;
+}
+
+.atfb-title:hover {
+	border-color: var( --atfb-border );
+}
+
+.atfb-title:focus {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+	background: var( --atfb-bg );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs                                                                        */
+/* -------------------------------------------------------------------------- */
+
+.atfb-tabs {
+	display: flex;
+	gap: 2px;
+}
+
+.atfb-tab {
+	border: 0;
+	background: transparent;
+	color: var( --atfb-muted );
+	padding: 6px 12px;
+	border-radius: 6px;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atfb-tab:hover {
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-fg );
+}
+
+.atfb-tab.is-active {
+	background: var( --atfb-accent );
+	color: var( --atfb-accent-ink );
+}
+
+.atfb-tab:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Three-pane layout                                                           */
+/* -------------------------------------------------------------------------- */
+
+.atfb__body,
+.atfe__body,
+.atfs__body {
+	display: grid;
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.atfb__body {
+	grid-template-columns: 240px 1fr 320px;
+}
+
+.atfe__body {
+	grid-template-columns: minmax( 280px, 400px ) 1fr;
+}
+
+.atfs__body {
+	grid-template-columns: 1fr;
+}
+
+/* A window dragged narrow is still a usable window. Container queries rather
+   than media queries, because the width that matters is the window's, and the
+   viewport knows nothing about it. */
+@container ( max-width: 900px ) {
+	.atfb__body {
+		grid-template-columns: 200px 1fr;
+	}
+
+	.atfb__inspector {
+		display: none;
+	}
+}
+
+@container ( max-width: 640px ) {
+	.atfb__body,
+	.atfe__body {
+		grid-template-columns: 1fr;
+	}
+
+	.atfb__palette {
+		display: none;
+	}
+}
+
+.atfb__palette,
+.atfb__inspector,
+.atfs__controls {
+	overflow-y: auto;
+	padding: 14px;
+	/* Wells, not cards. Several themes give `--os-ui-surface` the same value as
+	   the window background, and a rail painted with it disappears into the
+	   canvas it is supposed to sit beside. */
+	background: var( --atfb-well );
+}
+
+.atfb__palette {
+	border-inline-end: 1px solid var( --atfb-border );
+}
+
+.atfb__inspector {
+	border-inline-start: 1px solid var( --atfb-border );
+}
+
+.atfb__canvas,
+.atfe__detail,
+.atfs__preview {
+	overflow-y: auto;
+	padding: 20px;
+	min-inline-size: 0;
+}
+
+.atfe__list {
+	overflow-y: auto;
+	border-inline-end: 1px solid var( --atfb-border );
+	min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Palette                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atfb-palette__search {
+	inline-size: 100%;
+	margin-block-end: 12px;
+}
+
+.atfb-group {
+	margin-block-end: 16px;
+}
+
+.atfb-group__title {
+	margin: 0 0 6px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
+}
+
+.atfb-group__items {
+	display: grid;
+	gap: 4px;
+}
+
+.atfb-chip {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	inline-size: 100%;
+	padding: 7px 9px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 6px;
+	background: var( --atfb-bg );
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	/* `grab` rather than `pointer`, because the primary gesture is a drag and
+	   the cursor is the only affordance that says so before you try. */
+	cursor: grab;
+	touch-action: none;
+}
+
+.atfb-chip:hover {
+	border-color: var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-chip:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}
+
+/* A `position: fixed` element with no width resolves against the viewport, so
+   a ghost with nothing constraining it spans the whole screen. `buildPayload()`
+   pins the real width from the element that was lifted; these are the backstops
+   for the moment before that lands, and for any ghost built elsewhere. */
+.atfb-chip--ghost {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	z-index: 100000;
+	pointer-events: none;
+	box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.25 );
+	background: var( --atfb-bg );
+	opacity: 0.95;
+	inline-size: max-content;
+	max-inline-size: 240px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Canvas                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atfb-canvas__inner {
+	max-inline-size: 720px;
+	margin-inline: auto;
+}
+
+.atfb-shortcode {
+	margin: 0 0 14px;
+	padding: 6px 10px;
+	border-radius: 6px;
+	background: var( --atfb-surface );
+	border: 1px solid var( --atfb-border );
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 12px;
+	color: var( --atfb-muted );
+	user-select: all;
+}
+
+.atfb-canvas__list {
+	display: grid;
+	gap: 8px;
+	min-block-size: 120px;
+	padding: 8px;
+	border-radius: var( --atfb-radius );
+	border: 2px dashed transparent;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.atfb-canvas__list.is-dropping {
+	border-color: var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	cursor: grab;
+	touch-action: none;
+}
+
+.atfb-card:hover {
+	border-color: var( --atfb-accent );
+}
+
+.atfb-card.is-selected {
+	border-color: var( --atfb-accent );
+	box-shadow: 0 0 0 2px var( --atfb-accent-soft );
+}
+
+.atfb-card:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 2px;
+}
+
+.atfb-card__grip {
+	color: var( --atfb-muted );
+	flex: 0 0 auto;
+}
+
+.atfb-card__body {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+}
+
+.atfb-card__head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-inline-size: 0;
+}
+
+.atfb-card__head strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atfb-card__type {
+	display: block;
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-card__actions {
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.atfb-card:hover .atfb-card__actions,
+.atfb-card:focus-within .atfb-card__actions {
+	opacity: 1;
+}
+
+/* Never hidden from the keyboard. `opacity: 0` keeps the buttons focusable,
+   where `display: none` would make them unreachable without a pointer. */
+.atfb-card__action {
+	border: 0;
+	background: transparent;
+	color: var( --atfb-muted );
+	padding: 4px;
+	border-radius: 4px;
+	cursor: pointer;
+	line-height: 1;
+}
+
+.atfb-card__action:hover {
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-fg );
+}
+
+/* Deleting is the one card action that should look like what it does. */
+.atfb-card__action[ aria-label="Delete" ]:hover {
+	background: var( --atfb-danger-soft );
+	color: var( --atfb-danger );
+}
+
+.atfb-card__action:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	opacity: 1;
+}
+
+/* The insertion line that follows the pointer during a drag. */
+.atfb-marker {
+	block-size: 3px;
+	border-radius: 2px;
+	background: var( --atfb-accent );
+	margin-block: -1px;
+}
+
+.atf-is-dragging {
+	opacity: 0.4;
+}
+
+.atf-drag-ghost {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	z-index: 100000;
+	pointer-events: none;
+	opacity: 0.9;
+	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.3 );
+	border-radius: var( --atfb-radius );
+	/* Same trap as above: without a bound, a cloned card dragged out of a
+	   narrow pane paints across the entire desktop. */
+	max-inline-size: 360px;
+	box-sizing: border-box;
+}
+
+.atfb-badge {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 2px 6px;
+	border-radius: 999px;
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-accent );
+}
+
+/* Derived from the accent rather than a fixed purple. A hardcoded colour here
+   is a colour that stays purple on a desktop theme whose accent is blue, which
+   is precisely the sort of thing that makes a plugin look bolted on. */
+.atfb-badge--logic,
+.atfb-badge--controls {
+	background: color-mix( in srgb, var( --atfb-accent ) 16%, transparent );
+	color: var( --atfb-accent );
+	/* `color-mix()` is not everywhere yet; the flat accent wash is the fallback
+	   and is still theme-derived. */
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-badge--spam {
+	background: var( --atfb-danger-soft );
+	color: var( --atfb-danger );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inspector                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.atfb-inspector__title {
+	margin: 0 0 2px;
+	font-size: 14px;
+}
+
+.atfb-row {
+	position: relative;
+	margin-block-end: 12px;
+}
+
+.atfb-row__label {
+	display: block;
+	margin-block-end: 4px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.atfb-row__hint,
+.atfb-hint {
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-row.is-overridden .atfb-row__label::after {
+	content: "•";
+	color: var( --atfb-accent );
+	margin-inline-start: 4px;
+}
+
+.atfb-input {
+	inline-size: 100%;
+	padding: 6px 8px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 6px;
+	/* `--os-ui-modal-field-bg` is a *modal* token — the palette re-points it
+	   inside `<os-modal>` only, so outside one it fell through to a hardcoded
+	   white and every input in the builder was a bright rectangle on a dark
+	   theme. A field is a sunken surface. */
+	background: var( --atfb-well );
+	color: var( --atfb-fg );
+	font: inherit;
+}
+
+.atfb-input:focus {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 0;
+	border-color: var( --atfb-accent );
+}
+
+.atfb-input--area {
+	resize: vertical;
+	min-block-size: 5em;
+	font-family: inherit;
+}
+
+.atfb-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-block-end: 10px;
+	cursor: pointer;
+}
+
+.atfb-section {
+	margin-block: 14px;
+	padding-block-start: 10px;
+	border-block-start: 1px solid var( --atfb-border );
+}
+
+.atfb-section > summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-block-end: 8px;
+}
+
+.atfb-choice-row,
+.atfb-rule {
+	display: grid;
+	grid-template-columns: 1fr 1fr 70px 32px;
+	gap: 6px;
+	align-items: center;
+	margin-block-end: 6px;
+}
+
+.atfb-rule {
+	grid-template-columns: 1fr 1fr 1fr 32px;
+}
+
+.atfb-rule-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-block-end: 8px;
+	font-size: 12px;
+}
+
+.atfb-rule-head select {
+	inline-size: auto;
+}
+
+/* The image well on an image-choice option. */
+.atfb-well {
+	display: grid;
+	place-items: center;
+	inline-size: 44px;
+	block-size: 44px;
+	border: 2px dashed var( --atfb-border );
+	border-radius: 6px;
+	color: var( --atfb-muted );
+	cursor: pointer;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.atfb-well.is-dropping {
+	border-color: var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-well.has-image {
+	border-style: solid;
+	border-color: var( --atfb-accent );
+	color: var( --atfb-accent );
+}
+
+.atfb-well__id {
+	font-size: 10px;
+	font-family: ui-monospace, monospace;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/* `display: inline-flex` below beats the UA stylesheet's `[hidden] { display: none }`,
+   so a button hidden in JavaScript stays on screen. Every component that sets
+   its own `display` has this trap; this is the one line that closes it. */
+.atfb-button[ hidden ] {
+	display: none;
+}
+
+.atfb-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 6px;
+	background: var( --atfb-bg );
+	color: var( --atfb-fg );
+	font: inherit;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+/* Scoped to the variants that actually want a wash. Written as `:not()` rather
+   than relying on source order, because `.atfb-button:hover` weighs (0,2,0) and
+   `.atfb-button--primary` only (0,1,0) — so an unscoped rule here wins over the
+   variant's own background and paints white ink on a pale wash, which is
+   exactly as unreadable as it sounds. */
+.atfb-button:not( .atfb-button--primary, .atfb-button--danger ):hover {
+	border-color: var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-button:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}
+
+/* Disabled Save means "everything is in", not "this is broken", so it stays
+   legible rather than fading to the usual disabled grey. */
+.atfb-button--primary:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.atfb-button--primary {
+	background: var( --atfb-accent );
+	border-color: var( --atfb-accent );
+	color: var( --atfb-accent-ink );
+}
+
+.atfb-button--primary:hover:not( :disabled ) {
+	/* Explicit, not inherited: the accent darkened a step, so the button stays
+	   a solid accent surface under the pointer and its ink stays legible. */
+	background: color-mix( in srgb, var( --atfb-accent ) 88%, #000 );
+	border-color: color-mix( in srgb, var( --atfb-accent ) 88%, #000 );
+	color: var( --atfb-accent-ink );
+}
+
+/* For browsers without `color-mix()`: a filter darkens whatever the accent is
+   without needing to know what it is. */
+@supports not ( color: color-mix( in srgb, red 50%, blue ) ) {
+	.atfb-button--primary:hover:not( :disabled ) {
+		background: var( --atfb-accent );
+		filter: brightness( 0.92 );
+	}
+}
+
+.atfb-button--ghost {
+	border-color: transparent;
+	background: transparent;
+}
+
+.atfb-button--danger {
+	border-color: var( --atfb-danger );
+	color: var( --atfb-danger );
+}
+
+.atfb-button--danger:hover:not( :disabled ) {
+	background: var( --atfb-danger-soft );
+	border-color: var( --atfb-danger-hover );
+	color: var( --atfb-danger-hover );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Placeholders and modals                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atfb-placeholder,
+.atfb-empty {
+	display: grid;
+	place-items: center;
+	gap: 8px;
+	padding: 40px 20px;
+	text-align: center;
+	color: var( --atfb-muted );
+	border: 2px dashed var( --atfb-border );
+	border-radius: var( --atfb-radius );
+}
+
+.atfb-error {
+	color: var( --atfb-danger );
+}
+
+.atfb-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 50;
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	background: rgba( 0, 0, 0, 0.45 );
+	backdrop-filter: blur( 2px );
+}
+
+.atfb-modal {
+	inline-size: min( 640px, 100% );
+	max-block-size: 100%;
+	overflow-y: auto;
+	padding: 20px;
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	box-shadow: 0 20px 60px rgba( 0, 0, 0, 0.35 );
+}
+
+.atfb-modal--wide {
+	inline-size: min( 900px, 100% );
+}
+
+.atfb-modal h2 {
+	margin-block-start: 0;
+}
+
+.atfb-modal__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 16px;
+}
+
+.atfb-templates {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 180px, 1fr ) );
+	gap: 10px;
+}
+
+.atfb-template {
+	display: grid;
+	gap: 4px;
+	padding: 14px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	color: inherit;
+	text-align: start;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atfb-template:hover {
+	border-color: var( --atfb-accent );
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-template span {
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-pane {
+	max-inline-size: 700px;
+	margin-inline: auto;
+}
+
+.atfb-pane section {
+	margin-block-end: 26px;
+}
+
+.atfb-pane h3 {
+	margin-block-end: 6px;
+	padding-block-end: 6px;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Entries                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.atfe__bulk {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border-block-end: 1px solid var( --atfb-border );
+	background: var( --atfb-raised );
+	position: sticky;
+	inset-block-start: 0;
+	z-index: 1;
+	flex-wrap: wrap;
+}
+
+.atfe__bulk-count {
+	font-size: 11px;
+	color: var( --atfb-muted );
+	margin-inline-end: auto;
+}
+
+.atfe__bulk .atfb-button {
+	padding: 3px 8px;
+	font-size: 11px;
+}
+
+.atfe__select {
+	flex: 0 0 auto;
+	accent-color: var( --atfb-accent );
+}
+
+.atfe__rows {
+	display: grid;
+}
+
+.atfe__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-block-end: 1px solid var( --atfb-border );
+	cursor: pointer;
+	touch-action: none;
+}
+
+.atfe__row:hover {
+	background: var( --atfb-accent-soft );
+}
+
+.atfe__row.is-selected {
+	background: var( --atfb-accent-soft );
+	box-shadow: inset 3px 0 0 var( --atfb-accent );
+}
+
+.atfe__row:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: -2px;
+}
+
+.atfe__row.is-unread strong {
+	font-weight: 700;
+}
+
+.atfe__row.is-unread::before {
+	content: "";
+	inline-size: 6px;
+	block-size: 6px;
+	border-radius: 50%;
+	background: var( --atfb-accent );
+	flex: 0 0 auto;
+}
+
+.atfe__row-body {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	display: grid;
+}
+
+.atfe__row-body strong,
+.atfe__row-meta {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atfe__row-meta {
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfe__star {
+	border: 0;
+	background: transparent;
+	color: var( --atfb-border );
+	cursor: pointer;
+	padding: 2px;
+	line-height: 1;
+}
+
+.atfe__star.is-on {
+	color: var( --atfb-warning );
+}
+
+.atfe__ghost {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: var( --atfb-bg );
+	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.3 );
+	pointer-events: none;
+	max-inline-size: 260px;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.atfe__count {
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfe__pager {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 12px;
+}
+
+.atfe__answers {
+	display: grid;
+	grid-template-columns: minmax( 120px, 30% ) 1fr;
+	gap: 6px 16px;
+	margin-block: 16px;
+}
+
+.atfe__answers dt {
+	font-weight: 600;
+	color: var( --atfb-muted );
+}
+
+.atfe__answers dd {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.atfe__actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-block-start: 20px;
+}
+
+.atfe__quiz {
+	padding: 8px 12px;
+	border-radius: 6px;
+	background: var( --atfb-accent-soft );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Theme Studio                                                                */
+/* -------------------------------------------------------------------------- */
+
+.atfs__controls {
+	border-inline-end: 1px solid var( --atfb-border );
+}
+
+.atfs-themes {
+	display: grid;
+	grid-template-columns: repeat( 2, 1fr );
+	gap: 8px;
+	margin-block-end: 14px;
+}
+
+.atfs-theme {
+	display: grid;
+	gap: 6px;
+	justify-items: center;
+	padding: 10px 6px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-bg );
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atfs-theme.is-active {
+	border-color: var( --atfb-accent );
+	box-shadow: 0 0 0 2px var( --atfb-accent-soft );
+}
+
+.atfs-theme:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}
+
+/* A miniature of the theme itself, painted from its own tokens — so the picker
+   shows what each theme looks like rather than ten identical cards. */
+.atfs-theme__chip {
+	display: grid;
+	place-items: center;
+	inline-size: 100%;
+	block-size: 42px;
+	border: 1px solid;
+}
+
+.atfs-theme__accent {
+	inline-size: 60%;
+	block-size: 12px;
+}
+
+.atfs-theme__name {
+	font-size: 11px;
+	text-align: center;
+}
+
+.atfs__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block-end: 12px;
+}
+
+.atfs-group {
+	margin-block-end: 10px;
+	border-block-start: 1px solid var( --atfb-border );
+	padding-block-start: 8px;
+}
+
+.atfs-group > summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-block-end: 8px;
+}
+
+.atfs-color-row,
+.atfs-length-row {
+	display: grid;
+	grid-template-columns: 44px 1fr;
+	gap: 6px;
+	align-items: center;
+}
+
+.atfs-color {
+	inline-size: 44px;
+	block-size: 30px;
+	padding: 0;
+	border: 1px solid var( --atfb-border );
+	border-radius: 6px;
+	background: none;
+	cursor: pointer;
+}
+
+.atfs-range {
+	inline-size: 100%;
+	accent-color: var( --atfb-accent );
+}
+
+.atfs-length-row {
+	grid-template-columns: 1fr 90px;
+}
+
+.atfs-reset {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-end: 0;
+	border: 0;
+	background: transparent;
+	color: var( --atfb-accent );
+	font-size: 11px;
+	cursor: pointer;
+	padding: 0;
+}
+
+.atfs__preview {
+	background: var( --atfb-surface );
+}
+
+.atfs-preview__frame,
+.atfb-preview {
+	max-inline-size: 640px;
+	margin-inline: auto;
+	padding: 20px;
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Widget                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.atfw {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	font-size: 12px;
+}
+
+.atfw__summary {
+	display: grid;
+	grid-template-columns: repeat( 3, 1fr );
+	gap: 8px;
+	text-align: center;
+}
+
+.atfw__stat-value {
+	display: block;
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.atfw__stat-label {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.atfw__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+}
+
+.atfw__item {
+	display: grid;
+	padding-block-end: 6px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.atfw__item.is-unread .atfw__title {
+	font-weight: 700;
+}
+
+.atfw__title,
+.atfw__meta {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atfw__meta {
+	font-size: 10px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.atfw__empty {
+	color: var( --os-ui-fg-muted, #646970 );
+	text-align: center;
+	padding: 16px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin page                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/* On a plain admin page there is no window to fill, so the panes get a height
+   of their own — otherwise the three-column grid collapses to nothing and the
+   builder renders as an empty strip. */
+.atf-admin__mount {
+	block-size: calc( 100vh - 160px );
+	min-block-size: 520px;
+	margin-block-start: 12px;
+	border: 1px solid var( --atfb-border, #dcdcde );
+	border-radius: 8px;
+	overflow: hidden;
+	background: #fff;
+	container-type: inline-size;
+}
+
+.atfb,
+.atfe,
+.atfs {
+	container-type: inline-size;
+}
+
+.screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset( 50% );
+	white-space: nowrap;
+	border: 0;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfb *,
+	.atfe *,
+	.atfs * {
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs without an inspector                                                   */
+/* -------------------------------------------------------------------------- */
+
+/* Only the Build tab has a selected field to inspect, and only the Build tab
+   has a canvas to drag one onto. On every other tab both side columns are
+   removed rather than left as furniture, and the main pane takes the full
+   width — which is what the Theme, Settings, Notifications and Confirmations
+   panes all want anyway. */
+.atfb--build-only-panes .atfb__body {
+	grid-template-columns: 1fr;
+}
+
+.atfb--build-only-panes .atfb__palette,
+.atfb--build-only-panes .atfb__inspector {
+	display: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preview backdrop                                                            */
+/* -------------------------------------------------------------------------- */
+
+/* A dark theme paints near-white text, and the preview pane is white — so
+   Midnight, Neon, Terminal and Holo all previewed as invisible text on invisible
+   fields. The renderer already marks a dark theme's form with `atf-is-dark`, so
+   the backdrop follows it.
+   
+   A fixed neutral rather than the theme's own `surface`: several dark themes are
+   deliberately translucent, and painting their surface behind them would show
+   them stacked on themselves rather than on a page. */
+.atfs-preview__frame:has( .atf-is-dark ),
+.atfb-preview:has( .atf-is-dark ),
+.atf-block-preview:has( .atf-is-dark ) {
+	background: #101418;
+	color: #f0f0f1;
+}
+
+/* The pane around the frame, so the dark preview is not a bright card floating
+   in a light column. */
+.atfs__preview:has( .atf-is-dark ) {
+	background: #0a0d10;
+}
+
+/* The pointer the admin page shows when the desktop shell is up and the native
+   window is the real experience. */
+.atf-admin__pointer {
+	max-inline-size: 44rem;
+	margin-block-start: 16px;
+	padding: 24px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	background: var( --os-ui-surface, #fff );
+}
+
+.atf-admin__pointer p:first-child {
+	margin-block-start: 0;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Theme Studio layout                                                         */
+/* -------------------------------------------------------------------------- */
+
+/* Three regions: a picker strip across the top, then controls beside preview.
+ *
+ * The picker used to live at the top of the left column. Ten chips two-up plus
+ * four buttons is ~450px, so the token controls — the actual work of this tab —
+ * started below the fold and every adjustment began with a scroll. Across the
+ * top it costs ~110px and the controls get the whole remaining height.
+ */
+.atf-studio {
+	display: grid;
+	grid-template-rows: auto minmax( 0, 1fr );
+	/* Fills its host rather than sizing to content. Without this the grid is as
+	   tall as whatever is in it and the rest of the window is dead space —
+	   which is exactly what it looked like. */
+	block-size: 100%;
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+/* The tab hands the studio the whole canvas, so the canvas stops padding and
+   scrolling it — the studio's own panes do both. */
+.atfb__canvas:has( > .atf-studio ) {
+	padding: 0;
+	overflow: hidden;
+}
+
+.atf-studio__top {
+	display: flex;
+	align-items: flex-end;
+	gap: var( --atfb-gap );
+	padding: 12px 14px;
+	border-block-end: 1px solid var( --atfb-border );
+	background: var( --atfb-surface );
+	min-inline-size: 0;
+}
+
+.atf-studio__picker {
+	min-inline-size: 0;
+	flex: 1 1 auto;
+}
+
+.atf-studio__heading {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
+}
+
+.atf-studio__panes {
+	display: grid;
+	grid-template-columns: minmax( 300px, 360px ) minmax( 0, 1fr );
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.atf-studio__controls {
+	overflow-y: auto;
+	padding: 14px;
+	border-inline-end: 1px solid var( --atfb-border );
+	background: var( --atfb-surface );
+	min-inline-size: 0;
+}
+
+.atf-studio__preview {
+	overflow-y: auto;
+	padding: 20px;
+	min-inline-size: 0;
+	background: var( --atfb-surface );
+}
+
+/* A narrow window stacks: the preview goes under the controls rather than being
+   squeezed to a column too thin to judge a form in. */
+@container ( max-width: 820px ) {
+	.atf-studio__panes {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto auto;
+		overflow-y: auto;
+	}
+
+	.atf-studio__controls {
+		border-inline-end: 0;
+		border-block-end: 1px solid var( --atfb-border );
+	}
+}
+
+/* --- The picker strip ----------------------------------------------------- */
+
+/* A single scrolling row. Ten chips do not fit on a narrow window and wrapping
+   them would put the strip back to the height the column layout had. */
+.atfs-themes {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	padding-block-end: 4px;
+	scrollbar-width: thin;
+}
+
+.atfs-theme {
+	flex: 0 0 auto;
+	inline-size: 92px;
+	display: grid;
+	gap: 5px;
+	justify-items: center;
+	padding: 7px 6px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-bg );
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+}
+
+.atfs-theme__chip {
+	block-size: 30px;
+}
+
+.atfs__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	flex: 0 0 auto;
+	margin-block-end: 4px;
+}
+
+.atfs-controls__body {
+	min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Quick layer                                                             */
+/* -------------------------------------------------------------------------- */
+
+.atfs-quick {
+	display: grid;
+	gap: 16px;
+	margin-block-end: 18px;
+}
+
+.atfs-dial {
+	display: grid;
+	gap: 7px;
+}
+
+.atfs-dial__head {
+	display: grid;
+	gap: 1px;
+}
+
+.atfs-dial__label {
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.atfs-dial__hint {
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+/* A segmented control rather than a dropdown: never more than four options,
+   they are the whole vocabulary of the decision, and seeing them all at once is
+   most of the help a dropdown would have hidden. */
+.atfs-segmented {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: 2px;
+	padding: 2px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-bg );
+}
+
+.atfs-segment {
+	border: 0;
+	border-radius: 6px;
+	padding: 6px 4px;
+	background: transparent;
+	color: var( --atfb-muted );
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.atfs-segment:hover {
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-fg );
+}
+
+.atfs-segment.is-on {
+	background: var( --atfb-accent );
+	color: var( --atfb-accent-ink );
+}
+
+.atfs-segment:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: -1px;
+}
+
+/* --- Advanced ------------------------------------------------------------- */
+
+.atfs-advanced {
+	border-block-start: 1px solid var( --atfb-border );
+	padding-block-start: 12px;
+}
+
+.atfs-advanced > summary {
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 12px;
+}
+
+/* A token one of the dials writes. Marked so it is obvious why moving a slider
+   changed six values, and so editing one by hand reads as deliberately stepping
+   outside the dial. */
+.atfs-owned {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-end: 0;
+	font-size: 10px;
+	padding: 1px 5px;
+	border-radius: 999px;
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-accent );
+}
+
+.atfb-row.is-dialled .atfb-row__label {
+	padding-inline-end: 7ch;
+}
+
+/* --- Merge tags ------------------------------------------------------------
+ *
+ * The picker is a popover anchored under its own Insert button rather than a
+ * modal, because inserting a value is something people do four or five times
+ * while composing one email — a dialog that takes over the pane each time turns
+ * a fluent action into a sequence of interruptions.
+ */
+
+.atfb-taggable {
+	position: relative;
+}
+
+.atfb-taggable__tools {
+	display: flex;
+	justify-content: flex-end;
+	margin-block-start: 4px;
+}
+
+/* Quieter and smaller than a real action: this button sits beside every box
+   that takes tags, and at full weight six of them would shout over the fields
+   they belong to. */
+.atfb-tagpick__open {
+	font-size: 11px;
+	padding: 2px 6px;
+	color: var( --atfb-muted );
+}
+
+.atfb-tagpick__open:hover {
+	color: var( --atfb-accent );
+}
+
+.atfb-tagpick__open .dashicons {
+	font-size: 14px;
+	inline-size: 14px;
+	block-size: 14px;
+}
+
+/* “Reads as” — the same text with the tags filled in. Set apart from the box
+   with a rule rather than a border box, so it reads as an annotation on what was
+   typed rather than as a second field. */
+.atfb-taggable__preview {
+	margin: 6px 0 0;
+	padding-inline-start: 8px;
+	border-inline-start: 2px solid var( --atfb-accent-soft );
+	font-size: 11px;
+	line-height: 1.5;
+	color: var( --atfb-muted );
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.atfb-taggable__preview-label {
+	display: block;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 9px;
+	opacity: 0.75;
+}
+
+.atfb-tagpick {
+	position: absolute;
+	inset-inline-end: 0;
+	inset-block-start: 100%;
+	z-index: 30;
+	inline-size: min( 340px, 100% );
+	max-block-size: 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 10px;
+	/* The builder's own surface, not the shell's modal surface.
+	 *
+	 * `--os-ui-modal-bg` is dark in every OpenStation theme because the shell's
+	 * dialogs are dark; borrowing it here painted a dark panel and left the text
+	 * inheriting the pane's dark ink, so every label in the picker was invisible
+	 * and only the greyed sample line showed. A popover that sits inside a pane
+	 * belongs to that pane's palette — and taking `background` from one place
+	 * while leaving `color` to inherit from another is the mistake itself, so both
+	 * are stated here together. A flyout floats, so it takes the raised surface. */
+	background: var( --atfb-raised );
+	color: var( --atfb-fg );
+	box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.22 );
+}
+
+/* Opened upward when the button is too near the bottom of the pane. */
+.atfb-tagpick--above {
+	inset-block-start: auto;
+	inset-block-end: 100%;
+	margin-block-end: 4px;
+}
+
+.atfb-tagpick__intro {
+	margin: 0;
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-tagpick__list {
+	overflow-y: auto;
+	margin-inline: -4px;
+	padding-inline: 4px;
+}
+
+.atfb-tagpick__group {
+	margin: 8px 0 4px;
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
+}
+
+.atfb-tagpick__group:first-child {
+	margin-block-start: 0;
+}
+
+.atfb-tagpick__empty {
+	margin: 0 0 6px;
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-tagpick__item {
+	display: block;
+	inline-size: 100%;
+	text-align: start;
+	padding: 6px 8px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.atfb-tagpick__item:hover,
+.atfb-tagpick__item:focus-visible {
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-tagpick__item-main {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.atfb-tagpick__label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --atfb-fg );
+}
+
+/* The syntax, present but demoted. It is here so it can be recognised later in
+   the text box, not so it has to be read now — which means it must not out-shout
+   the label, and WordPress's admin CSS gives a bare `code` a filled grey chip
+   that does exactly that. Reset to plain text. */
+.atfb-tagpick__tag {
+	flex: 0 0 auto;
+	padding: 0;
+	background: none;
+	font-size: 10px;
+	color: var( --atfb-muted );
+	opacity: 0.8;
+}
+
+.atfb-tagpick__meta {
+	display: block;
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-recipient {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.atfb-recipient__detail:empty {
+	display: none;
+}
+
+/* --- Conditional logic, drawn ---------------------------------------------
+ *
+ * Two halves of one idea: a sentence on the card saying what the condition is,
+ * and a curve on the canvas saying which question decides it. The sentence is
+ * the accessible half — everything the curves show is also written down — which
+ * is why the SVG layer can be `aria-hidden` without losing anything.
+ */
+
+/* A condition, drawn as its parts.
+ *
+ * "Shown when Can you make it? is Yes, I will be there" as one string is five
+ * things in a row with nothing between them — and two of the five are text
+ * somebody typed, so the question ends in a question mark and the answer
+ * contains a comma. The punctuation the sentence uses for structure is also in
+ * the content, which means reading it requires parsing it.
+ *
+ * Chips remove the parsing: the referenced question and the answer are objects
+ * with edges, and the verb and comparison are quiet text holding them together.
+ * Weight goes to the two nouns, because those are the parts that change from
+ * one condition to the next. */
+.atfb-cond {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-block-start: 5px;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var( --atfb-muted );
+}
+
+.atfb-cond .dashicons {
+	font-size: 13px;
+	inline-size: 13px;
+	block-size: 13px;
+	flex: 0 0 auto;
+	color: var( --atfb-accent );
+	opacity: 0.8;
+}
+
+/* "Shown when" / "Hidden when". Small caps rather than a chip: it is the frame
+   the rest hangs in, not one of the things being compared. */
+.atfb-cond__verb {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
+}
+
+.atfb-cond__op {
+	font-style: italic;
+	opacity: 0.9;
+}
+
+.atfb-cond__join {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	padding-inline: 2px;
+	opacity: 0.8;
+}
+
+.atfb-cond__chip {
+	display: inline-flex;
+	align-items: center;
+	max-inline-size: 22ch;
+	padding: 1px 6px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	font: inherit;
+	line-height: 1.5;
+	/* User text can be any length, and a long question must not push the answer
+	   chip off the card. */
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The question being consulted — a real reference, so it is a button that goes
+   there. Accent-coloured because it points at something. */
+.atfb-cond__chip--field {
+	background: var( --atfb-accent-soft );
+	border-color: transparent;
+	color: var( --atfb-accent );
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.atfb-cond__chip--field:hover,
+.atfb-cond__chip--field:focus-visible {
+	border-color: var( --atfb-accent );
+}
+
+.atfb-cond__chip--field:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}
+
+/* The answer. Outlined rather than filled, so the two chips are told apart at a
+   glance even before the words are read. */
+.atfb-cond__chip--value {
+	background: var( --atfb-surface );
+	border-color: var( --atfb-border );
+	color: var( --atfb-fg );
+	font-weight: 600;
+}
+
+/* A rule naming a deleted question never matches, so the field it guards is
+   stuck either always-hidden or always-shown. That is a broken form, not a
+   styling variant, so it is coloured like the error it is. */
+.atfb-cond.is-broken,
+.atfb-cond.is-broken .dashicons {
+	color: var( --atfb-danger );
+}
+
+.atfb-cond__chip--missing {
+	background: var( --atfb-danger-soft );
+	border-color: var( --atfb-danger );
+	color: var( --atfb-danger );
+	font-weight: 600;
+}
+
+/* The curve layer sits over the canvas and must never eat a click: every card
+   under it is draggable, selectable and focusable. */
+.atfb-logicmap {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	overflow: visible;
+	z-index: 2;
+}
+
+/* The layer is positioned against this, so the canvas column establishes the
+   containing block. `overflow: visible` above lets the curves bow into the
+   margin beside the cards rather than being clipped at the column's edge. */
+.atfb-canvas__inner {
+	position: relative;
+}
+
+.atfb-logicmap__path {
+	fill: none;
+	stroke: var( --atfb-accent );
+	stroke-width: 1.5;
+	opacity: 0.55;
+	transition: opacity 120ms ease, stroke-width 120ms ease;
+}
+
+.atfb-logicmap__dot {
+	fill: var( --atfb-accent );
+	opacity: 0.55;
+	transition: opacity 120ms ease;
+}
+
+/* "Hide when" is the opposite instruction and deserves to look it — reading a
+   diagram where both directions are the same colour means reading every label. */
+.atfb-logicmap__path.is-hide,
+.atfb-logicmap__dot.is-hide {
+	stroke: var( --atfb-warning );
+	fill: var( --atfb-warning );
+	stroke-dasharray: 4 3;
+}
+
+.atfb-logicmap__path.is-hide {
+	fill: none;
+}
+
+.atfb-logicmap__path.is-broken,
+.atfb-logicmap__dot.is-broken {
+	stroke: var( --atfb-danger );
+	fill: var( --atfb-danger );
+}
+
+.atfb-logicmap__path.is-broken {
+	fill: none;
+}
+
+.atfb-logicmap__label {
+	font-size: 10px;
+	fill: var( --atfb-muted );
+	paint-order: stroke;
+	/* A halo in the canvas colour, so a label crossing a curve or a card edge
+	   stays readable without a background rectangle to keep in sync. */
+	stroke: var( --atfb-bg );
+	stroke-width: 3;
+	stroke-linejoin: round;
+	transition: opacity 120ms ease;
+}
+
+/* Focusing one card dims everything it does not touch. Dimming rather than
+   hiding keeps the shape of the whole form visible while answering the
+   question "what does *this* one affect?". */
+.atfb-logicmap.is-focused .atfb-logicmap__path,
+.atfb-logicmap.is-focused .atfb-logicmap__dot,
+.atfb-logicmap.is-focused .atfb-logicmap__label {
+	opacity: 0.12;
+}
+
+.atfb-logicmap.is-focused .is-lit {
+	opacity: 1;
+}
+
+.atfb-logicmap.is-focused .atfb-logicmap__path.is-lit {
+	stroke-width: 2.25;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfb-logicmap__path,
+	.atfb-logicmap__dot,
+	.atfb-logicmap__label {
+		transition: none;
+	}
+}
+
+/* The strip the logic curves live in.
+ *
+ * Taken out of the cards' width rather than drawn beyond them. `.atfb__canvas`
+ * scrolls, so its overflow clips anything painted past its edge — the first
+ * version bowed the curves into that space and lost every label to the
+ * inspector's border. Reserving the room is the only version that survives a
+ * narrow window. */
+.atfb-canvas__inner.has-logicmap .atfb-canvas__list {
+	padding-inline-end: 148px;
+}
+
+@container ( max-width: 720px ) {
+	/* Below this the column has no width to spare, and cards squeezed to half
+	   their size to make room for decoration is the wrong trade. The conditions
+	   are still written on every card. */
+	.atfb-canvas__inner.has-logicmap .atfb-canvas__list {
+		padding-inline-end: 0;
+	}
+
+	.atfb-logicmap {
+		display: none;
+	}
+}
+
+/* The pre-fill chooser. Same shape as the notification recipient picker: a
+   plain-language list, and a detail box only for the two modes that need one. */
+.atfb-prefill {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.atfb-prefill__detail:empty {
+	display: none;
+}
+
+.atfb-prefill__preview:empty {
+	display: none;
+}
+
+/* Set apart from the hint above it, because it is not advice — it is what will
+   actually happen, computed from this site. */
+.atfb-prefill__preview {
+	padding-inline-start: 8px;
+	border-inline-start: 2px solid var( --atfb-accent-soft );
+	color: var( --atfb-muted );
+}
+
+/* --- The shell's own button ------------------------------------------------
+ *
+ * `button()` renders an `<os-button>` when the shell has registered one, and a
+ * plain `<button>` otherwise. Both carry `.atfb-button`, so layout — toolbar
+ * gaps, `[hidden]`, flex behaviour — is written once for both.
+ *
+ * What must NOT be written twice is the paint. `<os-button>` draws its own
+ * chrome inside shadow DOM from the desktop theme's palette; re-declaring a
+ * background or a border on the host here would put our rectangle behind its
+ * rectangle. So the component branch gets layout only, and the local paint rules
+ * below are scoped away from it. */
+os-button.atfb-button,
+os-button.atfb-button:hover,
+os-button.atfb-button:focus-visible {
+	/* Layout only. Everything visual belongs to the component, including the
+	   ink — a `color` on the host inherits into the slotted label and would
+	   override whatever the component chose to put on its own fill. Written at
+	   (0,1,1) so it outranks the `.atfb-button--*` variant rules without either
+	   of them having to know about the other. */
+	display: inline-flex;
+	background: none;
+	border: 0;
+	padding: 0;
+	color: inherit;
+	box-shadow: none;
+	outline: none;
+}
+
+os-button.atfb-button[ hidden ] {
+	display: none;
+}
+
+/* --- Shell components ------------------------------------------------------
+ *
+ * `ui.ts` renders `<os-checkbox-label>`, `<os-number-field>`, `<os-select>` and
+ * `<os-color-field>` when the shell has them and plain HTML when it does not.
+ * Everything visual belongs to the component; these rules are layout only.
+ *
+ * The rule that matters: never re-declare a background, a border or a colour on
+ * a component host. The component paints inside its shadow root, and a host
+ * declaration puts our rectangle behind its rectangle — and a `color` on the
+ * host inherits *into* the shadow content and overrides what it chose. */
+/* Components size to their container, not to the page.
+ *
+ * A raw `<select>` is intrinsically sized — it is as wide as its longest option
+ * and no wider. A component host is a block, so an unscoped `inline-size: 100%`
+ * made the toolbar's form picker eat the whole bar and push the title field off
+ * the end. Full width belongs to the places that ask for it: an inspector row, a
+ * grid cell. Everywhere else the control keeps its own size. */
+.atfb-field {
+	display: inline-block;
+	inline-size: auto;
+	min-inline-size: 0;
+	max-inline-size: 100%;
+	vertical-align: middle;
+}
+
+/* An inspector row is a stack of full-width controls. */
+.atfb-row > .atfb-field,
+.atfb-recipient > .atfb-field,
+.atfb-prefill > .atfb-field,
+.atfb-pagepicker > .atfb-field,
+.atfb-taggable > .atfb-field {
+	display: block;
+	inline-size: 100%;
+}
+
+/* Grid cells — a logic rule, a choice row — hand the control its width. */
+.atfb-rule > .atfb-field,
+.atfb-choice-row > .atfb-field {
+	display: block;
+	inline-size: 100%;
+}
+
+/* The toolbar's form picker. Wide enough to read a form title, bounded so it
+   cannot crowd out everything beside it. */
+.atfb__bar .atfb-field,
+.atfe__bar .atfb-field,
+.atfs__bar .atfb-field {
+	inline-size: auto;
+	min-inline-size: 14ch;
+	max-inline-size: 30ch;
+}
+
+os-checkbox-label.atfb-check {
+	display: flex;
+	align-items: center;
+	margin-block-end: 10px;
+}
+
+/* A component inside an inspector row must not inherit the row's own field
+   metrics — it brings its own. */
+.atfb-row > .atfb-field {
+	margin: 0;
+}

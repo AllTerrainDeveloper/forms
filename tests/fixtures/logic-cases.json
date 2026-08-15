@@ -1,0 +1,308 @@
+{
+	"_comment": [
+		"The conditional-logic conformance table.",
+		"",
+		"Read by tests/vitest/logic.test.ts and tests/phpunit/tests/logic.php, which",
+		"run every case against their own implementation. The two engines are twins --",
+		"the browser hides and shows fields as the visitor types, the server decides",
+		"which fields were actually required -- and if they disagree the visitor is",
+		"shown a form they cannot submit, with an error about a field they cannot see.",
+		"",
+		"So the cases live here, in one file, rather than being written twice. A case",
+		"added to one language is a case added to both, and a change that breaks the",
+		"parity fails the build in both suites.",
+		"",
+		"Each `compare` case is { operator, actual, expected, result }.",
+		"Each `rule` case is { rule, value, result }.",
+		"Each `visibility` case is { fields, values, visible }."
+	],
+
+	"compare": [
+		{ "operator": "is", "actual": "yes", "expected": "yes", "result": true },
+		{ "operator": "is", "actual": "yes", "expected": "no", "result": false },
+		{ "operator": "is", "actual": "", "expected": "", "result": true },
+		{ "operator": "is", "actual": null, "expected": "", "result": true },
+		{ "operator": "is", "actual": true, "expected": "1", "result": true },
+		{ "operator": "is", "actual": false, "expected": "", "result": true },
+		{ "operator": "is", "actual": 5, "expected": "5", "result": true },
+
+		{ "operator": "is_not", "actual": "yes", "expected": "no", "result": true },
+		{ "operator": "is_not", "actual": "yes", "expected": "yes", "result": false },
+
+		{ "operator": "contains", "actual": "Hello world", "expected": "world", "result": true },
+		{ "operator": "contains", "actual": "Hello world", "expected": "WORLD", "result": true },
+		{ "operator": "contains", "actual": "Hello", "expected": "bye", "result": false },
+		{ "operator": "contains", "actual": "Hello", "expected": "", "result": false },
+
+		{ "operator": "not_contains", "actual": "Hello", "expected": "bye", "result": true },
+		{ "operator": "not_contains", "actual": "Hello", "expected": "ell", "result": false },
+		{ "operator": "not_contains", "actual": "Hello", "expected": "", "result": true },
+
+		{ "operator": "starts_with", "actual": "Hello world", "expected": "hello", "result": true },
+		{ "operator": "starts_with", "actual": "Hello world", "expected": "world", "result": false },
+		{ "operator": "starts_with", "actual": "Hello", "expected": "", "result": false },
+
+		{ "operator": "ends_with", "actual": "Hello world", "expected": "WORLD", "result": true },
+		{ "operator": "ends_with", "actual": "Hello world", "expected": "hello", "result": false },
+		{ "operator": "ends_with", "actual": "ab", "expected": "abc", "result": false },
+
+		{ "operator": "empty", "actual": "", "expected": "", "result": true },
+		{ "operator": "empty", "actual": "   ", "expected": "", "result": true },
+		{ "operator": "empty", "actual": null, "expected": "", "result": true },
+		{ "operator": "empty", "actual": "x", "expected": "", "result": false },
+		{ "operator": "empty", "actual": false, "expected": "", "result": true },
+
+		{ "operator": "not_empty", "actual": "x", "expected": "", "result": true },
+		{ "operator": "not_empty", "actual": "", "expected": "", "result": false },
+		{ "operator": "not_empty", "actual": "0", "expected": "", "result": true },
+
+		{ "_why": "Numeric operators coerce; string comparison would make 10 < 9.", "operator": "greater", "actual": "10", "expected": "9", "result": true },
+		{ "operator": "greater", "actual": "9", "expected": "10", "result": false },
+		{ "operator": "greater", "actual": "5", "expected": "5", "result": false },
+		{ "operator": "greater_equal", "actual": "5", "expected": "5", "result": true },
+		{ "operator": "less", "actual": "9", "expected": "10", "result": true },
+		{ "operator": "less_equal", "actual": "10", "expected": "10", "result": true },
+		{ "operator": "less_equal", "actual": "11", "expected": "10", "result": false },
+		{ "operator": "greater", "actual": "-1", "expected": "-2", "result": true },
+		{ "operator": "greater", "actual": "1.5", "expected": "1.4", "result": true },
+
+		{ "_why": "An ordering question about non-numbers has no honest answer but false.", "operator": "greater", "actual": "apple", "expected": "5", "result": false },
+		{ "operator": "less", "actual": "apple", "expected": "5", "result": false },
+		{ "operator": "greater", "actual": "5", "expected": "apple", "result": false },
+		{ "operator": "greater", "actual": "", "expected": "0", "result": false },
+
+		{ "_why": "0 is an answer, not an absence — a rating of zero must compare as zero.", "operator": "is", "actual": 0, "expected": "0", "result": true },
+		{ "operator": "less_equal", "actual": 0, "expected": "3", "result": true }
+	],
+
+	"rule": [
+		{
+			"_why": "A multi-value field satisfies a positive rule when any one value does.",
+			"rule": { "field": "f1", "operator": "is", "value": "blue" },
+			"value": [ "red", "blue" ],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "is", "value": "green" },
+			"value": [ "red", "blue" ],
+			"result": false
+		},
+		{
+			"_why": "is_not over a list means none of them is — otherwise picking two options satisfies 'is not' for both.",
+			"rule": { "field": "f1", "operator": "is_not", "value": "blue" },
+			"value": [ "red", "blue" ],
+			"result": false
+		},
+		{
+			"rule": { "field": "f1", "operator": "is_not", "value": "green" },
+			"value": [ "red", "blue" ],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "empty", "value": "" },
+			"value": [],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "empty", "value": "" },
+			"value": [ "" ],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "not_empty", "value": "" },
+			"value": [ "red" ],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "contains", "value": "lu" },
+			"value": [ "red", "blue" ],
+			"result": true
+		},
+		{
+			"rule": { "field": "f1", "operator": "not_contains", "value": "lu" },
+			"value": [ "red", "blue" ],
+			"result": false
+		}
+	],
+
+	"visibility": [
+		{
+			"_why": "No logic at all: everything is visible.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{ "id": "f2", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } }
+			],
+			"values": {},
+			"visible": { "f1": true, "f2": true }
+		},
+		{
+			"_why": "A simple show rule.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "is", "value": "yes" } ]
+					}
+				}
+			],
+			"values": { "f1": "yes" },
+			"visible": { "f1": true, "f2": true }
+		},
+		{
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "is", "value": "yes" } ]
+					}
+				}
+			],
+			"values": { "f1": "no" },
+			"visible": { "f1": true, "f2": false }
+		},
+		{
+			"_why": "A hide rule is the inverse of a show rule.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "hide",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "is", "value": "yes" } ]
+					}
+				}
+			],
+			"values": { "f1": "yes" },
+			"visible": { "f1": true, "f2": false }
+		},
+		{
+			"_why": "Chained logic: C depends on B, and B is hidden, so B contributes nothing to C.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "is", "value": "yes" } ]
+					}
+				},
+				{
+					"id": "f3",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f2", "operator": "is", "value": "blue" } ]
+					}
+				}
+			],
+			"values": { "f1": "no", "f2": "blue" },
+			"visible": { "f1": true, "f2": false, "f3": false }
+		},
+		{
+			"_why": "The same chain, with B visible, lets C see B's value.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "is", "value": "yes" } ]
+					}
+				},
+				{
+					"id": "f3",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f2", "operator": "is", "value": "blue" } ]
+					}
+				}
+			],
+			"values": { "f1": "yes", "f2": "blue" },
+			"visible": { "f1": true, "f2": true, "f3": true }
+		},
+		{
+			"_why": "match: any — one rule passing is enough.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{ "id": "f2", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f3",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "any",
+						"rules": [
+							{ "field": "f1", "operator": "is", "value": "yes" },
+							{ "field": "f2", "operator": "is", "value": "yes" }
+						]
+					}
+				}
+			],
+			"values": { "f1": "no", "f2": "yes" },
+			"visible": { "f1": true, "f2": true, "f3": true }
+		},
+		{
+			"_why": "match: all — every rule must pass.",
+			"fields": [
+				{ "id": "f1", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{ "id": "f2", "logic": { "enabled": false, "action": "show", "match": "all", "rules": [] } },
+				{
+					"id": "f3",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [
+							{ "field": "f1", "operator": "is", "value": "yes" },
+							{ "field": "f2", "operator": "is", "value": "yes" }
+						]
+					}
+				}
+			],
+			"values": { "f1": "no", "f2": "yes" },
+			"visible": { "f1": true, "f2": true, "f3": false }
+		},
+		{
+			"_why": "A cycle has no stable answer. The pass cap must terminate rather than hang.",
+			"fields": [
+				{
+					"id": "f1",
+					"logic": {
+						"enabled": true,
+						"action": "show",
+						"match": "all",
+						"rules": [ { "field": "f2", "operator": "not_empty", "value": "" } ]
+					}
+				},
+				{
+					"id": "f2",
+					"logic": {
+						"enabled": true,
+						"action": "hide",
+						"match": "all",
+						"rules": [ { "field": "f1", "operator": "not_empty", "value": "" } ]
+					}
+				}
+			],
+			"values": { "f1": "a", "f2": "b" },
+			"terminates": true
+		}
+	]
+}

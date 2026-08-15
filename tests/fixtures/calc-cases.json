@@ -1,0 +1,112 @@
+{
+	"_comment": [
+		"The calculation conformance table.",
+		"",
+		"Read by tests/vitest/calc.test.ts and tests/phpunit/tests/calc.php. The",
+		"browser shows a running total as the visitor types and the server recomputes",
+		"it on submit; a disagreement between the two means the number somebody was",
+		"shown is not the number that was stored, which on an order form is a charge",
+		"dispute.",
+		"",
+		"`result` of null means the formula is not evaluable and both engines must",
+		"decline rather than guess.",
+		"",
+		"Each case is { formula, values, fields?, result }."
+	],
+
+	"cases": [
+		{ "formula": "1 + 1", "values": {}, "result": 2 },
+		{ "formula": "2 * 3 + 4", "values": {}, "result": 10 },
+		{ "_why": "Precedence: multiplication binds tighter than addition.", "formula": "4 + 2 * 3", "values": {}, "result": 10 },
+		{ "formula": "( 4 + 2 ) * 3", "values": {}, "result": 18 },
+		{ "formula": "10 / 4", "values": {}, "result": 2.5 },
+		{ "formula": "10 % 3", "values": {}, "result": 1 },
+		{ "_why": "Exponentiation is right-associative: 2^(3^2), not (2^3)^2.", "formula": "2 ^ 3 ^ 2", "values": {}, "result": 512 },
+		{ "formula": "2 ^ 3", "values": {}, "result": 8 },
+
+		{ "_why": "A leading minus is a sign, not a subtraction.", "formula": "-5 + 10", "values": {}, "result": 5 },
+		{ "formula": "3 * -2", "values": {}, "result": -6 },
+		{ "_why": "Unary minus binds looser than exponentiation: -(2^2).", "formula": "-2 ^ 2", "values": {}, "result": -4 },
+		{ "formula": "10 - -5", "values": {}, "result": 15 },
+
+		{ "_why": "Division by zero gives 0 rather than aborting — a half-filled form routinely has one.", "formula": "10 / 0", "values": {}, "result": 0 },
+		{ "formula": "10 % 0", "values": {}, "result": 0 },
+
+		{ "formula": "min( 3, 7 )", "values": {}, "result": 3 },
+		{ "formula": "max( 3, 7, 11 )", "values": {}, "result": 11 },
+		{ "formula": "sum( 1, 2, 3, 4 )", "values": {}, "result": 10 },
+		{ "formula": "avg( 2, 4, 6 )", "values": {}, "result": 4 },
+		{ "formula": "round( 3.14159, 2 )", "values": {}, "result": 3.14 },
+		{ "_why": "round with one argument rounds to a whole number.", "formula": "round( 3.7 )", "values": {}, "result": 4 },
+		{ "formula": "ceil( 3.2 )", "values": {}, "result": 4 },
+		{ "formula": "floor( 3.8 )", "values": {}, "result": 3 },
+		{ "formula": "abs( -5 )", "values": {}, "result": 5 },
+		{ "formula": "sqrt( 16 )", "values": {}, "result": 4 },
+		{ "_why": "A negative root has no real answer; 0 keeps a running total alive.", "formula": "sqrt( -4 )", "values": {}, "result": 0 },
+		{ "formula": "pow( 2, 10 )", "values": {}, "result": 1024 },
+		{ "formula": "max( min( 5, 3 ), 2 )", "values": {}, "result": 3 },
+
+		{ "formula": "{f1} + {f2}", "values": { "f1": 5, "f2": 3 }, "result": 8 },
+		{ "formula": "{f1} * {f2}", "values": { "f1": "4", "f2": "2.5" }, "result": 10 },
+		{ "_why": "An unanswered field contributes zero, or a running total collapses.", "formula": "{f1} + {f2}", "values": { "f1": 5 }, "result": 5 },
+		{ "formula": "{f1} + {f2}", "values": { "f1": 5, "f2": "" }, "result": 5 },
+		{ "_why": "A non-numeric answer contributes zero rather than voiding the sum.", "formula": "{f1} + 10", "values": { "f1": "hello" }, "result": 10 },
+		{ "_why": "A boolean field contributes one when ticked.", "formula": "{f1} * 25", "values": { "f1": true }, "result": 25 },
+		{ "formula": "{f1} * 25", "values": { "f1": false }, "result": 0 },
+		{ "formula": "{missing} + 1", "values": {}, "result": 1 },
+
+		{
+			"_why": "A choice field contributes its selected choice's price.",
+			"formula": "{f1} * {f2}",
+			"values": { "f1": "medium", "f2": 2 },
+			"fields": [
+				{
+					"id": "f1",
+					"type": "select",
+					"choices": [
+						{ "value": "small", "price": 20 },
+						{ "value": "medium", "price": 35 }
+					]
+				},
+				{ "id": "f2", "type": "number", "choices": [] }
+			],
+			"result": 70
+		},
+		{
+			"_why": "A multi-choice field sums the prices of everything picked.",
+			"formula": "{f1}",
+			"values": { "f1": [ "wrap", "express" ] },
+			"fields": [
+				{
+					"id": "f1",
+					"type": "checkboxes",
+					"choices": [
+						{ "value": "wrap", "price": 3 },
+						{ "value": "express", "price": 6 }
+					]
+				}
+			],
+			"result": 9
+		},
+		{
+			"_why": "A choice with no price contributes zero, not its label.",
+			"formula": "{f1} + 5",
+			"values": { "f1": "blue" },
+			"fields": [ { "id": "f1", "type": "select", "choices": [ { "value": "blue" } ] } ],
+			"result": 5
+		},
+
+		{ "_why": "An empty formula is not a calculation.", "formula": "", "values": {}, "result": null },
+		{ "formula": "   ", "values": {}, "result": null },
+		{ "_why": "Unbalanced parentheses abort rather than guessing where the bracket went.", "formula": "( 1 + 2", "values": {}, "result": null },
+		{ "formula": "1 + 2 )", "values": {}, "result": null },
+		{ "_why": "An unknown function is refused — the whitelist is the security boundary.", "formula": "alert( 1 )", "values": {}, "result": null },
+		{ "formula": "eval( 1 )", "values": {}, "result": null },
+		{ "formula": "constructor", "values": {}, "result": null },
+		{ "_why": "Characters outside the grammar abort rather than being skipped.", "formula": "1 + $2", "values": {}, "result": null },
+		{ "formula": "1 & 2", "values": {}, "result": null },
+		{ "formula": "1 +", "values": {}, "result": null },
+		{ "formula": "* 2", "values": {}, "result": null },
+		{ "formula": "1 2", "values": {}, "result": null }
+	]
+}

@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Least privilege: this workflow only reads the repository to lint, build and
+# test. It never writes commits, comments or releases.
+permissions:
+  contents: read
+
+jobs:
+  js:
+    name: Types · Vitest · Bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Don't leave the GITHUB_TOKEN in .git/config; later steps run
+          # PR-authored code (npm scripts, the Vite build) and nothing here
+          # needs git auth after checkout.
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript (no emit)
+        run: npm run typecheck
+
+      - name: Vitest
+        run: npm run test
+
+      # assets/js is committed on purpose: the plugin installs straight from a
+      # checkout with no npm install, which is what makes "download the zip from
+      # a tag" work. That only holds while the committed bundles match their
+      # source, so rebuild and fail if the tree moves. Catches a TypeScript
+      # change that was never rebuilt — which is invisible until somebody
+      # installs the release and gets last week's behaviour.
+      - name: Committed bundles match source
+        run: |
+          npm run build:bundles
+          git diff --exit-code -- assets/js/ || {
+            echo "::error::assets/js is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          }
+
+  php:
+    name: PHPUnit · PHPCS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # .wp-env.json mounts the sibling `../alcazaba-plugin` checkout so a local
+      # QA site has OpenStation to host the desktop windows. That path does not
+      # exist on a runner and wp-env treats a missing mapping as fatal. The
+      # override file is merged last and replaces `mappings` wholesale, so this
+      # drops the sibling and keeps this plugin. Nothing is lost: the PHP suite
+      # tests this plugin's own code, and every shell call goes through
+      # `atf_shell_has()`, which is false when no shell is installed.
+      - name: Point wp-env at this repository only
+        run: |
+          cat > .wp-env.override.json <<'JSON'
+          {
+            "mappings": {
+              "wp-content/plugins/allterrain-forms": "."
+            }
+          }
+          JSON
+
+      - name: Start wp-env
+        run: npm run env:start
+
+      - name: Install PHP dev dependencies
+        run: npm run test:php:install
+
+      - name: PHPUnit
+        run: npm run test:php
+
+      - name: Coding standards
+        run: npx wp-env run cli --env-cwd=wp-content/plugins/allterrain-forms vendor/bin/phpcs
+
+  package:
+    name: Zip builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The release path, exercised on every push. A packaging script that is
+      # only ever run at release time is a script that breaks at release time,
+      # when the tag already exists and cannot be taken back.
+      - name: Build the package
+        run: npm run plugin:package
+
+      - name: Upload the zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: allterrain-forms-zip
+          path: dist/allterrain-forms.zip
+          if-no-files-found: error
