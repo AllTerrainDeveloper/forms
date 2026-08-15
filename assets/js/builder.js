@@ -416,7 +416,7 @@ var allTerrainFormsBuilder = function(exports) {
       attrs: { "aria-hidden": "true" }
     });
   }
-  function row(label, control2, hint) {
+  function row(label, control2, hint2) {
     const id = control2.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
     control2.id = id;
     return el("div", {
@@ -424,7 +424,7 @@ var allTerrainFormsBuilder = function(exports) {
       children: [
         el("label", { class: "atfb-row__label", text: label, attrs: { for: id } }),
         control2,
-        hint ? el("p", { class: "atfb-row__hint", text: hint }) : null
+        hint2 ? el("p", { class: "atfb-row__hint", text: hint2 }) : null
       ]
     });
   }
@@ -986,17 +986,28 @@ var allTerrainFormsBuilder = function(exports) {
   function shapeFor(type) {
     return SHAPES[type] ?? "text";
   }
-  function editableText(value, placeholder, className, onInput, onCommit) {
+  function boundValue(field, key) {
+    const choice = /^choice:(\d+):(label|value)$/.exec(key);
+    if (choice) {
+      return String(field.choices?.[Number(choice[1])]?.[choice[2]] ?? "");
+    }
+    return String(field[key] ?? "");
+  }
+  function editableText(options) {
+    const { value, onInput, onCommit } = options;
     const node = el("span", {
-      class: `${className} atfb-editable`,
+      class: `${options.class} atfb-editable`,
       text: value,
       attrs: {
         contenteditable: "plaintext-only",
         role: "textbox",
         spellcheck: "false",
-        "data-placeholder": placeholder
+        "data-placeholder": options.placeholder
       }
     });
+    if (options.bind) {
+      node.dataset.atfbBind = options.bind;
+    }
     node.addEventListener("pointerdown", (event) => event.stopPropagation());
     node.addEventListener("input", () => onInput(node.textContent ?? ""));
     node.addEventListener("keydown", (event) => {
@@ -1023,23 +1034,26 @@ var allTerrainFormsBuilder = function(exports) {
   }
   function renderFieldPreview(field, type, handlers) {
     const shape = shapeFor(field.type);
-    const label = editableText(
-      field.label,
-      "Write the question…",
-      "atf-label",
-      (value) => handlers.edit((live) => {
+    const label = editableText({
+      value: field.label,
+      placeholder: "Write the question…",
+      class: "atf-label",
+      bind: "label",
+      onInput: (value) => handlers.edit((live) => {
         live.label = value;
       }),
       // Committed on blur rather than per keystroke: the label appears in other
       // cards' condition chips and in the merge-tag picker, and repainting the
       // canvas on every character would take the caret with it.
-      () => handlers.restructure(() => {
+      onCommit: () => handlers.restructure(() => {
       })
-    );
+    });
     const parts = [
-      "static" === shape ? null : label,
-      field.hint ? el("p", { class: "atf-hint", text: field.hint }) : null,
-      control(field, type, shape, handlers)
+      // A toggle draws its own label beside the switch, exactly as the front end
+      // does — a second one above it was the same words twice.
+      "static" === shape || "toggle" === shape ? null : label,
+      control(field, type, shape, handlers),
+      hint(field, type, handlers)
     ];
     return el("div", {
       // `.atf-form` is what the theme's custom properties are scoped to, and
@@ -1053,6 +1067,22 @@ var allTerrainFormsBuilder = function(exports) {
         })
       ]
     });
+  }
+  function hint(field, type, handlers) {
+    if (!type?.supports.includes("hint")) {
+      return null;
+    }
+    const node = editableText({
+      value: field.hint ?? "",
+      placeholder: "Add a hint…",
+      class: "atf-hint",
+      bind: "hint",
+      onInput: (value) => handlers.edit((live) => {
+        live.hint = value;
+      })
+    });
+    node.setAttribute("aria-label", "Hint");
+    return el("p", { class: "atfb-preview__hint", children: [node] });
   }
   function control(field, type, shape, handlers) {
     switch (shape) {
@@ -1069,23 +1099,27 @@ var allTerrainFormsBuilder = function(exports) {
         return optionList(field, handlers);
       case "toggle":
         return el("div", {
-          class: "atf-toggle",
+          // The modifier matters: a switch and a consent tick box are the same
+          // shape here but not the same control on the page, and the front end
+          // tells them apart by exactly this class.
+          class: "switch" === field.type ? "atf-toggle atf-toggle--switch" : "atf-toggle",
           children: [
             (() => {
               const box = el("input", { class: "atf-toggle__input", type: "checkbox" });
               box.disabled = true;
               return box;
             })(),
-            editableText(
-              field.label || "",
-              "What are they agreeing to?…",
-              "atf-toggle__label",
-              (value) => handlers.edit((live) => {
+            editableText({
+              value: field.label || "",
+              placeholder: "consent" === field.type ? "What are they agreeing to?…" : "What does this turn on?…",
+              class: "atf-toggle__label",
+              bind: "label",
+              onInput: (value) => handlers.edit((live) => {
                 live.label = value;
               }),
-              () => handlers.restructure(() => {
+              onCommit: () => handlers.restructure(() => {
               })
-            )
+            })
           ]
         });
       case "file":
@@ -1103,23 +1137,60 @@ var allTerrainFormsBuilder = function(exports) {
       case "static":
         return staticBlock(field, type, handlers);
       default:
-        return el("p", {
-          class: "atfb-preview__summary",
-          text: `${type?.label ?? field.type} — set this up in the panel on the right.`
+        return el("div", {
+          class: "atfb-preview__stack",
+          children: [
+            el("p", {
+              class: "atfb-preview__summary",
+              text: `${type?.label ?? field.type} — set this up in the panel on the right.`
+            }),
+            // A repeater's one visible piece of chrome is the button that adds
+            // another row, and its wording is already a setting. Drawing the
+            // real button is both the honest preview and the only place the
+            // wording was reachable.
+            "repeater" === field.type ? repeatButton(field, handlers) : null
+          ]
         });
     }
   }
   function placeholderBox(field, className, handlers, tall = false) {
-    const box = editableText(
-      field.placeholder ?? "",
-      "select" === field.type || "country" === field.type ? "Choose…" : "Placeholder…",
-      `${className} atfb-preview__box${tall ? " atfb-preview__box--tall" : ""}`,
-      (value) => handlers.edit((live) => {
+    const box = editableText({
+      value: field.placeholder ?? "",
+      placeholder: "select" === field.type || "country" === field.type ? "Choose…" : "Placeholder…",
+      class: `${className} atfb-preview__box${tall ? " atfb-preview__box--tall" : ""}`,
+      bind: "placeholder",
+      onInput: (value) => handlers.edit((live) => {
         live.placeholder = value;
       })
-    );
+    });
     box.setAttribute("aria-label", "Placeholder");
     return box;
+  }
+  function labelledButton(text, fallback2, className, bind2, handlers, write) {
+    return el("span", {
+      class: `atf-button ${className} atfb-preview__button`,
+      children: [
+        editableText({
+          value: text,
+          placeholder: fallback2,
+          class: "atfb-preview__button-text",
+          bind: bind2,
+          onInput: (value) => handlers.edit((live) => write(live, value))
+        })
+      ]
+    });
+  }
+  function repeatButton(field, handlers) {
+    return labelledButton(
+      String(field.addLabel ?? ""),
+      "Add another",
+      "atf-button--secondary",
+      "addLabel",
+      handlers,
+      (live, value) => {
+        live.addLabel = value;
+      }
+    );
   }
   function optionList(field, handlers) {
     const list = el("div", { class: "atf-choices__list" });
@@ -1129,11 +1200,12 @@ var allTerrainFormsBuilder = function(exports) {
           class: "atf-choice atfb-preview__option",
           children: [
             optionInputFor(field.type),
-            editableText(
-              choice.label,
-              "Option…",
-              "atf-choice__label",
-              (value) => {
+            editableText({
+              value: choice.label,
+              placeholder: "Option…",
+              class: "atf-choice__label",
+              bind: `choice:${index}:label`,
+              onInput: (value) => {
                 handlers.edit((live) => {
                   const target = live.choices?.[index];
                   if (!target) {
@@ -1146,7 +1218,7 @@ var allTerrainFormsBuilder = function(exports) {
                   }
                 });
               }
-            ),
+            }),
             el("button", {
               class: "atfb-preview__remove",
               type: "button",
@@ -1188,22 +1260,72 @@ var allTerrainFormsBuilder = function(exports) {
   }
   function staticBlock(field, type, handlers) {
     if ("heading" === field.type) {
-      return editableText(
-        field.label,
-        "Section heading…",
-        "atf-heading",
-        (value) => handlers.edit((live) => {
+      return editableText({
+        value: field.label,
+        placeholder: "Section heading…",
+        class: "atf-heading",
+        bind: "label",
+        onInput: (value) => handlers.edit((live) => {
           live.label = value;
         }),
-        () => handlers.restructure(() => {
+        onCommit: () => handlers.restructure(() => {
         })
-      );
+      });
     }
     if ("divider" === field.type) {
       return el("hr", { class: "atf-divider" });
     }
     if ("page_break" === field.type) {
-      return el("p", { class: "atfb-preview__summary", text: "Everything after this is a new page." });
+      return el("div", {
+        class: "atfb-preview__stack",
+        children: [
+          el("p", {
+            class: "atfb-progress-name",
+            children: [
+              editableText({
+                value: field.label,
+                placeholder: "Name this step…",
+                class: "atf-progress__label",
+                bind: "label",
+                onInput: (value) => handlers.edit((live) => {
+                  live.label = value;
+                }),
+                // The name appears in the step indicator on every page of
+                // the form, so the preview has to be repainted once the
+                // wording settles.
+                onCommit: () => handlers.restructure(() => {
+                })
+              })
+            ]
+          }),
+          el("p", { class: "atfb-preview__summary", text: "Everything after this is a new page." }),
+          el("div", {
+            class: "atf-nav atfb-preview__nav",
+            children: [
+              labelledButton(
+                String(field.prevLabel ?? ""),
+                "Back",
+                "atf-button--secondary",
+                "prevLabel",
+                handlers,
+                (live, value) => {
+                  live.prevLabel = value;
+                }
+              ),
+              labelledButton(
+                String(field.nextLabel ?? ""),
+                "Next",
+                "",
+                "nextLabel",
+                handlers,
+                (live, value) => {
+                  live.nextLabel = value;
+                }
+              )
+            ]
+          })
+        ]
+      });
     }
     return el("p", {
       class: "atfb-preview__summary",
@@ -2297,6 +2419,178 @@ var allTerrainFormsBuilder = function(exports) {
     control2.dataset.atfbBind = key;
     return control2;
   }
+  const SETTING_CONTROLS = {
+    level: {
+      key: "level",
+      label: "Heading level",
+      control: "select",
+      hint: "Headings should step down one at a time.",
+      options: [
+        { value: "2", label: "Heading 2" },
+        { value: "3", label: "Heading 3" },
+        { value: "4", label: "Heading 4" },
+        { value: "5", label: "Heading 5" },
+        { value: "6", label: "Heading 6" }
+      ]
+    },
+    content: {
+      key: "content",
+      label: "HTML",
+      control: "textarea",
+      hint: "Shown as written. Scripts are stripped when the form is saved."
+    },
+    consenttext: {
+      key: "consentText",
+      label: "What they are agreeing to",
+      control: "textarea",
+      hint: "Shown beside the tick box. Links are allowed."
+    },
+    height: {
+      key: "height",
+      label: "Height",
+      control: "number",
+      hint: "In pixels."
+    },
+    columns: {
+      key: "columns",
+      label: "Columns",
+      control: "number",
+      hint: "How many pictures sit side by side."
+    },
+    multiple: {
+      key: "multiple",
+      label: "Let them choose more than one",
+      control: "checkbox"
+    },
+    inline: {
+      key: "inline",
+      label: "Lay the options out in a row",
+      control: "checkbox"
+    },
+    other: {
+      key: "other",
+      label: "Offer an “Other” box",
+      control: "checkbox",
+      hint: "Adds a final option with a box to type in."
+    },
+    filetypes: {
+      key: "filetypes",
+      label: "Accepted file types",
+      control: "commas",
+      hint: "Extensions, separated by commas. Empty accepts anything the site allows."
+    },
+    maxsize: {
+      key: "maxsize",
+      label: "Largest file",
+      control: "number",
+      hint: "In megabytes."
+    },
+    maxfiles: {
+      key: "maxfiles",
+      label: "How many files",
+      control: "number"
+    },
+    minrows: {
+      key: "minRows",
+      label: "Fewest rows",
+      control: "number",
+      also: { key: "maxRows", label: "Most rows" }
+    },
+    endlabels: {
+      key: "minLabel",
+      label: "Label at the low end",
+      control: "text",
+      also: { key: "maxLabel", label: "Label at the high end" }
+    },
+    points: {
+      key: "points",
+      label: "Points if correct",
+      control: "number"
+    },
+    minchoices: {
+      key: "minChoices",
+      label: "Fewest they may pick",
+      control: "number",
+      also: { key: "maxChoices", label: "Most they may pick" }
+    }
+  };
+  const SETTINGS_HANDLED_ELSEWHERE = {
+    label: "the canvas edits it in place, and the inspector mirrors it",
+    placeholder: "edited by typing into the control on the canvas",
+    hint: "edited under the control on the canvas",
+    nextlabel: "edited on the page break’s own Next button",
+    prevlabel: "edited on the page break’s own Back button",
+    addlabel: "edited on the repeater’s own Add button",
+    choices: "the choices editor, and the option list on the canvas",
+    required: "the toggle on the card",
+    width: "its own row",
+    css: "its own row",
+    prefill: "its own section",
+    logic: "the conditional logic section",
+    formula: "its own row, with the currency that goes with it",
+    currency: "rendered with the formula",
+    correct: "the choices editor marks the right answer",
+    default: "its own row, typed to match what the field stores",
+    rows: "a row count on a textarea; the statement list on a Likert matrix",
+    parts: "a tick box per part, listed by the server",
+    min: "the validation section, paired with max",
+    max: "the validation section, paired with min",
+    step: "the validation section",
+    minlength: "the validation section, paired with maxlength",
+    maxlength: "the validation section, paired with minlength",
+    mindate: "the validation section, paired with maxdate",
+    maxdate: "the validation section, paired with mindate",
+    mintime: "the validation section, paired with maxtime",
+    maxtime: "the validation section, paired with mintime",
+    pattern: "the validation section",
+    unique: "the validation section",
+    maxchoices: "rendered with minchoices",
+    maxrows: "rendered with minrows"
+  };
+  function settingRow(field, setting, update) {
+    const raw = field[setting.key];
+    const write = (value) => update(setting.key, value);
+    if ("checkbox" === setting.control) {
+      return checkbox(setting.label, Boolean(raw), write);
+    }
+    if ("commas" === setting.control) {
+      const list = Array.isArray(raw) ? raw : [];
+      return row(
+        setting.label,
+        textInput(list.join(", "), (value) => {
+          write(
+            value.split(",").map((item) => item.trim().replace(/^\./, "").toLowerCase()).filter(Boolean)
+          );
+        }),
+        setting.hint
+      );
+    }
+    if ("select" === setting.control) {
+      return row(setting.label, select(String(raw ?? ""), setting.options ?? [], write), setting.hint);
+    }
+    if ("textarea" === setting.control) {
+      return row(setting.label, textArea(String(raw ?? ""), write), setting.hint);
+    }
+    if ("number" === setting.control) {
+      return row(setting.label, numberInput(String(raw ?? ""), write), setting.hint);
+    }
+    return row(setting.label, bind(textInput(String(raw ?? ""), write), setting.key), setting.hint);
+  }
+  function restatement(rows, text) {
+    const used = new Set(rows.map((statement) => statement.key).filter(Boolean));
+    let next = rows.length + 1;
+    return text.split("\n").map((line) => line.trim()).filter(Boolean).map((label, index) => {
+      const existing = rows[index]?.key;
+      if (existing) {
+        return { key: existing, label };
+      }
+      while (used.has(`r${next}`)) {
+        next += 1;
+      }
+      used.add(`r${next}`);
+      return { key: `r${next}`, label };
+    });
+  }
   const PREFILL_SOURCES = [
     { value: "user:email", label: "Their email address", group: "About the person filling it in", tag: "{user:email}" },
     { value: "user:display_name", label: "Their name", group: "About the person filling it in", tag: "{user:display_name}" },
@@ -2388,8 +2682,44 @@ var allTerrainFormsBuilder = function(exports) {
           this.inspector.append(
             row(
               "Hint",
-              textInput(field.hint, (value) => update("hint", value)),
+              bind(textInput(field.hint, (value) => update("hint", value)), "hint"),
               "Shown under the field, and read out with it."
+            )
+          );
+        }
+        if (supports.includes("nextlabel")) {
+          this.inspector.append(
+            row(
+              "Next button",
+              bind(
+                textInput(String(field.nextLabel ?? ""), (value) => update("nextLabel", value)),
+                "nextLabel"
+              ),
+              "Leave empty for “Next”."
+            )
+          );
+        }
+        if (supports.includes("prevlabel")) {
+          this.inspector.append(
+            row(
+              "Back button",
+              bind(
+                textInput(String(field.prevLabel ?? ""), (value) => update("prevLabel", value)),
+                "prevLabel"
+              ),
+              "Leave empty for “Back”."
+            )
+          );
+        }
+        if (supports.includes("addlabel")) {
+          this.inspector.append(
+            row(
+              "Add button",
+              bind(
+                textInput(String(field.addLabel ?? ""), (value) => update("addLabel", value)),
+                "addLabel"
+              ),
+              "Leave empty for “Add another”."
             )
           );
         }
@@ -2419,6 +2749,7 @@ var allTerrainFormsBuilder = function(exports) {
         if (definition?.choices) {
           this.inspector.append(this.renderChoicesEditor(field, update));
         }
+        this.renderTypeSettings(field, definition, supports, update);
         if (field.type === "total" || supports.includes("formula")) {
           this.inspector.append(
             row(
@@ -2611,18 +2942,6 @@ var allTerrainFormsBuilder = function(exports) {
       return this.schema?.fields.find((candidate) => candidate.id === fieldId);
     }
     /**
-     * Writes a field's current values into the inspector's matching controls.
-     *
-     * Only when the inspector is actually showing that field — editing a card that
-     * is not selected must not rewrite the pane describing a different one.
-     *
-     * Deliberately one-directional and value-only: the inspector's own handlers
-     * already write to the schema, and firing them from here would put the two
-     * panes in a loop, each telling the other about a change it had just made.
-     *
-     * @param field The field that was edited on the canvas.
-     */
-    /**
      * Writes a field's current values into its card on the canvas.
      *
      * The mirror image of `syncInspector()`, for the same reason: the two panes
@@ -2634,6 +2953,13 @@ var allTerrainFormsBuilder = function(exports) {
      * Writes `textContent` rather than re-rendering, so the caret in the
      * inspector is untouched.
      *
+     * Driven by whatever `data-atfb-bind` keys the card happens to carry rather
+     * than by a list of properties kept here. The list was the bug waiting to
+     * happen: every editable added to the canvas had to be remembered in two
+     * other places, and forgetting one gave a value that mirrored in one
+     * direction only — which looks like it works right up until you use the other
+     * pane.
+     *
      * @param field The field that was edited in the inspector.
      */
     syncCanvas(field) {
@@ -2643,41 +2969,42 @@ var allTerrainFormsBuilder = function(exports) {
       if (!card) {
         return;
       }
-      const label = card.querySelector(".atf-label.atfb-editable");
-      if (label && label.textContent !== field.label) {
-        label.textContent = field.label;
-      }
-      const options = card.querySelectorAll(".atf-choice__label.atfb-editable");
-      (field.choices ?? []).forEach((choice, index) => {
-        const option = options[index];
-        if (option && option.textContent !== choice.label) {
-          option.textContent = choice.label;
+      for (const node of card.querySelectorAll(".atfb-editable[data-atfb-bind]")) {
+        const value = boundValue(field, node.dataset.atfbBind ?? "");
+        if (node.textContent !== value) {
+          node.textContent = value;
         }
-      });
+      }
     }
+    /**
+     * Writes a field's current values into the inspector's matching controls.
+     *
+     * Only when the inspector is actually showing that field — editing a card that
+     * is not selected must not rewrite the pane describing a different one.
+     *
+     * Deliberately one-directional and value-only: the inspector's own handlers
+     * already write to the schema, and firing them from here would put the two
+     * panes in a loop, each telling the other about a change it had just made.
+     *
+     * @param field The field that was edited on the canvas.
+     */
     syncInspector(field) {
       if (this.selected !== field.id) {
         return;
       }
-      const write = (key, value) => {
-        const control2 = this.inspector.querySelector(
-          `[data-atfb-bind="${CSS.escape(key)}"]`
-        );
-        if (!control2) {
-          return;
+      for (const control2 of this.inspector.querySelectorAll(
+        "[data-atfb-bind]"
+      )) {
+        const value = boundValue(field, control2.dataset.atfbBind ?? "");
+        if (control2.value === value) {
+          continue;
         }
         if ("value" in control2) {
           control2.value = value;
         } else {
           control2.setAttribute("value", value);
         }
-      };
-      write("label", field.label ?? "");
-      write("placeholder", field.placeholder ?? "");
-      (field.choices ?? []).forEach((choice, index) => {
-        write(`choice:${index}:label`, choice.label ?? "");
-        write(`choice:${index}:value`, choice.value ?? "");
-      });
+      }
     }
     /**
      * Rebuilds the canvas so its cards point at the current schema objects.
@@ -3768,6 +4095,170 @@ var allTerrainFormsBuilder = function(exports) {
       }
       return `f${index}`;
     }
+    /**
+     * The settings a field type brings with it.
+     *
+     * Driven by {@link SETTING_CONTROLS} for everything that is a plain value, and
+     * by hand for the three that are not: `default` has to match whatever the field
+     * stores, `rows` means a row count on a textarea and a list of statements on a
+     * Likert matrix, and `parts` is a tick box per part with the list coming from
+     * the server so a filtered part cannot go missing.
+     *
+     * @param field      The field.
+     * @param definition Its registered type.
+     * @param supports   What that type declares.
+     * @param update     Writes one property and repaints.
+     * @return void
+     */
+    renderTypeSettings(field, definition, supports, update) {
+      for (const flag of supports) {
+        const setting = SETTING_CONTROLS[flag];
+        if (!setting) {
+          continue;
+        }
+        this.inspector.append(settingRow(field, setting, update));
+        if (setting.also) {
+          this.inspector.append(
+            settingRow(
+              field,
+              { ...setting, key: setting.also.key, label: setting.also.label, hint: setting.also.hint },
+              update
+            )
+          );
+        }
+      }
+      if (supports.includes("rows") && "likert" !== field.type) {
+        this.inspector.append(
+          row(
+            "Lines tall",
+            numberInput(String(field.rows ?? ""), (value) => update("rows", value))
+          )
+        );
+      }
+      if (supports.includes("rows") && "likert" === field.type) {
+        this.inspector.append(this.renderStatementList(field, update));
+      }
+      if (supports.includes("parts")) {
+        this.inspector.append(this.renderPartsEditor(field, definition, update));
+      }
+      if (supports.includes("default") && !["files", "object"].includes(definition?.value ?? "")) {
+        this.inspector.append(this.renderDefaultControl(field, definition, update));
+      }
+    }
+    /**
+     * The statements a Likert matrix asks about, one per line.
+     *
+     * A textarea rather than a repeating row editor: these are a handful of short
+     * sentences, they are almost always pasted in from somewhere else, and one box
+     * you can paste five lines into beats five boxes you have to create first.
+     *
+     * # The keys are the reason this is not just a list of strings
+     *
+     * A row is `{ key, label }`, and the *key* is what an answer is stored
+     * against — `atf[f1][r2]`. So a row's key has to survive its wording being
+     * changed, or correcting a typo in a statement silently detaches every answer
+     * already given to it, in entries that were collected months ago and are not
+     * looked at again until somebody exports them.
+     *
+     * Rows are therefore matched to lines by position: line three keeps row
+     * three's key however it is reworded. A line added at the end mints a fresh
+     * key, never one that has been used, because reusing a key would attach new
+     * answers to old ones.
+     *
+     * Reordering the lines does move the answers, which is the one case position
+     * matching gets wrong — and is also indistinguishable, from here, from
+     * rewriting both statements. The alternative costs a visible id per row in the
+     * box, which is a worse trade for the common case.
+     *
+     * @param field  The field.
+     * @param update Writes one property.
+     * @return The row.
+     */
+    renderStatementList(field, update) {
+      const rows = Array.isArray(field.rows) ? field.rows : [];
+      return row(
+        "Statements",
+        textArea(
+          rows.map((statement) => statement.label ?? "").join("\n"),
+          (value) => update("rows", restatement(rows, value)),
+          5
+        ),
+        "One per line. Each becomes a row of the matrix."
+      );
+    }
+    /**
+     * Which parts of a name or an address to ask for.
+     *
+     * The available parts come from the server, because `atf_name_parts` and
+     * `atf_address_parts` are both filterable — a builder with the list baked in
+     * would offer five while the form drew seven.
+     *
+     * Order follows the server's, not the order they were ticked, so the tick
+     * boxes read in the same order as the fields they turn on.
+     *
+     * @param field      The field.
+     * @param definition Its registered type.
+     * @param update     Writes one property.
+     * @return The section.
+     */
+    renderPartsEditor(field, definition, update) {
+      const available = definition?.parts ?? [];
+      const enabled = Array.isArray(field.parts) ? field.parts : available.map((part) => part.key);
+      const boxes = available.map(
+        (part) => checkbox(part.label, enabled.includes(part.key), (checked) => {
+          const next = available.map((candidate) => candidate.key).filter((key) => key === part.key ? checked : enabled.includes(key));
+          update("parts", next.length ? next : [part.key]);
+        })
+      );
+      return el("div", {
+        class: "atfb-section",
+        children: [el("h4", { class: "atfb-section__title", text: "Parts to ask for" }), ...boxes]
+      });
+    }
+    /**
+     * The answer a field starts with.
+     *
+     * Typed to match what the field stores: a dropdown of the options where there
+     * are options, a tick box where the field is a toggle, a plain box otherwise.
+     * A text box offering to set the default of a checkbox group is a control that
+     * cannot say the right thing.
+     *
+     * Left out entirely for the types whose value is a structure — a file, a
+     * signature, a repeater — where there is no single value to pre-fill.
+     *
+     * @param field      The field.
+     * @param definition Its registered type.
+     * @param update     Writes one property.
+     * @return The row, or null where a default makes no sense.
+     */
+    renderDefaultControl(field, definition, update) {
+      const hint2 = "Filled in before they start. They can change it.";
+      if ("switch" === field.type || "consent" === field.type) {
+        return checkbox("On by default", Boolean(field.default), (value) => update("default", value));
+      }
+      if (definition?.choices && (field.choices ?? []).length) {
+        return row(
+          "Default answer",
+          select(
+            String(field.default ?? ""),
+            [
+              { value: "", label: "Nothing chosen" },
+              ...(field.choices ?? []).map((choice) => ({
+                value: String(choice.value),
+                label: choice.label || String(choice.value)
+              }))
+            ],
+            (value) => update("default", value)
+          ),
+          hint2
+        );
+      }
+      return row(
+        "Default answer",
+        textInput(String(field.default ?? ""), (value) => update("default", value)),
+        hint2
+      );
+    }
     /** The choices editor, with drag-in image support. */
     renderChoicesEditor(field, update) {
       const choices = field.choices ?? [];
@@ -3922,9 +4413,17 @@ var allTerrainFormsBuilder = function(exports) {
       }
       if (supports.includes("min")) {
         pairs.push(["min", "Minimum"], ["max", "Maximum"]);
+      } else if (supports.includes("max")) {
+        pairs.push(["max", "Highest"]);
+      }
+      if (supports.includes("step")) {
+        pairs.push(["step", "Steps of"]);
       }
       if (supports.includes("mindate")) {
         pairs.push(["minDate", "Earliest date"], ["maxDate", "Latest date"]);
+      }
+      if (supports.includes("mintime")) {
+        pairs.push(["minTime", "Earliest time"], ["maxTime", "Latest time"]);
       }
       for (const [key, label] of pairs) {
         rows.push(
@@ -3953,16 +4452,21 @@ var allTerrainFormsBuilder = function(exports) {
         );
       }
       const messages = field.messages ?? {};
-      rows.push(
-        row(
-          "Message when required",
-          textInput(messages.required ?? "", (value) => {
-            messages.required = value;
-            update("messages", messages);
-          }),
-          "Leave empty for the default wording."
-        )
-      );
+      if (supports.includes("required")) {
+        rows.push(
+          row(
+            "Message when required",
+            textInput(messages.required ?? "", (value) => {
+              messages.required = value;
+              update("messages", messages);
+            }),
+            "Leave empty for the default wording."
+          )
+        );
+      }
+      if (!rows.length) {
+        return el("div", { class: "atfb-section is-empty" });
+      }
       return this.section(`validation:${field.id}`, "Validation", rows);
     }
     /** The conditional-logic editor. */
@@ -4155,7 +4659,7 @@ var allTerrainFormsBuilder = function(exports) {
         if (!block) {
           return;
         }
-        const css = block[1].replace(/#atf-[\d-]+\s+\.atf-form/g, ".atfb .atfb-preview");
+        const css = block[1].replace(/#atf-[\d-]+/g, ".atfb .atfb-preview");
         this.canvasTheme.textContent = css;
         if (!this.canvasTheme.isConnected) {
           this.root.append(this.canvasTheme);
@@ -4781,7 +5285,10 @@ var allTerrainFormsBuilder = function(exports) {
   }
   document.addEventListener("os-window-content-loaded", mountBuilder);
   exports.Builder = Builder;
+  exports.SETTINGS_HANDLED_ELSEWHERE = SETTINGS_HANDLED_ELSEWHERE;
+  exports.SETTING_CONTROLS = SETTING_CONTROLS;
   exports.mountBuilder = mountBuilder;
+  exports.restatement = restatement;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
   return exports;
 }({});

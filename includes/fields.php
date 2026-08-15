@@ -471,3 +471,37 @@ function atf_choice_label( $value, $field ) {
 
 	return (string) $value;
 }
+
+/**
+ * The parts a composite field type can be told to show.
+ *
+ * Both lists are filterable, so the builder is sent the resolved set rather than
+ * carrying a copy: a builder offering a fixed five parts while the renderer draws
+ * a filtered seven is a builder that cannot reach two of them, and nothing about
+ * that failure looks like a bug from either side.
+ *
+ * @since 0.1.0
+ *
+ * @param string $type The field type slug.
+ * @return array<int, array<string, string>> Part key and label, in render order.
+ */
+function atf_field_type_parts( $type ) {
+	if ( 'name' === $type ) {
+		$parts = atf_name_parts();
+	} elseif ( 'address' === $type ) {
+		$parts = atf_address_parts();
+	} else {
+		return array();
+	}
+
+	$out = array();
+
+	foreach ( $parts as $key => $part ) {
+		$out[] = array(
+			'key'   => (string) $key,
+			'label' => isset( $part['label'] ) ? (string) $part['label'] : (string) $key,
+		);
+	}
+
+	return $out;
+}

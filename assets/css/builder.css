@@ -2246,6 +2246,70 @@ os-checkbox-label.atfb-check {
 	background: var( --atfb-accent-soft );
 }
 
+/* A control and the chrome that belongs to it — a repeater and its add button,
+   a page break and its navigation — kept together as one block. */
+.atfb-preview__stack {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* The hint keeps `.atf-hint` from the front end, so its size and colour are the
+   theme's. This only stops an empty one collapsing: an editable with nothing in
+   it still has to be a target you can click, and the placeholder inside it is
+   what invites the first hint anybody writes. */
+.atfb-preview__hint {
+	margin: 4px 0 0;
+}
+
+.atfb-preview__hint .atfb-editable {
+	display: block;
+	min-block-size: 1lh;
+}
+
+/* A button whose words are the editable part. `.atf-button` gives it the
+   theme's real fill, radius and padding; it is a `<span>` rather than a
+   `<button>` because a button element cannot hold a caret. */
+.atfb-preview__button {
+	display: inline-flex;
+	align-items: center;
+	/* The stack is a column flex container, so without this the button grows to
+	   the full width of the card and stops reading as a button at all. */
+	align-self: flex-start;
+	cursor: text;
+}
+
+/* Inherited rather than themed: the text sits on the button's own colour, and
+   the editing outline has to be visible against a filled accent as well as
+   against a pale secondary. */
+.atfb-preview__button-text {
+	color: inherit;
+	font: inherit;
+}
+
+.atfb-preview__button-text:focus {
+	background: none;
+	outline-color: currentcolor;
+}
+
+.atfb-preview__button-text:hover {
+	outline-color: currentcolor;
+}
+
+/* The page break's own navigation, drawn small: it is a preview of the buttons
+   that close the page, not a call to action on the canvas. */
+.atfb-preview__nav {
+	display: flex;
+	gap: 8px;
+	margin: 0;
+}
+
+/* The step's name, which is what the progress indicator shows. */
+.atfb-progress-name {
+	margin: 0;
+	font-weight: 600;
+}
+
 /* What an elaborate control says instead of pretending to be itself. */
 .atfb-preview__summary {
 	margin: 0;

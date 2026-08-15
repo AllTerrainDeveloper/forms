@@ -579,4 +579,250 @@ class ATF_Test_Render extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'does not exist', atf_render_form( 999999 ) );
 	}
+	/**
+	 * The wording on a page break's buttons is the author's.
+	 *
+	 * `nextLabel` and `prevLabel` have been honoured by the renderer from the
+	 * start and reachable from nowhere: no control in the builder wrote them, so
+	 * every multi-page form shipped a button saying "Next" whatever language it
+	 * was in. Now that the canvas edits them, this is what says the value
+	 * survives normalisation and arrives on the page.
+	 *
+	 * @covers ::atf_render_page
+	 */
+	public function test_page_break_buttons_use_the_authors_words() {
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'    => 'f1',
+						'type'  => 'text',
+						'label' => 'Your name',
+					),
+					array(
+						'id'        => 'pb1',
+						'type'      => 'page_break',
+						'label'     => 'Your details',
+						'nextLabel' => 'Continue',
+						'prevLabel' => 'Go back',
+					),
+					array(
+						'id'    => 'f2',
+						'type'  => 'text',
+						'label' => 'Your email',
+					),
+				),
+			)
+		);
+
+		$html = atf_render_form( $form_id );
+
+		$this->assertStringContainsString( '>Continue</button>', $html, 'the next button' );
+		$this->assertStringContainsString( '>Go back</button>', $html, 'the back button' );
+		$this->assertStringNotContainsString( '>Next</button>', $html, 'the default must be replaced, not joined' );
+	}
+
+	/**
+	 * A page break with no wording of its own still gets buttons.
+	 *
+	 * The empty string is the stored default, so "falls back" is the ordinary
+	 * case rather than the edge one.
+	 *
+	 * @covers ::atf_render_page
+	 */
+	public function test_page_break_buttons_fall_back() {
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'   => 'f1',
+						'type' => 'text',
+					),
+					array(
+						'id'   => 'pb1',
+						'type' => 'page_break',
+					),
+					array(
+						'id'   => 'f2',
+						'type' => 'text',
+					),
+				),
+			)
+		);
+
+		$this->assertStringContainsString( '>Next</button>', atf_render_form( $form_id ) );
+	}
+
+	/**
+	 * A repeater's add button says what its author told it to say.
+	 *
+	 * @covers ::atf_render_repeater
+	 */
+	public function test_repeater_add_button_uses_the_authors_words() {
+		$html = $this->render_field(
+			array(
+				'type'     => 'repeater',
+				'addLabel' => 'Add another guest',
+				'fields'   => array(
+					array(
+						'id'   => 'r1',
+						'type' => 'text',
+					),
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'Add another guest', $html );
+	}
+
+	/**
+	 * The settings the builder offers are the settings the type admits to.
+	 *
+	 * The inspector rows and the canvas controls are both gated on `supports`, so
+	 * a setting the renderer honours but the type does not declare is a setting
+	 * with no way to reach it — which is exactly how these three came to be
+	 * write-only for as long as they were.
+	 *
+	 * @covers ::atf_get_field_type
+	 */
+	public function test_customisable_wording_is_declared() {
+		$page_break = atf_get_field_type( 'page_break' );
+		$repeater   = atf_get_field_type( 'repeater' );
+
+		$this->assertContains( 'nextlabel', $page_break['supports'] );
+		$this->assertContains( 'prevlabel', $page_break['supports'] );
+		$this->assertContains( 'addlabel', $repeater['supports'] );
+	}
+	/**
+	 * The settings that had no control still reach the page.
+	 *
+	 * Every one of these was honoured by the renderer and editable from nowhere,
+	 * which is why none of them had a test: nothing could set them to notice. Now
+	 * that the inspector writes them, this is the other half of the promise — a
+	 * control that writes a value the renderer ignores would be just as useless as
+	 * a value with no control.
+	 *
+	 * @dataProvider data_reachable_settings
+	 * @covers ::atf_render_field
+	 *
+	 * @param array  $field    The field, merged over the defaults.
+	 * @param string $expected A fragment the rendered HTML must contain.
+	 */
+	public function test_settings_reach_the_page( $field, $expected ) {
+		$this->assertStringContainsString( $expected, $this->render_field( $field ) );
+	}
+
+	/**
+	 * One case per setting that was previously unreachable.
+	 *
+	 * @return array[]
+	 */
+	public function data_reachable_settings() {
+		return array(
+			'heading level'      => array(
+				array(
+					'type'  => 'heading',
+					'level' => 5,
+					'label' => 'About you',
+				),
+				'<h5',
+			),
+			'html content'       => array(
+				array(
+					'type'    => 'html',
+					'content' => '<p>Read this first.</p>',
+				),
+				'Read this first.',
+			),
+			'spacer height'      => array(
+				array(
+					'type'   => 'spacer',
+					'height' => 64,
+				),
+				'64px',
+			),
+			'consent text'       => array(
+				array(
+					'type'        => 'consent',
+					'consentText' => 'I agree to the rules.',
+				),
+				'I agree to the rules.',
+			),
+			'textarea rows'      => array(
+				array(
+					'type' => 'textarea',
+					'rows' => 9,
+				),
+				'rows="9"',
+			),
+			'scale end labels'   => array(
+				array(
+					'type'     => 'scale',
+					'minLabel' => 'Not at all',
+					'maxLabel' => 'Every day',
+				),
+				'Every day',
+			),
+			'rating ceiling'     => array(
+				array(
+					'type' => 'rating',
+					'max'  => 3,
+				),
+				// Three stars and no fourth.
+				'value="3"',
+			),
+			'file types'         => array(
+				array(
+					'type'      => 'file',
+					'filetypes' => array( 'pdf' ),
+				),
+				'.pdf',
+			),
+			'chosen name parts'  => array(
+				array(
+					'type'  => 'name',
+					'parts' => array( 'first' ),
+				),
+				'given-name',
+			),
+			'likert statements'  => array(
+				array(
+					'type' => 'likert',
+					'rows'    => array(
+						array(
+							'key'   => 'r1',
+							'label' => 'The room was clean',
+						),
+					),
+					'choices' => array(
+						array(
+							'label' => 'Agree',
+							'value' => 'agree',
+						),
+					),
+				),
+				'The room was clean',
+			),
+		);
+	}
+
+	/**
+	 * A name field asked for one part shows only that part.
+	 *
+	 * The assertion the fragment test above cannot make: "contains given-name"
+	 * would pass just as well if every other part were still there.
+	 *
+	 * @covers ::atf_render_composite
+	 */
+	public function test_unchosen_parts_are_not_rendered() {
+		$html = $this->render_field(
+			array(
+				'type'  => 'name',
+				'parts' => array( 'first' ),
+			)
+		);
+
+		$this->assertStringContainsString( 'given-name', $html );
+		$this->assertStringNotContainsString( 'family-name', $html );
+	}
 }

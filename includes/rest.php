@@ -963,6 +963,11 @@ function atf_rest_config() {
 			'choices'     => (bool) $definition['choices'],
 			'supports'    => array_values( $definition['supports'] ),
 			'settings'    => $definition['settings'],
+			// The parts a composite field can show. Sent rather than hard-coded in
+			// the bundle because both lists are filterable, and a builder offering
+			// a fixed five while the renderer draws a filtered seven is a builder
+			// that quietly cannot reach two of them.
+			'parts'       => atf_field_type_parts( $slug ),
 		);
 	}
 

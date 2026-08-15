@@ -84,6 +84,11 @@ apply_filters( 'atf_address_parts', array $parts );
 
 The sub-fields a composite offers, as `key => array( 'label' => …, 'autocomplete' => … )`.
 
+Both are read by the renderer *and* sent to the builder — the `/config` route
+returns the resolved list as each type's `parts`, so the tick boxes offering
+which parts to ask for are your filtered set rather than a copy of the
+defaults. Add a part here and it appears in the builder without further work.
+
 ### `atf_countries` — Filter — *Stable*
 
 ```php

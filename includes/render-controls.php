@@ -426,9 +426,18 @@ function atf_render_single_checkbox( $field, $value, $context ) {
 
 	$attributes = atf_control_attributes( $field, $context );
 
+	// A Toggle is drawn as a switch and a Consent as a tick box. They behave
+	// identically — both are one checkbox — but they say different things: a
+	// switch reads as "this setting is on", and consent reads as "I have agreed",
+	// which is a statement a tick box makes and a switch does not. Calling the
+	// field type "Toggle" and then drawing a checkbox was the naming lying about
+	// the control.
+	$modifier = 'switch' === $field['type'] ? ' atf-toggle--switch' : '';
+
 	return sprintf(
-		'<div class="atf-toggle"><input type="checkbox" class="atf-toggle__input"%s value="1"%s data-atf-input>'
+		'<div class="atf-toggle%s"><input type="checkbox" class="atf-toggle__input"%s value="1"%s data-atf-input>'
 		. '<label class="atf-toggle__label" for="%s">%s%s</label></div>',
+		$modifier,
 		$attributes,
 		$value ? ' checked' : '',
 		esc_attr( $context['id'] ),

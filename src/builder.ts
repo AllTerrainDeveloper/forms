@@ -42,7 +42,7 @@ import {
 } from './ui';
 import { handOffToWindow, watchHandoffButton } from './handoff';
 import { LogicMap, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
-import { renderFieldPreview } from './field-preview';
+import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
@@ -93,6 +93,297 @@ function bind< T extends HTMLElement >( control: T, key: string ): T {
  * because they are what a date field and a time field respectively want and
  * nobody should have to know `H:i` to pre-fill the time.
  */
+/**
+ * One of a field type's own settings, and the control that edits it.
+ *
+ * # Why this is a table
+ *
+ * A field type declares what it supports; the inspector decides what to draw. For
+ * a long time those two were joined by a hand-written `if` per setting, and the
+ * consequence was not a bug anybody could see: thirty-two supported settings had
+ * no control anywhere. `level` on a heading, `content` on an HTML block, the file
+ * types a file field accepts, how many rows a repeater allows, the labels on the
+ * ends of a scale — all honoured by the renderer, all reachable only by editing
+ * the exported JSON by hand. A setting nobody can find is a setting that does not
+ * exist, and nothing about the code said so, because every one of them worked
+ * perfectly once set.
+ *
+ * As a table it is one line per setting, `field-settings.test.ts` asserts that
+ * every flag any registered type declares either appears here or is listed as
+ * deliberately handled elsewhere, and the failure mode goes from silent to loud.
+ *
+ * # The keys
+ *
+ * `flag` is the `supports` entry, which is lower-case by WordPress convention;
+ * `key` is the property on the field, which is camelCase. They differ often
+ * enough (`minrows` / `minRows`) that conflating them was never an option.
+ */
+interface SettingControl {
+	/** The field property this writes. */
+	key: string;
+	/** The row's label. */
+	label: string;
+	/** How it is edited. */
+	control: 'text' | 'number' | 'checkbox' | 'textarea' | 'select' | 'commas';
+	/** Sits under the control. */
+	hint?: string;
+	/** For `select`. */
+	options?: Array< { value: string; label: string } >;
+	/** A companion setting rendered directly after — the natural pairs. */
+	also?: { key: string; label: string; hint?: string };
+}
+
+/**
+ * Every `supports` flag that draws a control of its own.
+ *
+ * Ordered as the inspector shows them: the ones that change what the field *is*
+ * before the ones that tune it.
+ */
+export const SETTING_CONTROLS: Record< string, SettingControl > = {
+	level: {
+		key: 'level',
+		label: 'Heading level',
+		control: 'select',
+		hint: 'Headings should step down one at a time.',
+		options: [
+			{ value: '2', label: 'Heading 2' },
+			{ value: '3', label: 'Heading 3' },
+			{ value: '4', label: 'Heading 4' },
+			{ value: '5', label: 'Heading 5' },
+			{ value: '6', label: 'Heading 6' },
+		],
+	},
+	content: {
+		key: 'content',
+		label: 'HTML',
+		control: 'textarea',
+		hint: 'Shown as written. Scripts are stripped when the form is saved.',
+	},
+	consenttext: {
+		key: 'consentText',
+		label: 'What they are agreeing to',
+		control: 'textarea',
+		hint: 'Shown beside the tick box. Links are allowed.',
+	},
+	height: {
+		key: 'height',
+		label: 'Height',
+		control: 'number',
+		hint: 'In pixels.',
+	},
+	columns: {
+		key: 'columns',
+		label: 'Columns',
+		control: 'number',
+		hint: 'How many pictures sit side by side.',
+	},
+	multiple: {
+		key: 'multiple',
+		label: 'Let them choose more than one',
+		control: 'checkbox',
+	},
+	inline: {
+		key: 'inline',
+		label: 'Lay the options out in a row',
+		control: 'checkbox',
+	},
+	other: {
+		key: 'other',
+		label: 'Offer an “Other” box',
+		control: 'checkbox',
+		hint: 'Adds a final option with a box to type in.',
+	},
+	filetypes: {
+		key: 'filetypes',
+		label: 'Accepted file types',
+		control: 'commas',
+		hint: 'Extensions, separated by commas. Empty accepts anything the site allows.',
+	},
+	maxsize: {
+		key: 'maxsize',
+		label: 'Largest file',
+		control: 'number',
+		hint: 'In megabytes.',
+	},
+	maxfiles: {
+		key: 'maxfiles',
+		label: 'How many files',
+		control: 'number',
+	},
+	minrows: {
+		key: 'minRows',
+		label: 'Fewest rows',
+		control: 'number',
+		also: { key: 'maxRows', label: 'Most rows' },
+	},
+	endlabels: {
+		key: 'minLabel',
+		label: 'Label at the low end',
+		control: 'text',
+		also: { key: 'maxLabel', label: 'Label at the high end' },
+	},
+	points: {
+		key: 'points',
+		label: 'Points if correct',
+		control: 'number',
+	},
+	minchoices: {
+		key: 'minChoices',
+		label: 'Fewest they may pick',
+		control: 'number',
+		also: { key: 'maxChoices', label: 'Most they may pick' },
+	},
+};
+
+/**
+ * Flags that draw no control of their own, and why.
+ *
+ * Listed rather than left out, because "not in the table" has to mean "somebody
+ * decided that" instead of "somebody forgot". The test reads this.
+ */
+export const SETTINGS_HANDLED_ELSEWHERE: Record< string, string > = {
+	label: 'the canvas edits it in place, and the inspector mirrors it',
+	placeholder: 'edited by typing into the control on the canvas',
+	hint: 'edited under the control on the canvas',
+	nextlabel: 'edited on the page break’s own Next button',
+	prevlabel: 'edited on the page break’s own Back button',
+	addlabel: 'edited on the repeater’s own Add button',
+	choices: 'the choices editor, and the option list on the canvas',
+	required: 'the toggle on the card',
+	width: 'its own row',
+	css: 'its own row',
+	prefill: 'its own section',
+	logic: 'the conditional logic section',
+	formula: 'its own row, with the currency that goes with it',
+	currency: 'rendered with the formula',
+	correct: 'the choices editor marks the right answer',
+	default: 'its own row, typed to match what the field stores',
+	rows: 'a row count on a textarea; the statement list on a Likert matrix',
+	parts: 'a tick box per part, listed by the server',
+	min: 'the validation section, paired with max',
+	max: 'the validation section, paired with min',
+	step: 'the validation section',
+	minlength: 'the validation section, paired with maxlength',
+	maxlength: 'the validation section, paired with minlength',
+	mindate: 'the validation section, paired with maxdate',
+	maxdate: 'the validation section, paired with mindate',
+	mintime: 'the validation section, paired with maxtime',
+	maxtime: 'the validation section, paired with mintime',
+	pattern: 'the validation section',
+	unique: 'the validation section',
+	maxchoices: 'rendered with minchoices',
+	maxrows: 'rendered with minrows',
+};
+
+/**
+ * One row for one setting, per its table entry.
+ *
+ * `commas` is the only conversion here: a few settings store a list of short
+ * tokens — the extensions a file field accepts — and a comma-separated box is
+ * how everybody already expects to type those. Split on save, joined on render,
+ * so the stored shape stays an array and the typed shape stays a sentence.
+ *
+ * @param field   The field.
+ * @param setting The table entry.
+ * @param update  Writes one property.
+ * @return The row.
+ */
+function settingRow(
+	field: Field,
+	setting: SettingControl,
+	update: ( key: string, value: unknown ) => void
+): HTMLElement {
+	const raw = field[ setting.key ];
+	const write = ( value: unknown ) => update( setting.key, value );
+
+	if ( 'checkbox' === setting.control ) {
+		return checkbox( setting.label, Boolean( raw ), write );
+	}
+
+	if ( 'commas' === setting.control ) {
+		const list = Array.isArray( raw ) ? ( raw as string[] ) : [];
+
+		return row(
+			setting.label,
+			textInput( list.join( ', ' ), ( value ) => {
+				write(
+					value
+						.split( ',' )
+						.map( ( item ) => item.trim().replace( /^\./, '' ).toLowerCase() )
+						.filter( Boolean )
+				);
+			} ),
+			setting.hint
+		);
+	}
+
+	if ( 'select' === setting.control ) {
+		return row( setting.label, select( String( raw ?? '' ), setting.options ?? [], write ), setting.hint );
+	}
+
+	if ( 'textarea' === setting.control ) {
+		return row( setting.label, textArea( String( raw ?? '' ), write ), setting.hint );
+	}
+
+	if ( 'number' === setting.control ) {
+		return row( setting.label, numberInput( String( raw ?? '' ), write ), setting.hint );
+	}
+
+	return row( setting.label, bind( textInput( String( raw ?? '' ), write ), setting.key ), setting.hint );
+}
+
+/** One row of a Likert matrix: the statement, and the key its answers are stored against. */
+export interface LikertRow {
+	key?: string;
+	label?: string;
+}
+
+/**
+ * Rewrites a Likert matrix's statements from a block of text, keeping their keys.
+ *
+ * A row is `{ key, label }`, and the *key* is what an answer is stored against —
+ * `atf[f1][r2]`. So a key has to survive its wording changing, or correcting a
+ * typo in a statement silently detaches every answer already given to it, in
+ * entries collected months ago that nobody looks at again until an export.
+ *
+ * Rows are matched to lines by position: line three keeps row three's key however
+ * it is reworded. A line added at the end mints a fresh key, never one that has
+ * been used before, because reusing a key would attach new answers to old ones.
+ *
+ * Reordering the lines does move the answers with the positions. That is the one
+ * case this gets wrong, and it is also indistinguishable from here from having
+ * rewritten both statements; the alternative costs a visible id per row in the
+ * box, which is a worse trade for the common case.
+ *
+ * @param rows The rows as they stand.
+ * @param text One statement per line.
+ * @return The new rows.
+ */
+export function restatement( rows: LikertRow[], text: string ): LikertRow[] {
+	const used = new Set( rows.map( ( statement ) => statement.key ).filter( Boolean ) as string[] );
+	let next = rows.length + 1;
+
+	return text
+		.split( '\n' )
+		.map( ( line ) => line.trim() )
+		.filter( Boolean )
+		.map( ( label, index ) => {
+			const existing = rows[ index ]?.key;
+
+			if ( existing ) {
+				return { key: existing, label };
+			}
+
+			while ( used.has( `r${ next }` ) ) {
+				next += 1;
+			}
+
+			used.add( `r${ next }` );
+
+			return { key: `r${ next }`, label };
+		} );
+}
+
 const PREFILL_SOURCES: Array< { value: string; label: string; group: string; tag?: string } > = [
 	{ value: 'user:email', label: 'Their email address', group: 'About the person filling it in', tag: '{user:email}' },
 	{ value: 'user:display_name', label: 'Their name', group: 'About the person filling it in', tag: '{user:display_name}' },
@@ -409,18 +700,6 @@ export class Builder {
 	}
 
 	/**
-	 * Writes a field's current values into the inspector's matching controls.
-	 *
-	 * Only when the inspector is actually showing that field — editing a card that
-	 * is not selected must not rewrite the pane describing a different one.
-	 *
-	 * Deliberately one-directional and value-only: the inspector's own handlers
-	 * already write to the schema, and firing them from here would put the two
-	 * panes in a loop, each telling the other about a change it had just made.
-	 *
-	 * @param field The field that was edited on the canvas.
-	 */
-	/**
 	 * Writes a field's current values into its card on the canvas.
 	 *
 	 * The mirror image of `syncInspector()`, for the same reason: the two panes
@@ -431,6 +710,13 @@ export class Builder {
 	 *
 	 * Writes `textContent` rather than re-rendering, so the caret in the
 	 * inspector is untouched.
+	 *
+	 * Driven by whatever `data-atfb-bind` keys the card happens to carry rather
+	 * than by a list of properties kept here. The list was the bug waiting to
+	 * happen: every editable added to the canvas had to be remembered in two
+	 * other places, and forgetting one gave a value that mirrored in one
+	 * direction only — which looks like it works right up until you use the other
+	 * pane.
 	 *
 	 * @param field The field that was edited in the inspector.
 	 */
@@ -443,35 +729,43 @@ export class Builder {
 			return;
 		}
 
-		const label = card.querySelector< HTMLElement >( '.atf-label.atfb-editable' );
+		for ( const node of card.querySelectorAll< HTMLElement >( '.atfb-editable[data-atfb-bind]' ) ) {
+			const value = boundValue( field, node.dataset.atfbBind ?? '' );
 
-		if ( label && label.textContent !== field.label ) {
-			label.textContent = field.label;
-		}
-
-		const options = card.querySelectorAll< HTMLElement >( '.atf-choice__label.atfb-editable' );
-
-		( field.choices ?? [] ).forEach( ( choice, index ) => {
-			const option = options[ index ];
-
-			if ( option && option.textContent !== choice.label ) {
-				option.textContent = choice.label;
+			// Compared before writing, and not only to save a DOM write: this runs
+			// while somebody is typing in the *other* pane, and assigning to
+			// `textContent` collapses the selection. Writing only on a real change
+			// keeps the caret where it is in every element that already agrees.
+			if ( node.textContent !== value ) {
+				node.textContent = value;
 			}
-		} );
+		}
 	}
 
+	/**
+	 * Writes a field's current values into the inspector's matching controls.
+	 *
+	 * Only when the inspector is actually showing that field — editing a card that
+	 * is not selected must not rewrite the pane describing a different one.
+	 *
+	 * Deliberately one-directional and value-only: the inspector's own handlers
+	 * already write to the schema, and firing them from here would put the two
+	 * panes in a loop, each telling the other about a change it had just made.
+	 *
+	 * @param field The field that was edited on the canvas.
+	 */
 	private syncInspector( field: Field ): void {
 		if ( this.selected !== field.id ) {
 			return;
 		}
 
-		const write = ( key: string, value: string ) => {
-			const control = this.inspector.querySelector< HTMLElement & { value?: string } >(
-				`[data-atfb-bind="${ CSS.escape( key ) }"]`
-			);
+		for ( const control of this.inspector.querySelectorAll< HTMLElement & { value?: string } >(
+			'[data-atfb-bind]'
+		) ) {
+			const value = boundValue( field, control.dataset.atfbBind ?? '' );
 
-			if ( ! control ) {
-				return;
+			if ( control.value === value ) {
+				continue;
 			}
 
 			// `value` is a property on a native input and on the shell's field
@@ -482,15 +776,7 @@ export class Builder {
 			} else {
 				control.setAttribute( 'value', value );
 			}
-		};
-
-		write( 'label', field.label ?? '' );
-		write( 'placeholder', field.placeholder ?? '' );
-
-		( field.choices ?? [] ).forEach( ( choice, index ) => {
-			write( `choice:${ index }:label`, choice.label ?? '' );
-			write( `choice:${ index }:value`, choice.value ?? '' );
-		} );
+		}
 	}
 
 	/**
@@ -2038,8 +2324,51 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Hint',
-					textInput( field.hint, ( value ) => update( 'hint', value ) ),
+					bind( textInput( field.hint, ( value ) => update( 'hint', value ) ), 'hint' ),
 					'Shown under the field, and read out with it.'
+				)
+			);
+		}
+
+		// The wording on the buttons a page break puts at the foot of its page.
+		// Both are already honoured by the renderer and neither had a control
+		// anywhere, so a form in any language other than English shipped a button
+		// saying "Next" and there was nothing to be done about it.
+		if ( supports.includes( 'nextlabel' ) ) {
+			this.inspector.append(
+				row(
+					'Next button',
+					bind(
+						textInput( String( field.nextLabel ?? '' ), ( value ) => update( 'nextLabel', value ) ),
+						'nextLabel'
+					),
+					'Leave empty for “Next”.'
+				)
+			);
+		}
+
+		if ( supports.includes( 'prevlabel' ) ) {
+			this.inspector.append(
+				row(
+					'Back button',
+					bind(
+						textInput( String( field.prevLabel ?? '' ), ( value ) => update( 'prevLabel', value ) ),
+						'prevLabel'
+					),
+					'Leave empty for “Back”.'
+				)
+			);
+		}
+
+		if ( supports.includes( 'addlabel' ) ) {
+			this.inspector.append(
+				row(
+					'Add button',
+					bind(
+						textInput( String( field.addLabel ?? '' ), ( value ) => update( 'addLabel', value ) ),
+						'addLabel'
+					),
+					'Leave empty for “Add another”.'
 				)
 			);
 		}
@@ -2073,6 +2402,8 @@ export class Builder {
 			this.inspector.append( this.renderChoicesEditor( field, update ) );
 		}
 
+		this.renderTypeSettings( field, definition, supports, update );
+
 		if ( field.type === 'total' || supports.includes( 'formula' ) ) {
 			this.inspector.append(
 				row(
@@ -2097,6 +2428,211 @@ export class Builder {
 			);
 		}
 	} );
+
+	/**
+	 * The settings a field type brings with it.
+	 *
+	 * Driven by {@link SETTING_CONTROLS} for everything that is a plain value, and
+	 * by hand for the three that are not: `default` has to match whatever the field
+	 * stores, `rows` means a row count on a textarea and a list of statements on a
+	 * Likert matrix, and `parts` is a tick box per part with the list coming from
+	 * the server so a filtered part cannot go missing.
+	 *
+	 * @param field      The field.
+	 * @param definition Its registered type.
+	 * @param supports   What that type declares.
+	 * @param update     Writes one property and repaints.
+	 * @return void
+	 */
+	private renderTypeSettings(
+		field: Field,
+		definition: FieldType | undefined,
+		supports: string[],
+		update: ( key: string, value: unknown ) => void
+	): void {
+		for ( const flag of supports ) {
+			const setting = SETTING_CONTROLS[ flag ];
+
+			if ( ! setting ) {
+				continue;
+			}
+
+			this.inspector.append( settingRow( field, setting, update ) );
+
+			if ( setting.also ) {
+				this.inspector.append(
+					settingRow(
+						field,
+						{ ...setting, key: setting.also.key, label: setting.also.label, hint: setting.also.hint, also: undefined },
+						update
+					)
+				);
+			}
+		}
+
+		// A textarea's `rows` is how tall the box is. A Likert matrix's `rows` are
+		// the statements being rated — the same word for a number and a list,
+		// which is why neither belongs in the table.
+		if ( supports.includes( 'rows' ) && 'likert' !== field.type ) {
+			this.inspector.append(
+				row(
+					'Lines tall',
+					numberInput( String( field.rows ?? '' ), ( value ) => update( 'rows', value ) )
+				)
+			);
+		}
+
+		if ( supports.includes( 'rows' ) && 'likert' === field.type ) {
+			this.inspector.append( this.renderStatementList( field, update ) );
+		}
+
+		if ( supports.includes( 'parts' ) ) {
+			this.inspector.append( this.renderPartsEditor( field, definition, update ) );
+		}
+
+		// A default only means something where the field holds one value somebody
+		// could have typed. Offering to pre-fill a file upload, a signature or a
+		// Likert matrix is a box whose contents can never appear anywhere.
+		if ( supports.includes( 'default' ) && ! [ 'files', 'object' ].includes( definition?.value ?? '' ) ) {
+			this.inspector.append( this.renderDefaultControl( field, definition, update ) );
+		}
+	}
+
+	/**
+	 * The statements a Likert matrix asks about, one per line.
+	 *
+	 * A textarea rather than a repeating row editor: these are a handful of short
+	 * sentences, they are almost always pasted in from somewhere else, and one box
+	 * you can paste five lines into beats five boxes you have to create first.
+	 *
+	 * # The keys are the reason this is not just a list of strings
+	 *
+	 * A row is `{ key, label }`, and the *key* is what an answer is stored
+	 * against — `atf[f1][r2]`. So a row's key has to survive its wording being
+	 * changed, or correcting a typo in a statement silently detaches every answer
+	 * already given to it, in entries that were collected months ago and are not
+	 * looked at again until somebody exports them.
+	 *
+	 * Rows are therefore matched to lines by position: line three keeps row
+	 * three's key however it is reworded. A line added at the end mints a fresh
+	 * key, never one that has been used, because reusing a key would attach new
+	 * answers to old ones.
+	 *
+	 * Reordering the lines does move the answers, which is the one case position
+	 * matching gets wrong — and is also indistinguishable, from here, from
+	 * rewriting both statements. The alternative costs a visible id per row in the
+	 * box, which is a worse trade for the common case.
+	 *
+	 * @param field  The field.
+	 * @param update Writes one property.
+	 * @return The row.
+	 */
+	private renderStatementList( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
+		const rows = Array.isArray( field.rows ) ? ( field.rows as LikertRow[] ) : [];
+
+		return row(
+			'Statements',
+			textArea(
+				rows.map( ( statement ) => statement.label ?? '' ).join( '\n' ),
+				( value ) => update( 'rows', restatement( rows, value ) ),
+				5
+			),
+			'One per line. Each becomes a row of the matrix.'
+		);
+	}
+
+	/**
+	 * Which parts of a name or an address to ask for.
+	 *
+	 * The available parts come from the server, because `atf_name_parts` and
+	 * `atf_address_parts` are both filterable — a builder with the list baked in
+	 * would offer five while the form drew seven.
+	 *
+	 * Order follows the server's, not the order they were ticked, so the tick
+	 * boxes read in the same order as the fields they turn on.
+	 *
+	 * @param field      The field.
+	 * @param definition Its registered type.
+	 * @param update     Writes one property.
+	 * @return The section.
+	 */
+	private renderPartsEditor(
+		field: Field,
+		definition: FieldType | undefined,
+		update: ( key: string, value: unknown ) => void
+	): HTMLElement {
+		const available = definition?.parts ?? [];
+		const enabled = Array.isArray( field.parts ) ? ( field.parts as string[] ) : available.map( ( part ) => part.key );
+
+		const boxes = available.map( ( part ) =>
+			checkbox( part.label, enabled.includes( part.key ), ( checked ) => {
+				const next = available
+					.map( ( candidate ) => candidate.key )
+					.filter( ( key ) => ( key === part.key ? checked : enabled.includes( key ) ) );
+
+				// Emptying it would render a field with no inputs at all, which
+				// looks like the form is broken rather than like a setting.
+				update( 'parts', next.length ? next : [ part.key ] );
+			} )
+		);
+
+		return el( 'div', {
+			class: 'atfb-section',
+			children: [ el( 'h4', { class: 'atfb-section__title', text: 'Parts to ask for' } ), ...boxes ],
+		} );
+	}
+
+	/**
+	 * The answer a field starts with.
+	 *
+	 * Typed to match what the field stores: a dropdown of the options where there
+	 * are options, a tick box where the field is a toggle, a plain box otherwise.
+	 * A text box offering to set the default of a checkbox group is a control that
+	 * cannot say the right thing.
+	 *
+	 * Left out entirely for the types whose value is a structure — a file, a
+	 * signature, a repeater — where there is no single value to pre-fill.
+	 *
+	 * @param field      The field.
+	 * @param definition Its registered type.
+	 * @param update     Writes one property.
+	 * @return The row, or null where a default makes no sense.
+	 */
+	private renderDefaultControl(
+		field: Field,
+		definition: FieldType | undefined,
+		update: ( key: string, value: unknown ) => void
+	): HTMLElement {
+		const hint = 'Filled in before they start. They can change it.';
+
+		if ( 'switch' === field.type || 'consent' === field.type ) {
+			return checkbox( 'On by default', Boolean( field.default ), ( value ) => update( 'default', value ) );
+		}
+
+		if ( definition?.choices && ( field.choices ?? [] ).length ) {
+			return row(
+				'Default answer',
+				select(
+					String( field.default ?? '' ),
+					[
+						{ value: '', label: 'Nothing chosen' },
+						...( field.choices ?? [] ).map( ( choice ) => ( {
+							value: String( choice.value ),
+							label: choice.label || String( choice.value ),
+						} ) ),
+					],
+					( value ) => update( 'default', value )
+				),
+				hint
+			);
+		}
+
+		return row(
+			'Default answer',
+			textInput( String( field.default ?? '' ), ( value ) => update( 'default', value ) ),
+			hint
+		);
+	}
 
 	/** The choices editor, with drag-in image support. */
 	private renderChoicesEditor( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
@@ -2296,10 +2832,22 @@ export class Builder {
 
 		if ( supports.includes( 'min' ) ) {
 			pairs.push( [ 'min', 'Minimum' ], [ 'max', 'Maximum' ] );
+		} else if ( supports.includes( 'max' ) ) {
+			// A star rating declares a ceiling and no floor, so pairing the two
+			// meant its ceiling — how many stars there are — had no control at all.
+			pairs.push( [ 'max', 'Highest' ] );
+		}
+
+		if ( supports.includes( 'step' ) ) {
+			pairs.push( [ 'step', 'Steps of' ] );
 		}
 
 		if ( supports.includes( 'mindate' ) ) {
 			pairs.push( [ 'minDate', 'Earliest date' ], [ 'maxDate', 'Latest date' ] );
+		}
+
+		if ( supports.includes( 'mintime' ) ) {
+			pairs.push( [ 'minTime', 'Earliest time' ], [ 'maxTime', 'Latest time' ] );
 		}
 
 		for ( const [ key, label ] of pairs ) {
@@ -2331,16 +2879,26 @@ export class Builder {
 
 		const messages = ( field.messages ?? {} ) as Record< string, string >;
 
-		rows.push(
-			row(
-				'Message when required',
-				textInput( messages.required ?? '', ( value ) => {
-					messages.required = value;
-					update( 'messages', messages );
-				} ),
-				'Leave empty for the default wording.'
-			)
-		);
+		// Only where the field can be required at all. A spacer offered a box for
+		// the wording of an error it can never raise, which reads as a setting that
+		// does nothing — and on a layout block it was the *only* row in the
+		// section, so the section existed to hold it.
+		if ( supports.includes( 'required' ) ) {
+			rows.push(
+				row(
+					'Message when required',
+					textInput( messages.required ?? '', ( value ) => {
+						messages.required = value;
+						update( 'messages', messages );
+					} ),
+					'Leave empty for the default wording.'
+				)
+			);
+		}
+
+		if ( ! rows.length ) {
+			return el( 'div', { class: 'atfb-section is-empty' } );
+		}
 
 		return this.section( `validation:${ field.id }`, 'Validation', rows );
 	}
@@ -2555,9 +3113,9 @@ export class Builder {
 			}
 
 			// The server scopes the block to the instance it rendered
-			// (`#atf-12-1 .atf-form`). The canvas has many previews and no
+			// (`#atf-12-1`, the wrapper). The canvas has many previews and no
 			// instance, so the scope becomes the class they all carry.
-			const css = block[ 1 ].replace( /#atf-[\d-]+\s+\.atf-form/g, '.atfb .atfb-preview' );
+			const css = block[ 1 ].replace( /#atf-[\d-]+/g, '.atfb .atfb-preview' );
 
 			this.canvasTheme.textContent = css;
 
