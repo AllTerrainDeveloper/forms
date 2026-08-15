@@ -273,6 +273,14 @@ export interface RuntimeConfig {
 	version: string;
 	canEdit: boolean;
 	canRead: boolean;
+	/**
+	 * OpenStation's per-user developer-mode preference.
+	 *
+	 * A preference, never an authorisation: it decides whether a developer
+	 * surface is *shown*. Everything it reveals is checked again on the server,
+	 * against a capability as well as this.
+	 */
+	devMode: boolean;
 	locale: string;
 	i18n: Record< string, string >;
 }
@@ -410,4 +418,84 @@ export interface MergeTagGroup {
 	items: MergeTag[];
 	/** Shown in place of an empty list, e.g. a form with no questions yet. */
 	empty?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Analytics                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Summary statistics for one numeric question. */
+export interface NumberSummary {
+	count: number;
+	mean: number;
+	median: number;
+	min: number;
+	max: number;
+	/** Answer => how many gave it. Keys are strings because JSON objects are. */
+	distribution: Record< string, number >;
+}
+
+/**
+ * Net Promoter Score for a 0–10 question.
+ *
+ * Not an average — the score is the percentage of promoters minus the percentage
+ * of detractors, and the passives in the middle count for nothing.
+ */
+export interface NpsSummary {
+	responses: number;
+	promoters: number;
+	passives: number;
+	detractors: number;
+	/** -100 to 100. */
+	score: number;
+}
+
+/** One question's report. */
+export interface FieldReport {
+	id: string;
+	label: string;
+	type: string;
+	answered: number;
+	rate: number;
+	average?: number | null;
+	choices: Array< { label: string; value: string; count: number; percent: number } >;
+	numbers?: NumberSummary | null;
+	nps?: NpsSummary | null;
+}
+
+/** Every numeric answer, grouped by one categorical answer. */
+export interface Breakdown {
+	id: string;
+	label: string;
+	groups: Array< {
+		value: string;
+		label: string;
+		count: number;
+		metrics: Array< { id: string; label: string; mean: number; nps: number | null } >;
+	} >;
+}
+
+/** A form's whole report. */
+export interface AnalyticsReport {
+	views: number;
+	starts: number;
+	submissions: number;
+	conversion: number;
+	completion: number;
+	unread: number;
+	spam: number;
+	sampled: number;
+	fields: FieldReport[];
+	timeline: Array< { date: string; count: number } >;
+	dimensions: Array< { id: string; label: string } >;
+	breakdown: Breakdown | null;
+}
+
+/** What demo data exists right now. */
+export interface DemoStatus {
+	formId: number;
+	title: string;
+	entries: number;
+	target: number;
+	remaining: number;
 }

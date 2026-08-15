@@ -41,6 +41,7 @@ interface ShellDock {
 interface RuntimeConfig {
 	canEdit?: boolean;
 	canRead?: boolean;
+	devMode?: boolean;
 }
 
 const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainForms?: RuntimeConfig } ).allTerrainForms;
@@ -49,6 +50,7 @@ const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainFor
 const BUILDER = 'allterrain-forms';
 const ENTRIES = 'allterrain-forms-entries';
 const THEMES = 'allterrain-forms-themes';
+const ANALYTICS = 'allterrain-forms-analytics';
 
 /** Opens a window through the shell. */
 function open( id: string ): void {
@@ -101,12 +103,45 @@ function registerTile(): void {
 		} );
 	}
 
+	if ( config?.canRead ) {
+		submenu.push( {
+			title: 'Analytics',
+			url: '',
+			onSelect: () => open( ANALYTICS ),
+			windowId: ANALYTICS,
+		} );
+	}
+
 	if ( config?.canEdit ) {
 		submenu.push( {
 			title: 'Themes',
 			url: '',
 			onSelect: () => open( THEMES ),
 			windowId: THEMES,
+		} );
+	}
+
+	// Developer mode only, and last — it writes several hundred entries into the
+	// database, which is not something to leave one hover away from "Themes" on a
+	// site that is collecting real enquiries.
+	//
+	// Gated on the config flag rather than by asking the shell, because the row
+	// has to be decided at registration time and the answer is already in the
+	// blob every bundle gets. The server checks the same preference again, and a
+	// capability besides, on every route this row can reach: a submenu that is
+	// merely absent is a UI decision, not a security one.
+	if ( config?.canEdit && config?.devMode ) {
+		submenu.push( {
+			title: 'Demo data',
+			url: '',
+			onSelect: () => {
+				open( ANALYTICS );
+				// The analytics window listens for this and scrolls its developer
+				// panel into view, so the row lands somewhere that answers it
+				// rather than at the top of a report.
+				document.dispatchEvent( new CustomEvent( 'atf-open-demo-panel' ) );
+			},
+			windowId: ANALYTICS,
 		} );
 	}
 

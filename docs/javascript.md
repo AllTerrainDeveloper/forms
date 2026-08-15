@@ -181,12 +181,25 @@ Namespace `allterrain-forms/v1`. Everything but two routes requires
 | `/entries/export` | GET | `atf_read_entries` |
 | `/themes` | GET, POST | `atf_edit_forms` |
 | `/themes/<id>` | DELETE | `atf_edit_forms` |
+| `/demo` | GET, POST, DELETE | `atf_edit_forms` **and** developer mode |
 
 `/config` returns every registered field type with its `supports`, its
 `settings` defaults, and — for a composite — the `parts` it can be told to
 show, resolved through `atf_name_parts` / `atf_address_parts`. The builder
 draws its controls from that, so a field type registered by a plugin gets the
 same inspector the built-ins do without shipping any JavaScript.
+
+`/demo` is the demo-data generator behind the analytics window's developer panel.
+`GET` reports what exists, `POST` generates one chunk — call it until `remaining`
+reaches zero — and `DELETE` removes every generated form and entry. It answers
+**404 when developer mode is off**, which is why the window asks before drawing
+the panel rather than drawing it and letting the buttons fail. A user without
+`atf_edit_forms` gets the authorisation code instead, so a client can tell "not
+allowed" from "switched off".
+
+Every submission it makes goes through the ordinary pipeline, and everything it
+creates is tagged so removal takes back exactly that and nothing else — a real
+submission to the demo form survives being cleaned up.
 
 `/submit` is public **by definition** — it is how a stranger sends a form. It is
 the one route with a `permission_callback` returning true, and everything

@@ -434,7 +434,20 @@ var allTerrainFormsEntries = function(exports) {
       }))
     ),
     mergeTags: (id) => get(`/forms/${id}/merge-tags`).then((response) => response.groups),
-    analytics: (id) => get(`/forms/${id}/analytics`),
+    analytics: (id, dimension = "") => get(
+      `/forms/${id}/analytics${dimension ? `?dimension=${encodeURIComponent(dimension)}` : ""}`
+    ),
+    /**
+     * The demo-data tools.
+     *
+     * Every one of these 404s unless developer mode is on, which is why the
+     * window asks for the status before drawing the panel rather than drawing the
+     * panel and letting the buttons fail.
+     */
+    demoStatus: () => get("/demo"),
+    /** Generates one chunk. Called until `remaining` reaches zero. */
+    demoSeed: (count) => post("/demo", count ? { count } : {}),
+    demoRemove: () => del("/demo"),
     listEntries: (params) => get(`/entries${query(params)}`),
     getEntry: (id) => get(`/entries/${id}`),
     updateEntry: (id, body) => post(`/entries/${id}`, body),

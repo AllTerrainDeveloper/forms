@@ -179,11 +179,58 @@ None of that is reachable from inside an iframe.
 | Native window — the builder | `allterrain-forms` |
 | Native window — entries | `allterrain-forms-entries` |
 | Native window — Theme Studio | `allterrain-forms-themes` |
+| Native window — analytics | `allterrain-forms-analytics` |
 | Native window — the paired preview | `allterrain-forms-preview-<id>` |
 | Wallpaper icon | `allterrain-forms` |
 | Widget | `allterrain-forms/recent` |
 | Title-bar button | `allterrain-forms/preview` |
 | Commands | three, one per window |
+
+### Developer mode
+
+OpenStation has a per-user **Developer mode** switch. This plugin reads the same
+one rather than adding a second, so somebody who has turned developer tools on
+once has them everywhere.
+
+It gates the demo-data generator: a survey and several hundred submissions, made
+so the analytics have something to be analytics *of*. That is a useful thing and a
+dangerous one — it writes hundreds of entries into a live database — so it is not
+left in the menu of a site collecting real enquiries.
+
+**The preference is not the permission.** `atf_developer_mode()` answers "show me
+these"; `atf_can_edit_forms()` answers "you may use them", and both are checked on
+every route. A preference lives in user meta; treating it as authorisation would
+mean anybody who can write their own meta could seed a database.
+
+## Analytics
+
+Counters live in post meta and are bumped as things happen; everything else is
+computed on demand from a capped sample of entries — 500 by default, spam and
+partials excluded, one query shared by every statistic in the report.
+
+Three things are worth stating because getting them wrong looks fine:
+
+**A timeline includes its empty days.** Keep only the days that had a submission
+and the gaps close up, so a quiet fortnight renders as wide as a busy one and the
+chart shows a steady trickle where the truth was one spike and three weeks of
+silence.
+
+**NPS is not an average.** It is the percentage of promoters (9–10) minus the
+percentage of detractors (0–6); the passives count for nothing. A mean of the same
+answers is a plausible number on a different scale, and reporting it as NPS makes
+every benchmark meaningless. A 0–10 scale is recognised as an NPS question by its
+shape rather than by a flag somebody has to set.
+
+**A mean needs its distribution.** Everybody answering 3, and half answering 1
+with half answering 5, have the same mean and are opposite findings — so the
+distribution is returned alongside it and the chart marks which bar the mean falls
+in.
+
+The charts themselves are ordinary elements sized in percentages, not canvas or
+SVG paths. A bar chart *is* a list of labelled quantities, and built as a list it
+can be read aloud, selected and searched; resizing is a reflow rather than a
+redraw; and the plugin ships no charting dependency to every site that installs
+it.
 
 ### The admin-URL handoff
 
@@ -275,7 +322,9 @@ includes/
   confirmations.php           what happens next
   actions.php                 post, user, webhook
   entries.php                 query, export, retention
-  analytics.php               counters and per-field rates
+  analytics.php               counters, rates, timeline, NPS, cross-tabs
+  dev-mode.php                the developer-mode gate
+  demo-data.php               the survey and the people who answered it
   templates.php               the template library
   rest.php                    allterrain-forms/v1
   shortcode.php / block.php   placement
@@ -287,6 +336,7 @@ src/
   builder.ts                  palette, canvas, inspector
   theme-studio.ts             the token editor
   entries.ts                  the submissions window
+  analytics.ts                the report window
   widget.ts                   the desktop widget
   preview-button.ts           the eye in the title bar
   logic-map.ts                conditions in words + the curves that draw them

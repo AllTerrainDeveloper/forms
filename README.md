@@ -216,11 +216,18 @@ register a user, or write user meta — each with a capability ceiling that a fo
 author cannot raise.
 
 **Managing** — an entries table with search, filters and star; a detail view;
-bulk read/spam/trash; CSV export with formula injection defused; per-form
-analytics (views, starts, submissions, conversion, per-field drop-off); survey
-and quiz reporting.
+bulk read/spam/trash; CSV export with formula injection defused; survey and quiz
+reporting.
+
+**Reporting** — an analytics window with views, starts, conversion and completion;
+submissions per day; a tally or a distribution per question; Net Promoter Score
+for any 0–10 question; and a cross-tab that breaks every numeric answer down by
+any categorical one — which is the difference between "the average score is 7.5"
+and "Support scores 5.8 and everyone else is above 7".
 
 ![The entries window: submissions on the left, one submission's answers on the right](.github/media/entries.png)
+
+![The analytics window: headline counts, submissions per day, a Net Promoter Score, and every answer broken down by team](.github/media/analytics.png)
 
 **Privacy** — a retention policy that deletes automatically, IP anonymisation,
 and integration with WordPress's own export and erase tools so a subject access

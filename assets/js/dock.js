@@ -4,6 +4,7 @@
   const BUILDER = "allterrain-forms";
   const ENTRIES = "allterrain-forms-entries";
   const THEMES = "allterrain-forms-themes";
+  const ANALYTICS = "allterrain-forms-analytics";
   function open(id) {
     shell()?.openWindow?.(id, { source: "dock" });
   }
@@ -35,12 +36,31 @@
         windowId: ENTRIES
       });
     }
+    if (config?.canRead) {
+      submenu.push({
+        title: "Analytics",
+        url: "",
+        onSelect: () => open(ANALYTICS),
+        windowId: ANALYTICS
+      });
+    }
     if (config?.canEdit) {
       submenu.push({
         title: "Themes",
         url: "",
         onSelect: () => open(THEMES),
         windowId: THEMES
+      });
+    }
+    if (config?.canEdit && config?.devMode) {
+      submenu.push({
+        title: "Demo data",
+        url: "",
+        onSelect: () => {
+          open(ANALYTICS);
+          document.dispatchEvent(new CustomEvent("atf-open-demo-panel"));
+        },
+        windowId: ANALYTICS
       });
     }
     try {

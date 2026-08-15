@@ -58,6 +58,7 @@ well-known form plugins put behind a paid tier or a paid add-on, and every one o
 them is included here:
 
 * Conditional logic — show and hide fields, pages, emails and confirmations
+* Reporting — response rates, distributions, NPS, and cross-tabs by any question
 * Calculations and running totals
 * Multi-page forms with per-step validation
 * File uploads, with per-field type and size limits
@@ -208,7 +209,8 @@ a REST namespace. Full reference in the repository.
 * Conditional logic, drawn on the canvas, with calculations and multi-page forms.
 * Merge-tag picker that lists your own questions by name.
 * Ten themes and a no-code Theme Studio over 69 design tokens.
-* Entry management, CSV and JSON export, per-form analytics.
+* Entry management, CSV and JSON export.
+* Analytics: submissions over time, per-question distributions, Net Promoter Score, and answers broken down by any grouping question.
 * Conditional notifications, confirmations, webhooks and post-submit actions.
 * Anti-spam without a CAPTCHA; spam is kept, not discarded.
 * Save and continue later, quizzes, surveys, user registration.

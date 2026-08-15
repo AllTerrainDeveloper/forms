@@ -142,6 +142,27 @@ function atf_register_shell_surfaces() {
 
 	atf_shell_call(
 		'register_window',
+		'allterrain-forms-analytics',
+		array(
+			'title'        => __( 'Form Analytics', 'allterrain-forms' ),
+			'icon'         => 'dashicons-chart-bar',
+			'template'     => 'atf_render_analytics_template',
+			'script'       => 'allterrain-forms-analytics',
+			'style'        => 'allterrain-forms-analytics',
+			'width'        => 1180,
+			'height'       => 820,
+			'min_width'    => 640,
+			'min_height'   => 440,
+			'placement'    => 'none',
+			// Reading a report is reading entries, so this is gated the same way
+			// the entries window is rather than on editing forms. The demo-data
+			// panel inside it is gated separately and more tightly.
+			'capabilities' => array( 'atf_read_entries' ),
+		)
+	);
+
+	atf_shell_call(
+		'register_window',
 		'allterrain-forms-themes',
 		array(
 			'title'        => __( 'Theme Studio', 'allterrain-forms' ),
@@ -283,6 +304,30 @@ function atf_render_entries_template() {
 			<div class="atfe__list" data-atfe-list></div>
 			<div class="atfe__detail" data-atfe-detail></div>
 		</div>
+	</div>
+	<?php
+}
+
+/**
+ * The analytics window's body markup.
+ *
+ * A shell, filled in by the bundle. The developer panel's markup is not here
+ * even as a hidden element: it is drawn by the client only when the config says
+ * developer mode is on, so a page source that has never had it enabled contains
+ * no trace of it.
+ *
+ * @since 0.1.0
+ *
+ * @return void
+ */
+function atf_render_analytics_template() {
+	?>
+	<div class="atfa" data-atfa-root>
+		<div class="atfa__bar" data-atfa-bar>
+			<os-spinner preset="inline"></os-spinner>
+			<span class="atfa__loading"><?php esc_html_e( 'Loading analytics…', 'allterrain-forms' ); ?></span>
+		</div>
+		<div class="atfa__body" data-atfa-body></div>
 	</div>
 	<?php
 }
