@@ -97,9 +97,10 @@ form: real fields, the notification emails rewritten onto your own questions,
 the thank-you message carried over. The original is never touched, so importing
 is safe to try and safe to repeat.
 
-Contact Form 7 and WPForms are supported today — WPForms imports include
-conditional logic, payment fields with their prices, and a still-calculating
-order total. Gravity Forms is next.
+Contact Form 7, WPForms and Gravity Forms are all supported — imports carry
+conditional logic across, payment and product fields keep their prices, an
+order total keeps calculating, and a Gravity Forms List becomes a real
+repeater.
 
 = Anti-spam that does not charge your visitors =
 
@@ -179,10 +180,10 @@ uninstalling should do — export your entries to CSV first if you want them.
 
 = Can I import my forms from another form plugin? =
 
-Yes. **Forms → Import** lists every form it can find from Contact Form 7 and
-WPForms — including forms whose plugin has already been deactivated, because
-the data outlives the plugin. Each import creates a new AllTerrain form and
-leaves the original untouched. A Gravity Forms importer is on the way.
+Yes. **Forms → Import** lists every form it can find from Contact Form 7,
+WPForms and Gravity Forms — including forms whose plugin has already been
+deactivated, because the data outlives the plugin. Each import creates a new
+AllTerrain form and leaves the original untouched.
 
 = Can I move a form to another site? =
 
