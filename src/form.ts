@@ -554,6 +554,18 @@ class AllTerrainForm {
 
 	/** Handles the submit. */
 	private async onSubmit( event: SubmitEvent ): Promise< void > {
+		// Enter in a text field submits the form even when the submit button is
+		// on a later, hidden page — the spec calls it implicit submission, and
+		// hiding the button does not disable it. Mid-form, that keypress means
+		// "next step", not "send everything now", so it takes the same path as
+		// the Next button instead.
+		if ( this.pages.length > 1 && this.step < this.pages.length - 1 ) {
+			event.preventDefault();
+			this.next();
+
+			return;
+		}
+
 		// Every page is validated, not just the last one — a field that failed
 		// on page one is still a field that must be fixed, and the visitor has
 		// to be taken back to it rather than told about it in the abstract.
@@ -913,11 +925,15 @@ class AllTerrainForm {
 			return;
 		}
 
-		const count = rows.querySelectorAll( '[data-atf-repeater-row]' ).length;
-
-		if ( count >= max ) {
+		if ( rows.querySelectorAll( '[data-atf-repeater-row]' ).length >= max ) {
 			return;
 		}
+
+		// One past the highest index in use — not the row count. The two differ
+		// as soon as a middle row is removed: three rows minus row one leaves
+		// rows 0 and 2, and a "new row 2" would post into the same array slot
+		// as the survivor, silently losing one of them on submit.
+		const index = nextRepeaterIndex( rows );
 
 		const clone = template.content.cloneNode( true ) as DocumentFragment;
 
@@ -929,7 +945,7 @@ class AllTerrainForm {
 				const value = element.getAttribute( attribute );
 
 				if ( value?.includes( '__INDEX__' ) ) {
-					element.setAttribute( attribute, value.replace( /__INDEX__/g, String( count ) ) );
+					element.setAttribute( attribute, value.replace( /__INDEX__/g, String( index ) ) );
 				}
 			}
 		} );
@@ -1081,6 +1097,28 @@ function escapeHtml( text: string ): string {
 	div.textContent = text;
 
 	return div.innerHTML;
+}
+
+/**
+ * The index the next repeater row should post under.
+ *
+ * Row names look like `atf[repeater][3][sub]`; the next row takes the highest
+ * index found plus one. Scanned from the DOM rather than counted or kept on the
+ * instance, because the DOM is the one place that cannot drift from what will
+ * actually be submitted.
+ */
+export function nextRepeaterIndex( rows: ParentNode ): number {
+	let highest = -1;
+
+	rows.querySelectorAll( '[data-atf-repeater-row] [name]' ).forEach( ( element ) => {
+		const match = /^atf\[[^\]]*\]\[(\d+)\]/.exec( element.getAttribute( 'name' ) ?? '' );
+
+		if ( match ) {
+			highest = Math.max( highest, Number( match[ 1 ] ) );
+		}
+	} );
+
+	return highest + 1;
 }
 
 /** Reads the schema the renderer printed beside a form. */

@@ -187,6 +187,93 @@ class ATF_Test_Resume extends WP_UnitTestCase {
 	}
 
 	/**
+	 * An update writes back the stored token, not the raw request's copy of it.
+	 *
+	 * The lookup tolerates decoration around a token -- whitespace, a stray
+	 * quote -- that must never be written into the resume meta, because a
+	 * corrupted stored token fails every later lookup.
+	 *
+	 * @covers ::atf_save_partial
+	 */
+	public function test_an_update_keeps_the_stored_token_intact() {
+		$form_id = $this->resumable_form();
+		$saved   = atf_save_partial( $form_id, array( 'f1' => 'First' ) );
+
+		$again = atf_save_partial( $form_id, array( 'f1' => 'Second' ), ' ' . $saved['token'] . '"' );
+
+		$this->assertNotWPError( $again );
+		$this->assertSame( $saved['token'], $again['token'] );
+		$this->assertNotNull( atf_find_partial( $saved['token'] ), 'The stored token was corrupted by the update.' );
+		$this->assertSame( 'Second', atf_resume_values( $saved['token'] )['values']['f1'] );
+	}
+
+	/**
+	 * A token minted on one form cannot overwrite another form's partial.
+	 *
+	 * The mismatched token is treated as no token at all: the save succeeds as
+	 * a fresh partial for its own form, and the other form's answers survive.
+	 *
+	 * @covers ::atf_save_partial
+	 */
+	public function test_a_foreign_token_does_not_update_another_forms_partial() {
+		$first  = $this->resumable_form();
+		$second = $this->resumable_form();
+
+		$saved = atf_save_partial( $first, array( 'f1' => 'First form' ) );
+		$cross = atf_save_partial( $second, array( 'f1' => 'Second form' ), $saved['token'] );
+
+		$this->assertNotWPError( $cross );
+		$this->assertNotSame( $saved['token'], $cross['token'], 'The save must mint a fresh token rather than reuse the other form\'s.' );
+		$this->assertSame( 'First form', atf_resume_values( $saved['token'] )['values']['f1'], 'The first form\'s partial was overwritten.' );
+		$this->assertSame( $second, atf_resume_values( $cross['token'] )['form_id'] );
+	}
+
+	/**
+	 * Tokenless saves are capped per IP, because each one writes a row.
+	 *
+	 * The `/resume` route is public, so without a cap a script can grow the
+	 * entries table without bound. Updates are exempt: they need a token, and
+	 * the save that minted it already spent a slot.
+	 *
+	 * @covers ::atf_save_partial
+	 */
+	public function test_partial_creation_is_rate_limited() {
+		$previous_ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null;
+
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+		wp_set_current_user( 0 );
+
+		add_filter(
+			'atf_partial_rate_limit',
+			static function () {
+				return 2;
+			}
+		);
+
+		$form_id = $this->resumable_form();
+
+		$this->assertNotWPError( atf_save_partial( $form_id, array( 'f1' => 'one' ) ) );
+
+		$second = atf_save_partial( $form_id, array( 'f1' => 'two' ) );
+
+		$this->assertNotWPError( $second );
+
+		$third = atf_save_partial( $form_id, array( 'f1' => 'three' ) );
+
+		$this->assertWPError( $third );
+		$this->assertSame( 'atf_partial_rate_limited', $third->get_error_code() );
+
+		// A visitor at the cap can still keep saving the partial they hold.
+		$this->assertNotWPError( atf_save_partial( $form_id, array( 'f1' => 'still saving' ), $second['token'] ) );
+
+		if ( null === $previous_ip ) {
+			unset( $_SERVER['REMOTE_ADDR'] );
+		} else {
+			$_SERVER['REMOTE_ADDR'] = $previous_ip;
+		}
+	}
+
+	/**
 	 * A token nobody issued resolves to nothing.
 	 *
 	 * @dataProvider data_bad_tokens
@@ -374,6 +461,40 @@ class ATF_Test_Resume extends WP_UnitTestCase {
 		unset( $_POST[ ATF_RESUME_QUERY ] );
 
 		$this->assertNull( atf_find_partial( $saved['token'] ), 'The partial outlived the submission that finished it.' );
+	}
+
+	/**
+	 * A REST submission with a JSON body still clears the partial.
+	 *
+	 * A JSON request never populates `$_POST`, so the token has to be read
+	 * from the parsed request inside the pipeline rather than only from the
+	 * superglobal.
+	 *
+	 * @covers ::atf_clear_partial
+	 */
+	public function test_a_json_submission_clears_the_partial() {
+		$form_id = $this->resumable_form();
+		$saved   = atf_save_partial( $form_id, array( 'f1' => 'Ada' ) );
+
+		$this->assertNotNull( atf_find_partial( $saved['token'] ) );
+
+		$issued = time() - 30;
+
+		// The token rides in the request array only -- `$_POST` stays empty,
+		// exactly as it is for a `fetch()` posting JSON to the REST route.
+		atf_process_submission(
+			$form_id,
+			array(
+				'atf_form_id'    => $form_id,
+				'atf_nonce'      => wp_create_nonce( 'atf_submit_' . $form_id ),
+				'atf_t'          => $issued,
+				'atf_ts'         => atf_sign_timestamp( $form_id, $issued ),
+				ATF_RESUME_QUERY => $saved['token'],
+				'atf'            => array( 'f1' => 'Ada Lovelace' ),
+			)
+		);
+
+		$this->assertNull( atf_find_partial( $saved['token'] ), 'A JSON submission left the partial behind.' );
 	}
 
 	/**

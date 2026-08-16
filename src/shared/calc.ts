@@ -85,7 +85,15 @@ function resolveRefs( formula: string, values: Values, fields: Field[] ): string
 		const value = Object.prototype.hasOwnProperty.call( values, fieldId ) ? values[ fieldId ] : null;
 		const field = fields.find( ( candidate ) => candidate.id === fieldId ) ?? null;
 
-		return String( numericValue( value, field ) );
+		// String() can produce scientific notation ("1e-7"), which the
+		// tokenizer reads as an unknown symbol and the whole formula dies.
+		// Substitute plain decimals at every magnitude, as the PHP twin does.
+		const literal = numericValue( value, field )
+			.toFixed( 10 )
+			.replace( /0+$/, '' )
+			.replace( /\.$/, '' );
+
+		return literal === '' || literal === '-' ? '0' : literal;
 	} );
 }
 
@@ -496,6 +504,11 @@ export function applyCalculations( fields: Field[], values: Values ): Values {
 		const result = calculate( formula, next, fields );
 
 		if ( result === null ) {
+			// A formula that fails must not leave the previous value in place:
+			// for a field that carries a formula the engine's answer is the
+			// only answer, and "could not compute" is an empty one. The PHP
+			// twin does the same with the client-posted value on submit.
+			next[ field.id ] = '';
 			continue;
 		}
 

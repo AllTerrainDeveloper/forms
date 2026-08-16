@@ -155,14 +155,26 @@ function atf_make_challenge( $form_id ) {
 /**
  * Signs a challenge's answer.
  *
+ * The hour is part of the signed material, so a captured (answer, signature)
+ * pair stops replaying when its bucket ages out. The verify side accepts the
+ * current and the previous hour, which gives a rendered form between one and
+ * two hours to be submitted -- and a harvested pair at most that long to live,
+ * where without the bucket it was valid forever.
+ *
  * @since 0.1.0
  *
- * @param int $form_id The form.
- * @param int $answer  The expected answer.
+ * @param int    $form_id The form.
+ * @param int    $answer  The expected answer.
+ * @param string $bucket  Optional. The hour to sign for, as `gmdate( 'YmdH' )`
+ *                        produces it. Defaults to the current hour.
  * @return string
  */
-function atf_sign_challenge( $form_id, $answer ) {
-	return wp_hash( 'atf-challenge|' . absint( $form_id ) . '|' . (int) $answer );
+function atf_sign_challenge( $form_id, $answer, $bucket = '' ) {
+	if ( '' === $bucket ) {
+		$bucket = gmdate( 'YmdH' );
+	}
+
+	return wp_hash( 'atf-challenge|' . absint( $form_id ) . '|' . (int) $answer . '|' . $bucket );
 }
 
 /**
@@ -184,8 +196,18 @@ function atf_challenge_answered( $request ) {
 
 	// The answer is checked by re-signing it rather than by comparing numbers,
 	// so the expected value never has to be stored in a session or sent to the
-	// browser. `hash_equals()` because this is a signature comparison.
-	return hash_equals( atf_sign_challenge( $form_id, (int) $given ), $signature );
+	// browser. `hash_equals()` because this is a signature comparison. The
+	// previous hour's bucket is accepted alongside the current one, so a form
+	// rendered at five to the hour is not refused at five past it.
+	$buckets = array( gmdate( 'YmdH' ), gmdate( 'YmdH', time() - HOUR_IN_SECONDS ) );
+
+	foreach ( $buckets as $bucket ) {
+		if ( hash_equals( atf_sign_challenge( $form_id, (int) $given, $bucket ), $signature ) ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -262,6 +284,27 @@ function atf_submission_elapsed( $request ) {
  * @return bool
  */
 function atf_rate_limit_exceeded( $schema, $limit ) {
+	return atf_hit_rate_limit( 'submit', $limit );
+}
+
+/**
+ * Counts a hit against an hourly per-IP limit.
+ *
+ * The transient's key carries the current hour, so every hour starts a fresh
+ * counter and a stale one simply expires. The counter must not be a single
+ * rolling transient whose expiry is pushed back on every increment -- that
+ * version never decays under steady traffic, so nine legitimate submissions an
+ * hour eventually looked identical to ninety in one and tripped the limit.
+ *
+ * @since 0.1.0
+ *
+ * @param string $bucket What is being limited, e.g. `submit` or `partial`, so
+ *                       two different limits on one IP never share a counter.
+ * @param int    $limit  Hits allowed per hour.
+ * @return bool Whether the limit was already reached. Counting the hit and
+ *              answering in one step, so a caller cannot forget to increment.
+ */
+function atf_hit_rate_limit( $bucket, $limit ) {
 	$ip = atf_client_ip();
 
 	if ( '' === $ip ) {
@@ -275,7 +318,7 @@ function atf_rate_limit_exceeded( $schema, $limit ) {
 		return false;
 	}
 
-	$key   = 'atf_rl_' . md5( $ip );
+	$key   = 'atf_rl_' . md5( $bucket . '|' . $ip . '|' . gmdate( 'YmdH' ) );
 	$count = (int) get_transient( $key );
 
 	if ( $count >= $limit ) {

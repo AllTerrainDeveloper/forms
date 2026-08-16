@@ -107,6 +107,8 @@
 		{ "formula": "1 & 2", "values": {}, "result": null },
 		{ "formula": "1 +", "values": {}, "result": null },
 		{ "formula": "* 2", "values": {}, "result": null },
-		{ "formula": "1 2", "values": {}, "result": null }
+		{ "formula": "1 2", "values": {}, "result": null },
+		{ "_why": "A tiny value must substitute as a plain decimal — a bare float-to-string cast yields scientific notation, which the tokenizer refuses.", "formula": "{a} * 1000000", "values": { "a": 1e-7 }, "result": 0.1 },
+		{ "_why": "The same guarantee when the tiny value arrives as a string.", "formula": "{a} + 1", "values": { "a": "0.00001" }, "result": 1.00001 }
 	]
 }

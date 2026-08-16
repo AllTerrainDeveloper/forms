@@ -676,6 +676,41 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Repeater sub-fields keep their bracket suffixes when they are renamed.
+	 *
+	 * A checkbox group posts `atf[id][]` and a composite posts `atf[id][part]`,
+	 * so the rewrite has to match the name's *prefix*. Anchoring on the closing
+	 * quote left both of those outside the repeater's namespace, where every
+	 * row wrote over the last and the sanitiser found nothing it recognised.
+	 *
+	 * @covers ::atf_render_repeater_row
+	 */
+	public function test_repeater_namespaces_bracketed_sub_field_names() {
+		$html = $this->render_field(
+			array(
+				'id'     => 'rep',
+				'type'   => 'repeater',
+				'fields' => array(
+					array(
+						'id'      => 'cb',
+						'type'    => 'checkboxes',
+						'choices' => array( 'One', 'Two' ),
+					),
+					array(
+						'id'   => 'nm',
+						'type' => 'name',
+					),
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'name="atf[rep][0][cb][]"', $html );
+		$this->assertStringContainsString( 'name="atf[rep][0][nm][first]"', $html );
+		$this->assertStringNotContainsString( 'name="atf[cb][]"', $html, 'The checkbox group must not keep its unnamespaced name.' );
+		$this->assertStringNotContainsString( 'name="atf[nm][first]"', $html, 'The composite must not keep its unnamespaced name.' );
+	}
+
+	/**
 	 * The settings the builder offers are the settings the type admits to.
 	 *
 	 * The inspector rows and the canvas controls are both gated on `supports`, so

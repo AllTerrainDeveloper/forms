@@ -171,7 +171,9 @@ export function refreshPreview( formId: number, title: string, url: string ): vo
 		return;
 	}
 
-	const open = document.querySelector( `[data-window-id^="${ PREVIEW_WINDOW_ID }-${ formId }"]` );
+	// An exact match, not a prefix — `^=` would let form 1 claim form 10's
+	// preview window, since one id is a prefix of the other.
+	const open = document.querySelector( `[data-window-id="${ PREVIEW_WINDOW_ID }-${ formId }"]` );
 
 	if ( ! open ) {
 		return;

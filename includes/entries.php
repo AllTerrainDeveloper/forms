@@ -292,6 +292,15 @@ function atf_set_entry_status( $entry_id, $status ) {
  */
 function atf_star_entry( $entry_id, $starred ) {
 	$entry_id = absint( $entry_id );
+	$post     = $entry_id ? get_post( $entry_id ) : null;
+
+	// The target has to actually be an entry, exactly as in
+	// `atf_set_entry_status()`. Without this check the meta write lands on
+	// whatever post carries the id, and a missing form id reads as 0 --
+	// "any form" -- which slips past a per-form read filter.
+	if ( ! $post || ATF_ENTRY_TYPE !== $post->post_type ) {
+		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	}
 
 	if ( ! atf_can_read_entries( (int) get_post_meta( $entry_id, ATF_META_FORM, true ) ) ) {
 		return new WP_Error( 'atf_forbidden', __( 'You cannot change that entry.', 'allterrain-forms' ), array( 'status' => 403 ) );

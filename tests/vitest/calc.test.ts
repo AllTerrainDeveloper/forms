@@ -130,11 +130,13 @@ describe( 'applyCalculations', () => {
 		expect( applyCalculations( fields, { f1: 10 } ).f2 ).toBe( 3.33 );
 	} );
 
-	it( 'leaves a field alone when its formula cannot be evaluated', () => {
+	it( 'empties a field when its formula cannot be evaluated, never trusting the posted value', () => {
 		const fields = [
 			{ id: 'f1', type: 'total', choices: [], formula: '( 1 + ', decimals: 2 },
 		] as unknown as Field[];
 
-		expect( applyCalculations( fields, { f1: 'untouched' } ).f1 ).toBe( 'untouched' );
+		// Keeping the incoming value here would let a tampered client total
+		// survive a formula failure on the server twin.
+		expect( applyCalculations( fields, { f1: '999.99' } ).f1 ).toBe( '' );
 	} );
 } );

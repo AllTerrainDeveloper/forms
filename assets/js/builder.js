@@ -253,11 +253,14 @@ var allTerrainFormsBuilder = function(exports) {
       this.code = code;
     }
   }
+  function joinPath(base, path) {
+    return base.includes("?") ? `${base}${path.replace("?", "&")}` : `${base}${path}`;
+  }
   async function request(path, init = {}) {
     if (!config?.restUrl) {
       throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
     }
-    const url = `${config.restUrl}${path}`;
+    const url = joinPath(config.restUrl, path);
     const headers = {
       "Content-Type": "application/json",
       ...init.headers ?? {}
@@ -295,7 +298,7 @@ var allTerrainFormsBuilder = function(exports) {
     }
     const headers = config.nonce ? { "X-WP-Nonce": config.nonce } : {};
     const shell2 = getShell();
-    const url = `${config.wpRestUrl}${route}`;
+    const url = joinPath(config.wpRestUrl, route);
     const response = shell2?.fetch ? await shell2.fetch(url, { credentials: "same-origin", headers }, { source: "allterrain-forms" }) : await fetch(url, { credentials: "same-origin", headers });
     if (!response.ok) {
       throw new ApiError(`Request failed with status ${response.status}.`, response.status);
@@ -1383,7 +1386,11 @@ var allTerrainFormsBuilder = function(exports) {
   }
   if (typeof document !== "undefined") {
     document.addEventListener("pointerdown", (event) => {
-      if (openPicker && !openPicker.contains(event.target)) {
+      const target = event.target;
+      if (target?.closest(".atfb-tagpick__open")) {
+        return;
+      }
+      if (openPicker && !openPicker.contains(target)) {
         closePicker();
       }
     });
@@ -1730,6 +1737,10 @@ var allTerrainFormsBuilder = function(exports) {
     let active = options.activeSlug;
     let overrides = { ...options.overrides };
     let themes = options.themes;
+    const replaceOverrides = (next) => {
+      overrides = next;
+      options.onOverridesReplaced?.({ ...next });
+    };
     const preview = el("div", { class: "atfs-preview__frame" });
     const controls = el("div", { class: "atfs-controls__body" });
     const quick = el("div", { class: "atfs-quick" });
@@ -1788,7 +1799,7 @@ var allTerrainFormsBuilder = function(exports) {
           on: {
             click: () => {
               active = theme.slug;
-              overrides = {};
+              replaceOverrides({});
               options.onTheme(active);
               renderThemes();
               renderQuick();
@@ -2013,7 +2024,7 @@ var allTerrainFormsBuilder = function(exports) {
         themes = [...themes.filter((candidate) => candidate.slug !== saved.slug), saved];
         options.onThemesChanged(themes);
         active = saved.slug;
-        overrides = {};
+        replaceOverrides({});
         options.onTheme(active);
         renderThemes();
         renderControls();
@@ -2036,7 +2047,7 @@ var allTerrainFormsBuilder = function(exports) {
         themes = themes.filter((candidate) => candidate.slug !== theme.slug);
         options.onThemesChanged(themes);
         active = "clean";
-        overrides = {};
+        replaceOverrides({});
         options.onTheme(active);
         renderThemes();
         renderControls();
@@ -2196,6 +2207,9 @@ var allTerrainFormsBuilder = function(exports) {
                 overrides[token] = value;
               }
             },
+            onOverridesReplaced: (next) => {
+              overrides = { ...next };
+            },
             previewFor: async (slug, tokens) => {
               const form = await api.getForm(previewForm.id);
               form.schema.settings.theme = slug;
@@ -2327,7 +2341,7 @@ var allTerrainFormsBuilder = function(exports) {
     if (!os?.windowManager?.open) {
       return;
     }
-    const open = document.querySelector(`[data-window-id^="${PREVIEW_WINDOW_ID}-${formId}"]`);
+    const open = document.querySelector(`[data-window-id="${PREVIEW_WINDOW_ID}-${formId}"]`);
     if (!open) {
       return;
     }
@@ -2604,6 +2618,14 @@ var allTerrainFormsBuilder = function(exports) {
       return { key: `r${next}`, label };
     });
   }
+  function fieldMove(fields, fieldId, index) {
+    const from = fields.findIndex((field) => field.id === fieldId);
+    if (from < 0) {
+      return null;
+    }
+    const to = Math.max(0, Math.min(index, fields.length - 1));
+    return to === from ? null : { from, to };
+  }
   const PREFILL_SOURCES = [
     { value: "user:email", label: "Their email address", group: "About the person filling it in", tag: "{user:email}" },
     { value: "user:display_name", label: "Their name", group: "About the person filling it in", tag: "{user:display_name}" },
@@ -2633,7 +2655,11 @@ var allTerrainFormsBuilder = function(exports) {
       this.openSections = /* @__PURE__ */ new Map();
       this.logicMapOn = "off" !== readSetting(LOGIC_MAP_SETTING);
       this.dirty = false;
+      this.editGeneration = 0;
+      this.saveInFlight = false;
+      this.queuedSave = null;
       this.teardowns = [];
+      this.canvasTarget = null;
       this.history = [];
       this.historyAt = -1;
       this.autosave = debounce(() => {
@@ -2667,7 +2693,11 @@ var allTerrainFormsBuilder = function(exports) {
         const definition = this.config?.fieldTypes.find((candidate) => candidate.type === field.type);
         const supports = definition?.supports ?? [];
         const update = (key, value) => {
-          field[key] = value;
+          const live = this.liveField(field.id);
+          if (!live) {
+            return;
+          }
+          live[key] = value;
           this.markDirty();
           this.renderCanvas();
         };
@@ -2840,6 +2870,8 @@ var allTerrainFormsBuilder = function(exports) {
     }
     /** Releases every listener this instance registered. */
     destroy() {
+      this.canvasTarget?.();
+      this.canvasTarget = null;
       this.teardowns.forEach((teardown) => teardown());
       this.teardowns = [];
     }
@@ -3059,6 +3091,7 @@ var allTerrainFormsBuilder = function(exports) {
         this.history.shift();
       }
       this.historyAt = this.history.length - 1;
+      this.syncHistoryButtons();
     }
     /** Steps backwards or forwards through the history. */
     travel(delta) {
@@ -3071,18 +3104,36 @@ var allTerrainFormsBuilder = function(exports) {
       if (!this.schema.fields.some((field) => field.id === this.selected)) {
         this.selected = null;
       }
-      this.dirty = true;
-      this.autosave();
+      this.markDirty();
       this.renderBar();
       this.renderCanvas();
       this.renderInspector();
     }
     /** An undo or redo button, disabled when there is nowhere to go. */
     historyButton(iconSlug, label, delta) {
-      const target = this.historyAt + delta;
       const node = button(label, () => this.travel(delta), "secondary", iconSlug);
-      node.disabled = target < 0 || target >= this.history.length;
+      node.setAttribute("data-atfb-history", String(delta));
+      node.disabled = !this.canTravel(delta);
       return node;
+    }
+    /** Whether the history has anywhere to go in this direction. */
+    canTravel(delta) {
+      const target = this.historyAt + delta;
+      return target >= 0 && target < this.history.length;
+    }
+    /**
+     * Refreshes Undo and Redo's disabled state in place.
+     *
+     * The state was computed only in `renderBar()`, which structural edits never
+     * call — so Undo sat disabled all session while Cmd+Z quietly worked. The
+     * buttons are updated whenever the history moves instead.
+     */
+    syncHistoryButtons() {
+      for (const node of this.bar.querySelectorAll(
+        "[data-atfb-history]"
+      )) {
+        node.disabled = !this.canTravel(Number(node.dataset.atfbHistory));
+      }
     }
     /**
      * Downloads the current form as JSON.
@@ -3184,6 +3235,7 @@ var allTerrainFormsBuilder = function(exports) {
     /** Marks the form as having unsaved changes and schedules an autosave. */
     markDirty() {
       this.dirty = true;
+      this.editGeneration += 1;
       const save = this.bar.querySelector("[data-atfb-save]");
       if (save) {
         save.disabled = false;
@@ -3195,23 +3247,31 @@ var allTerrainFormsBuilder = function(exports) {
       if (!this.form || !this.schema) {
         return;
       }
+      if (this.saveInFlight) {
+        this.queuedSave = { silent: silent && (this.queuedSave?.silent ?? true) };
+        return;
+      }
+      this.saveInFlight = true;
+      const generation = this.editGeneration;
       try {
         const saved = await api.updateForm(this.form.id, {
           title: this.form.title,
           schema: this.schema
         });
-        this.form = saved;
-        this.schema = saved.schema;
-        this.dirty = false;
-        this.rebindCanvas();
+        if (generation === this.editGeneration) {
+          this.form = saved;
+          this.schema = saved.schema;
+          this.dirty = false;
+          this.rebindCanvas();
+          const save = this.bar.querySelector("[data-atfb-save]");
+          if (save) {
+            save.disabled = true;
+          }
+        }
         forgetMergeTags(saved.id);
         const summary = this.forms.find((candidate) => candidate.id === saved.id);
         if (summary) {
           summary.title = saved.title;
-        }
-        const save = this.bar.querySelector("[data-atfb-save]");
-        if (save) {
-          save.disabled = true;
         }
         refreshPreview(saved.id, saved.title, saved.previewUrl);
         if (!silent) {
@@ -3223,6 +3283,13 @@ var allTerrainFormsBuilder = function(exports) {
           error instanceof Error ? error.message : "",
           "error"
         );
+      } finally {
+        this.saveInFlight = false;
+        const queued = this.queuedSave;
+        this.queuedSave = null;
+        if (queued) {
+          void this.save(queued.silent);
+        }
       }
     }
     /* ---------------------------------------------------------------- Forms */
@@ -3267,7 +3334,15 @@ var allTerrainFormsBuilder = function(exports) {
         return;
       }
       const overlay = el("div", { class: "atfb-overlay" });
-      const close = () => overlay.remove();
+      const onKeydown = (event) => {
+        if (event.key === "Escape") {
+          close();
+        }
+      };
+      const close = () => {
+        overlay.remove();
+        document.removeEventListener("keydown", onKeydown);
+      };
       const grid = el("div", {
         class: "atfb-templates",
         children: this.config.templates.map(
@@ -3296,6 +3371,9 @@ var allTerrainFormsBuilder = function(exports) {
                   this.schema = created.schema;
                   this.selected = null;
                   this.dirty = false;
+                  this.history = [];
+                  this.historyAt = -1;
+                  this.snapshot();
                   this.renderBar();
                   this.renderCanvas();
                   this.renderInspector();
@@ -3329,15 +3407,7 @@ var allTerrainFormsBuilder = function(exports) {
           close();
         }
       });
-      document.addEventListener(
-        "keydown",
-        (event) => {
-          if (event.key === "Escape") {
-            close();
-          }
-        },
-        { once: true }
-      );
+      document.addEventListener("keydown", onKeydown);
       this.root.append(overlay);
       grid.querySelector("button")?.focus();
     }
@@ -3941,6 +4011,8 @@ var allTerrainFormsBuilder = function(exports) {
      * shared drag manager buys and an iframe could not.
      */
     registerCanvasTarget(list) {
+      this.canvasTarget?.();
+      this.canvasTarget = null;
       const marker = el("div", { class: "atfb-marker", attrs: { "aria-hidden": "true" } });
       const teardown = getDragManager().registerDropTarget({
         id: `atfb-canvas-${this.form?.id ?? 0}`,
@@ -3970,15 +4042,19 @@ var allTerrainFormsBuilder = function(exports) {
           }
         }
       });
-      this.teardowns.push(teardown);
       const onMove = (event) => {
         const detail = event.detail;
         if (detail?.payload?.type !== FIELD_PAYLOAD_TYPE || !list.classList.contains("is-dropping")) {
           return;
         }
+        const dragged = detail.payload.data?.fieldId ? this.canvas.querySelector(
+          `[data-atfb-card="${CSS.escape(detail.payload.data.fieldId)}"]`
+        ) : null;
         const y = detail.clientY ?? 0;
-        const index = insertionIndex(list, ".atfb-card", y);
-        const cards = list.querySelectorAll(".atfb-card");
+        const index = insertionIndex(list, ".atfb-card", y, dragged ?? void 0);
+        const cards = Array.from(list.querySelectorAll(".atfb-card")).filter(
+          (card) => card !== dragged
+        );
         if (index >= cards.length) {
           list.append(marker);
         } else {
@@ -3986,7 +4062,10 @@ var allTerrainFormsBuilder = function(exports) {
         }
       };
       document.addEventListener("os.drag.move", onMove);
-      this.teardowns.push(() => document.removeEventListener("os.drag.move", onMove));
+      this.canvasTarget = () => {
+        teardown();
+        document.removeEventListener("os.drag.move", onMove);
+      };
     }
     /* -------------------------------------------------------- Field editing */
     /** Adds a field of a type, at an index or at the end. */
@@ -4035,22 +4114,23 @@ var allTerrainFormsBuilder = function(exports) {
         this.canvas.querySelector(`[data-atfb-card="${CSS.escape(field.id)}"]`)?.focus();
       });
     }
-    /** Moves a field to an index. */
+    /**
+     * Moves a field to an index.
+     *
+     * `index` counts the list *without* the moved field — see {@link fieldMove}
+     * for why every caller works in that space.
+     */
     moveField(fieldId, index) {
       if (!this.schema) {
         return;
       }
-      const from = this.schema.fields.findIndex((field2) => field2.id === fieldId);
-      if (from < 0) {
-        return;
-      }
-      const clamped = Math.max(0, Math.min(index, this.schema.fields.length - 1));
-      if (from === clamped) {
+      const move = fieldMove(this.schema.fields, fieldId, index);
+      if (!move) {
         return;
       }
       this.snapshot();
-      const [field] = this.schema.fields.splice(from, 1);
-      this.schema.fields.splice(clamped > from ? clamped - 1 : clamped, 0, field);
+      const [field] = this.schema.fields.splice(move.from, 1);
+      this.schema.fields.splice(move.to, 0, field);
       this.markDirty();
       this.renderCanvas();
     }
@@ -4107,6 +4187,22 @@ var allTerrainFormsBuilder = function(exports) {
         index++;
       }
       return `f${index}`;
+    }
+    /**
+     * An id for a new notification or confirmation, not already in use.
+     *
+     * Minted against the ids present, like `nextFieldId()`, rather than from
+     * the list's length: after a delete-then-add, `length + 1` re-issues an id
+     * the list still contains, and two entries sharing one id share one
+     * disclosure panel — opening either folds and unfolds both.
+     */
+    nextEntryId(prefix, items) {
+      const used = new Set(items.map((item) => item.id));
+      let index = items.length + 1;
+      while (used.has(`${prefix}${index}`)) {
+        index++;
+      }
+      return `${prefix}${index}`;
     }
     /**
      * The settings a field type brings with it.
@@ -4275,6 +4371,7 @@ var allTerrainFormsBuilder = function(exports) {
     /** The choices editor, with drag-in image support. */
     renderChoicesEditor(field, update) {
       const choices = field.choices ?? [];
+      const liveChoice = (index) => this.liveField(field.id)?.choices?.[index];
       const list = el("div", { class: "atfb-choices" });
       choices.forEach((choice, index) => {
         const rowEl = el("div", {
@@ -4285,31 +4382,47 @@ var allTerrainFormsBuilder = function(exports) {
             // empty boxes for a setting that does nothing.
             field.type === "image_choice" ? this.choiceImageWell(choice, index, field) : null,
             bind(textInput(choice.label, (value) => {
-              const mirroring = !choice.value || choice.value === choice.label;
-              choice.label = value;
+              const live = liveChoice(index);
+              if (!live) {
+                return;
+              }
+              const mirroring = !live.value || live.value === live.label;
+              live.label = value;
               if (mirroring) {
-                choice.value = value;
+                live.value = value;
               }
               this.markDirty();
-              this.syncCanvas(field);
+              const parent = this.liveField(field.id);
+              if (parent) {
+                this.syncCanvas(parent);
+              }
             }), `choice:${index}:label`),
             bind(
               textInput(
                 choice.value,
                 (value) => {
-                  choice.value = value;
-                  this.markDirty();
+                  const live = liveChoice(index);
+                  if (live) {
+                    live.value = value;
+                    this.markDirty();
+                  }
                 },
                 "value"
               ),
               `choice:${index}:value`
             ),
             field.type === "quiz" || choice.points !== void 0 ? numberInput(String(choice.points ?? ""), (value) => {
-              choice.points = value === "" ? void 0 : Number(value);
-              this.markDirty();
+              const live = liveChoice(index);
+              if (live) {
+                live.points = value === "" ? void 0 : Number(value);
+                this.markDirty();
+              }
             }) : numberInput(String(choice.price ?? ""), (value) => {
-              choice.price = value === "" ? void 0 : Number(value);
-              this.markDirty();
+              const live = liveChoice(index);
+              if (live) {
+                live.price = value === "" ? void 0 : Number(value);
+                this.markDirty();
+              }
             }),
             el("button", {
               class: "atfb-card__action",
@@ -4317,8 +4430,12 @@ var allTerrainFormsBuilder = function(exports) {
               attrs: { "aria-label": `Remove ${choice.label}` },
               on: {
                 click: () => {
-                  choices.splice(index, 1);
-                  update("choices", choices);
+                  const parent = this.liveField(field.id);
+                  if (!parent) {
+                    return;
+                  }
+                  (parent.choices ?? []).splice(index, 1);
+                  update("choices", parent.choices);
                   this.renderInspector();
                 }
               },
@@ -4340,8 +4457,13 @@ var allTerrainFormsBuilder = function(exports) {
           button(
             "Add choice",
             () => {
-              choices.push({ label: "", value: "" });
-              update("choices", choices);
+              const parent = this.liveField(field.id);
+              if (!parent) {
+                return;
+              }
+              const next = parent.choices ?? [];
+              next.push({ label: "", value: "" });
+              update("choices", next);
               this.renderInspector();
             },
             "ghost",
@@ -4401,17 +4523,22 @@ var allTerrainFormsBuilder = function(exports) {
             notify("That is not an image this field can use", "", "error");
             return;
           }
-          choice.image = id;
+          const live = this.liveField(field.id)?.choices?.[index];
+          if (!live) {
+            return;
+          }
+          live.image = id;
           this.markDirty();
           this.renderInspector();
         }
       });
       this.teardowns.push(teardown);
       well.addEventListener("click", () => {
-        if (!choice.image) {
+        const live = this.liveField(field.id)?.choices?.[index];
+        if (!live?.image) {
           return;
         }
-        choice.image = void 0;
+        live.image = void 0;
         this.markDirty();
         this.renderInspector();
       });
@@ -4485,6 +4612,7 @@ var allTerrainFormsBuilder = function(exports) {
     /** The conditional-logic editor. */
     renderLogicSection(field, update) {
       const logic = field.logic;
+      const liveLogic = () => this.liveField(field.id)?.logic;
       const others = (this.schema?.fields ?? []).filter(
         (candidate) => candidate.id !== field.id && candidate.type !== "page_break"
       );
@@ -4501,21 +4629,30 @@ var allTerrainFormsBuilder = function(exports) {
                   label: candidate.label || candidate.id
                 })),
                 (value) => {
-                  rule.field = value;
-                  this.markDirty();
+                  const live = liveLogic()?.rules[index];
+                  if (live) {
+                    live.field = value;
+                    this.markDirty();
+                  }
                 }
               ),
               select(
                 rule.operator,
                 Object.entries(this.config?.operators ?? {}).map(([value, label]) => ({ value, label })),
                 (value) => {
-                  rule.operator = value;
-                  this.markDirty();
+                  const live = liveLogic()?.rules[index];
+                  if (live) {
+                    live.operator = value;
+                    this.markDirty();
+                  }
                 }
               ),
               textInput(rule.value, (value) => {
-                rule.value = value;
-                this.markDirty();
+                const live = liveLogic()?.rules[index];
+                if (live) {
+                  live.value = value;
+                  this.markDirty();
+                }
               }),
               el("button", {
                 class: "atfb-card__action",
@@ -4523,8 +4660,12 @@ var allTerrainFormsBuilder = function(exports) {
                 attrs: { "aria-label": "Remove this rule" },
                 on: {
                   click: () => {
-                    logic.rules.splice(index, 1);
-                    update("logic", logic);
+                    const live = liveLogic();
+                    if (!live) {
+                      return;
+                    }
+                    live.rules.splice(index, 1);
+                    update("logic", live);
                     this.renderInspector();
                   }
                 },
@@ -4539,8 +4680,12 @@ var allTerrainFormsBuilder = function(exports) {
         "Conditional logic",
         [
           checkbox("Only show this field sometimes", logic.enabled, (value) => {
-            logic.enabled = value;
-            update("logic", logic);
+            const live = liveLogic();
+            if (!live) {
+              return;
+            }
+            live.enabled = value;
+            update("logic", live);
             this.renderInspector();
           }),
           logic.enabled ? el("div", {
@@ -4555,8 +4700,11 @@ var allTerrainFormsBuilder = function(exports) {
                       { value: "hide", label: "Hide" }
                     ],
                     (value) => {
-                      logic.action = value;
-                      update("logic", logic);
+                      const live = liveLogic();
+                      if (live) {
+                        live.action = value;
+                        update("logic", live);
+                      }
                     }
                   ),
                   el("span", { text: "this field when" }),
@@ -4567,8 +4715,11 @@ var allTerrainFormsBuilder = function(exports) {
                       { value: "any", label: "any" }
                     ],
                     (value) => {
-                      logic.match = value;
-                      update("logic", logic);
+                      const live = liveLogic();
+                      if (live) {
+                        live.match = value;
+                        update("logic", live);
+                      }
                     }
                   ),
                   el("span", { text: "of these match:" })
@@ -4578,12 +4729,16 @@ var allTerrainFormsBuilder = function(exports) {
               button(
                 "Add rule",
                 () => {
-                  logic.rules.push({
+                  const live = liveLogic();
+                  if (!live) {
+                    return;
+                  }
+                  live.rules.push({
                     field: others[0]?.id ?? "",
                     operator: "is",
                     value: ""
                   });
-                  update("logic", logic);
+                  update("logic", live);
                   this.renderInspector();
                 },
                 "ghost",
@@ -4620,6 +4775,14 @@ var allTerrainFormsBuilder = function(exports) {
             } else {
               this.schema.settings.themeOverrides[token] = value;
             }
+            this.markDirty();
+          },
+          // The studio clears the whole set on a theme switch, save or
+          // delete. Without this the schema keeps the old theme's tuning
+          // while the preview shows none of it, and the published form
+          // disagrees with what the Theme tab said it would look like.
+          onOverridesReplaced: (overrides) => {
+            this.schema.settings.themeOverrides = { ...overrides };
             this.markDirty();
           },
           previewFor: (slug, overrides) => this.previewHtml(slug, overrides),
@@ -5054,7 +5217,7 @@ var allTerrainFormsBuilder = function(exports) {
             "Add a notification",
             () => {
               notifications.push({
-                id: `n${notifications.length + 1}`,
+                id: this.nextEntryId("n", notifications),
                 enabled: true,
                 name: "Notification",
                 to: "{admin_email}",
@@ -5227,7 +5390,7 @@ var allTerrainFormsBuilder = function(exports) {
             "Add a confirmation",
             () => {
               confirmations.push({
-                id: `c${confirmations.length + 1}`,
+                id: this.nextEntryId("c", confirmations),
                 enabled: true,
                 name: "Confirmation",
                 type: "message",
@@ -5300,6 +5463,7 @@ var allTerrainFormsBuilder = function(exports) {
   exports.Builder = Builder;
   exports.SETTINGS_HANDLED_ELSEWHERE = SETTINGS_HANDLED_ELSEWHERE;
   exports.SETTING_CONTROLS = SETTING_CONTROLS;
+  exports.fieldMove = fieldMove;
   exports.mountBuilder = mountBuilder;
   exports.restatement = restatement;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });

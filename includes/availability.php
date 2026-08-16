@@ -50,11 +50,14 @@ function atf_form_availability( $form_id, $schema = null ) {
 		);
 	}
 
-	if ( ! empty( $settings['roles'] ) && is_user_logged_in() ) {
-		$user  = wp_get_current_user();
-		$match = array_intersect( (array) $settings['roles'], (array) $user->roles );
+	if ( ! empty( $settings['roles'] ) && ! $is_editor ) {
+		// A logged-out visitor holds no role at all, so a roles list closes the
+		// form to them even when `requireLogin` is off -- otherwise logging out
+		// would be the way past the role gate.
+		$user_roles = is_user_logged_in() ? (array) wp_get_current_user()->roles : array();
+		$match      = array_intersect( (array) $settings['roles'], $user_roles );
 
-		if ( ! $match && ! $is_editor ) {
+		if ( ! $match ) {
 			return array(
 				'open'    => false,
 				'reason'  => 'role',

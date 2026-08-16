@@ -66,12 +66,54 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 
 	$existing = '' !== $token ? atf_find_partial( $token ) : null;
 
+	// A token minted on one form must not update another form's partial -- it
+	// would overwrite a stranger-to-this-form's answers and rebrand their entry.
+	// A mismatched token is treated as no token at all, so the save still
+	// succeeds, as a fresh partial for this form, subject to the cap below.
+	if ( $existing && absint( get_post_meta( $existing->ID, ATF_META_FORM, true ) ) !== $form_id ) {
+		$existing = null;
+	}
+
 	// Updating in place rather than writing a second row, so a visitor who saves
 	// five times over an afternoon leaves one partial rather than five -- and so
 	// the retention sweep has one thing to expire.
 	if ( $existing ) {
 		$entry_id = $existing->ID;
+
+		// The token written back below is the partial's own stored one, never
+		// the raw request value. The lookup tolerates decoration around a token
+		// -- whitespace, a stray quote -- that must not be stored, because a
+		// corrupted stored token would fail every later lookup.
+		$resume = json_decode( (string) get_post_meta( $existing->ID, ATF_META_RESUME, true ), true );
+		$token  = isset( $resume['token'] ) ? (string) $resume['token'] : $token;
 	} else {
+		// The `/resume` route is public, and a tokenless save writes a new row
+		// -- the one place an anonymous visitor can grow the entries table. So
+		// creation is capped per IP per hour. Updates are deliberately exempt:
+		// an update needs a token, and the save that minted it spent a slot.
+
+		/**
+		 * Filters how many new partials one IP may create per hour.
+		 *
+		 * Zero or less removes the cap. Logged-in users are never counted, for
+		 * the same reason the submission rate limit skips them: an office
+		 * behind one address must not be locked out by its tenth colleague.
+		 *
+		 * @since 0.1.0
+		 *
+		 * @param int $limit   New partials allowed per IP per hour. Default 30.
+		 * @param int $form_id The form being saved.
+		 */
+		$limit = (int) apply_filters( 'atf_partial_rate_limit', 30, $form_id );
+
+		if ( $limit > 0 && atf_hit_rate_limit( 'partial', $limit ) ) {
+			return new WP_Error(
+				'atf_partial_rate_limited',
+				__( 'Too many saved forms from this connection. Please try again later.', 'allterrain-forms' ),
+				array( 'status' => 429 )
+			);
+		}
+
 		// 32 hex characters from `wp_generate_password()`'s CSPRNG. Long enough
 		// that guessing one is not a strategy, which matters because the token
 		// is the only thing standing between a stranger and these answers.
@@ -240,11 +282,33 @@ function atf_resume_values( $token ) {
 function atf_clear_partial_on_submit( $entry_id, $form_id, $values ) {
 	// The token travels in the submission that finishes the form, which is the
 	// only thing tying the two together -- the partial is anonymous by design.
+	// `$_POST` only covers the no-JavaScript form post; a REST submission with
+	// a JSON body never fills the superglobal, so the pipeline also clears from
+	// the parsed request in `atf_process_submission()`. Both run; whichever is
+	// second finds nothing to delete.
 	// phpcs:disable WordPress.Security.NonceVerification.Missing -- The submission's own nonce was verified before this action fired.
 	$token = isset( $_POST[ ATF_RESUME_QUERY ] )
 		? sanitize_text_field( wp_unslash( $_POST[ ATF_RESUME_QUERY ] ) )
 		: '';
 	// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+	atf_clear_partial( $token );
+}
+add_action( 'atf_entry_created', 'atf_clear_partial_on_submit', 10, 3 );
+
+/**
+ * Deletes the partial behind a resume token.
+ *
+ * A no-op for an empty, unknown, expired or already-cleared token, so callers
+ * do not have to check before calling.
+ *
+ * @since 0.1.0
+ *
+ * @param string $token The token.
+ * @return void
+ */
+function atf_clear_partial( $token ) {
+	$token = sanitize_text_field( (string) $token );
 
 	if ( '' === $token ) {
 		return;
@@ -256,7 +320,6 @@ function atf_clear_partial_on_submit( $entry_id, $form_id, $values ) {
 		wp_delete_post( $partial->ID, true );
 	}
 }
-add_action( 'atf_entry_created', 'atf_clear_partial_on_submit', 10, 3 );
 
 /**
  * Expires partials whose resume window has passed.

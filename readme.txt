@@ -1,4 +1,4 @@
-=== AllTerrain Forms – Drag & Drop Form Builder with Conditional Logic ===
+=== AllTerrain Forms ===
 Contributors: allterraindeveloper
 Tags: contact form, form builder, forms, conditional logic, survey
 Requires at least: 6.0
@@ -131,7 +131,7 @@ ordinary admin page under **Forms**, with every feature intact.
 Source, issue tracker and full developer documentation:
 [github.com/AllTerrainDeveloper/forms](https://github.com/AllTerrainDeveloper/forms)
 
-631 automated tests, and the conditional-logic and calculation engines are
+777 automated tests, and the conditional-logic and calculation engines are
 tested against one shared table of cases in both PHP and JavaScript — because if
 the browser and the server ever disagreed about which fields were required, you
 would be shown a form you could not submit.

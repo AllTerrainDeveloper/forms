@@ -13,11 +13,14 @@ var allTerrainFormsWidget = function(exports) {
       this.code = code;
     }
   }
+  function joinPath(base, path) {
+    return base.includes("?") ? `${base}${path.replace("?", "&")}` : `${base}${path}`;
+  }
   async function request(path, init = {}) {
     if (!config?.restUrl) {
       throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
     }
-    const url = `${config.restUrl}${path}`;
+    const url = joinPath(config.restUrl, path);
     const headers = {
       "Content-Type": "application/json",
       ...init.headers ?? {}
@@ -55,7 +58,7 @@ var allTerrainFormsWidget = function(exports) {
     }
     const headers = config.nonce ? { "X-WP-Nonce": config.nonce } : {};
     const shell = getShell();
-    const url = `${config.wpRestUrl}${route}`;
+    const url = joinPath(config.wpRestUrl, route);
     const response = shell?.fetch ? await shell.fetch(url, { credentials: "same-origin", headers }, { source: "allterrain-forms" }) : await fetch(url, { credentials: "same-origin", headers });
     if (!response.ok) {
       throw new ApiError(`Request failed with status ${response.status}.`, response.status);

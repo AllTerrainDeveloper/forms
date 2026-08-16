@@ -258,4 +258,41 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 
 		$this->assertEquals( 50, $values['total'] );
 	}
+
+	/**
+	 * A formula that cannot be evaluated empties the field rather than keeping
+	 * the client-posted value.
+	 *
+	 * Otherwise a visitor who can make the formula fail gets to name their own
+	 * total, which is the exact tampering the recomputation exists to stop.
+	 *
+	 * @covers ::atf_apply_calculations
+	 */
+	public function test_failed_formula_discards_client_total() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'   => 'qty',
+						'type' => 'number',
+					),
+					array(
+						'id'      => 'total',
+						'type'    => 'total',
+						'formula' => '( {qty} + ',
+					),
+				),
+			)
+		);
+
+		$values = atf_apply_calculations(
+			$schema,
+			array(
+				'qty'   => 2,
+				'total' => 0.01,
+			)
+		);
+
+		$this->assertSame( '', $values['total'] );
+	}
 }

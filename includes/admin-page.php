@@ -47,6 +47,7 @@ function atf_register_admin_pages() {
 	if ( atf_shell_is_active() ) {
 		atf_register_hidden_page( __( 'AllTerrain Forms', 'allterrain-forms' ), $capability, 'allterrain-forms', 'atf_render_builder_page' );
 		atf_register_hidden_page( __( 'Entries', 'allterrain-forms' ), 'atf_read_entries', 'allterrain-forms-entries', 'atf_render_entries_page' );
+		atf_register_hidden_page( __( 'Analytics', 'allterrain-forms' ), 'atf_read_entries', 'allterrain-forms-analytics', 'atf_render_analytics_page' );
 		atf_register_hidden_page( __( 'Theme Studio', 'allterrain-forms' ), 'atf_edit_forms', 'allterrain-forms-themes', 'atf_render_theme_studio_page' );
 
 		return;
@@ -78,6 +79,15 @@ function atf_register_admin_pages() {
 		'atf_read_entries',
 		'allterrain-forms-entries',
 		'atf_render_entries_page'
+	);
+
+	add_submenu_page(
+		'allterrain-forms',
+		__( 'Analytics', 'allterrain-forms' ),
+		__( 'Analytics', 'allterrain-forms' ),
+		'atf_read_entries',
+		'allterrain-forms-analytics',
+		'atf_render_analytics_page'
 	);
 
 	add_submenu_page(
@@ -143,9 +153,10 @@ add_action( 'admin_enqueue_scripts', 'atf_enqueue_admin_page_assets' );
  */
 function atf_enqueue_admin_page_assets( $hook_suffix ) {
 	$pages = array(
-		'toplevel_page_allterrain-forms'      => 'allterrain-forms-builder',
-		'forms_page_allterrain-forms-entries' => 'allterrain-forms-entries',
-		'forms_page_allterrain-forms-themes'  => 'allterrain-forms-builder',
+		'toplevel_page_allterrain-forms'        => 'allterrain-forms-builder',
+		'forms_page_allterrain-forms-entries'   => 'allterrain-forms-entries',
+		'forms_page_allterrain-forms-analytics' => 'allterrain-forms-analytics',
+		'forms_page_allterrain-forms-themes'    => 'allterrain-forms-builder',
 	);
 
 	// The submenu hook suffix is derived from the parent menu's *title*, which
@@ -160,6 +171,8 @@ function atf_enqueue_admin_page_assets( $hook_suffix ) {
 		$handle = $pages[ $hook_suffix ];
 	} elseif ( 'allterrain-forms-entries' === $page ) {
 		$handle = 'allterrain-forms-entries';
+	} elseif ( 'allterrain-forms-analytics' === $page ) {
+		$handle = 'allterrain-forms-analytics';
 	} elseif ( in_array( $page, array( 'allterrain-forms', 'allterrain-forms-themes' ), true ) ) {
 		$handle = 'allterrain-forms-builder';
 	}
@@ -169,7 +182,10 @@ function atf_enqueue_admin_page_assets( $hook_suffix ) {
 	}
 
 	wp_enqueue_script( $handle );
-	wp_enqueue_style( 'allterrain-forms-builder' );
+
+	// The analytics stylesheet declares the builder's as a dependency, so
+	// enqueueing it pulls in both; every other page uses the builder's alone.
+	wp_enqueue_style( 'allterrain-forms-analytics' === $handle ? 'allterrain-forms-analytics' : 'allterrain-forms-builder' );
 }
 
 /**
@@ -192,6 +208,17 @@ function atf_render_builder_page() {
  */
 function atf_render_entries_page() {
 	atf_render_admin_shell( 'atf_render_entries_template', __( 'Entries', 'allterrain-forms' ), 'allterrain-forms-entries' );
+}
+
+/**
+ * The analytics report, on an admin page.
+ *
+ * @since 0.1.0
+ *
+ * @return void
+ */
+function atf_render_analytics_page() {
+	atf_render_admin_shell( 'atf_render_analytics_template', __( 'Analytics', 'allterrain-forms' ), 'allterrain-forms-analytics' );
 }
 
 /**

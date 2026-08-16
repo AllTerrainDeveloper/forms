@@ -385,6 +385,42 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A challenge signature expires with its hour bucket.
+	 *
+	 * The signed material carries the hour it was issued in, and the verifier
+	 * accepts only the current and the previous hour -- so a captured
+	 * (answer, signature) pair stops replaying within two hours instead of
+	 * working forever.
+	 *
+	 * @covers ::atf_challenge_answered
+	 * @covers ::atf_sign_challenge
+	 */
+	public function test_challenge_signature_expires() {
+		$request = static function ( $signature ) {
+			return array(
+				'atf_form_id'       => 7,
+				'atf_challenge'     => '12',
+				'atf_challenge_sig' => $signature,
+			);
+		};
+
+		$this->assertTrue(
+			atf_challenge_answered( $request( atf_sign_challenge( 7, 12 ) ) ),
+			'A signature from the current hour must verify.'
+		);
+
+		$this->assertTrue(
+			atf_challenge_answered( $request( atf_sign_challenge( 7, 12, gmdate( 'YmdH', time() - HOUR_IN_SECONDS ) ) ) ),
+			'A form rendered just before the hour rolled over must still submit.'
+		);
+
+		$this->assertFalse(
+			atf_challenge_answered( $request( atf_sign_challenge( 7, 12, gmdate( 'YmdH', time() - 2 * HOUR_IN_SECONDS ) ) ) ),
+			'A signature from two hours ago must have expired.'
+		);
+	}
+
+	/**
 	 * A challenge signature cannot be replayed on another form.
 	 *
 	 * @covers ::atf_sign_challenge
@@ -516,6 +552,42 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A role-restricted form is closed to a logged-out visitor.
+	 *
+	 * Roles can be set without `requireLogin`, and a visitor with no account
+	 * holds no role at all -- logging out must not be the way past the role
+	 * gate.
+	 *
+	 * @covers ::atf_form_availability
+	 */
+	public function test_role_restriction_closes_the_form_to_logged_out_visitors() {
+		wp_set_current_user( 0 );
+
+		$form_id = atf_test_form(
+			array(
+				'fields'   => array(
+					array(
+						'id'   => 'f1',
+						'type' => 'text',
+					),
+				),
+				'settings' => array( 'roles' => array( 'editor' ) ),
+			)
+		);
+
+		$availability = atf_form_availability( $form_id );
+
+		$this->assertFalse( $availability['open'] );
+		$this->assertSame( 'role', $availability['reason'] );
+
+		// The gate closes on the missing role, not on everyone: a visitor who
+		// holds the role gets through.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+
+		$this->assertTrue( atf_form_availability( $form_id )['open'] );
+	}
+
+	/**
 	 * Somebody who can edit forms is never locked out by a schedule.
 	 *
 	 * They are the person who needs to test the form, and a closed notice with
@@ -584,6 +656,176 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$this->assertFalse( $second['success'] );
 		$this->assertSame( 'All full.', $second['message'] );
+	}
+
+	/* --------------------------------------------------------------- Uploads */
+
+	/**
+	 * A `$_FILES`-shaped entry backed by a real temporary file.
+	 *
+	 * @param string $name     The client-side file name.
+	 * @param string $contents The file's bytes.
+	 * @return array One `$_FILES` entry.
+	 */
+	private function fake_upload( $name, $contents ) {
+		$tmp = tempnam( get_temp_dir(), 'atf' );
+
+		file_put_contents( $tmp, $contents );
+
+		return array(
+			'name'     => $name,
+			'type'     => '',
+			'tmp_name' => $tmp,
+			'error'    => UPLOAD_ERR_OK,
+			'size'     => strlen( $contents ),
+		);
+	}
+
+	/**
+	 * Lets `wp_handle_upload()` accept a file the CLI created.
+	 *
+	 * `move_uploaded_file()` refuses anything that did not arrive over HTTP,
+	 * which no file a test creates can. The sideload action moves with `copy`
+	 * instead, and everything else in the pipeline runs unchanged.
+	 */
+	private function allow_cli_uploads() {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+
+		add_filter(
+			'atf_upload_overrides',
+			static function ( $overrides ) {
+				$overrides['action'] = 'wp_handle_sideload';
+
+				return $overrides;
+			}
+		);
+	}
+
+	/**
+	 * A submission that fails validation does not keep the files it uploaded.
+	 *
+	 * Uploads become attachments before validation runs -- a broken file fails
+	 * a submission too -- so a refused submission has to delete them, or every
+	 * failed attempt leaves an orphan on disk forever.
+	 *
+	 * @covers ::atf_process_submission
+	 * @covers ::atf_delete_upload_attachments
+	 */
+	public function test_a_submission_that_fails_validation_deletes_its_uploads() {
+		$this->allow_cli_uploads();
+
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'       => 'f1',
+						'type'     => 'text',
+						'label'    => 'Name',
+						'required' => true,
+					),
+					array(
+						'id'        => 'f9',
+						'type'      => 'file',
+						'label'     => 'Attachment',
+						'filetypes' => array( 'txt' ),
+					),
+				),
+			)
+		);
+
+		$uploaded = 0;
+
+		add_action(
+			'atf_file_uploaded',
+			static function ( $attachment_id ) use ( &$uploaded ) {
+				$uploaded = $attachment_id;
+			}
+		);
+
+		$issued = time() - 30;
+
+		// The required text field is empty, so validation refuses the
+		// submission after the upload has already been stored.
+		$result = atf_process_submission(
+			$form_id,
+			array(
+				'atf_form_id' => $form_id,
+				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
+				'atf_t'       => $issued,
+				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'atf'         => array( 'f1' => '' ),
+			),
+			array( 'atf_file_f9' => $this->fake_upload( 'notes.txt', 'Plain text.' ) )
+		);
+
+		$this->assertFalse( $result['success'] );
+		$this->assertArrayHasKey( 'f1', $result['errors'] );
+		$this->assertGreaterThan( 0, $uploaded, 'The upload itself must succeed for this test to prove anything.' );
+		$this->assertNull( get_post( $uploaded ), 'A rejected submission orphaned its upload.' );
+	}
+
+	/**
+	 * One field's refused upload takes another field's stored upload with it.
+	 *
+	 * The whole submission fails, so the attachments the successful field
+	 * already created must not stay behind.
+	 *
+	 * @covers ::atf_process_submission
+	 * @covers ::atf_delete_upload_attachments
+	 */
+	public function test_an_upload_error_deletes_the_other_fields_uploads() {
+		$this->allow_cli_uploads();
+
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'ok',
+						'type'      => 'file',
+						'label'     => 'Fine',
+						'filetypes' => array( 'txt' ),
+					),
+					array(
+						'id'    => 'bad',
+						'type'  => 'file',
+						'label' => 'Refused',
+					),
+				),
+			)
+		);
+
+		$uploaded = 0;
+
+		add_action(
+			'atf_file_uploaded',
+			static function ( $attachment_id ) use ( &$uploaded ) {
+				$uploaded = $attachment_id;
+			}
+		);
+
+		$issued = time() - 30;
+
+		// The second field's file wears a forbidden extension, so it is refused
+		// before it touches disk -- after the first field's file was stored.
+		$result = atf_process_submission(
+			$form_id,
+			array(
+				'atf_form_id' => $form_id,
+				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
+				'atf_t'       => $issued,
+				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'atf'         => array(),
+			),
+			array(
+				'atf_file_ok'  => $this->fake_upload( 'notes.txt', 'Plain text.' ),
+				'atf_file_bad' => $this->fake_upload( 'evil.php', '<?php' ),
+			)
+		);
+
+		$this->assertFalse( $result['success'] );
+		$this->assertArrayHasKey( 'bad', $result['errors'] );
+		$this->assertGreaterThan( 0, $uploaded, 'The first field\'s upload must succeed for this test to prove anything.' );
+		$this->assertNull( get_post( $uploaded ), 'A failed sibling upload orphaned the stored one.' );
 	}
 
 	/* ------------------------------------------------------------- Behaviour */
@@ -702,6 +944,32 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$this->assertSame( 'message', $result['confirmation']['type'] );
 		$this->assertStringContainsString( 'Thank you', $result['confirmation']['message'] );
+	}
+
+	/**
+	 * A redirect query only carries scalar values.
+	 *
+	 * `parse_str()` builds nested arrays from bracketed keys, and the query is
+	 * built from merge tags -- visitor text -- so an array is reachable from
+	 * outside. `rawurlencode()` on one is a fatal on PHP 8; the array is
+	 * dropped and the rest of the query survives.
+	 *
+	 * @covers ::atf_confirmation_url
+	 */
+	public function test_confirmation_query_drops_nested_values() {
+		$confirmation = array_merge(
+			atf_default_confirmation(),
+			array(
+				'type'  => 'redirect',
+				'url'   => 'https://example.com/thanks',
+				'query' => 'a[b]=nested&plain=ok',
+			)
+		);
+
+		$url = atf_confirmation_url( $confirmation, array() );
+
+		$this->assertStringContainsString( 'plain=ok', $url );
+		$this->assertStringNotContainsString( 'nested', $url, 'A nested value has no defensible flattening and is dropped.' );
 	}
 
 	/**

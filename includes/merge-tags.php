@@ -694,14 +694,13 @@ function atf_merge_tag_placeholder_for( $field ) {
 		case 'email':
 			return 'ada@example.com';
 
-		case 'phone':
+		case 'tel':
 			return '+34 600 123 456';
 
-		case 'website':
+		case 'url':
 			return 'https://example.com';
 
 		case 'number':
-		case 'quantity':
 			return '3';
 
 		case 'date':
@@ -713,10 +712,10 @@ function atf_merge_tag_placeholder_for( $field ) {
 		case 'name':
 			return 'Ada Lovelace';
 
-		case 'paragraph':
+		case 'textarea':
 			return __( 'A longer answer, as they typed it.', 'allterrain-forms' );
 
-		case 'toggle':
+		case 'switch':
 		case 'consent':
 			return __( 'Yes', 'allterrain-forms' );
 

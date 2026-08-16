@@ -175,6 +175,22 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Samples are keyed on the slugs the registry actually registers.
+	 *
+	 * The switch used to speak for 'phone', 'website', 'paragraph' and
+	 * 'toggle' -- names no field type has ever registered under -- so a phone
+	 * field's sample fell through to the generic answer and taught nothing.
+	 *
+	 * @covers ::atf_merge_tag_placeholder_for
+	 */
+	public function test_samples_use_registered_type_slugs() {
+		$this->assertSame( '+34 600 123 456', atf_merge_tag_placeholder_for( array( 'type' => 'tel' ) ) );
+		$this->assertSame( 'https://example.com', atf_merge_tag_placeholder_for( array( 'type' => 'url' ) ) );
+		$this->assertSame( 'Yes', atf_merge_tag_placeholder_for( array( 'type' => 'switch' ) ) );
+		$this->assertStringContainsString( 'longer answer', atf_merge_tag_placeholder_for( array( 'type' => 'textarea' ) ) );
+	}
+
+	/**
 	 * Site values in the catalogue are this site's, not invented ones.
 	 *
 	 * A sample that showed `admin@example.com` when the site's address is

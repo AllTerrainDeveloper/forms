@@ -234,9 +234,12 @@ it.
 
 ### The admin-URL handoff
 
-All three surfaces also have admin URLs, and with the shell up those URLs must
-not become a second copy of the tool. Two copies of the builder on one page means
-two autosave timers writing the same form.
+Every surface — builder, entries, analytics, Theme Studio — also has an admin
+URL, and without the shell those URLs are the whole experience: ordinary pages
+under the **Forms** menu, mounting the same bundles into the same root
+elements. With the shell up those URLs must not become a second copy of the
+tool. Two copies of the builder on one page means two autosave timers writing
+the same form.
 
 The shell offers no way for a native window to *claim* a URL, and a title-bar
 Related item can only be expressed as a URL — the shell opens one as a chromeless

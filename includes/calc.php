@@ -143,7 +143,12 @@ function atf_calc_resolve_refs( $formula, $values, $schema ) {
 			$value    = array_key_exists( $field_id, $values ) ? $values[ $field_id ] : null;
 			$field    = $schema ? atf_find_field( $schema, $field_id ) : null;
 
-			return (string) atf_calc_numeric_value( $value, $field );
+			// A bare float cast can produce scientific notation ("1.0E-5"),
+			// which the tokenizer reads as an unknown symbol and the whole
+			// formula dies. Substitute plain decimals at every magnitude.
+			$literal = rtrim( rtrim( sprintf( '%.10F', atf_calc_numeric_value( $value, $field ) ), '0' ), '.' );
+
+			return '' === $literal || '-' === $literal ? '0' : $literal;
 		},
 		$formula
 	);
@@ -664,6 +669,11 @@ function atf_apply_calculations( $schema, $values ) {
 		$result = atf_calculate( $field['formula'], $values, $schema );
 
 		if ( null === $result ) {
+			// A formula that fails must not leave the client-posted value in
+			// place: for a field that carries a formula the server's answer is
+			// the only answer, and "could not compute" is an empty one, never
+			// whatever the request claimed the total was.
+			$values[ $field['id'] ] = '';
 			continue;
 		}
 

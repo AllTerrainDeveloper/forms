@@ -334,11 +334,14 @@ var allTerrainFormsEntries = function(exports) {
       this.code = code;
     }
   }
+  function joinPath(base, path) {
+    return base.includes("?") ? `${base}${path.replace("?", "&")}` : `${base}${path}`;
+  }
   async function request(path, init = {}) {
     if (!config?.restUrl) {
       throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
     }
-    const url = `${config.restUrl}${path}`;
+    const url = joinPath(config.restUrl, path);
     const headers = {
       "Content-Type": "application/json",
       ...init.headers ?? {}
@@ -376,7 +379,7 @@ var allTerrainFormsEntries = function(exports) {
     }
     const headers = config.nonce ? { "X-WP-Nonce": config.nonce } : {};
     const shell = getShell();
-    const url = `${config.wpRestUrl}${route}`;
+    const url = joinPath(config.wpRestUrl, route);
     const response = shell?.fetch ? await shell.fetch(url, { credentials: "same-origin", headers }, { source: "allterrain-forms" }) : await fetch(url, { credentials: "same-origin", headers });
     if (!response.ok) {
       throw new ApiError(`Request failed with status ${response.status}.`, response.status);
@@ -771,6 +774,8 @@ var allTerrainFormsEntries = function(exports) {
       this.selected = null;
       this.selection = /* @__PURE__ */ new Set();
       this.paintedSelectionId = -1;
+      this.loadSeq = 0;
+      this.selectSeq = 0;
       this.formId = 0;
       this.status = "inbox";
       this.search = "";
@@ -804,7 +809,15 @@ var allTerrainFormsEntries = function(exports) {
       await this.load();
       const shell = window.wp?.os;
       if (shell?.subscribe) {
-        this.teardowns.push(shell.subscribe("os.atf_entry.changed", () => void this.load()));
+        this.teardowns.push(
+          shell.subscribe("os.atf_entry.changed", () => {
+            if (!this.root.isConnected) {
+              this.destroy();
+              return;
+            }
+            void this.load();
+          })
+        );
       }
     }
     /** Releases every listener. */
@@ -873,6 +886,7 @@ var allTerrainFormsEntries = function(exports) {
         this.list.append(el("p", { class: "atfb-hint", text: "No forms yet." }));
         return;
       }
+      const seq = ++this.loadSeq;
       try {
         const result = await api.listEntries({
           form_id: this.formId,
@@ -881,6 +895,13 @@ var allTerrainFormsEntries = function(exports) {
           page: this.page,
           starred: this.starred
         });
+        if (seq !== this.loadSeq) {
+          return;
+        }
+        if (this.page > 1 && this.page > result.pages) {
+          this.page = Math.max(1, result.pages);
+          return this.load();
+        }
         this.entries = result.entries;
         this.total = result.total;
         this.pages = result.pages;
@@ -891,6 +912,9 @@ var allTerrainFormsEntries = function(exports) {
           count.textContent = `${this.total} ${this.total === 1 ? "entry" : "entries"}`;
         }
       } catch (error) {
+        if (seq !== this.loadSeq) {
+          return;
+        }
         clear(this.list);
         this.list.append(
           el("p", { class: "atfb-error", text: error instanceof Error ? error.message : "Could not load entries." })
@@ -1139,8 +1163,13 @@ var allTerrainFormsEntries = function(exports) {
     }
     /** Opens one entry in the detail pane. */
     async select(entry) {
+      const seq = ++this.selectSeq;
       try {
-        this.selected = await api.getEntry(entry.id);
+        const fetched = await api.getEntry(entry.id);
+        if (seq !== this.selectSeq) {
+          return;
+        }
+        this.selected = fetched;
         const stale = this.entries.find((candidate) => candidate.id === entry.id);
         if (stale) {
           stale.status = this.selected.status;
@@ -1148,6 +1177,9 @@ var allTerrainFormsEntries = function(exports) {
         this.renderList();
         this.renderDetail();
       } catch (error) {
+        if (seq !== this.selectSeq) {
+          return;
+        }
         notify("Could not open that entry", error instanceof Error ? error.message : "", "error");
       }
     }

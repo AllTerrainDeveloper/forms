@@ -319,6 +319,14 @@ function atf_rest_can_edit() {
 function atf_rest_can_read_entries( $request ) {
 	$form_id = (int) $request->get_param( 'form_id' );
 
+	// The analytics route names its form parameter `id`, because it lives at
+	// `/forms/{id}/analytics`. Only routes under `/forms/` may read it that
+	// way -- on `/entries/{id}` the `id` is an *entry*, and treating it as a
+	// form would ask the per-form filter about the wrong thing entirely.
+	if ( ! $form_id && false !== strpos( (string) $request->get_route(), '/forms/' ) ) {
+		$form_id = (int) $request->get_param( 'id' );
+	}
+
 	if ( atf_can_read_entries( $form_id ) ) {
 		return true;
 	}

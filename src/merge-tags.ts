@@ -120,7 +120,17 @@ if ( typeof document !== 'undefined' ) {
 	// Capture phase: the picker's own buttons stop propagation, so anything that
 	// reaches here is genuinely a click somewhere else.
 	document.addEventListener( 'pointerdown', ( event ) => {
-		if ( openPicker && ! openPicker.contains( event.target as Node ) ) {
+		const target = event.target as HTMLElement | null;
+
+		// The Insert button owns its own toggle. Closing here as well would
+		// null `openPicker` before the button's click handler runs, so its
+		// "already open — close" branch could never match and every press
+		// reopened the picker instead of toggling it shut.
+		if ( target?.closest( '.atfb-tagpick__open' ) ) {
+			return;
+		}
+
+		if ( openPicker && ! openPicker.contains( target ) ) {
 			closePicker();
 		}
 	} );

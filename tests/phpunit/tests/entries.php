@@ -154,6 +154,77 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 		$this->assertWPError( atf_set_entry_status( $seeded['entry_id'], 'publish' ) );
 	}
 
+	/**
+	 * Starring is only for entries.
+	 *
+	 * A post that is not an entry has no form id, and a missing form id reads
+	 * as 0 -- "any form" -- which slipped past a per-form read filter and let
+	 * the star meta land on arbitrary posts.
+	 *
+	 * @covers ::atf_star_entry
+	 */
+	public function test_starring_requires_an_entry() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		atf_add_capabilities();
+
+		$seeded  = $this->seed();
+		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
+
+		$this->assertWPError( atf_star_entry( $page_id, true ), 'A page is not an entry.' );
+		$this->assertSame( '', get_post_meta( $page_id, '_atf_starred', true ) );
+
+		$this->assertWPError( atf_star_entry( 0, true ), 'Nothing is not an entry either.' );
+
+		$this->assertTrue( atf_star_entry( $seeded['entry_id'], true ) );
+		$this->assertSame( '1', get_post_meta( $seeded['entry_id'], '_atf_starred', true ) );
+	}
+
+	/**
+	 * The analytics route's form id reaches the per-form read filter.
+	 *
+	 * The route names its parameter `id`, because it lives at
+	 * `/forms/{id}/analytics` -- and the permission callback used to read only
+	 * `form_id`, so the documented `atf_can_read_entries` seam was always
+	 * asked about form 0 rather than the form whose numbers were being read.
+	 *
+	 * @covers ::atf_rest_can_read_entries
+	 */
+	public function test_analytics_permission_asks_about_the_right_form() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		atf_add_capabilities();
+
+		$seeded = $this->seed();
+		$asked  = array();
+
+		$filter = static function ( $can, $form_id ) use ( &$asked, $seeded ) {
+			$asked[] = $form_id;
+
+			return $seeded['form_id'] === $form_id ? false : $can;
+		};
+
+		add_filter( 'atf_can_read_entries', $filter, 10, 2 );
+
+		$request = new WP_REST_Request( 'GET', '/' . ATF_REST_NAMESPACE . '/forms/' . $seeded['form_id'] . '/analytics' );
+		$request->set_param( 'id', $seeded['form_id'] );
+
+		$result = atf_rest_can_read_entries( $request );
+
+		// An entry route's `id` is an entry, not a form, and must stay out of
+		// the per-form question.
+		$entry_request = new WP_REST_Request( 'GET', '/' . ATF_REST_NAMESPACE . '/entries/' . $seeded['entry_id'] );
+		$entry_request->set_param( 'id', $seeded['entry_id'] );
+
+		$entry_result = atf_rest_can_read_entries( $entry_request );
+
+		remove_filter( 'atf_can_read_entries', $filter );
+
+		$this->assertWPError( $result, 'Denying the form must deny its analytics.' );
+		$this->assertContains( $seeded['form_id'], $asked, 'The filter must be asked about the form being read.' );
+
+		$this->assertTrue( $entry_result );
+		$this->assertNotContains( $seeded['entry_id'], $asked, 'An entry id must never be mistaken for a form id.' );
+	}
+
 	/* ---------------------------------------------------------------- Export */
 
 	/**

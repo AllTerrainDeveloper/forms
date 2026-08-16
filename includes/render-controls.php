@@ -1005,9 +1005,16 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 			$sub_context
 		);
 
+		// The rewrite matches the *prefix* of the name, not the whole
+		// attribute, because a control does not always close the brackets
+		// where a plain input does: checkboxes and multiselects append `[]`,
+		// and the composites -- name, address, Likert -- append `[part]`.
+		// Anchoring on the closing quote would leave all of those under the
+		// sub-field's own name, where the rows collide with each other and
+		// `atf_sanitize_repeater_value()` finds nothing it recognises.
 		$control = str_replace(
-			'name="' . esc_attr( 'atf[' . $sub['id'] . ']' ) . '"',
-			'name="' . esc_attr( 'atf[' . $field['id'] . '][' . $index . '][' . $sub['id'] . ']' ) . '"',
+			'name="' . esc_attr( 'atf[' . $sub['id'] . ']' ),
+			'name="' . esc_attr( 'atf[' . $field['id'] . '][' . $index . '][' . $sub['id'] . ']' ),
 			$control
 		);
 
