@@ -1,0 +1,461 @@
+/**
+ * The analytics window.
+ *
+ * Depends on `builder.css`, which is where the `--atfb-*` tokens are defined
+ * against the shell's own palette. Nothing here invents a colour: a report that
+ * looked right in the light theme and unreadable in the dark one would be a
+ * report nobody trusts, and the shell already answers that question.
+ *
+ * The charts are ordinary elements. A bar is a `div` whose width is a
+ * percentage, a histogram column is a `div` whose height is one — so resizing
+ * the window is a reflow rather than a redraw, and every label in every chart is
+ * real text that can be read aloud, selected and searched.
+ */
+
+.atfa {
+	display: flex;
+	flex-direction: column;
+	block-size: 100%;
+	background: var( --atfb-bg );
+	color: var( --atfb-fg );
+	font-size: 13px;
+}
+
+.atfa__bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-block-end: 1px solid var( --atfb-border );
+	background: var( --atfb-surface );
+	flex: 0 0 auto;
+}
+
+.atfa__bar-label {
+	color: var( --atfb-muted );
+	font-size: 12px;
+}
+
+.atfa__body {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.atfa__empty {
+	margin: 0;
+	padding: 32px 16px;
+	color: var( --atfb-muted );
+	text-align: center;
+}
+
+/* --- Headline numbers ----------------------------------------------------- */
+
+.atfa-kpis {
+	display: grid;
+	/* Wraps by itself. Six fixed columns would be six unreadable slivers in a
+	   window somebody has dragged narrow, which is a thing people do to put a
+	   report beside the form it is about. */
+	grid-template-columns: repeat( auto-fit, minmax( 130px, 1fr ) );
+	gap: 10px;
+}
+
+.atfa-kpi {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 14px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-surface );
+}
+
+.atfa-kpi__value {
+	font-size: 24px;
+	font-weight: 600;
+	line-height: 1.1;
+	/* Tabular figures, so a number ticking up during a demo-data run does not
+	   shuffle the label underneath it. */
+	font-variant-numeric: tabular-nums;
+}
+
+.atfa-kpi__label {
+	color: var( --atfb-muted );
+	font-size: 12px;
+}
+
+.atfa-kpi__hint {
+	color: var( --atfb-faint );
+	font-size: 11px;
+}
+
+/* --- Panels --------------------------------------------------------------- */
+
+.atfa-panel {
+	padding: 14px 16px 16px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-surface );
+}
+
+.atfa-panel__head {
+	margin-block-end: 12px;
+}
+
+.atfa-panel__title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.atfa-panel__note {
+	margin: 2px 0 0;
+	color: var( --atfb-muted );
+	font-size: 12px;
+}
+
+/* --- Timeline ------------------------------------------------------------- */
+
+.atfa-timeline {
+	display: flex;
+	align-items: flex-end;
+	gap: 1px;
+	block-size: 120px;
+	padding-block-end: 2px;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+.atfa-timeline__day {
+	flex: 1 1 0;
+	min-inline-size: 2px;
+	background: var( --atfb-accent );
+	border-radius: 2px 2px 0 0;
+	transition: background-color 120ms ease;
+}
+
+.atfa-timeline__day:hover {
+	background: var( --atfb-accent-strong );
+}
+
+/* A day with no submissions still occupies its column. Collapsing it would let
+   a quiet fortnight close up, and a chart that hides the gaps shows a steady
+   trickle where the truth was one spike and three weeks of silence. */
+.atfa-timeline__day.is-empty {
+	background: var( --atfb-border );
+	block-size: 2px;
+}
+
+.atfa-timeline__axis {
+	display: flex;
+	justify-content: space-between;
+	margin-block-start: 4px;
+	color: var( --atfb-faint );
+	font-size: 11px;
+}
+
+/* --- Net Promoter Score --------------------------------------------------- */
+
+.atfa-nps {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	flex-wrap: wrap;
+}
+
+.atfa-nps__score {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: 104px;
+	padding: 12px 16px;
+	border-radius: 8px;
+	background: var( --atfb-well );
+}
+
+.atfa-nps__number {
+	font-size: 34px;
+	font-weight: 700;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfa-nps__caption {
+	margin-block-start: 2px;
+	color: var( --atfb-muted );
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* The three verdicts. Not a red-to-green ramp: the difference between -5 and +5
+   is a rounding error in a survey of five hundred people, and colouring them as
+   opposites would invent a finding. */
+.atfa-nps__score.is-poor .atfa-nps__number {
+	color: #b32d2e;
+}
+
+.atfa-nps__score.is-ok .atfa-nps__number {
+	color: var( --atfb-fg );
+}
+
+.atfa-nps__score.is-great .atfa-nps__number {
+	color: #007017;
+}
+
+.atfa-nps__detail {
+	flex: 1 1 260px;
+}
+
+.atfa-nps__bar {
+	display: flex;
+	block-size: 22px;
+	border-radius: 4px;
+	overflow: hidden;
+	background: var( --atfb-well );
+}
+
+.atfa-nps__band.is-detractors {
+	background: #d63638;
+}
+
+.atfa-nps__band.is-passives {
+	background: var( --atfb-border-strong );
+}
+
+.atfa-nps__band.is-promoters {
+	background: #008a20;
+}
+
+.atfa-nps__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	margin-block-start: 8px;
+	font-size: 12px;
+}
+
+.atfa-nps__key {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 4px;
+}
+
+.atfa-nps__key::before {
+	content: "";
+	inline-size: 9px;
+	block-size: 9px;
+	border-radius: 2px;
+	align-self: center;
+}
+
+.atfa-nps__key.is-detractors::before {
+	background: #d63638;
+}
+
+.atfa-nps__key.is-passives::before {
+	background: var( --atfb-border-strong );
+}
+
+.atfa-nps__key.is-promoters::before {
+	background: #008a20;
+}
+
+.atfa-nps__key small {
+	color: var( --atfb-faint );
+}
+
+/* --- Bars, shared by the tallies and the cross-tab ------------------------ */
+
+.atfa-meter {
+	block-size: 8px;
+	border-radius: 999px;
+	background: var( --atfb-well );
+	overflow: hidden;
+}
+
+.atfa-meter__fill {
+	block-size: 100%;
+	background: var( --atfb-accent );
+	border-radius: inherit;
+}
+
+.atfa-meter__value {
+	display: inline-block;
+	margin-block-start: 3px;
+	color: var( --atfb-muted );
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfa-bars {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.atfa-bars__row {
+	display: grid;
+	/* The label column is fixed so every bar in a question starts at the same
+	   place — ragged bar starts make two options impossible to compare, which is
+	   the only thing a tally is for. */
+	grid-template-columns: minmax( 90px, 200px ) 1fr auto;
+	align-items: center;
+	gap: 10px;
+}
+
+.atfa-bars__label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atfa-bars__value {
+	color: var( --atfb-muted );
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	white-space: pre;
+}
+
+/* --- Distribution --------------------------------------------------------- */
+
+.atfa-hist {
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+	block-size: 150px;
+}
+
+.atfa-hist__col {
+	flex: 1 1 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	align-items: center;
+	block-size: 100%;
+	gap: 3px;
+}
+
+.atfa-hist__bar {
+	inline-size: 100%;
+	background: var( --atfb-accent );
+	border-radius: 3px 3px 0 0;
+	min-block-size: 2px;
+}
+
+/* The bar the mean falls in. Marked because the interesting case is the one
+   where the mean lands somewhere almost nobody actually answered. */
+.atfa-hist__col.is-mean .atfa-hist__bar {
+	background: var( --atfb-accent-strong );
+	outline: 2px solid var( --atfb-accent-line );
+	outline-offset: 1px;
+}
+
+.atfa-hist__count,
+.atfa-hist__tick {
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var( --atfb-muted );
+}
+
+.atfa-hist__tick {
+	color: var( --atfb-faint );
+}
+
+/* --- The cross-tab -------------------------------------------------------- */
+
+.atfa-table {
+	inline-size: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.atfa-table th,
+.atfa-table td {
+	padding: 8px 10px;
+	text-align: start;
+	vertical-align: middle;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+.atfa-table thead th {
+	color: var( --atfb-muted );
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.atfa-table__label {
+	font-weight: 600;
+}
+
+.atfa-table__count {
+	color: var( --atfb-muted );
+	font-variant-numeric: tabular-nums;
+}
+
+.atfa-table tbody tr:last-child th,
+.atfa-table tbody tr:last-child td {
+	border-block-end: 0;
+}
+
+.atfa-questions {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.atfa-question__note {
+	margin: 0;
+	color: var( --atfb-muted );
+}
+
+/* --- The developer panel -------------------------------------------------- */
+
+/* Visibly not part of the report. It writes several hundred entries into
+   whatever database this happens to be, and it should never be mistaken for one
+   more panel of numbers. */
+.atfa-demo {
+	padding: 14px 16px 16px;
+	border: 1px dashed var( --atfb-border-strong );
+	border-radius: 8px;
+	background: var( --atfb-well );
+}
+
+.atfa-demo__title {
+	margin: 0 0 4px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --atfb-muted );
+}
+
+.atfa-demo__note {
+	margin: 0 0 10px;
+	max-inline-size: 70ch;
+	color: var( --atfb-muted );
+	font-size: 12px;
+}
+
+.atfa-demo__status {
+	margin: 0 0 10px;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfa-demo__actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfa-timeline__day {
+		transition: none;
+	}
+}

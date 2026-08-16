@@ -11,7 +11,8 @@
 	"scripts": {
 		"build": "npm run build:bundles && npm run deploy",
 		"build:builder": "ATF_TARGET=builder vite build --mode development && ATF_TARGET=builder vite build --mode production",
-		"build:bundles": "npm run build:form && npm run build:builder && npm run build:entries && npm run build:widget && npm run build:dock",
+		"build:analytics": "ATF_TARGET=analytics vite build --mode development && ATF_TARGET=analytics vite build --mode production",
+		"build:bundles": "npm run build:form && npm run build:builder && npm run build:entries && npm run build:widget && npm run build:dock && npm run build:analytics",
 		"build:dock": "ATF_TARGET=dock vite build --mode development && ATF_TARGET=dock vite build --mode production",
 		"build:entries": "ATF_TARGET=entries vite build --mode development && ATF_TARGET=entries vite build --mode production",
 		"build:form": "ATF_TARGET=form vite build --mode development && ATF_TARGET=form vite build --mode production",

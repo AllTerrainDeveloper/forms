@@ -15,9 +15,14 @@
  * @package AllTerrain_Forms
  */
 
+/* Every window root this plugin owns. A root missing from this list inherits no
+   tokens at all, which does not fail loudly: `var( --atfb-accent )` with nothing
+   behind it is simply an invalid declaration, so the element keeps its initial
+   value and a chart of coloured bars renders as a blank rectangle. */
 .atfb,
 .atfe,
-.atfs {
+.atfs,
+.atfa {
 	/* The window's own surface. A window body must not paint a colour of its
 	   own choosing behind the shell's chrome. */
 	--atfb-bg: var( --os-window-bg, #fff );

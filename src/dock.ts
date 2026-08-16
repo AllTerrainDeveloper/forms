@@ -41,6 +41,7 @@ interface ShellDock {
 interface RuntimeConfig {
 	canEdit?: boolean;
 	canRead?: boolean;
+	devMode?: boolean;
 }
 
 const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainForms?: RuntimeConfig } ).allTerrainForms;
@@ -49,6 +50,7 @@ const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainFor
 const BUILDER = 'allterrain-forms';
 const ENTRIES = 'allterrain-forms-entries';
 const THEMES = 'allterrain-forms-themes';
+const ANALYTICS = 'allterrain-forms-analytics';
 
 /** Opens a window through the shell. */
 function open( id: string ): void {
@@ -60,14 +62,23 @@ function shell(): ShellDock | null {
 	return ( window as unknown as { wp?: { os?: ShellDock } } ).wp?.os ?? null;
 }
 
-/** Registers the tile. */
-function registerTile(): void {
-	const os = shell();
-
-	if ( ! os?.registerSystemTile ) {
-		return;
-	}
-
+/**
+ * The rows this tile offers, for a given config.
+ *
+ * Exported so it can be tested directly. One of these rows writes several
+ * hundred entries into whatever database the site happens to be, and it is meant
+ * to appear only when developer mode is on — a three-token condition sitting next
+ * to two rows that are gated on capabilities instead, so inverting it or dropping
+ * half of it would look entirely normal in a diff.
+ *
+ * A pure function of the config rather than something observed through the
+ * module's import side effects, because a test that has to reset the module
+ * registry to see a menu is a test nobody will extend.
+ *
+ * @param config What this page was given.
+ * @return The rows, in the order they are shown.
+ */
+export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 	// Rows are gated the same way the windows are, so somebody who may read
 	// entries but not edit forms gets a menu with only the row they can use —
 	// rather than one that opens a window refusing them.
@@ -101,6 +112,15 @@ function registerTile(): void {
 		} );
 	}
 
+	if ( config?.canRead ) {
+		submenu.push( {
+			title: 'Analytics',
+			url: '',
+			onSelect: () => open( ANALYTICS ),
+			windowId: ANALYTICS,
+		} );
+	}
+
 	if ( config?.canEdit ) {
 		submenu.push( {
 			title: 'Themes',
@@ -110,6 +130,42 @@ function registerTile(): void {
 		} );
 	}
 
+	// Developer mode only, and last — it writes several hundred entries into the
+	// database, which is not something to leave one hover away from "Themes" on a
+	// site that is collecting real enquiries.
+	//
+	// Gated on the config flag rather than by asking the shell, because the row
+	// has to be decided at registration time and the answer is already in the
+	// blob every bundle gets. The server checks the same preference again, and a
+	// capability besides, on every route this row can reach: a submenu that is
+	// merely absent is a UI decision, not a security one.
+	if ( config?.canEdit && config?.devMode ) {
+		submenu.push( {
+			title: 'Demo data',
+			url: '',
+			onSelect: () => {
+				open( ANALYTICS );
+				// The analytics window listens for this and scrolls its developer
+				// panel into view, so the row lands somewhere that answers it
+				// rather than at the top of a report.
+				document.dispatchEvent( new CustomEvent( 'atf-open-demo-panel' ) );
+			},
+			windowId: ANALYTICS,
+		} );
+	}
+
+	return submenu;
+}
+
+/** Registers the tile. */
+function registerTile(): void {
+	const os = shell();
+
+	if ( ! os?.registerSystemTile ) {
+		return;
+	}
+
+	const submenu = submenuFor( config );
 
 	try {
 		os.registerSystemTile( {

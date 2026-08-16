@@ -672,6 +672,29 @@ apply_filters( 'atf_export_cell', string $cell, string $key, array $entry );
 apply_filters( 'atf_form_analytics', array $report, int $form_id );
 ```
 
+The whole report. Alongside the headline counts and `fields`, it carries:
+
+| Key | What it is |
+|---|---|
+| `sampled` | How many entries the report was computed from. |
+| `timeline` | `{ date, count }` per day, oldest first, **including the empty days**. |
+| `dimensions` | `{ id, label }` for each field the report can be grouped by. |
+| `breakdown` | Every numeric answer grouped by one of them, or `null`. |
+
+Each numeric field in `fields` also gains `numbers` (count, mean, median, min,
+max and the full distribution) and, for a 0–10 scale, `nps`.
+
+### `atf_analytics_dimensions` — Filter — *Stable*
+
+```php
+apply_filters( 'atf_analytics_dimensions', array $dimensions, array $schema );
+```
+
+The fields a report offers to group by. By default the choice fields with between
+two and twelve options — more than that is not a breakdown, it is the raw data
+with extra steps. Add your own if a field of yours is categorical in a way the
+default rule cannot see.
+
 ### `atf_record_view` — Filter — *Stable*
 
 ```php
@@ -686,6 +709,35 @@ does not inflate a form's own conversion rate.
 ```php
 apply_filters( 'atf_analytics_sample_size', int $limit, int $form_id );
 ```
+
+How many entries a report reads, 500 by default. The cap is what keeps a report
+on a form with a hundred thousand entries answering in a moment; raising it trades
+that for exactness. Spam and partials are never included.
+
+### `atf_developer_mode` — Filter — *Stable*
+
+```php
+apply_filters( 'atf_developer_mode', bool $enabled, int $user_id );
+```
+
+Whether the developer surfaces are shown — currently the demo-data tools in the
+analytics window and the dock. It reads OpenStation's own per-user **Developer
+mode** preference (Preferences → Features), so somebody who has turned developer
+tools on once gets them everywhere; without OpenStation there is no switch to read
+and it is false.
+
+Switch it on without OpenStation:
+
+```php
+add_filter( 'atf_developer_mode', function ( $on ) {
+	return $on || current_user_can( 'manage_options' );
+} );
+```
+
+**This is not a permission.** Returning true grants nothing on its own: it decides
+what is *shown*, and every route it reveals checks `atf_edit_forms` as well. A
+preference lives in user meta, so treating it as authorisation would mean anybody
+who can write their own meta could seed a database.
 
 ### `atf_retention_applied` — Action — *Stable*
 

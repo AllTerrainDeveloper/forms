@@ -38,6 +38,11 @@ const TARGETS = {
 		fileBase: 'widget',
 		iifeName: 'allTerrainFormsWidget',
 	},
+	analytics: {
+		entry: 'src/analytics.ts',
+		fileBase: 'analytics',
+		iifeName: 'allTerrainFormsAnalytics',
+	},
 	dock: {
 		entry: 'src/dock.ts',
 		fileBase: 'dock',

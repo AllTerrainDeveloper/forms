@@ -151,6 +151,8 @@ require_once ATF_DIR . 'includes/confirmations.php';
 require_once ATF_DIR . 'includes/actions.php';
 require_once ATF_DIR . 'includes/entries.php';
 require_once ATF_DIR . 'includes/analytics.php';
+require_once ATF_DIR . 'includes/dev-mode.php';
+require_once ATF_DIR . 'includes/demo-data.php';
 require_once ATF_DIR . 'includes/templates.php';
 require_once ATF_DIR . 'includes/rest.php';
 require_once ATF_DIR . 'includes/preview.php';

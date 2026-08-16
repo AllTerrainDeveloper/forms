@@ -162,6 +162,44 @@ function atf_register_rest_routes() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'atf_rest_analytics',
 			'permission_callback' => 'atf_rest_can_read_entries',
+			'args'                => array(
+				'dimension' => array(
+					'type'              => 'string',
+					'required'          => false,
+					'sanitize_callback' => 'sanitize_key',
+				),
+			),
+		)
+	);
+
+	// The demo-data tools. Gated twice over: developer mode says "show me these",
+	// `atf_edit_forms` says "you may use them", and the two are not the same
+	// question -- see `includes/dev-mode.php`.
+	register_rest_route(
+		$ns,
+		'/demo',
+		array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => 'atf_rest_demo_status',
+				'permission_callback' => 'atf_rest_can_use_developer_tools',
+			),
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => 'atf_rest_demo_seed',
+				'permission_callback' => 'atf_rest_can_use_developer_tools',
+				'args'                => array(
+					'count' => array(
+						'type'     => 'integer',
+						'required' => false,
+					),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => 'atf_rest_demo_remove',
+				'permission_callback' => 'atf_rest_can_use_developer_tools',
+			),
 		)
 	);
 
@@ -862,7 +900,12 @@ function atf_rest_export_entries( $request ) {
  * @return WP_REST_Response
  */
 function atf_rest_analytics( $request ) {
-	return rest_ensure_response( atf_form_analytics( absint( $request->get_param( 'id' ) ) ) );
+	return rest_ensure_response(
+		atf_form_analytics(
+			absint( $request->get_param( 'id' ) ),
+			(string) $request->get_param( 'dimension' )
+		)
+	);
 }
 
 /**
@@ -1034,4 +1077,79 @@ function atf_logic_operator_labels() {
 		'empty'         => __( 'is empty', 'allterrain-forms' ),
 		'not_empty'     => __( 'is not empty', 'allterrain-forms' ),
 	);
+}
+
+/**
+ * Whether the request may use the developer tools.
+ *
+ * Two questions, not one. Developer mode is a preference and answers "show me
+ * these"; `atf_edit_forms` is a capability and answers "you may use them".
+ * Checking only the preference would be an authorisation check that any user who
+ * can write their own meta could pass.
+ *
+ * A user without the capability gets the authorisation code, so a client can tell
+ * "you are not allowed" from "this is switched off". Developer mode being off is
+ * a plain 404: the route is not there for you, and saying so invites nothing.
+ *
+ * @since 0.1.0
+ *
+ * @return true|WP_Error
+ */
+function atf_rest_can_use_developer_tools() {
+	if ( ! atf_can_edit_forms() ) {
+		return new WP_Error(
+			'atf_forbidden',
+			__( 'You cannot edit forms.', 'allterrain-forms' ),
+			array( 'status' => rest_authorization_required_code() )
+		);
+	}
+
+	if ( ! atf_developer_mode() ) {
+		return new WP_Error(
+			'atf_developer_mode_off',
+			__( 'Developer mode is off.', 'allterrain-forms' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	return true;
+}
+
+/**
+ * What demo data exists.
+ *
+ * @since 0.1.0
+ *
+ * @return WP_REST_Response
+ */
+function atf_rest_demo_status() {
+	return rest_ensure_response( atf_demo_status() );
+}
+
+/**
+ * Generates a chunk of demo submissions.
+ *
+ * Returns the status rather than a bare success, because the client's whole job
+ * is to call this until nothing is left and it needs the count to know.
+ *
+ * @since 0.1.0
+ *
+ * @param WP_REST_Request $request The request.
+ * @return WP_REST_Response|WP_Error
+ */
+function atf_rest_demo_seed( $request ) {
+	$count = (int) $request->get_param( 'count' );
+
+	return rest_ensure_response( atf_demo_seed( $count > 0 ? $count : ATF_DEMO_CHUNK ) );
+}
+
+/**
+ * Removes every generated form and entry.
+ *
+ * @since 0.1.0
+ *
+ * @return WP_REST_Response|WP_Error
+ */
+function atf_rest_demo_remove() {
+	return rest_ensure_response( atf_demo_remove() );
 }

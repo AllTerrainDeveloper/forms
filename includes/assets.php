@@ -81,6 +81,21 @@ function atf_register_assets() {
 		true
 	);
 
+	wp_register_script(
+		'allterrain-forms-analytics',
+		ATF_URL . "assets/js/analytics{$suffix}.js",
+		array( 'allterrain-forms-config' ),
+		atf_asset_version( "assets/js/analytics{$suffix}.js" ),
+		true
+	);
+
+	wp_register_style(
+		'allterrain-forms-analytics',
+		ATF_URL . 'assets/css/analytics.css',
+		array( 'allterrain-forms-builder' ),
+		atf_asset_version( 'assets/css/analytics.css' )
+	);
+
 	// The dock tile. Registered separately from every window bundle because it
 	// is the one script that loads for everybody at boot, so it has to stay
 	// small enough that paying for it is never a question.
@@ -129,6 +144,11 @@ function atf_print_config( $handle ) {
 		'version'   => ATF_VERSION,
 		'canEdit'   => atf_can_edit_forms(),
 		'canRead'   => atf_can_read_entries(),
+		// Read by the dock so the demo-data row appears without a reload, and by
+		// the analytics window so the developer panel does. It is a preference,
+		// never an authorisation -- every route it reveals checks a capability of
+		// its own.
+		'devMode'   => atf_developer_mode(),
 		'locale'    => get_locale(),
 		'i18n'      => atf_client_strings(),
 	);

@@ -14,6 +14,8 @@ import type {
 	Entry,
 	Form,
 	FormSummary,
+	AnalyticsReport,
+	DemoStatus,
 	MergeTagGroup,
 	RuntimeConfig,
 	Theme,
@@ -206,25 +208,24 @@ export const api = {
 	mergeTags: ( id: number ) =>
 		get< { groups: MergeTagGroup[] } >( `/forms/${ id }/merge-tags` ).then( ( response ) => response.groups ),
 
-	analytics: ( id: number ) =>
-		get< {
-			views: number;
-			starts: number;
-			submissions: number;
-			conversion: number;
-			completion: number;
-			unread: number;
-			spam: number;
-			fields: Array< {
-				id: string;
-				label: string;
-				type: string;
-				answered: number;
-				rate: number;
-				average?: number | null;
-				choices: Array< { label: string; value: string; count: number; percent: number } >;
-			} >;
-		} >( `/forms/${ id }/analytics` ),
+	analytics: ( id: number, dimension = '' ) =>
+		get< AnalyticsReport >(
+			`/forms/${ id }/analytics${ dimension ? `?dimension=${ encodeURIComponent( dimension ) }` : '' }`
+		),
+
+	/**
+	 * The demo-data tools.
+	 *
+	 * Every one of these 404s unless developer mode is on, which is why the
+	 * window asks for the status before drawing the panel rather than drawing the
+	 * panel and letting the buttons fail.
+	 */
+	demoStatus: () => get< DemoStatus >( '/demo' ),
+
+	/** Generates one chunk. Called until `remaining` reaches zero. */
+	demoSeed: ( count?: number ) => post< DemoStatus >( '/demo', count ? { count } : {} ),
+
+	demoRemove: () => del< { entries: number; forms: number } >( '/demo' ),
 
 	listEntries: ( params: {
 		form_id?: number;
