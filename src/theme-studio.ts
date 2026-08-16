@@ -584,22 +584,26 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			el( 'div', {
 				class: 'atf-studio__top',
 				children: [
+					// The actions share the heading's line, not the strip's.
+					// Beside the strip they took the width the last chip needed
+					// and cut it down the middle, which reads as a broken card
+					// rather than as "there is more, scroll".
 					el( 'div', {
-						class: 'atf-studio__picker',
+						class: 'atf-studio__topbar',
 						children: [
 							el( 'h2', { class: 'atf-studio__heading', text: 'Theme' } ),
-							swatches,
+							el( 'div', {
+								class: 'atfs__actions',
+								children: [
+									button( 'Save as a theme', () => void saveAsTheme(), 'primary' ),
+									button( 'Export', () => void exportTheme() ),
+									button( 'Import', importTheme ),
+									deleteButton,
+								],
+							} ),
 						],
 					} ),
-					el( 'div', {
-						class: 'atfs__actions',
-						children: [
-							button( 'Save as a theme', () => void saveAsTheme(), 'primary' ),
-							button( 'Export', () => void exportTheme() ),
-							button( 'Import', importTheme ),
-							deleteButton,
-						],
-					} ),
+					swatches,
 				],
 			} ),
 			el( 'div', {

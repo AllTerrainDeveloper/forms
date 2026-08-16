@@ -1359,23 +1359,31 @@
 	overflow: hidden;
 }
 
+/* Two stacked rows, not two side-by-side columns: the heading and the actions
+   share the first, and the picker strip gets the whole width of the second.
+   Sitting beside the strip, the actions took ~280px off the row the chips
+   scroll in — enough that the last chip was always cut down the middle, which
+   reads as a broken card rather than as an invitation to scroll. */
 .atf-studio__top {
-	display: flex;
-	align-items: flex-end;
-	gap: var( --atfb-gap );
+	display: grid;
+	gap: 8px;
 	padding: 12px 14px;
 	border-block-end: 1px solid var( --atfb-border );
 	background: var( --atfb-surface );
 	min-inline-size: 0;
 }
 
-.atf-studio__picker {
+.atf-studio__topbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px var( --atfb-gap );
 	min-inline-size: 0;
-	flex: 1 1 auto;
 }
 
 .atf-studio__heading {
-	margin: 0 0 8px;
+	margin: 0;
 	font-size: 12px;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -1423,17 +1431,22 @@
 /* --- The picker strip ----------------------------------------------------- */
 
 /* A single scrolling row. Ten chips do not fit on a narrow window and wrapping
-   them would put the strip back to the height the column layout had. */
+   them would put the strip back to the height the column layout had.
+   Snapping to chip boundaries is what keeps a scroll from *stopping* on half a
+   card — the strip is allowed to run out of room, but never to look cut. */
 .atfs-themes {
 	display: flex;
 	gap: 8px;
 	overflow-x: auto;
 	padding-block-end: 4px;
 	scrollbar-width: thin;
+	scroll-snap-type: x proximity;
+	scroll-padding-inline: 2px;
 }
 
 .atfs-theme {
 	flex: 0 0 auto;
+	scroll-snap-align: start;
 	inline-size: 92px;
 	display: grid;
 	gap: 5px;
@@ -1451,12 +1464,14 @@
 	block-size: 30px;
 }
 
+/* On the heading's line now, so nothing has to be nudged up off the strip's
+   scrollbar gutter. */
 .atfs__actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	flex: 0 0 auto;
-	margin-block-end: 4px;
+	margin-block-end: 0;
 }
 
 .atfs-controls__body {
