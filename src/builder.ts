@@ -384,6 +384,41 @@ export function restatement( rows: LikertRow[], text: string ): LikertRow[] {
 		} );
 }
 
+/**
+ * Where a field moves when it is sent to a slot.
+ *
+ * `index` names the slot in the list *without* the moved field — the indexing
+ * `insertionIndex()` produces when the dragged card is excluded, and the one
+ * the drop marker is drawn with. One convention for the marker, the drop and
+ * Alt+Arrow, because they used to disagree: an index counted *with* the field
+ * still in place has to be corrected by one on every downward move, and each
+ * caller got that correction wrong in a different way — the drop landed one
+ * slot above its marker, and Alt+ArrowDown cancelled itself out entirely.
+ *
+ * @param fields  The list as it stands.
+ * @param fieldId The field to move.
+ * @param index   The slot to take, counted with the field lifted out.
+ * @return Remove-at and insert-at positions, or null when nothing would move.
+ */
+export function fieldMove(
+	fields: ReadonlyArray< { id: string } >,
+	fieldId: string,
+	index: number
+): { from: number; to: number } | null {
+	const from = fields.findIndex( ( field ) => field.id === fieldId );
+
+	if ( from < 0 ) {
+		return null;
+	}
+
+	// The list is one shorter with the field lifted out, so its last slot is
+	// `length - 1` — which is also where inserting back at `from` puts the
+	// field exactly where it was.
+	const to = Math.max( 0, Math.min( index, fields.length - 1 ) );
+
+	return to === from ? null : { from, to };
+}
+
 const PREFILL_SOURCES: Array< { value: string; label: string; group: string; tag?: string } > = [
 	{ value: 'user:email', label: 'Their email address', group: 'About the person filling it in', tag: '{user:email}' },
 	{ value: 'user:display_name', label: 'Their name', group: 'About the person filling it in', tag: '{user:display_name}' },
@@ -466,12 +501,44 @@ export class Builder {
 	private logicMapOn: boolean = 'off' !== readSetting( LOGIC_MAP_SETTING );
 	private dirty = false;
 
+	/**
+	 * Counts edits, so a save response can tell whether it is stale.
+	 *
+	 * Read when a save request's body is built and compared when its response
+	 * lands. If the counter moved in between, the person edited while the
+	 * request was in flight — the response describes a schema older than the
+	 * one on screen, and adopting it would silently destroy those edits.
+	 */
+	private editGeneration = 0;
+
+	/** Whether a save request is out right now. Saves are serialised, never raced. */
+	private saveInFlight = false;
+
+	/**
+	 * At most one save waiting behind the in-flight one.
+	 *
+	 * One is enough: the follow-up reads the schema when it runs, so a single
+	 * trailing request carries however many edits arrived mid-flight. `silent`
+	 * is false if any of the collapsed requests wanted a notice.
+	 */
+	private queuedSave: { silent: boolean } | null = null;
+
 	private readonly bar: HTMLElement;
 	private readonly palette: HTMLElement;
 	private readonly canvas: HTMLElement;
 	private readonly inspector: HTMLElement;
 
 	private teardowns: Array< () => void > = [];
+
+	/**
+	 * Undoes the current canvas drop-target registration.
+	 *
+	 * Held apart from `teardowns` because it turns over with every canvas
+	 * render — every inspector keystroke — and an entry pushed per render is a
+	 * document-level move listener leaked per keystroke, all alive until the
+	 * window closes.
+	 */
+	private canvasTarget: ( () => void ) | null = null;
 
 	/**
 	 * Schema snapshots, oldest first, for undo and redo.
@@ -569,6 +636,9 @@ export class Builder {
 
 	/** Releases every listener this instance registered. */
 	public destroy(): void {
+		this.canvasTarget?.();
+		this.canvasTarget = null;
+
 		this.teardowns.forEach( ( teardown ) => teardown() );
 		this.teardowns = [];
 	}
@@ -832,6 +902,11 @@ export class Builder {
 		}
 
 		this.historyAt = this.history.length - 1;
+
+		// Structural edits snapshot without rebuilding the toolbar — rebuilding
+		// would take the focus of whoever is typing in the title box — so the
+		// Undo and Redo buttons are refreshed where they stand instead.
+		this.syncHistoryButtons();
 	}
 
 	/** Steps backwards or forwards through the history. */
@@ -851,8 +926,7 @@ export class Builder {
 			this.selected = null;
 		}
 
-		this.dirty = true;
-		this.autosave();
+		this.markDirty();
 
 		this.renderBar();
 		this.renderCanvas();
@@ -861,12 +935,36 @@ export class Builder {
 
 	/** An undo or redo button, disabled when there is nowhere to go. */
 	private historyButton( iconSlug: string, label: string, delta: number ): HTMLElement & { disabled: boolean } {
-		const target = this.historyAt + delta;
 		const node = button( label, () => this.travel( delta ), 'secondary', iconSlug );
 
-		node.disabled = target < 0 || target >= this.history.length;
+		// Tagged with its direction so `syncHistoryButtons()` can find it again:
+		// the buttons outlive many snapshots, and only `renderBar()` rebuilds them.
+		node.setAttribute( 'data-atfb-history', String( delta ) );
+		node.disabled = ! this.canTravel( delta );
 
 		return node;
+	}
+
+	/** Whether the history has anywhere to go in this direction. */
+	private canTravel( delta: number ): boolean {
+		const target = this.historyAt + delta;
+
+		return target >= 0 && target < this.history.length;
+	}
+
+	/**
+	 * Refreshes Undo and Redo's disabled state in place.
+	 *
+	 * The state was computed only in `renderBar()`, which structural edits never
+	 * call — so Undo sat disabled all session while Cmd+Z quietly worked. The
+	 * buttons are updated whenever the history moves instead.
+	 */
+	private syncHistoryButtons(): void {
+		for ( const node of this.bar.querySelectorAll< HTMLElement & { disabled: boolean } >(
+			'[data-atfb-history]'
+		) ) {
+			node.disabled = ! this.canTravel( Number( node.dataset.atfbHistory ) );
+		}
 	}
 
 	/**
@@ -990,6 +1088,7 @@ export class Builder {
 	/** Marks the form as having unsaved changes and schedules an autosave. */
 	private markDirty(): void {
 		this.dirty = true;
+		this.editGeneration += 1;
 
 		// Only the button changes, so the whole toolbar is not rebuilt on every
 		// keystroke — which would drop the focus of whoever is typing in it.
@@ -1018,6 +1117,22 @@ export class Builder {
 			return;
 		}
 
+		// One request at a time. Two saves in flight can resolve out of order,
+		// and the older response arriving last would put the older schema back.
+		// A save asked for meanwhile is queued — once — and runs after this one,
+		// reading the schema fresh when it does.
+		if ( this.saveInFlight ) {
+			this.queuedSave = { silent: silent && ( this.queuedSave?.silent ?? true ) };
+
+			return;
+		}
+
+		this.saveInFlight = true;
+
+		// Read as the request body is built. If it has moved by the time the
+		// response lands, edits were made mid-flight and the response is stale.
+		const generation = this.editGeneration;
+
 		try {
 			const saved = await api.updateForm( this.form.id, {
 				title: this.form.title,
@@ -1034,11 +1149,25 @@ export class Builder {
 			// update an object nothing serialises, and the edit would vanish at the
 			// next save with no error anywhere. So the canvas is rebuilt to rebind
 			// — but not out from under somebody who is still typing in it.
-			this.form = saved;
-			this.schema = saved.schema;
-			this.dirty = false;
+			//
+			// Adopted only while nothing changed in flight: an edit made after the
+			// request left is not in `saved`, and replacing the schema — or
+			// clearing `dirty` — would destroy it. The stale case keeps the local
+			// copy, stays dirty, and lets the already-scheduled autosave carry the
+			// newer edits up.
+			if ( generation === this.editGeneration ) {
+				this.form = saved;
+				this.schema = saved.schema;
+				this.dirty = false;
 
-			this.rebindCanvas();
+				this.rebindCanvas();
+
+				const save = this.bar.querySelector< HTMLElement & { disabled: boolean } >( '[data-atfb-save]' );
+
+				if ( save ) {
+					save.disabled = true;
+				}
+			}
 
 			// The merge-tag picker lists this form's questions by label, and the
 			// server builds that list from the *saved* schema. Without this, a
@@ -1051,12 +1180,6 @@ export class Builder {
 
 			if ( summary ) {
 				summary.title = saved.title;
-			}
-
-			const save = this.bar.querySelector< HTMLElement & { disabled: boolean } >( '[data-atfb-save]' );
-
-			if ( save ) {
-				save.disabled = true;
 			}
 
 			// A preview window open for this form is navigated to the fresh
@@ -1076,6 +1199,16 @@ export class Builder {
 				error instanceof Error ? error.message : '',
 				'error'
 			);
+		} finally {
+			this.saveInFlight = false;
+
+			const queued = this.queuedSave;
+
+			this.queuedSave = null;
+
+			if ( queued ) {
+				void this.save( queued.silent );
+			}
 		}
 	}
 
@@ -1134,7 +1267,20 @@ export class Builder {
 
 		const overlay = el( 'div', { class: 'atfb-overlay' } );
 
-		const close = () => overlay.remove();
+		// Named, so it can be removed however the dialog closes. A `{ once: true }`
+		// listener is spent by the first keydown of *any* key — pressing anything
+		// else first left Escape doing nothing — and closing via Cancel would
+		// leave it behind to eat the next Escape pressed anywhere.
+		const onKeydown = ( event: KeyboardEvent ) => {
+			if ( event.key === 'Escape' ) {
+				close();
+			}
+		};
+
+		const close = () => {
+			overlay.remove();
+			document.removeEventListener( 'keydown', onKeydown );
+		};
 
 		const grid = el( 'div', {
 			class: 'atfb-templates',
@@ -1167,6 +1313,14 @@ export class Builder {
 								this.schema = created.schema;
 								this.selected = null;
 								this.dirty = false;
+
+								// A fresh form starts a fresh history, exactly as
+								// `open()` and `importForm()` do. Kept, the first
+								// Cmd+Z would restore the *previous* form's
+								// snapshot — and autosave it under this form's id.
+								this.history = [];
+								this.historyAt = -1;
+								this.snapshot();
 
 								this.renderBar();
 								this.renderCanvas();
@@ -1204,15 +1358,7 @@ export class Builder {
 			}
 		} );
 
-		document.addEventListener(
-			'keydown',
-			( event ) => {
-				if ( event.key === 'Escape' ) {
-					close();
-				}
-			},
-			{ once: true }
-		);
+		document.addEventListener( 'keydown', onKeydown );
 
 		this.root.append( overlay );
 		grid.querySelector< HTMLElement >( 'button' )?.focus();
@@ -1989,6 +2135,13 @@ export class Builder {
 	 * shared drag manager buys and an iframe could not.
 	 */
 	private registerCanvasTarget( list: HTMLElement ): void {
+		// Every canvas render builds a fresh list element, and this runs on every
+		// render — so the previous registration and its document-level move
+		// listener go first. Left in place, each inspector keystroke would stack
+		// one more of each until the window closed.
+		this.canvasTarget?.();
+		this.canvasTarget = null;
+
 		const marker = el( 'div', { class: 'atfb-marker', attrs: { 'aria-hidden': 'true' } } );
 
 		const teardown = getDragManager().registerDropTarget( {
@@ -2038,21 +2191,33 @@ export class Builder {
 			},
 		} );
 
-		this.teardowns.push( teardown );
-
 		// The insertion marker follows the pointer while a field is over the
 		// canvas. Driven from the shell's own move event so it works with either
 		// manager.
 		const onMove = ( event: Event ) => {
-			const detail = ( event as CustomEvent< { payload?: { type: string }; clientY?: number } > ).detail;
+			const detail = (
+				event as CustomEvent< { payload?: { type: string; data?: { fieldId?: string } }; clientY?: number } >
+			 ).detail;
 
 			if ( detail?.payload?.type !== FIELD_PAYLOAD_TYPE || ! list.classList.contains( 'is-dropping' ) ) {
 				return;
 			}
 
+			// The dragged card is left out of the count, exactly as `onDrop`
+			// leaves it out. Marker and drop must be computed in the same
+			// indexing — counted two different ways, the field lands one slot
+			// away from where the marker said it would.
+			const dragged = detail.payload.data?.fieldId
+				? this.canvas.querySelector< HTMLElement >(
+						`[data-atfb-card="${ CSS.escape( detail.payload.data.fieldId ) }"]`
+				  )
+				: null;
+
 			const y = detail.clientY ?? 0;
-			const index = insertionIndex( list, '.atfb-card', y );
-			const cards = list.querySelectorAll< HTMLElement >( '.atfb-card' );
+			const index = insertionIndex( list, '.atfb-card', y, dragged ?? undefined );
+			const cards = Array.from( list.querySelectorAll< HTMLElement >( '.atfb-card' ) ).filter(
+				( card ) => card !== dragged
+			);
 
 			if ( index >= cards.length ) {
 				list.append( marker );
@@ -2062,7 +2227,11 @@ export class Builder {
 		};
 
 		document.addEventListener( 'os.drag.move', onMove );
-		this.teardowns.push( () => document.removeEventListener( 'os.drag.move', onMove ) );
+
+		this.canvasTarget = () => {
+			teardown();
+			document.removeEventListener( 'os.drag.move', onMove );
+		};
 	}
 
 	/* -------------------------------------------------------- Field editing */
@@ -2126,31 +2295,28 @@ export class Builder {
 		} );
 	}
 
-	/** Moves a field to an index. */
+	/**
+	 * Moves a field to an index.
+	 *
+	 * `index` counts the list *without* the moved field — see {@link fieldMove}
+	 * for why every caller works in that space.
+	 */
 	private moveField( fieldId: string, index: number ): void {
 		if ( ! this.schema ) {
 			return;
 		}
 
-		const from = this.schema.fields.findIndex( ( field ) => field.id === fieldId );
+		const move = fieldMove( this.schema.fields, fieldId, index );
 
-		if ( from < 0 ) {
-			return;
-		}
-
-		const clamped = Math.max( 0, Math.min( index, this.schema.fields.length - 1 ) );
-
-		if ( from === clamped ) {
+		if ( ! move ) {
 			return;
 		}
 
 		this.snapshot();
 
-		const [ field ] = this.schema.fields.splice( from, 1 );
+		const [ field ] = this.schema.fields.splice( move.from, 1 );
 
-		// Removing first shifts everything after it down by one, so an index
-		// captured before the removal is one too high when moving downwards.
-		this.schema.fields.splice( clamped > from ? clamped - 1 : clamped, 0, field );
+		this.schema.fields.splice( move.to, 0, field );
 
 		this.markDirty();
 		this.renderCanvas();
@@ -2249,6 +2415,25 @@ export class Builder {
 		return `f${ index }`;
 	}
 
+	/**
+	 * An id for a new notification or confirmation, not already in use.
+	 *
+	 * Minted against the ids present, like `nextFieldId()`, rather than from
+	 * the list's length: after a delete-then-add, `length + 1` re-issues an id
+	 * the list still contains, and two entries sharing one id share one
+	 * disclosure panel — opening either folds and unfolds both.
+	 */
+	private nextEntryId( prefix: string, items: ReadonlyArray< { id: string } > ): string {
+		const used = new Set( items.map( ( item ) => item.id ) );
+		let index = items.length + 1;
+
+		while ( used.has( `${ prefix }${ index }` ) ) {
+			index++;
+		}
+
+		return `${ prefix }${ index }`;
+	}
+
 	/* ------------------------------------------------------------ Inspector */
 
 	/** Draws the inspector for whatever is selected. */
@@ -2291,8 +2476,21 @@ export class Builder {
 
 		const definition = this.config?.fieldTypes.find( ( candidate ) => candidate.type === field.type );
 		const supports = definition?.supports ?? [];
+
+		// Writes resolve the field from the *current* schema at write time, by
+		// id. A save replaces `this.schema` with the server's normalised copy
+		// and rebinds only the canvas — the inspector keeps these controls — so
+		// the `field` found above is orphaned by the first autosave, and writing
+		// to it would edit an object nothing serialises. The same trap
+		// `PreviewHandlers` documents in field-preview.ts.
 		const update = ( key: string, value: unknown ) => {
-			( field as unknown as Record< string, unknown > )[ key ] = value;
+			const live = this.liveField( field.id );
+
+			if ( ! live ) {
+				return;
+			}
+
+			( live as unknown as Record< string, unknown > )[ key ] = value;
 			this.markDirty();
 			this.renderCanvas();
 		};
@@ -2638,6 +2836,12 @@ export class Builder {
 	private renderChoicesEditor( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
 		const choices = ( field.choices ?? [] ) as Choice[];
 
+		// Handlers below write to the choice as it exists in the *current*
+		// schema, looked up at write time — never to the `choices` rendered
+		// here, which a save orphans along with the field that owns them. The
+		// same trap `update()` avoids, one level down.
+		const liveChoice = ( index: number ): Choice | undefined => this.liveField( field.id )?.choices?.[ index ];
+
 		const list = el( 'div', { class: 'atfb-choices' } );
 
 		choices.forEach( ( choice, index ) => {
@@ -2649,6 +2853,12 @@ export class Builder {
 						// empty boxes for a setting that does nothing.
 						field.type === 'image_choice' ? this.choiceImageWell( choice, index, field ) : null,
 						bind( textInput( choice.label, ( value ) => {
+							const live = liveChoice( index );
+
+							if ( ! live ) {
+								return;
+							}
+
 							// Read *before* the assignment. This compared
 							// `choice.value` with `choices[ index ].value` — the
 							// same object — so it was always true and the value
@@ -2656,23 +2866,32 @@ export class Builder {
 							// one thing the comment says it must not do: an
 							// entry stores the value, and rewriting it orphans
 							// every submission already recorded under it.
-							const mirroring = ! choice.value || choice.value === choice.label;
+							const mirroring = ! live.value || live.value === live.label;
 
-							choice.label = value;
+							live.label = value;
 
 							if ( mirroring ) {
-								choice.value = value;
+								live.value = value;
 							}
 
 							this.markDirty();
-							this.syncCanvas( field );
+
+							const parent = this.liveField( field.id );
+
+							if ( parent ) {
+								this.syncCanvas( parent );
+							}
 						} ), `choice:${ index }:label` ),
 						bind(
 							textInput(
 								choice.value,
 								( value ) => {
-									choice.value = value;
-									this.markDirty();
+									const live = liveChoice( index );
+
+									if ( live ) {
+										live.value = value;
+										this.markDirty();
+									}
 								},
 								'value'
 							),
@@ -2680,12 +2899,20 @@ export class Builder {
 						),
 						field.type === 'quiz' || choice.points !== undefined
 							? numberInput( String( choice.points ?? '' ), ( value ) => {
-									choice.points = value === '' ? undefined : Number( value );
-									this.markDirty();
+									const live = liveChoice( index );
+
+									if ( live ) {
+										live.points = value === '' ? undefined : Number( value );
+										this.markDirty();
+									}
 							  } )
 							: numberInput( String( choice.price ?? '' ), ( value ) => {
-									choice.price = value === '' ? undefined : Number( value );
-									this.markDirty();
+									const live = liveChoice( index );
+
+									if ( live ) {
+										live.price = value === '' ? undefined : Number( value );
+										this.markDirty();
+									}
 							  } ),
 						el( 'button', {
 							class: 'atfb-card__action',
@@ -2693,8 +2920,14 @@ export class Builder {
 							attrs: { 'aria-label': `Remove ${ choice.label }` },
 							on: {
 								click: () => {
-									choices.splice( index, 1 );
-									update( 'choices', choices );
+									const parent = this.liveField( field.id );
+
+									if ( ! parent ) {
+										return;
+									}
+
+									( parent.choices ?? [] ).splice( index, 1 );
+									update( 'choices', parent.choices );
 									this.renderInspector();
 								},
 							},
@@ -2718,8 +2951,16 @@ export class Builder {
 				button(
 					'Add choice',
 					() => {
-						choices.push( { label: '', value: '' } );
-						update( 'choices', choices );
+						const parent = this.liveField( field.id );
+
+						if ( ! parent ) {
+							return;
+						}
+
+						const next = parent.choices ?? [];
+
+						next.push( { label: '', value: '' } );
+						update( 'choices', next );
 						this.renderInspector();
 					},
 					'ghost',
@@ -2793,7 +3034,15 @@ export class Builder {
 					return;
 				}
 
-				choice.image = id;
+				// Written to the choice in the *current* schema, not the one this
+				// well was rendered from — a save may have replaced it since.
+				const live = this.liveField( field.id )?.choices?.[ index ];
+
+				if ( ! live ) {
+					return;
+				}
+
+				live.image = id;
 				this.markDirty();
 				this.renderInspector();
 			},
@@ -2804,11 +3053,13 @@ export class Builder {
 		// Clicking clears it, because there is otherwise no way to undo a drop
 		// and the well is the only place the setting lives.
 		well.addEventListener( 'click', () => {
-			if ( ! choice.image ) {
+			const live = this.liveField( field.id )?.choices?.[ index ];
+
+			if ( ! live?.image ) {
 				return;
 			}
 
-			choice.image = undefined;
+			live.image = undefined;
 			this.markDirty();
 			this.renderInspector();
 		} );
@@ -2906,6 +3157,13 @@ export class Builder {
 	/** The conditional-logic editor. */
 	private renderLogicSection( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
 		const logic = field.logic;
+
+		// Handlers below write to the logic block of the field as it exists in
+		// the *current* schema, resolved at write time — `logic` above is only
+		// what this render paints from, and a save orphans it along with the
+		// field it belongs to. The same trap `update()` avoids.
+		const liveLogic = () => this.liveField( field.id )?.logic;
+
 		const others = ( this.schema?.fields ?? [] ).filter(
 			( candidate ) => candidate.id !== field.id && candidate.type !== 'page_break'
 		);
@@ -2924,21 +3182,33 @@ export class Builder {
 								label: candidate.label || candidate.id,
 							} ) ),
 							( value ) => {
-								rule.field = value;
-								this.markDirty();
+								const live = liveLogic()?.rules[ index ];
+
+								if ( live ) {
+									live.field = value;
+									this.markDirty();
+								}
 							}
 						),
 						select(
 							rule.operator,
 							Object.entries( this.config?.operators ?? {} ).map( ( [ value, label ] ) => ( { value, label } ) ),
 							( value ) => {
-								rule.operator = value as typeof rule.operator;
-								this.markDirty();
+								const live = liveLogic()?.rules[ index ];
+
+								if ( live ) {
+									live.operator = value as typeof rule.operator;
+									this.markDirty();
+								}
 							}
 						),
 						textInput( rule.value, ( value ) => {
-							rule.value = value;
-							this.markDirty();
+							const live = liveLogic()?.rules[ index ];
+
+							if ( live ) {
+								live.value = value;
+								this.markDirty();
+							}
 						} ),
 						el( 'button', {
 							class: 'atfb-card__action',
@@ -2946,8 +3216,14 @@ export class Builder {
 							attrs: { 'aria-label': 'Remove this rule' },
 							on: {
 								click: () => {
-									logic.rules.splice( index, 1 );
-									update( 'logic', logic );
+									const live = liveLogic();
+
+									if ( ! live ) {
+										return;
+									}
+
+									live.rules.splice( index, 1 );
+									update( 'logic', live );
 									this.renderInspector();
 								},
 							},
@@ -2963,8 +3239,14 @@ export class Builder {
 			'Conditional logic',
 			[
 				checkbox( 'Only show this field sometimes', logic.enabled, ( value ) => {
-					logic.enabled = value;
-					update( 'logic', logic );
+					const live = liveLogic();
+
+					if ( ! live ) {
+						return;
+					}
+
+					live.enabled = value;
+					update( 'logic', live );
 					this.renderInspector();
 				} ),
 				logic.enabled
@@ -2980,8 +3262,12 @@ export class Builder {
 												{ value: 'hide', label: 'Hide' },
 											],
 											( value ) => {
-												logic.action = value as 'show' | 'hide';
-												update( 'logic', logic );
+												const live = liveLogic();
+
+												if ( live ) {
+													live.action = value as 'show' | 'hide';
+													update( 'logic', live );
+												}
 											}
 										),
 										el( 'span', { text: 'this field when' } ),
@@ -2992,8 +3278,12 @@ export class Builder {
 												{ value: 'any', label: 'any' },
 											],
 											( value ) => {
-												logic.match = value as 'all' | 'any';
-												update( 'logic', logic );
+												const live = liveLogic();
+
+												if ( live ) {
+													live.match = value as 'all' | 'any';
+													update( 'logic', live );
+												}
 											}
 										),
 										el( 'span', { text: 'of these match:' } ),
@@ -3003,12 +3293,18 @@ export class Builder {
 								button(
 									'Add rule',
 									() => {
-										logic.rules.push( {
+										const live = liveLogic();
+
+										if ( ! live ) {
+											return;
+										}
+
+										live.rules.push( {
 											field: others[ 0 ]?.id ?? '',
 											operator: 'is',
 											value: '',
 										} );
-										update( 'logic', logic );
+										update( 'logic', live );
 										this.renderInspector();
 									},
 									'ghost',
@@ -3050,6 +3346,14 @@ export class Builder {
 						this.schema!.settings.themeOverrides[ token ] = value;
 					}
 
+					this.markDirty();
+				},
+				// The studio clears the whole set on a theme switch, save or
+				// delete. Without this the schema keeps the old theme's tuning
+				// while the preview shows none of it, and the published form
+				// disagrees with what the Theme tab said it would look like.
+				onOverridesReplaced: ( overrides ) => {
+					this.schema!.settings.themeOverrides = { ...overrides };
 					this.markDirty();
 				},
 				previewFor: ( slug, overrides ) => this.previewHtml( slug, overrides ),
@@ -3539,7 +3843,7 @@ export class Builder {
 					'Add a notification',
 					() => {
 						notifications.push( {
-							id: `n${ notifications.length + 1 }`,
+							id: this.nextEntryId( 'n', notifications ),
 							enabled: true,
 							name: 'Notification',
 							to: '{admin_email}',
@@ -3754,7 +4058,7 @@ export class Builder {
 					'Add a confirmation',
 					() => {
 						confirmations.push( {
-							id: `c${ confirmations.length + 1 }`,
+							id: this.nextEntryId( 'c', confirmations ),
 							enabled: true,
 							name: 'Confirmation',
 							type: 'message',

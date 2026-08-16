@@ -248,6 +248,46 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A field with "Other" enabled accepts free text.
+	 *
+	 * The `__other__` marker is replaced by what the visitor typed *before*
+	 * validation runs, so with "Other" on there is no whitelist to enforce —
+	 * a list could never anticipate the answer. Without the exemption every
+	 * legitimate "Other" answer was refused as a forged request.
+	 *
+	 * @covers ::atf_validate_bounds
+	 */
+	public function test_other_answers_pass_the_whitelist() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'      => 'colour',
+						'type'    => 'radio',
+						'other'   => true,
+						'choices' => array(
+							array(
+								'label' => 'Red',
+								'value' => 'red',
+							),
+						),
+					),
+				),
+			)
+		);
+
+		// The full pipeline: the marker posted beside the typed text.
+		$values = atf_apply_other_values(
+			$schema,
+			array( 'colour' => '__other__' ),
+			array( 'atf_other' => array( 'colour' => 'Purple' ) )
+		);
+
+		$this->assertSame( 'Purple', $values['colour'] );
+		$this->assertSame( array(), atf_validate_submission( $schema, $values ) );
+	}
+
+	/**
 	 * Length and numeric bounds are enforced.
 	 *
 	 * @covers ::atf_validate_bounds
@@ -413,6 +453,30 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 		$this->assertSame( '', atf_sanitize_field_value( array( 1, 2 ), array( 'type' => 'number' ) ) );
 		$this->assertSame( array( 'x' ), atf_sanitize_field_value( 'x', array( 'type' => 'checkboxes' ) ) );
 		$this->assertSame( array(), atf_sanitize_field_value( 'x', array( 'type' => 'name' ) ) );
+	}
+
+	/**
+	 * An image choice's shape follows its `multiple` flag.
+	 *
+	 * The renderer posts an array the moment the flag is on, and the generic
+	 * string path coerces an array to '' -- which silently lost every
+	 * selection a visitor made.
+	 *
+	 * @covers ::atf_sanitize_field_value
+	 */
+	public function test_image_choice_shape_follows_the_multiple_flag() {
+		$single = array( 'type' => 'image_choice' );
+		$multi  = array(
+			'type'     => 'image_choice',
+			'multiple' => true,
+		);
+
+		$this->assertSame( 'a', atf_sanitize_field_value( 'a', $single ) );
+		$this->assertSame( '', atf_sanitize_field_value( array( 'a', 'b' ), $single ), 'An array where one value belongs is a forged request.' );
+
+		$this->assertSame( array( 'a', 'b' ), atf_sanitize_field_value( array( 'a', 'b' ), $multi ) );
+		$this->assertSame( array( 'a' ), atf_sanitize_field_value( 'a', $multi ), 'A lone value still stores as a list when multiple is on.' );
+		$this->assertSame( array(), atf_sanitize_field_value( '', $multi ) );
 	}
 
 	/**

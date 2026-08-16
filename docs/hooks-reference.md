@@ -433,7 +433,10 @@ by default and is the only one that asks the visitor to do anything.
 
 The challenge's answer is signed with `atf_sign_challenge()` and never sent to
 the browser. A challenge whose expected answer travels in the page alongside the
-question is decoration.
+question is decoration. The signature also binds the hour it was issued, and the
+verifier accepts the current and previous hour only — so a rendered form has
+between one and two hours to be submitted, and a harvested (answer, signature)
+pair stops replaying when its hour ages out.
 
 ### `atf_client_ip` — Filter — *Stable*
 
@@ -508,6 +511,32 @@ add_action( 'atf_partial_saved', function ( $entry_id, $form_id, $url, $values )
 
 > The URL is a bearer credential — anyone holding it can read the half-finished
 > answers. Send it only to an address the person themselves typed in.
+
+### `atf_partial_rate_limit` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_partial_rate_limit', int $limit, int $form_id );
+```
+
+How many **new** partials one IP address may create per hour through the public
+`/resume` endpoint. Default `30`; zero or less removes the cap. Updates to an
+existing partial are never counted — an update needs a token, and the save that
+minted the token spent a slot. Logged-in users are exempt for the same reason
+the submission rate limit skips them.
+
+Past the limit the save fails with the `atf_partial_rate_limited` error code
+(HTTP 429).
+
+### `atf_upload_overrides` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_upload_overrides', array $overrides, array $field, int $form_id );
+```
+
+The overrides array handed to Core's `wp_handle_upload()` for a file field's
+upload. The default carries `test_form => false` and the field's own MIME
+whitelist; a site that needs to loosen or tighten what Core will accept for one
+form can do it here without reimplementing the upload path.
 
 ---
 

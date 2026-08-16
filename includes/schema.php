@@ -87,7 +87,9 @@ function atf_default_schema() {
 			),
 			'quiz'           => array(
 				'enabled'   => false,
-				'passMark'  => 0,
+				// A float on purpose: the default's type is what the setting
+				// is coerced to, and a pass mark of 62.5% is legitimate.
+				'passMark'  => 0.0,
 				'showScore' => true,
 			),
 		),
@@ -228,7 +230,25 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	$settings = $definition && is_array( $definition['settings'] ) ? $definition['settings'] : array();
 
 	foreach ( $settings as $key => $fallback ) {
-		$field[ $key ] = array_key_exists( $key, $raw ) ? $raw[ $key ] : $fallback;
+		if ( ! array_key_exists( $key, $raw ) ) {
+			$field[ $key ] = $fallback;
+			continue;
+		}
+
+		// `content` and `consentText` may legitimately carry markup, and
+		// `wp_kses_post()` below is the authority on what survives in them --
+		// flattening them to a single text line here would strip the markup
+		// before it ever reached that check. They are only coerced to the
+		// string an array can never be.
+		if ( 'content' === $key || 'consentText' === $key ) {
+			$field[ $key ] = is_scalar( $raw[ $key ] ) ? (string) $raw[ $key ] : '';
+			continue;
+		}
+
+		// Everything else is typed against its declared default, so an
+		// imported schema cannot put an array where `strtotime()` or a
+		// renderer will later assume a scalar.
+		$field[ $key ] = atf_coerce_setting( $raw[ $key ], $fallback );
 	}
 
 	// Validation bounds are common enough to live on the field rather than in
@@ -252,6 +272,12 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	// edit forms must not become the capability to run script on the front end.
 	if ( isset( $field['content'] ) ) {
 		$field['content'] = wp_kses_post( (string) $field['content'] );
+	}
+
+	// Consent text is rendered through `wp_kses_post()` too -- it routinely
+	// links a privacy policy -- so it gets the same treatment as `content`.
+	if ( isset( $field['consentText'] ) ) {
+		$field['consentText'] = wp_kses_post( (string) $field['consentText'] );
 	}
 
 	// A repeater's sub-fields are fields, so they recurse through exactly this
@@ -543,6 +569,44 @@ function atf_normalize_messages( $raw ) {
 }
 
 /**
+ * Coerces one raw setting to the type its declared default has.
+ *
+ * A schema arrives as JSON somebody may have written by hand, and a setting
+ * the code will later hand to `strtotime()` or `wp_kses_post()` has to
+ * actually be a string by then -- on PHP 8 both fatal on an array. The
+ * default's own type is the declaration: a boolean default makes the setting
+ * a boolean, an integer default an integer, a string default a sanitised
+ * single line, and an array default keeps arrays, whose contents are
+ * normalised by whichever code owns them. A value of the wrong shape falls
+ * back to the default rather than being guessed at.
+ *
+ * @since 0.1.0
+ *
+ * @param mixed $value    The raw value.
+ * @param mixed $fallback The declared default.
+ * @return mixed The value, in the default's type.
+ */
+function atf_coerce_setting( $value, $fallback ) {
+	if ( is_array( $fallback ) ) {
+		return is_array( $value ) ? $value : $fallback;
+	}
+
+	if ( is_bool( $fallback ) ) {
+		return (bool) $value;
+	}
+
+	if ( is_int( $fallback ) ) {
+		return is_scalar( $value ) ? (int) $value : $fallback;
+	}
+
+	if ( is_float( $fallback ) ) {
+		return is_scalar( $value ) ? (float) $value : $fallback;
+	}
+
+	return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : $fallback;
+}
+
+/**
  * Normalises the settings block against its defaults.
  *
  * Recursive one level deep, because the settings that group -- spam, storage,
@@ -568,21 +632,35 @@ function atf_normalize_settings( $raw, $defaults ) {
 		}
 
 		if ( is_array( $default ) ) {
-			$settings[ $key ] = is_array( $raw[ $key ] ) ? array_merge( $default, $raw[ $key ] ) : $default;
+			if ( ! is_array( $raw[ $key ] ) ) {
+				continue;
+			}
+
+			// Each value inside a nested map is coerced against its own
+			// default, so `schedule.start` cannot arrive as an array and ride
+			// through to `strtotime()` untyped. A key the defaults do not
+			// declare is kept as it came, for filters that add their own.
+			$merged = $default;
+
+			foreach ( $raw[ $key ] as $sub_key => $sub_value ) {
+				$merged[ $sub_key ] = array_key_exists( $sub_key, $default )
+					? atf_coerce_setting( $sub_value, $default[ $sub_key ] )
+					: $sub_value;
+			}
+
+			$settings[ $key ] = $merged;
 			continue;
 		}
 
-		if ( is_bool( $default ) ) {
-			$settings[ $key ] = (bool) $raw[ $key ];
-			continue;
-		}
+		$settings[ $key ] = atf_coerce_setting( $raw[ $key ], $default );
+	}
 
-		if ( is_int( $default ) ) {
-			$settings[ $key ] = (int) $raw[ $key ];
-			continue;
-		}
-
-		$settings[ $key ] = is_scalar( $raw[ $key ] ) ? sanitize_text_field( (string) $raw[ $key ] ) : $default;
+	// The blocklist is newline-separated -- one term per line -- and the text
+	// sanitiser above collapses newlines. It is re-read here with its line
+	// structure intact; `sanitize_textarea_field()` strips the same badness
+	// but keeps the newlines the matcher splits on.
+	if ( isset( $raw['spam'] ) && is_array( $raw['spam'] ) && isset( $raw['spam']['blocklist'] ) && is_scalar( $raw['spam']['blocklist'] ) ) {
+		$settings['spam']['blocklist'] = sanitize_textarea_field( (string) $raw['spam']['blocklist'] );
 	}
 
 	// Types inside the nested maps, after the merge above has placed them.

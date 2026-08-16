@@ -37,13 +37,27 @@ export class ApiError extends Error {
 	}
 }
 
+/**
+ * Joins a path onto a REST base URL.
+ *
+ * On a site without pretty permalinks the base already carries its own query —
+ * `…/index.php?rest_route=/allterrain-forms/v1` — so a path that brings a query
+ * string of its own would produce a second `?`, which Core reads as part of the
+ * route and answers with `rest_no_route`. The path's `?` becomes `&` in that
+ * case, and only in that case: on a pretty-permalink base the path passes
+ * through untouched.
+ */
+export function joinPath( base: string, path: string ): string {
+	return base.includes( '?' ) ? `${ base }${ path.replace( '?', '&' ) }` : `${ base }${ path }`;
+}
+
 /** One request. */
 async function request< T >( path: string, init: RequestInit = {} ): Promise< T > {
 	if ( ! config?.restUrl ) {
 		throw new ApiError( 'AllTerrain Forms is not configured on this page.', 0 );
 	}
 
-	const url = `${ config.restUrl }${ path }`;
+	const url = joinPath( config.restUrl, path );
 
 	const headers: Record< string, string > = {
 		'Content-Type': 'application/json',
@@ -108,7 +122,7 @@ async function wpGet< T >( route: string ): Promise< T > {
 
 	const headers: Record< string, string > = config.nonce ? { 'X-WP-Nonce': config.nonce } : {};
 	const shell = getShell();
-	const url = `${ config.wpRestUrl }${ route }`;
+	const url = joinPath( config.wpRestUrl, route );
 
 	const response = shell?.fetch
 		? await shell.fetch( url, { credentials: 'same-origin', headers }, { source: 'allterrain-forms' } )

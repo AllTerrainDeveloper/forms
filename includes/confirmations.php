@@ -161,8 +161,21 @@ function atf_confirmation_url( $confirmation, $context ) {
 
 		parse_str( $query, $pairs );
 
-		if ( $pairs ) {
-			$url = add_query_arg( array_map( 'rawurlencode', wp_unslash( $pairs ) ), $url );
+		// Scalars only. `parse_str()` builds nested arrays from bracketed
+		// keys, and a merge tag resolves to whatever the visitor typed --
+		// including brackets -- so an array here is visitor-reachable, and
+		// `rawurlencode()` on an array is a fatal on PHP 8. A nested value
+		// has no single defensible flattening, so it is dropped instead.
+		$encoded = array();
+
+		foreach ( wp_unslash( $pairs ) as $pair_key => $pair_value ) {
+			if ( is_scalar( $pair_value ) ) {
+				$encoded[ $pair_key ] = rawurlencode( (string) $pair_value );
+			}
+		}
+
+		if ( $encoded ) {
+			$url = add_query_arg( $encoded, $url );
 		}
 	}
 

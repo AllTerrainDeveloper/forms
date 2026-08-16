@@ -72,6 +72,20 @@ class EntriesWindow {
 	 */
 	private paintedSelectionId = -1;
 
+	/**
+	 * Serials for the two fetches whose responses paint the window.
+	 *
+	 * Nothing here cancels a request, so two rapid filter changes race their
+	 * fetches — and without a serial the slower, *stale* response can land
+	 * second and paint the earlier filter's entries over the current one. Each
+	 * fetch takes a ticket on the way out and its response is applied only if
+	 * the ticket is still the newest. Separate serials for the list and the
+	 * detail pane, because a background list refresh arriving mid-click must
+	 * not swallow the entry the click just asked for.
+	 */
+	private loadSeq = 0;
+	private selectSeq = 0;
+
 	private formId = 0;
 	private status = 'inbox';
 	private search = '';
@@ -127,7 +141,22 @@ class EntriesWindow {
 			.wp?.os;
 
 		if ( shell?.subscribe ) {
-			this.teardowns.push( shell.subscribe( 'os.atf_entry.changed', () => void this.load() ) );
+			this.teardowns.push(
+				shell.subscribe( 'os.atf_entry.changed', () => {
+					// The shell has no window-closed broadcast, so a closed
+					// window is discovered here: its root has left the document,
+					// and the only right response is to let go of the
+					// subscription rather than keep fetching into a detached
+					// DOM for as long as the desktop stays open.
+					if ( ! this.root.isConnected ) {
+						this.destroy();
+
+						return;
+					}
+
+					void this.load();
+				} )
+			);
 		}
 	}
 
@@ -205,6 +234,8 @@ class EntriesWindow {
 			return;
 		}
 
+		const seq = ++this.loadSeq;
+
 		try {
 			const result = await api.listEntries( {
 				form_id: this.formId,
@@ -213,6 +244,20 @@ class EntriesWindow {
 				page: this.page,
 				starred: this.starred,
 			} );
+
+			if ( seq !== this.loadSeq ) {
+				return;
+			}
+
+			// A bulk delete can empty the page being viewed: the server now
+			// reports fewer pages than the one just asked for, and answers it
+			// with no rows. Without the clamp the window claims "No entries yet"
+			// while every remaining entry sits on an earlier page.
+			if ( this.page > 1 && this.page > result.pages ) {
+				this.page = Math.max( 1, result.pages );
+
+				return this.load();
+			}
 
 			this.entries = result.entries;
 			this.total = result.total;
@@ -227,6 +272,10 @@ class EntriesWindow {
 				count.textContent = `${ this.total } ${ this.total === 1 ? 'entry' : 'entries' }`;
 			}
 		} catch ( error ) {
+			if ( seq !== this.loadSeq ) {
+				return;
+			}
+
 			clear( this.list );
 			this.list.append(
 				el( 'p', { class: 'atfb-error', text: error instanceof Error ? error.message : 'Could not load entries.' } )
@@ -527,10 +576,20 @@ class EntriesWindow {
 
 	/** Opens one entry in the detail pane. */
 	private async select( entry: Entry ): Promise< void > {
+		const seq = ++this.selectSeq;
+
 		try {
 			// Fetched rather than reused from the list, because opening an entry
 			// is what marks it read and the server does that on the read.
-			this.selected = await api.getEntry( entry.id );
+			const fetched = await api.getEntry( entry.id );
+
+			// A second click landed while this one was in flight; the slower
+			// response must not paint over the entry chosen after it.
+			if ( seq !== this.selectSeq ) {
+				return;
+			}
+
+			this.selected = fetched;
 
 			const stale = this.entries.find( ( candidate ) => candidate.id === entry.id );
 
@@ -541,6 +600,10 @@ class EntriesWindow {
 			this.renderList();
 			this.renderDetail();
 		} catch ( error ) {
+			if ( seq !== this.selectSeq ) {
+				return;
+			}
+
 			notify( 'Could not open that entry', error instanceof Error ? error.message : '', 'error' );
 		}
 	}

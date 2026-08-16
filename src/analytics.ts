@@ -36,7 +36,7 @@
 
 import { api, runtime } from './api';
 import { button, clear, confirmAction, el, notify, select, whenComponents } from './ui';
-import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary } from './types';
+import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary, NumberSummary } from './types';
 
 /** How the NPS bands are coloured, and what they are called. */
 const NPS_BANDS = [
@@ -44,6 +44,84 @@ const NPS_BANDS = [
 	{ key: 'passives', label: 'Passives', hint: '7–8' },
 	{ key: 'promoters', label: 'Promoters', hint: '9–10' },
 ] as const;
+
+/**
+ * The most columns a histogram is allowed to draw.
+ *
+ * The spread of a numeric question is visitor-controlled: one answer of ten
+ * million next to an answer of one would otherwise mean ten million DOM
+ * columns, and a frozen admin tab is a thing a single hostile submission must
+ * not be able to buy. Fifty is comfortably more than a window can usefully
+ * show anyway.
+ */
+export const MAX_HISTOGRAM_BUCKETS = 50;
+
+/** One drawn column of a numeric question's distribution. */
+export interface HistogramBucket {
+	/** What the tick under the column says — one value, or an "a–b" range. */
+	label: string;
+	count: number;
+	/** Whether the mean falls in this column, which is what gets it marked. */
+	holdsMean: boolean;
+}
+
+/**
+ * Folds a numeric distribution into at most `MAX_HISTOGRAM_BUCKETS` columns.
+ *
+ * When the spread fits, every integer gets its own column, as before. When it
+ * does not, columns become equal ranges labelled "a–b" and the counts inside a
+ * range are summed. Either way each answer is rounded into its column first:
+ * the server keeps fractional answers under fractional keys ("3.5"), and they
+ * still moved the min, max and mean — dropping them here would draw a
+ * distribution that disagrees with the summary line above it.
+ */
+export function histogramBuckets( numbers: NumberSummary ): HistogramBucket[] {
+	const lo = Math.floor( numbers.min );
+	const hi = Math.ceil( numbers.max );
+
+	if ( ! Number.isFinite( lo ) || ! Number.isFinite( hi ) || hi < lo ) {
+		return [];
+	}
+
+	const span = hi - lo + 1;
+	const size = Math.max( 1, Math.ceil( span / MAX_HISTOGRAM_BUCKETS ) );
+	const total = Math.ceil( span / size );
+
+	/** The column a value belongs to, clamped so nothing falls off either end. */
+	const indexOf = ( value: number ): number =>
+		Math.min( total - 1, Math.max( 0, Math.floor( ( value - lo ) / size ) ) );
+
+	const buckets: HistogramBucket[] = [];
+
+	for ( let index = 0; index < total; index++ ) {
+		const start = lo + index * size;
+		const end = Math.min( hi, start + size - 1 );
+
+		buckets.push( {
+			label: size === 1 ? String( start ) : `${ start }–${ end }`,
+			count: 0,
+			holdsMean: false,
+		} );
+	}
+
+	for ( const [ key, count ] of Object.entries( numbers.distribution ) ) {
+		const value = Math.round( Number( key ) );
+
+		if ( ! Number.isFinite( value ) ) {
+			continue;
+		}
+
+		buckets[ indexOf( value ) ].count += count;
+	}
+
+	const mean = Math.round( numbers.mean );
+
+	if ( Number.isFinite( mean ) ) {
+		buckets[ indexOf( mean ) ].holdsMean = true;
+	}
+
+	return buckets;
+}
 
 /** The report window, mounted into one root element. */
 class AnalyticsWindow {
@@ -512,28 +590,22 @@ class AnalyticsWindow {
 			return el( 'div' );
 		}
 
-		const buckets: Array< { value: number; count: number } > = [];
-
-		for ( let value = Math.floor( numbers.min ); value <= Math.ceil( numbers.max ); value++ ) {
-			buckets.push( { value, count: numbers.distribution[ String( value ) ] ?? 0 } );
-		}
-
+		const buckets = histogramBuckets( numbers );
 		const peak = buckets.reduce( ( most, bucket ) => Math.max( most, bucket.count ), 0 );
-		const meanAt = Math.round( numbers.mean );
 
 		return el( 'div', {
 			class: 'atfa-hist',
 			children: buckets.map( ( bucket ) =>
 				el( 'div', {
-					class: `atfa-hist__col${ bucket.value === meanAt ? ' is-mean' : '' }`,
-					attrs: { title: `${ bucket.value }: ${ bucket.count }` },
+					class: `atfa-hist__col${ bucket.holdsMean ? ' is-mean' : '' }`,
+					attrs: { title: `${ bucket.label }: ${ bucket.count }` },
 					children: [
 						el( 'span', { class: 'atfa-hist__count', text: bucket.count ? String( bucket.count ) : '' } ),
 						el( 'div', {
 							class: 'atfa-hist__bar',
 							attrs: { style: `height:${ peak ? Math.max( 2, ( bucket.count / peak ) * 100 ) : 0 }%` },
 						} ),
-						el( 'span', { class: 'atfa-hist__tick', text: String( bucket.value ) } ),
+						el( 'span', { class: 'atfa-hist__tick', text: bucket.label } ),
 					],
 				} )
 			),

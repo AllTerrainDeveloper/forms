@@ -195,7 +195,7 @@ function atf_render_form( $form_id, $args = array() ) {
 		atf_has_upload_field( $schema ) ? ' enctype="multipart/form-data"' : ''
 	);
 
-	$out .= atf_render_hidden_fields( $form_id, $schema, $args['preview'] );
+	$out .= atf_render_hidden_fields( $form_id, $schema, $args['preview'], $instance );
 	$out .= atf_render_client_schema( $schema, $instance );
 	$out .= atf_render_error_summary( $args['errors'], $schema, $instance );
 
@@ -298,12 +298,13 @@ function atf_form_action_url() {
  *
  * @since 0.1.0
  *
- * @param int   $form_id The form.
- * @param array $schema  The form schema.
- * @param bool  $preview Whether this is the builder's preview.
+ * @param int    $form_id  The form.
+ * @param array  $schema   The form schema.
+ * @param bool   $preview  Whether this is the builder's preview.
+ * @param string $instance The render's DOM id prefix.
  * @return string
  */
-function atf_render_hidden_fields( $form_id, $schema, $preview = false ) {
+function atf_render_hidden_fields( $form_id, $schema, $preview = false, $instance = '' ) {
 	$out = sprintf( '<input type="hidden" name="atf_form_id" value="%d">', $form_id );
 
 	// A nonce on a public front-end form is not CSRF protection -- there is no
@@ -325,11 +326,16 @@ function atf_render_hidden_fields( $form_id, $schema, $preview = false ) {
 	);
 
 	if ( ! empty( $schema['settings']['spam']['honeypot'] ) ) {
+		// Keyed on the instance, not the form id, for the same reason every
+		// other control is: the same form can render twice on one page, and a
+		// duplicated id breaks the label binding on the second copy.
+		$hp_id = '' !== $instance ? $instance . '-website' : 'atf-website-' . $form_id;
+
 		$out .= '<div class="atf-hp" aria-hidden="true">'
-			. '<label for="atf-website-' . esc_attr( $form_id ) . '">'
+			. '<label for="' . esc_attr( $hp_id ) . '">'
 			. esc_html__( 'Leave this field empty', 'allterrain-forms' )
 			. '</label>'
-			. '<input type="text" id="atf-website-' . esc_attr( $form_id ) . '" name="atf_website" value="" tabindex="-1" autocomplete="off">'
+			. '<input type="text" id="' . esc_attr( $hp_id ) . '" name="atf_website" value="" tabindex="-1" autocomplete="off">'
 			. '</div>';
 	}
 

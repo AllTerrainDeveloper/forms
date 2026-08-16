@@ -13,11 +13,14 @@ var allTerrainFormsAnalytics = function(exports) {
       this.code = code;
     }
   }
+  function joinPath(base, path) {
+    return base.includes("?") ? `${base}${path.replace("?", "&")}` : `${base}${path}`;
+  }
   async function request(path, init = {}) {
     if (!config?.restUrl) {
       throw new ApiError("AllTerrain Forms is not configured on this page.", 0);
     }
-    const url = `${config.restUrl}${path}`;
+    const url = joinPath(config.restUrl, path);
     const headers = {
       "Content-Type": "application/json",
       ...init.headers ?? {}
@@ -55,7 +58,7 @@ var allTerrainFormsAnalytics = function(exports) {
     }
     const headers = config.nonce ? { "X-WP-Nonce": config.nonce } : {};
     const shell = getShell();
-    const url = `${config.wpRestUrl}${route}`;
+    const url = joinPath(config.wpRestUrl, route);
     const response = shell?.fetch ? await shell.fetch(url, { credentials: "same-origin", headers }, { source: "allterrain-forms" }) : await fetch(url, { credentials: "same-origin", headers });
     if (!response.ok) {
       throw new ApiError(`Request failed with status ${response.status}.`, response.status);
@@ -278,6 +281,40 @@ var allTerrainFormsAnalytics = function(exports) {
     { key: "passives", label: "Passives", hint: "7–8" },
     { key: "promoters", label: "Promoters", hint: "9–10" }
   ];
+  const MAX_HISTOGRAM_BUCKETS = 50;
+  function histogramBuckets(numbers) {
+    const lo = Math.floor(numbers.min);
+    const hi = Math.ceil(numbers.max);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi < lo) {
+      return [];
+    }
+    const span = hi - lo + 1;
+    const size = Math.max(1, Math.ceil(span / MAX_HISTOGRAM_BUCKETS));
+    const total = Math.ceil(span / size);
+    const indexOf = (value) => Math.min(total - 1, Math.max(0, Math.floor((value - lo) / size)));
+    const buckets = [];
+    for (let index = 0; index < total; index++) {
+      const start = lo + index * size;
+      const end = Math.min(hi, start + size - 1);
+      buckets.push({
+        label: size === 1 ? String(start) : `${start}–${end}`,
+        count: 0,
+        holdsMean: false
+      });
+    }
+    for (const [key, count] of Object.entries(numbers.distribution)) {
+      const value = Math.round(Number(key));
+      if (!Number.isFinite(value)) {
+        continue;
+      }
+      buckets[indexOf(value)].count += count;
+    }
+    const mean = Math.round(numbers.mean);
+    if (Number.isFinite(mean)) {
+      buckets[indexOf(mean)].holdsMean = true;
+    }
+    return buckets;
+  }
   class AnalyticsWindow {
     constructor(root) {
       this.forms = [];
@@ -658,25 +695,21 @@ var allTerrainFormsAnalytics = function(exports) {
       if (!numbers) {
         return el("div");
       }
-      const buckets = [];
-      for (let value = Math.floor(numbers.min); value <= Math.ceil(numbers.max); value++) {
-        buckets.push({ value, count: numbers.distribution[String(value)] ?? 0 });
-      }
+      const buckets = histogramBuckets(numbers);
       const peak = buckets.reduce((most, bucket) => Math.max(most, bucket.count), 0);
-      const meanAt = Math.round(numbers.mean);
       return el("div", {
         class: "atfa-hist",
         children: buckets.map(
           (bucket) => el("div", {
-            class: `atfa-hist__col${bucket.value === meanAt ? " is-mean" : ""}`,
-            attrs: { title: `${bucket.value}: ${bucket.count}` },
+            class: `atfa-hist__col${bucket.holdsMean ? " is-mean" : ""}`,
+            attrs: { title: `${bucket.label}: ${bucket.count}` },
             children: [
               el("span", { class: "atfa-hist__count", text: bucket.count ? String(bucket.count) : "" }),
               el("div", {
                 class: "atfa-hist__bar",
                 attrs: { style: `height:${peak ? Math.max(2, bucket.count / peak * 100) : 0}%` }
               }),
-              el("span", { class: "atfa-hist__tick", text: String(bucket.value) })
+              el("span", { class: "atfa-hist__tick", text: bucket.label })
             ]
           })
         )
@@ -834,6 +867,8 @@ var allTerrainFormsAnalytics = function(exports) {
   } else {
     mountAnalytics();
   }
+  exports.MAX_HISTOGRAM_BUCKETS = MAX_HISTOGRAM_BUCKETS;
+  exports.histogramBuckets = histogramBuckets;
   exports.mountAnalytics = mountAnalytics;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
   return exports;

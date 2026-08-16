@@ -85,6 +85,13 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	$uploads = atf_handle_uploads( $schema, $files, $form_id );
 
 	if ( $uploads['errors'] ) {
+		// Fields whose uploads succeeded before another field's failed do not
+		// keep their attachments: the submission as a whole was refused, and an
+		// attachment with no entry to belong to is an orphan nothing can find.
+		foreach ( $uploads['values'] as $ids ) {
+			atf_delete_upload_attachments( $ids );
+		}
+
 		return atf_submission_failure( atf_generic_error_message(), $uploads['errors'] );
 	}
 
@@ -98,6 +105,13 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	$errors = atf_validate_submission( $schema, $values, array( 'form_id' => $form_id ) );
 
 	if ( $errors ) {
+		// The uploads were stored before validation ran -- they had to be, a
+		// broken file fails a submission too -- so a refused submission has to
+		// take them back out or every failed attempt leaves files behind.
+		foreach ( $uploads['values'] as $ids ) {
+			atf_delete_upload_attachments( $ids );
+		}
+
 		return atf_submission_failure( atf_generic_error_message(), $errors );
 	}
 
@@ -168,6 +182,15 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	 */
 	do_action( 'atf_entry_created', $entry_id, $form_id, $values, $schema );
 
+	// The resume token travels in the submission that finishes a saved form.
+	// It is read from the parsed `$request` here rather than from `$_POST`,
+	// because a REST submission with a JSON body never populates the
+	// superglobal -- the `$_POST` path in `atf_clear_partial_on_submit()`
+	// only ever saw the no-JavaScript form post.
+	if ( function_exists( 'atf_clear_partial' ) && ! empty( $request[ ATF_RESUME_QUERY ] ) ) {
+		atf_clear_partial( (string) $request[ ATF_RESUME_QUERY ] );
+	}
+
 	atf_run_actions( $schema, $values, $entry_id, $form_id, $request );
 	atf_send_notifications( $schema, $values, $entry_id, $form_id );
 
@@ -225,9 +248,10 @@ function atf_sanitize_submission( $schema, $raw ) {
  * Replaces the `__other__` marker with what was typed beside it.
  *
  * The choice group posts `__other__` as its value and the free-text box posts
- * separately, so the two are rejoined here -- before validation, which is what
- * lets the choice whitelist accept `__other__` without also accepting arbitrary
- * text in the main field.
+ * separately, so the two are rejoined here, before validation. The choice
+ * whitelist in `atf_validate_bounds()` is skipped for fields with "Other"
+ * enabled, because once the marker has been replaced the visitor's free text
+ * is a legitimate answer no list could anticipate.
  *
  * @since 0.1.0
  *

@@ -32,6 +32,13 @@ export interface ThemeControlsOptions {
 	onTheme: ( slug: string ) => void;
 	/** One token was overridden, or cleared with an empty string. */
 	onOverride: ( token: string, value: string ) => void;
+	/**
+	 * The whole override set was replaced at once — a theme switch, a save or a
+	 * delete clears it wholesale rather than token by token. Without this the
+	 * host's copy keeps every stale value: the studio previews a clean theme
+	 * while the published form still carries the old tuning.
+	 */
+	onOverridesReplaced?: ( overrides: Record< string, string > ) => void;
 	/** Renders the current form with a theme applied, for the preview pane. */
 	previewFor: ( slug: string, overrides: Record< string, string > ) => Promise< string >;
 	/** The theme list changed — a save or a delete. */
@@ -45,6 +52,18 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 	let active = options.activeSlug;
 	let overrides = { ...options.overrides };
 	let themes = options.themes;
+
+	/**
+	 * Swaps the override set wholesale and tells the host.
+	 *
+	 * `overrides = {}` on its own only changes this closure's copy; the host —
+	 * the form's schema, in the builder — has to be told or the two disagree
+	 * until the next per-token edit happens to land on every stale key.
+	 */
+	const replaceOverrides = ( next: Record< string, string > ) => {
+		overrides = next;
+		options.onOverridesReplaced?.( { ...next } );
+	};
 
 	const preview = el( 'div', { class: 'atfs-preview__frame' } );
 	const controls = el( 'div', { class: 'atfs-controls__body' } );
@@ -130,7 +149,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 						// Switching theme clears the per-form overrides. Keeping
 						// them would silently carry one theme's tuning onto
 						// another and make the new theme look broken.
-						overrides = {};
+						replaceOverrides( {} );
 
 						options.onTheme( active );
 						renderThemes();
@@ -432,7 +451,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			options.onThemesChanged( themes );
 
 			active = saved.slug;
-			overrides = {};
+			replaceOverrides( {} );
 			options.onTheme( active );
 
 			renderThemes();
@@ -464,7 +483,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			options.onThemesChanged( themes );
 
 			active = 'clean';
-			overrides = {};
+			replaceOverrides( {} );
 			options.onTheme( active );
 
 			renderThemes();
@@ -686,6 +705,9 @@ export async function mountThemeStudio(): Promise< void > {
 						} else {
 							overrides[ token ] = value;
 						}
+					},
+					onOverridesReplaced: ( next ) => {
+						overrides = { ...next };
 					},
 					previewFor: async ( slug, tokens ) => {
 						const form = await api.getForm( previewForm.id );

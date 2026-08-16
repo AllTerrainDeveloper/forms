@@ -305,13 +305,12 @@ function atf_validate_bounds( $field, $value ) {
 	// A choice that is not on the list is not a validation failure the visitor
 	// can fix -- it is a forged request, or a form that changed under them.
 	// Rejecting it stops a "role" dropdown being posted with `administrator`.
-	if ( $field['choices'] && in_array( $field['type'], array( 'select', 'radio', 'checkboxes', 'multiselect', 'image_choice', 'quiz' ), true ) ) {
+	// With "Other" enabled there is no whitelist to enforce: the visitor may
+	// legitimately answer with free text, and by the time validation runs the
+	// `__other__` marker has already been replaced by whatever they typed.
+	if ( $field['choices'] && empty( $field['other'] ) && in_array( $field['type'], array( 'select', 'radio', 'checkboxes', 'multiselect', 'image_choice', 'quiz' ), true ) ) {
 		$allowed = wp_list_pluck( $field['choices'], 'value' );
 		$allowed = array_map( 'strval', $allowed );
-
-		if ( ! empty( $field['other'] ) ) {
-			$allowed[] = '__other__';
-		}
 
 		foreach ( (array) $value as $item ) {
 			if ( '' === $item || null === $item ) {

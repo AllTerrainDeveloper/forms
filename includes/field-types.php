@@ -246,7 +246,30 @@ function atf_register_builtin_field_types() {
 			'choices'     => true,
 			'supports'    => atf_input_supports( array( 'choices', 'multiple', 'columns' ) ),
 			'settings'    => array( 'columns' => 3 ),
-			'format'      => 'atf_format_choice_value',
+			// The declared shape is a string, but the renderer posts an array
+			// the moment `multiple` is on -- so the shape has to follow the
+			// flag, exactly as checkboxes always store an array. Leaving this
+			// to the generic string path would coerce every multi-selection
+			// to '' and quietly lose all of it.
+			'sanitize'    => static function ( $raw, $field ) {
+				if ( empty( $field['multiple'] ) ) {
+					return sanitize_text_field( (string) ( is_scalar( $raw ) ? $raw : '' ) );
+				}
+
+				$raw = is_array( $raw ) ? $raw : ( '' === $raw || null === $raw ? array() : array( $raw ) );
+
+				return array_values(
+					array_map(
+						static function ( $item ) {
+							return sanitize_text_field( (string) ( is_scalar( $item ) ? $item : '' ) );
+						},
+						$raw
+					)
+				);
+			},
+			// The list formatter, because it handles both shapes: a lone value
+			// formats as its label, an array as a comma-separated list.
+			'format'      => 'atf_format_choice_list',
 			'position'    => 50,
 		)
 	);

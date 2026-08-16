@@ -157,6 +157,12 @@ function atf_handle_field_upload( $field, $entry, $form_id ) {
 		$result = atf_store_uploaded_file( $file, $field, $form_id );
 
 		if ( is_wp_error( $result ) ) {
+			// The files stored before this one failed must not stay behind.
+			// The whole field is being refused, so keeping half its files
+			// would orphan them: attached to no entry, hidden from the media
+			// library by their `private` status, kept forever.
+			atf_delete_upload_attachments( $ids );
+
 			return $result;
 		}
 
@@ -277,6 +283,21 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 		'mimes'                    => atf_allowed_mimes_for( $allowed ),
 	);
 
+	/**
+	 * Filters the overrides handed to `wp_handle_upload()`.
+	 *
+	 * Narrowing `mimes` further or swapping the filename callback are the
+	 * expected uses. Loosening is on the filterer's head: everything above this
+	 * point has already run, but `wp_handle_upload()` trusts what it is given.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param array $overrides The overrides.
+	 * @param array $field     The field the file was uploaded for.
+	 * @param int   $form_id   The form.
+	 */
+	$overrides = apply_filters( 'atf_upload_overrides', $overrides, $field, $form_id );
+
 	add_filter( 'upload_dir', 'atf_upload_directory' );
 
 	$moved = wp_handle_upload( $file, $overrides );
@@ -327,6 +348,28 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	do_action( 'atf_file_uploaded', $attachment_id, $field, $form_id );
 
 	return $attachment_id;
+}
+
+/**
+ * Deletes attachments a refused submission created.
+ *
+ * Uploads become attachments before validation and spam screening run, because
+ * a file's own checks can fail the submission too. So when anything later
+ * refuses the submission, the attachments it already created have to be
+ * deleted here -- parented to no entry and hidden from the media library by
+ * their `private` status, nothing else would ever find them again.
+ *
+ * @since 0.1.0
+ *
+ * @param int[] $ids Attachment ids.
+ * @return void
+ */
+function atf_delete_upload_attachments( $ids ) {
+	foreach ( (array) $ids as $attachment_id ) {
+		// `true` skips the bin: a file that was never accepted has no owner to
+		// restore it, and the bin would keep the bytes on disk anyway.
+		wp_delete_attachment( absint( $attachment_id ), true );
+	}
 }
 
 /**

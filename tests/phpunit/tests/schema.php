@@ -195,6 +195,49 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A setting is the type its default declares, whatever the import sent.
+	 *
+	 * A hand-written JSON import can put an array where a string belongs, and
+	 * `schedule.start` rides straight into `strtotime()` -- which fatals on an
+	 * array on PHP 8. The default's own type is the contract.
+	 *
+	 * @covers ::atf_normalize_settings
+	 * @covers ::atf_coerce_setting
+	 * @covers ::atf_normalize_field
+	 */
+	public function test_settings_are_coerced_to_their_declared_types() {
+		$schema = atf_normalize_schema(
+			array(
+				'settings' => array(
+					'schedule' => array(
+						'start'   => array( 'not' => 'a date' ),
+						'message' => array( 'not a string either' ),
+					),
+					'limit'    => array( 'message' => array( 'nope' ) ),
+					'spam'     => array( 'blocklist' => "viagra\ncasino" ),
+				),
+				'fields'   => array(
+					array(
+						'id'       => 'f1',
+						'type'     => 'scale',
+						'minLabel' => array( 'an', 'array' ),
+						'maxLabel' => 'Every day',
+					),
+				),
+			)
+		);
+
+		$this->assertSame( '', $schema['settings']['schedule']['start'], 'An array where a date string belongs falls back to the default.' );
+		$this->assertSame( '', $schema['settings']['schedule']['message'] );
+		$this->assertSame( '', $schema['settings']['limit']['message'] );
+
+		$this->assertSame( "viagra\ncasino", $schema['settings']['spam']['blocklist'], 'The blocklist keeps the newlines its matcher splits on.' );
+
+		$this->assertSame( '', $schema['fields'][0]['minLabel'], 'A type-specific setting is typed against its default too.' );
+		$this->assertSame( 'Every day', $schema['fields'][0]['maxLabel'] );
+	}
+
+	/**
 	 * An HTML block is filtered, so editing a form is not a way to run script.
 	 *
 	 * @covers ::atf_normalize_field

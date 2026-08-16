@@ -43,7 +43,8 @@ var allTerrainFormsFront = function(exports) {
     return formula.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, fieldId) => {
       const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
       const field = fields.find((candidate) => candidate.id === fieldId) ?? null;
-      return String(numericValue(value, field));
+      const literal = numericValue(value, field).toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+      return literal === "" || literal === "-" ? "0" : literal;
     });
   }
   function numericValue(value, field) {
@@ -313,6 +314,7 @@ var allTerrainFormsFront = function(exports) {
       }
       const result = calculate(formula, next, fields);
       if (result === null) {
+        next[field.id] = "";
         continue;
       }
       const decimals = typeof field.decimals === "number" ? field.decimals : 2;
@@ -812,6 +814,11 @@ var allTerrainFormsFront = function(exports) {
     /* ----------------------------------------------------------- Submission */
     /** Handles the submit. */
     async onSubmit(event) {
+      if (this.pages.length > 1 && this.step < this.pages.length - 1) {
+        event.preventDefault();
+        this.next();
+        return;
+      }
       for (let index = 0; index < this.pages.length; index++) {
         if (!this.validatePage(index)) {
           event.preventDefault();
@@ -1064,16 +1071,16 @@ var allTerrainFormsFront = function(exports) {
       if (!rows || !template) {
         return;
       }
-      const count = rows.querySelectorAll("[data-atf-repeater-row]").length;
-      if (count >= max) {
+      if (rows.querySelectorAll("[data-atf-repeater-row]").length >= max) {
         return;
       }
+      const index = nextRepeaterIndex(rows);
       const clone = template.content.cloneNode(true);
       clone.querySelectorAll("[name], [id], [for]").forEach((element) => {
         for (const attribute of ["name", "id", "for"]) {
           const value = element.getAttribute(attribute);
           if (value?.includes("__INDEX__")) {
-            element.setAttribute(attribute, value.replace(/__INDEX__/g, String(count)));
+            element.setAttribute(attribute, value.replace(/__INDEX__/g, String(index)));
           }
         }
       });
@@ -1183,6 +1190,16 @@ var allTerrainFormsFront = function(exports) {
     div.textContent = text;
     return div.innerHTML;
   }
+  function nextRepeaterIndex(rows) {
+    let highest = -1;
+    rows.querySelectorAll("[data-atf-repeater-row] [name]").forEach((element) => {
+      const match = /^atf\[[^\]]*\]\[(\d+)\]/.exec(element.getAttribute("name") ?? "");
+      if (match) {
+        highest = Math.max(highest, Number(match[1]));
+      }
+    });
+    return highest + 1;
+  }
   function readSchema(form) {
     const instance = form.dataset.atfInstance ?? "";
     const script = document.getElementById(`${instance}-schema`);
@@ -1220,6 +1237,7 @@ var allTerrainFormsFront = function(exports) {
   document.addEventListener("atf-refresh", boot);
   exports.AllTerrainForm = AllTerrainForm;
   exports.boot = boot;
+  exports.nextRepeaterIndex = nextRepeaterIndex;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
   return exports;
 }({});
