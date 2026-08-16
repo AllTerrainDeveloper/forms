@@ -42,6 +42,7 @@ interface RuntimeConfig {
 	canEdit?: boolean;
 	canRead?: boolean;
 	devMode?: boolean;
+	adminUrl?: string;
 }
 
 const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainForms?: RuntimeConfig } ).allTerrainForms;
@@ -127,6 +128,19 @@ export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 			url: '',
 			onSelect: () => open( THEMES ),
 			windowId: THEMES,
+		} );
+	}
+
+	// The one row that is a URL rather than a native window, because the import
+	// page is one: a server-rendered page whose buttons POST to `admin-post.php`.
+	// The shell opens a row with a real `url` as a window of its own, which is
+	// the only way this page is reachable on a desktop — with the shell up, the
+	// Forms admin menu is not registered, so a page with no native window and no
+	// row here exists at a URL nobody can get to.
+	if ( config?.canEdit && config?.adminUrl ) {
+		submenu.push( {
+			title: 'Import forms',
+			url: `${ config.adminUrl }admin.php?page=allterrain-forms-import`,
 		} );
 	}
 

@@ -48,6 +48,12 @@ var allTerrainFormsDock = function(exports) {
         windowId: THEMES
       });
     }
+    if (config2?.canEdit && config2?.adminUrl) {
+      submenu.push({
+        title: "Import forms",
+        url: `${config2.adminUrl}admin.php?page=allterrain-forms-import`
+      });
+    }
     if (config2?.canEdit && config2?.devMode) {
       submenu.push({
         title: "Demo data",

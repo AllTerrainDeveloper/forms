@@ -232,6 +232,19 @@ can be read aloud, selected and searched; resizing is a reflow rather than a
 redraw; and the plugin ships no charting dependency to every site that installs
 it.
 
+### Import, the one page with no native window
+
+**Forms → Import** is deliberately not a native window. It is a server-rendered
+page whose buttons `POST` to `admin-post.php`, which is the right shape for a
+one-time migration and the wrong shape for a window rendering into the shell's
+own DOM. With the shell up it is reached instead through the dock tile's
+`Import forms` row — the one row carrying a real `url`, which the shell opens
+as a window of its own.
+
+That row is load-bearing rather than convenient. With the shell active the
+Forms admin menu is not registered at all (see below), so a page with neither a
+native window nor a dock row exists at a URL nobody can navigate to.
+
 ### The admin-URL handoff
 
 Every surface — builder, entries, analytics, Theme Studio — also has an admin
