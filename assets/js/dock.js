@@ -1,4 +1,4 @@
-(function() {
+var allTerrainFormsDock = function(exports) {
   "use strict";
   const config = window.allTerrainForms;
   const BUILDER = "allterrain-forms";
@@ -11,13 +11,9 @@
   function shell() {
     return window.wp?.os ?? null;
   }
-  function registerTile() {
-    const os = shell();
-    if (!os?.registerSystemTile) {
-      return;
-    }
+  function submenuFor(config2) {
     const submenu = [];
-    if (config?.canEdit) {
+    if (config2?.canEdit) {
       submenu.push({
         title: "Forms",
         url: "",
@@ -25,7 +21,7 @@
         windowId: BUILDER
       });
     }
-    if (config?.canRead) {
+    if (config2?.canRead) {
       submenu.push({
         title: "Form entries",
         url: "",
@@ -36,7 +32,7 @@
         windowId: ENTRIES
       });
     }
-    if (config?.canRead) {
+    if (config2?.canRead) {
       submenu.push({
         title: "Analytics",
         url: "",
@@ -44,7 +40,7 @@
         windowId: ANALYTICS
       });
     }
-    if (config?.canEdit) {
+    if (config2?.canEdit) {
       submenu.push({
         title: "Themes",
         url: "",
@@ -52,7 +48,7 @@
         windowId: THEMES
       });
     }
-    if (config?.canEdit && config?.devMode) {
+    if (config2?.canEdit && config2?.devMode) {
       submenu.push({
         title: "Demo data",
         url: "",
@@ -63,6 +59,14 @@
         windowId: ANALYTICS
       });
     }
+    return submenu;
+  }
+  function registerTile() {
+    const os = shell();
+    if (!os?.registerSystemTile) {
+      return;
+    }
+    const submenu = submenuFor(config);
     try {
       os.registerSystemTile({
         id: "allterrain-forms",
@@ -101,4 +105,7 @@
   if (!boot()) {
     document.addEventListener("os-init", () => void boot(), { once: true });
   }
-})();
+  exports.submenuFor = submenuFor;
+  Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+  return exports;
+}({});
