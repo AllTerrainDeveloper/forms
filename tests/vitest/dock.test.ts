@@ -98,3 +98,30 @@ describe( 'the rest of the menu', () => {
 		expect( submenuFor( config( {} ) ) ).toEqual( [] );
 	} );
 } );
+
+describe( 'the import row', () => {
+	const admin = { canEdit: true, canRead: true, adminUrl: 'http://example.com/wp-admin/' };
+
+	it( 'is offered to somebody who may build forms', () => {
+		expect( titles( admin ) ).toContain( 'Import forms' );
+	} );
+
+	it( 'carries a real URL rather than a callback', () => {
+		// The import page is a server-rendered page whose buttons POST, not a
+		// native window — the shell opens a row with a `url` as its own window,
+		// and that is the only way the page is reachable with the shell up.
+		const row = submenuFor( config( admin ) ).find( ( candidate ) => candidate.title === 'Import forms' );
+
+		expect( row?.url ).toBe( 'http://example.com/wp-admin/admin.php?page=allterrain-forms-import' );
+		expect( row?.onSelect ).toBeUndefined();
+	} );
+
+	it( 'is absent for somebody who may only read entries', () => {
+		expect( titles( { canRead: true, adminUrl: 'http://example.com/wp-admin/' } ) ).not.toContain( 'Import forms' );
+	} );
+
+	it( 'is absent when there is no admin URL to point at', () => {
+		// Rather than a row that opens `undefinedadmin.php`.
+		expect( titles( { canEdit: true, canRead: true } ) ).not.toContain( 'Import forms' );
+	} );
+} );
