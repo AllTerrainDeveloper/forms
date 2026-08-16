@@ -35,7 +35,11 @@ interface ShellDock {
 	whenReady?: ( cb: () => void ) => void;
 	registerSystemTile?: ( item: SystemTile ) => void;
 	openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
-	windowManager?: { getById?: ( id: string ) => unknown };
+	windowManager?: {
+		getById?: ( id: string ) => unknown;
+		/** Opens an admin URL as a window. Singleton ids reuse the open one. */
+		open?: ( config: { id: string; url: string; title: string; icon?: string } ) => unknown;
+	};
 }
 
 interface RuntimeConfig {
@@ -52,10 +56,44 @@ const BUILDER = 'allterrain-forms';
 const ENTRIES = 'allterrain-forms-entries';
 const THEMES = 'allterrain-forms-themes';
 const ANALYTICS = 'allterrain-forms-analytics';
+const IMPORT = 'allterrain-forms-import';
 
 /** Opens a window through the shell. */
 function open( id: string ): void {
 	shell()?.openWindow?.( id, { source: 'dock' } );
+}
+
+/**
+ * Opens an admin page as a window of its own.
+ *
+ * `openWindow()` takes the id of a *native* window, and the import page is not
+ * one — it is a server-rendered page whose buttons POST, so it belongs in an
+ * iframe window like any other admin screen. `windowManager.open()` is what
+ * puts one there.
+ *
+ * Doing it here rather than leaving the row's `url` to the shell is the whole
+ * point of the callback. On a **system tile** the constellation has no menu
+ * behind it to route a URL through, so its last resort for a row that carries
+ * only a URL is `window.open( url, '_blank' )` — the import page opening in a
+ * browser tab, outside the desktop, which is precisely what a desktop is for
+ * not doing.
+ *
+ * @param id    Window id. Stable, so a second click focuses the open window.
+ * @param url   The admin page.
+ * @param title The window's title.
+ */
+function openUrl( id: string, url: string, title: string ): void {
+	const manager = shell()?.windowManager;
+
+	if ( manager?.open ) {
+		void manager.open( { id, url, title, icon: 'dashicons-download' } );
+
+		return;
+	}
+
+	// No shell, or one too old to route a URL: navigating beats a dead row,
+	// and beats a pop-up the browser is entitled to block.
+	window.location.assign( url );
 }
 
 /** The shell, if there is one on this page. */
@@ -131,16 +169,26 @@ export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 		} );
 	}
 
-	// The one row that is a URL rather than a native window, because the import
-	// page is one: a server-rendered page whose buttons POST to `admin-post.php`.
-	// The shell opens a row with a real `url` as a window of its own, which is
-	// the only way this page is reachable on a desktop — with the shell up, the
-	// Forms admin menu is not registered, so a page with no native window and no
-	// row here exists at a URL nobody can get to.
+	// The one row behind an admin page rather than a native window, because the
+	// import page is one: server-rendered, and its buttons POST. It still opens
+	// as a window — see `openUrl()` for why the row cannot simply carry the URL
+	// and leave the opening to the shell.
+	//
+	// The row itself is load-bearing. With the shell up the Forms admin menu is
+	// not registered, so a page with no native window and no row here exists at
+	// a URL nobody can navigate to.
 	if ( config?.canEdit && config?.adminUrl ) {
+		const url = `${ config.adminUrl }admin.php?page=allterrain-forms-import`;
+
 		submenu.push( {
 			title: 'Import forms',
-			url: `${ config.adminUrl }admin.php?page=allterrain-forms-import`,
+			// Kept in step with what `onSelect` opens: the shell reads the
+			// callback, but the URL is what the row means.
+			url,
+			onSelect: () => openUrl( IMPORT, url, 'Import forms' ),
+			// Declaring it lets the constellation list this row under "Open
+			// windows" once it is, rather than offering to open a second copy.
+			windowId: IMPORT,
 		} );
 	}
 

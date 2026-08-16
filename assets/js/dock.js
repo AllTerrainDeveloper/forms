@@ -5,8 +5,17 @@ var allTerrainFormsDock = function(exports) {
   const ENTRIES = "allterrain-forms-entries";
   const THEMES = "allterrain-forms-themes";
   const ANALYTICS = "allterrain-forms-analytics";
+  const IMPORT = "allterrain-forms-import";
   function open(id) {
     shell()?.openWindow?.(id, { source: "dock" });
+  }
+  function openUrl(id, url, title) {
+    const manager = shell()?.windowManager;
+    if (manager?.open) {
+      void manager.open({ id, url, title, icon: "dashicons-download" });
+      return;
+    }
+    window.location.assign(url);
   }
   function shell() {
     return window.wp?.os ?? null;
@@ -49,9 +58,16 @@ var allTerrainFormsDock = function(exports) {
       });
     }
     if (config2?.canEdit && config2?.adminUrl) {
+      const url = `${config2.adminUrl}admin.php?page=allterrain-forms-import`;
       submenu.push({
         title: "Import forms",
-        url: `${config2.adminUrl}admin.php?page=allterrain-forms-import`
+        // Kept in step with what `onSelect` opens: the shell reads the
+        // callback, but the URL is what the row means.
+        url,
+        onSelect: () => openUrl(IMPORT, url, "Import forms"),
+        // Declaring it lets the constellation list this row under "Open
+        // windows" once it is, rather than offering to open a second copy.
+        windowId: IMPORT
       });
     }
     if (config2?.canEdit && config2?.devMode) {

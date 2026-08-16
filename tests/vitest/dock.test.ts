@@ -17,7 +17,7 @@
  * UI decision, and a UI decision is never a permission.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { submenuFor } from '../../src/dock';
 import type { RuntimeConfig } from '../../src/types';
 
@@ -101,19 +101,64 @@ describe( 'the rest of the menu', () => {
 
 describe( 'the import row', () => {
 	const admin = { canEdit: true, canRead: true, adminUrl: 'http://example.com/wp-admin/' };
+	const location = window.location;
+
+	// The two tests below reach into globals the rest of the file leaves alone.
+	afterEach( () => {
+		( window as unknown as { wp?: unknown } ).wp = undefined;
+		Object.defineProperty( window, 'location', { configurable: true, value: location } );
+	} );
 
 	it( 'is offered to somebody who may build forms', () => {
 		expect( titles( admin ) ).toContain( 'Import forms' );
 	} );
 
-	it( 'carries a real URL rather than a callback', () => {
-		// The import page is a server-rendered page whose buttons POST, not a
-		// native window — the shell opens a row with a `url` as its own window,
-		// and that is the only way the page is reachable with the shell up.
+	it( 'points at the import page', () => {
 		const row = submenuFor( config( admin ) ).find( ( candidate ) => candidate.title === 'Import forms' );
 
 		expect( row?.url ).toBe( 'http://example.com/wp-admin/admin.php?page=allterrain-forms-import' );
-		expect( row?.onSelect ).toBeUndefined();
+		expect( row?.windowId ).toBe( 'allterrain-forms-import' );
+	} );
+
+	it( 'opens the page as a window in the shell', () => {
+		// The bug this replaces: a row carrying only a URL is, to a *system*
+		// tile's constellation, a link out — it has no menu behind it to route
+		// a URL through, so its last resort is `window.open( url, '_blank' )`
+		// and the import page opened in a browser tab, outside the desktop.
+		const open = vi.fn();
+
+		( window as unknown as { wp: unknown } ).wp = { os: { windowManager: { open } } };
+
+		const row = submenuFor( config( admin ) ).find( ( candidate ) => candidate.title === 'Import forms' );
+
+		expect( row?.onSelect ).toBeTypeOf( 'function' );
+
+		row?.onSelect?.();
+
+		expect( open ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				id: 'allterrain-forms-import',
+				url: 'http://example.com/wp-admin/admin.php?page=allterrain-forms-import',
+				title: 'Import forms',
+			} )
+		);
+	} );
+
+	it( 'navigates rather than dying when there is no shell to open a window', () => {
+		// A pop-up the browser may block is not a fallback; the page is.
+		const assign = vi.fn();
+
+		( window as unknown as { wp?: unknown } ).wp = undefined;
+		Object.defineProperty( window, 'location', {
+			configurable: true,
+			value: { assign },
+		} );
+
+		submenuFor( config( admin ) )
+			.find( ( candidate ) => candidate.title === 'Import forms' )
+			?.onSelect?.();
+
+		expect( assign ).toHaveBeenCalledWith( 'http://example.com/wp-admin/admin.php?page=allterrain-forms-import' );
 	} );
 
 	it( 'is absent for somebody who may only read entries', () => {
