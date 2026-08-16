@@ -154,6 +154,8 @@ require_once ATF_DIR . 'includes/analytics.php';
 require_once ATF_DIR . 'includes/dev-mode.php';
 require_once ATF_DIR . 'includes/demo-data.php';
 require_once ATF_DIR . 'includes/templates.php';
+require_once ATF_DIR . 'includes/importers.php';
+require_once ATF_DIR . 'includes/importer-cf7.php';
 require_once ATF_DIR . 'includes/rest.php';
 require_once ATF_DIR . 'includes/preview.php';
 require_once ATF_DIR . 'includes/shortcode.php';

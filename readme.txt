@@ -89,6 +89,16 @@ they think *rounder*.
 Save it, and it is a theme you can pick on any form, export as JSON, and import
 on another site. No code, no build step.
 
+= Switching? Bring your forms with you =
+
+**Forms → Import** finds the forms other plugins left in your database — even
+after you deactivated them — and turns each one into an ordinary AllTerrain
+form: real fields, the notification emails rewritten onto your own questions,
+the thank-you message carried over. The original is never touched, so importing
+is safe to try and safe to repeat.
+
+Contact Form 7 is supported today; WPForms and Gravity Forms are next.
+
 = Anti-spam that does not charge your visitors =
 
 A honeypot, a signed time trap, a per-address rate limit, a word blocklist, and
@@ -164,6 +174,13 @@ every feature works without it, as an ordinary admin page.
 Your data stays: forms and entries are ordinary posts, so deactivating leaves
 them in your database untouched. Uninstalling removes them, which is what
 uninstalling should do — export your entries to CSV first if you want them.
+
+= Can I import my forms from another form plugin? =
+
+Yes. **Forms → Import** lists every form it can find from Contact Form 7 —
+including forms whose plugin has already been deactivated, because the data
+outlives the plugin. Each import creates a new AllTerrain form and leaves the
+original untouched. WPForms and Gravity Forms importers are on the way.
 
 = Can I move a form to another site? =
 

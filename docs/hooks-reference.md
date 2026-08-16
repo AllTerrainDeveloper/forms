@@ -776,6 +776,59 @@ do_action( 'atf_retention_applied', int $deleted );
 
 ---
 
+## Importers
+
+### `atf_importers` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_importers', array $importers );
+```
+
+The registry behind **Forms → Import**. Each entry is keyed by importer id and
+holds four things: a `label`, and three callables — `available()` (does the
+source plugin's data exist on this site), `forms()` (source id => title, for
+the picker), and `import( $source_id )` (returns the new form id or a
+`WP_Error`). The built-in importers register through this same filter, exactly
+as a third-party source would.
+
+Importers read the source plugin's *data*, not its API — the moment somebody
+most wants to import is right after deactivating the old plugin.
+
+```php
+add_filter( 'atf_importers', function ( $importers ) {
+	$importers['my-forms'] = array(
+		'label'     => 'My Forms',
+		'available' => fn() => (bool) get_option( 'my_forms' ),
+		'forms'     => fn() => wp_list_pluck( get_option( 'my_forms' ), 'title', 'id' ),
+		'import'    => 'my_forms_import_one',
+	);
+
+	return $importers;
+} );
+```
+
+### `atf_imported_schema` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_imported_schema', array $schema, string $importer_id, string $source_id );
+```
+
+The converted schema, before it is normalised and saved. The place to correct
+a mapping the converter got wrong for your data — rename a field, add a
+notification — without forking the importer.
+
+### `atf_form_imported` — Action — *Experimental*
+
+```php
+do_action( 'atf_form_imported', int $form_id, string $importer_id, string $source_id );
+```
+
+Fires after a form is imported. The source plugin's data is never modified, so
+importing is safe to repeat — hook here if you need to record the mapping or
+redirect shortcodes.
+
+---
+
 ## Themes
 
 ### `atf_theme_tokens` — Filter — *Stable*
