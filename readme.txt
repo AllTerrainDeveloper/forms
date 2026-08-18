@@ -91,11 +91,16 @@ on another site. No code, no build step.
 
 = Switching? Bring your forms with you =
 
-**Forms → Import** finds the forms other plugins left in your database — even
-after you deactivated them — and turns each one into an ordinary AllTerrain
-form: real fields, the notification emails rewritten onto your own questions,
-the thank-you message carried over. The original is never touched, so importing
-is safe to try and safe to repeat.
+You do not have to go looking. Activate the plugin and it tells you what it
+found — *"AllTerrain Forms found 6 forms in Contact Form 7"* — with one button
+that brings all of them over. Each becomes an ordinary AllTerrain form: real
+fields, the notification emails rewritten onto your own questions, the
+thank-you message carried over. The original is never touched, so importing is
+safe to try and safe to repeat.
+
+**Forms → Import** is there too, when you would rather pick through them one at
+a time. Both find forms other plugins left in your database — even after you
+deactivated them.
 
 Contact Form 7, WPForms and Gravity Forms are all supported — imports carry
 conditional logic across, payment and product fields keep their prices, an
@@ -180,10 +185,15 @@ uninstalling should do — export your entries to CSV first if you want them.
 
 = Can I import my forms from another form plugin? =
 
-Yes. **Forms → Import** lists every form it can find from Contact Form 7,
-WPForms and Gravity Forms — including forms whose plugin has already been
-deactivated, because the data outlives the plugin. Each import creates a new
-AllTerrain form and leaves the original untouched.
+Yes, and it offers before you ask: if the plugin finds forms from Contact Form
+7, WPForms or Gravity Forms it says so and gives you a single button that
+imports all of them. It asks once — "Not now" is remembered, and it stops
+offering entirely once anything has been imported.
+
+**Forms → Import** lists them individually whenever you want it, including
+forms whose plugin has already been deactivated, because the data outlives the
+plugin. Each import creates a new AllTerrain form and leaves the original
+untouched.
 
 = Can I move a form to another site? =
 
