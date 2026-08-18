@@ -817,6 +817,24 @@ The converted schema, before it is normalised and saved. The place to correct
 a mapping the converter got wrong for your data — rename a field, add a
 notification — without forking the importer.
 
+### `atf_show_import_notice` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_show_import_notice', bool $show );
+```
+
+Whether the plugin offers the import at all. When forms are found in another
+plugin, an administrator sees one notice — on this plugin's own screens and on
+the Plugins screen, where an activation lands — with a button that imports
+every one of them. Return `false` to introduce the importer your own way rather
+than teaching each administrator to dismiss it.
+
+The offer already stops on its own: "Not now" is remembered per user
+(`atf_import_notice_dismissed` user meta), and nothing is offered once anything
+has been imported (`atf_has_imported` option). What the survey found is cached
+for twelve hours and dropped whenever a form is imported or a plugin is
+activated or deactivated.
+
 ### `atf_form_imported` — Action — *Experimental*
 
 ```php

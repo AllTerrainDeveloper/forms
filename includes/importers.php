@@ -170,6 +170,120 @@ function atf_create_imported_form( $title, $schema, $importer_id, $source_id ) {
 }
 
 /**
+ * How many forms each available importer can see, keyed by importer id.
+ *
+ * Cached, because this is asked on ordinary admin page loads to decide whether
+ * the import is worth offering at all -- and answering it costs a query per
+ * source, plus a `SHOW TABLES` for the one that keeps its forms in tables of
+ * its own. Twelve hours means nobody pays for it twice in a sitting, and the
+ * answer is forgotten the moment anything could have changed it: a form
+ * imported, or a plugin switched on or off.
+ *
+ * @since 0.2.0
+ *
+ * @return array[] Importer id => { label, count }. A source with no forms is
+ *                 left out, so an empty array means there is nothing to offer.
+ */
+function atf_importable_forms() {
+	$cached = get_transient( 'atf_importable' );
+
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$found = array();
+
+	foreach ( atf_importers() as $id => $importer ) {
+		if ( ! call_user_func( $importer['available'] ) ) {
+			continue;
+		}
+
+		$count = count( (array) call_user_func( $importer['forms'] ) );
+
+		if ( $count > 0 ) {
+			$found[ $id ] = array(
+				'label' => $importer['label'],
+				'count' => $count,
+			);
+		}
+	}
+
+	set_transient( 'atf_importable', $found, 12 * HOUR_IN_SECONDS );
+
+	return $found;
+}
+
+/**
+ * Forgets what the last survey found.
+ *
+ * @since 0.2.0
+ *
+ * @return void
+ */
+function atf_forget_importable_forms() {
+	delete_transient( 'atf_importable' );
+}
+add_action( 'atf_form_imported', 'atf_forget_importable_forms' );
+add_action( 'activated_plugin', 'atf_forget_importable_forms' );
+add_action( 'deactivated_plugin', 'atf_forget_importable_forms' );
+
+/**
+ * How many forms could be imported, across every source.
+ *
+ * @since 0.2.0
+ *
+ * @return int
+ */
+function atf_importable_count() {
+	$total = 0;
+
+	foreach ( atf_importable_forms() as $source ) {
+		$total += (int) $source['count'];
+	}
+
+	return $total;
+}
+
+/**
+ * Imports every form every available source can see.
+ *
+ * The one-click path. The importer ids are taken once, up front, because each
+ * successful import forgets the survey -- re-reading it inside the loop would
+ * re-run every source's query on every form.
+ *
+ * @since 0.2.0
+ *
+ * @return array {
+ *     @type int $imported How many forms were created.
+ *     @type int $failed   How many could not be.
+ * }
+ */
+function atf_import_all() {
+	$importers = atf_importers();
+	$imported  = 0;
+	$failed    = 0;
+
+	foreach ( array_keys( atf_importable_forms() ) as $importer_id ) {
+		if ( ! isset( $importers[ $importer_id ] ) ) {
+			continue;
+		}
+
+		foreach ( array_keys( (array) call_user_func( $importers[ $importer_id ]['forms'] ) ) as $source_id ) {
+			if ( is_wp_error( atf_import_source_form( $importer_id, (string) $source_id ) ) ) {
+				++$failed;
+			} else {
+				++$imported;
+			}
+		}
+	}
+
+	return array(
+		'imported' => $imported,
+		'failed'   => $failed,
+	);
+}
+
+/**
  * Registers the Import page.
  *
  * Priority 20, after the Forms menu itself exists. With the desktop shell up
@@ -260,6 +374,32 @@ function atf_render_import_page() {
 		esc_html__( 'Each import creates a new AllTerrain form. The original is never changed, so importing is safe to try and safe to repeat.', 'allterrain-forms' )
 	);
 
+	// The whole job in one button, above the per-source lists. Somebody
+	// arriving here after switching plugins wants all of it; picking through
+	// the lists is the exception, so it comes second.
+	$total = atf_importable_count();
+
+	if ( $total > 0 ) {
+		printf(
+			'<form method="post" action="%1$s" style="margin: 16px 0 24px;">
+				<input type="hidden" name="action" value="atf_import_form" />
+				<input type="hidden" name="importer" value="all" />
+				<input type="hidden" name="source" value="" />
+				%2$s
+				<button type="submit" class="button button-primary button-hero">%3$s</button>
+			</form>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			esc_html(
+				sprintf(
+					/* translators: %d: total number of forms found across every source. */
+					_n( 'Import all %d form', 'Import all %d forms', $total, 'allterrain-forms' ),
+					$total
+				)
+			)
+		);
+	}
+
 	foreach ( $available as $id => $importer ) {
 		$forms = call_user_func( $importer['forms'] );
 
@@ -342,7 +482,14 @@ function atf_handle_import_post() {
 	$imported = 0;
 	$failed   = 0;
 
-	if ( isset( $importers[ $importer_id ] ) ) {
+	// `all` is the one-click path: every form every source can see. Checked
+	// against the registry first, so a third-party importer that calls itself
+	// `all` keeps its own meaning rather than being shadowed by this.
+	if ( 'all' === $importer_id && ! isset( $importers['all'] ) ) {
+		$result   = atf_import_all();
+		$imported = $result['imported'];
+		$failed   = $result['failed'];
+	} elseif ( isset( $importers[ $importer_id ] ) ) {
 		$sources = '' !== $source
 			? array( $source )
 			: array_keys( call_user_func( $importers[ $importer_id ]['forms'] ) );
