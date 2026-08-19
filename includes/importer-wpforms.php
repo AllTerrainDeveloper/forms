@@ -28,10 +28,12 @@ defined( 'ABSPATH' ) || exit;
  */
 function atf_register_wpforms_importer( $importers ) {
 	$importers['wpforms'] = array(
-		'label'     => __( 'WPForms', 'allterrain-forms' ),
-		'available' => 'atf_wpforms_available',
-		'forms'     => 'atf_wpforms_forms',
-		'import'    => 'atf_wpforms_import',
+		'label'          => __( 'WPForms', 'allterrain-forms' ),
+		'available'      => 'atf_wpforms_available',
+		'forms'          => 'atf_wpforms_forms',
+		'import'         => 'atf_wpforms_import',
+		'entries'        => 'atf_wpforms_entry_count',
+		'import_entries' => 'atf_wpforms_import_entries',
 	);
 
 	return $importers;
@@ -103,7 +105,7 @@ function atf_wpforms_import( $source_id ) {
 		? $post->post_title
 		: ( isset( $data['settings']['form_title'] ) ? (string) $data['settings']['form_title'] : '' );
 
-	return atf_create_imported_form( $title, $schema, 'wpforms', (string) $post->ID );
+	return atf_create_imported_form( $title, $schema, 'wpforms', (string) $post->ID, atf_wpforms_map( $data ) );
 }
 
 /**
@@ -633,4 +635,390 @@ function atf_wpforms_replace_tags( $text, $map ) {
 		},
 		$text
 	);
+}
+
+/**
+ * The WPForms field id => new field id map for one form, recomputed.
+ *
+ * The same two passes `atf_wpforms_convert()` runs, minus building the schema:
+ * every field is minted an id first, then the ones with no equivalent are
+ * dropped — in that order, or the ids would shift and stop matching the ones
+ * the conversion minted. Recomputed rather than threaded out of the converter
+ * for the same reason the CF7 importer re-parses its template: the source is a
+ * few kilobytes read once per form ever imported.
+ *
+ * @since 0.3.0
+ *
+ * @param array $data The decoded `post_content`.
+ * @return array WPForms field id => new field id.
+ */
+function atf_wpforms_map( $data ) {
+	$source_fields = isset( $data['fields'] ) && is_array( $data['fields'] ) ? $data['fields'] : array();
+
+	$map  = array();
+	$next = 1;
+
+	foreach ( $source_fields as $source ) {
+		if ( is_array( $source ) && isset( $source['id'] ) ) {
+			$map[ (string) $source['id'] ] = 'f' . ( $next + count( $map ) );
+		}
+	}
+
+	foreach ( $source_fields as $source ) {
+		if ( ! is_array( $source ) || ! isset( $source['id'] ) ) {
+			continue;
+		}
+
+		if ( ! atf_wpforms_field( $source, $map[ (string) $source['id'] ], $map ) ) {
+			unset( $map[ (string) $source['id'] ] );
+		}
+	}
+
+	return $map;
+}
+
+/**
+ * Whether WPForms' entries table exists on this site.
+ *
+ * Only WPForms Pro stores entries at all — Lite mails them and keeps nothing —
+ * so on a Lite site this is simply false and the Import page never mentions
+ * entries, which is accurate rather than disappointing: there is nothing to
+ * bring.
+ *
+ * @since 0.3.0
+ *
+ * @return bool
+ */
+function atf_wpforms_entries_available() {
+	global $wpdb;
+
+	$table = $wpdb->prefix . 'wpforms_entries';
+
+	return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table; // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- There is no API for another plugin's table, and a SHOW TABLES result is not worth caching.
+}
+
+/**
+ * The statuses a WPForms entry worth importing is NOT in.
+ *
+ * An exclusion list rather than a whitelist, because WPForms writes several
+ * respectable statuses — the empty string for an ordinary entry, and payment
+ * states like `completed` — and a whitelist would silently drop every paid
+ * order. What is excluded is deliberate: `trash` was thrown away on purpose,
+ * and `partial` / `abandoned` are half-typed forms nobody ever sent.
+ *
+ * @since 0.3.0
+ *
+ * @return string[]
+ */
+function atf_wpforms_entry_excluded_statuses() {
+	return array( 'trash', 'partial', 'abandoned' );
+}
+
+/**
+ * How many stored WPForms entries a form has that have not been imported yet.
+ *
+ * @since 0.3.0
+ *
+ * @param string $source_id The WPForms post id.
+ * @param int    $form_id   The AllTerrain form the entries would land on.
+ * @return int
+ */
+function atf_wpforms_entry_count( $source_id, $form_id = 0 ) {
+	global $wpdb;
+
+	$source_id = absint( $source_id );
+
+	if ( ! $source_id || ! atf_wpforms_entries_available() ) {
+		return 0;
+	}
+
+	$excluded     = atf_wpforms_entry_excluded_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $excluded ), '%s' ) );
+
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
+	$total = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->prefix}wpforms_entries WHERE form_id = %d AND status NOT IN ( {$placeholders} )",
+			array_merge( array( $source_id ), $excluded )
+		)
+	);
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	if ( ! $form_id ) {
+		return $total;
+	}
+
+	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+}
+
+/**
+ * Brings a slice of a WPForms form's stored entries across.
+ *
+ * Oldest first, so an interrupted migration leaves a contiguous history and a
+ * second pass resumes where the first stopped.
+ *
+ * @since 0.3.0
+ *
+ * @param string $source_id The WPForms post id.
+ * @param int    $form_id   The AllTerrain form to import onto.
+ * @param int    $limit     How many to attempt in this pass.
+ * @return array|WP_Error { imported, skipped, done, remaining }.
+ */
+function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
+	global $wpdb;
+
+	$source_id = absint( $source_id );
+	$form_id   = (int) $form_id;
+
+	if ( ! $source_id ) {
+		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+	}
+
+	if ( ! atf_wpforms_entries_available() ) {
+		return array(
+			'imported'  => 0,
+			'skipped'   => 0,
+			'done'      => true,
+			'remaining' => 0,
+		);
+	}
+
+	$fields = atf_wpforms_entry_fields( $form_id );
+
+	if ( is_wp_error( $fields ) ) {
+		return $fields;
+	}
+
+	$seen         = atf_imported_entry_keys( $form_id );
+	$excluded     = atf_wpforms_entry_excluded_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $excluded ), '%s' ) );
+
+	// The page is larger than the limit because records already imported are
+	// skipped without costing a slot -- otherwise a second pass would spend its
+	// whole budget rediscovering the first pass.
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT entry_id, status, fields, date, ip_address, user_agent FROM {$wpdb->prefix}wpforms_entries
+				WHERE form_id = %d AND status NOT IN ( {$placeholders} )
+				ORDER BY date ASC, entry_id ASC
+				LIMIT %d",
+			array_merge( array( $source_id ), $excluded, array( count( $seen ) + (int) $limit ) )
+		)
+	);
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	$imported = 0;
+	$skipped  = 0;
+
+	foreach ( (array) $rows as $row ) {
+		if ( $imported >= (int) $limit ) {
+			break;
+		}
+
+		if ( isset( $seen[ atf_entry_source_key( 'wpforms', $row->entry_id ) ] ) ) {
+			++$skipped;
+			continue;
+		}
+
+		$result = atf_import_entry(
+			$form_id,
+			array(
+				'values'       => atf_wpforms_entry_values( (string) $row->fields, $fields ),
+				'importer'     => 'wpforms',
+				'record'       => (string) $row->entry_id,
+				'submitted_at' => (int) strtotime( $row->date . ' UTC' ),
+				'spam'         => 'spam' === $row->status,
+				'ip'           => (string) $row->ip_address,
+				'user_agent'   => (string) $row->user_agent,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			// A single unreadable record must not strand the rest of the
+			// migration, but an error that would repeat on every one of them
+			// is worth stopping for.
+			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+				return $result;
+			}
+
+			++$skipped;
+			continue;
+		}
+
+		++$imported;
+	}
+
+	$remaining = atf_wpforms_entry_count( (string) $source_id, $form_id );
+
+	return array(
+		'imported'  => $imported,
+		'skipped'   => $skipped,
+		'done'      => 0 === $remaining,
+		'remaining' => $remaining,
+	);
+}
+
+/**
+ * WPForms field id => the imported field it became, for one AllTerrain form.
+ *
+ * The entry reader needs the *target* field's type to know what to read out of
+ * each stored field object — a name keeps its parts in sibling keys, a checkbox
+ * group newline-joins its picks into `value` — and only the destination type
+ * says which reading applies.
+ *
+ * @since 0.3.0
+ *
+ * @param int $form_id The AllTerrain form.
+ * @return array|WP_Error WPForms field id => normalised field.
+ */
+function atf_wpforms_entry_fields( $form_id ) {
+	$schema = atf_get_form_schema( $form_id );
+
+	if ( ! $schema ) {
+		return new WP_Error( 'atf_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
+	}
+
+	$map = atf_form_import_map( $form_id );
+
+	if ( ! $map ) {
+		return new WP_Error(
+			'atf_no_import_map',
+			__( 'That form has no field map, so its stored submissions cannot be read. Import the form again to record one.', 'allterrain-forms' )
+		);
+	}
+
+	$by_id = array();
+
+	foreach ( atf_input_fields( $schema ) as $field ) {
+		$by_id[ $field['id'] ] = $field;
+	}
+
+	$fields = array();
+
+	foreach ( $map as $source_id => $field_id ) {
+		if ( isset( $by_id[ $field_id ] ) ) {
+			$fields[ (string) $source_id ] = $by_id[ $field_id ];
+		}
+	}
+
+	return $fields;
+}
+
+/**
+ * The submitted values of one WPForms entry, keyed by WPForms field id.
+ *
+ * A WPForms entry's `fields` column is one JSON document: each answer is an
+ * object holding at least `value`, with composites keeping their parts in
+ * sibling keys — `first` / `last` on a name, `address1` / `city` / `postal` on
+ * an address — and choice groups newline-joining their picks into `value`.
+ *
+ * @since 0.3.0
+ *
+ * @param string $stored The entry's `fields` column, still JSON.
+ * @param array  $fields WPForms field id => the imported field it became.
+ * @return array WPForms field id => value, shaped for the target field.
+ */
+function atf_wpforms_entry_values( $stored, $fields ) {
+	$decoded = json_decode( (string) $stored, true );
+
+	if ( ! is_array( $decoded ) ) {
+		return array();
+	}
+
+	$values = array();
+
+	foreach ( $fields as $source_id => $field ) {
+		if ( ! isset( $decoded[ $source_id ] ) || ! is_array( $decoded[ $source_id ] ) ) {
+			continue;
+		}
+
+		$value = atf_wpforms_entry_value( $decoded[ $source_id ], $field );
+
+		if ( null !== $value ) {
+			$values[ $source_id ] = $value;
+		}
+	}
+
+	return $values;
+}
+
+/**
+ * One WPForms entry value, assembled into the shape its new field stores.
+ *
+ * @since 0.3.0
+ *
+ * @param array $answer The stored field object.
+ * @param array $field  The imported field the value now belongs to.
+ * @return mixed The assembled value, or null when the field holds nothing here.
+ */
+function atf_wpforms_entry_value( $answer, $field ) {
+	switch ( $field['type'] ) {
+		case 'name':
+			$parts = array(
+				'first'  => 'first',
+				'middle' => 'middle',
+				'last'   => 'last',
+			);
+
+			$value = array();
+
+			foreach ( $parts as $theirs => $ours ) {
+				if ( isset( $answer[ $theirs ] ) && is_scalar( $answer[ $theirs ] ) && '' !== (string) $answer[ $theirs ] ) {
+					$value[ $ours ] = (string) $answer[ $theirs ];
+				}
+			}
+
+			return $value ? $value : null;
+
+		case 'address':
+			$parts = array(
+				'address1' => 'line1',
+				'address2' => 'line2',
+				'city'     => 'city',
+				'state'    => 'region',
+				'postal'   => 'postcode',
+				'country'  => 'country',
+			);
+
+			$value = array();
+
+			foreach ( $parts as $theirs => $ours ) {
+				if ( isset( $answer[ $theirs ] ) && is_scalar( $answer[ $theirs ] ) && '' !== (string) $answer[ $theirs ] ) {
+					$value[ $ours ] = (string) $answer[ $theirs ];
+				}
+			}
+
+			return $value ? $value : null;
+
+		case 'checkboxes':
+		case 'multiselect':
+			// Picks arrive newline-joined in `value`, in the order they were
+			// ticked. The stored strings are the choice *labels* -- WPForms
+			// records what the visitor saw -- and the sanitiser keeps whatever
+			// arrives, so an import matches what WPForms itself displayed.
+			$raw = isset( $answer['value'] ) && is_scalar( $answer['value'] ) ? (string) $answer['value'] : '';
+
+			if ( '' === $raw ) {
+				return null;
+			}
+
+			return array_values( array_filter( array_map( 'trim', explode( "\n", $raw ) ), 'strlen' ) );
+
+		case 'file':
+			// WPForms stores upload URLs; entries here hold attachment ids, and
+			// a URL on another plugin's disk is not an attachment. The honest
+			// mapping is none -- same as the sanitiser would enforce anyway.
+			return null;
+
+		case 'likert':
+			// WPForms Pro's Likert storage is not a shape this reader can pin
+			// down without the plugin present, and a guessed parse would write
+			// wrong answers where blank ones are at least visibly blank.
+			return null;
+	}
+
+	$raw = isset( $answer['value'] ) && is_scalar( $answer['value'] ) ? (string) $answer['value'] : '';
+
+	return '' !== $raw ? $raw : null;
 }

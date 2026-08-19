@@ -28,10 +28,12 @@ defined( 'ABSPATH' ) || exit;
  */
 function atf_register_gravityforms_importer( $importers ) {
 	$importers['gravityforms'] = array(
-		'label'     => __( 'Gravity Forms', 'allterrain-forms' ),
-		'available' => 'atf_gf_available',
-		'forms'     => 'atf_gf_forms',
-		'import'    => 'atf_gf_import',
+		'label'          => __( 'Gravity Forms', 'allterrain-forms' ),
+		'available'      => 'atf_gf_available',
+		'forms'          => 'atf_gf_forms',
+		'import'         => 'atf_gf_import',
+		'entries'        => 'atf_gf_entry_count',
+		'import_entries' => 'atf_gf_import_entries',
 	);
 
 	return $importers;
@@ -128,7 +130,7 @@ function atf_gf_import( $source_id ) {
 
 	$title = '' !== (string) $row->title ? (string) $row->title : ( isset( $display['title'] ) ? (string) $display['title'] : '' );
 
-	return atf_create_imported_form( $title, $schema, 'gravityforms', (string) $source_id );
+	return atf_create_imported_form( $title, $schema, 'gravityforms', (string) $source_id, atf_gf_map( $display ) );
 }
 
 /**
@@ -669,4 +671,469 @@ function atf_gf_replace_tags( $text, $map ) {
 		},
 		$text
 	);
+}
+
+/**
+ * The Gravity field id => new field id map for one form, recomputed.
+ *
+ * The same two passes `atf_gf_convert()` runs, minus building the schema —
+ * minting has to happen for every field before dropping any, or the ids would
+ * shift and stop matching the ones the conversion minted. Recomputed rather
+ * than threaded out of the converter for the same reason the CF7 importer
+ * re-parses its template: the source is a few kilobytes read once per form
+ * ever imported, and every caller of the converter stays oblivious.
+ *
+ * @since 0.3.0
+ *
+ * @param array $display The decoded `display_meta`.
+ * @return array Gravity field id => new field id.
+ */
+function atf_gf_map( $display ) {
+	$source_fields = isset( $display['fields'] ) && is_array( $display['fields'] ) ? $display['fields'] : array();
+
+	$map  = array();
+	$next = 1;
+
+	foreach ( $source_fields as $source ) {
+		if ( is_array( $source ) && isset( $source['id'] ) ) {
+			$map[ (string) $source['id'] ] = 'f' . $next;
+			++$next;
+		}
+	}
+
+	foreach ( $source_fields as $source ) {
+		if ( ! is_array( $source ) || ! isset( $source['id'] ) ) {
+			continue;
+		}
+
+		if ( ! atf_gf_field( $source, $map[ (string) $source['id'] ], $map ) ) {
+			unset( $map[ (string) $source['id'] ] );
+		}
+	}
+
+	return $map;
+}
+
+/**
+ * Whether Gravity Forms' entry tables exist on this site.
+ *
+ * Checked separately from `atf_gf_available()` because the two can differ: a
+ * site restored from a partial backup, or one that ran a very old Gravity
+ * Forms, can hold the form tables without the entry tables.
+ *
+ * @since 0.3.0
+ *
+ * @return bool
+ */
+function atf_gf_entries_available() {
+	global $wpdb;
+
+	$table = $wpdb->prefix . 'gf_entry';
+
+	return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table; // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- There is no API for another plugin's table, and a SHOW TABLES result is not worth caching.
+}
+
+/**
+ * The statuses a Gravity entry worth importing can be in.
+ *
+ * Trash is excluded here as everywhere in this migration: a trashed entry was
+ * thrown away on purpose, and resurrecting it would undo a decision somebody
+ * made.
+ *
+ * @since 0.3.0
+ *
+ * @return string[]
+ */
+function atf_gf_entry_statuses() {
+	return array( 'active', 'spam' );
+}
+
+/**
+ * How many stored Gravity entries a form has that have not been imported yet.
+ *
+ * @since 0.3.0
+ *
+ * @param string $source_id The Gravity form id.
+ * @param int    $form_id   The AllTerrain form the entries would land on.
+ * @return int
+ */
+function atf_gf_entry_count( $source_id, $form_id = 0 ) {
+	global $wpdb;
+
+	$source_id = absint( $source_id );
+
+	if ( ! $source_id || ! atf_gf_entries_available() ) {
+		return 0;
+	}
+
+	$statuses     = atf_gf_entry_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
+	$total = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->prefix}gf_entry WHERE form_id = %d AND status IN ( {$placeholders} )",
+			array_merge( array( $source_id ), $statuses )
+		)
+	);
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	if ( ! $form_id ) {
+		return $total;
+	}
+
+	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+}
+
+/**
+ * Brings a slice of a Gravity form's stored entries across.
+ *
+ * Oldest first, so an interrupted migration leaves a contiguous history and a
+ * second pass resumes where the first stopped.
+ *
+ * @since 0.3.0
+ *
+ * @param string $source_id The Gravity form id.
+ * @param int    $form_id   The AllTerrain form to import onto.
+ * @param int    $limit     How many to attempt in this pass.
+ * @return array|WP_Error { imported, skipped, done, remaining }.
+ */
+function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
+	global $wpdb;
+
+	$source_id = absint( $source_id );
+	$form_id   = (int) $form_id;
+
+	if ( ! $source_id || ! atf_gf_available() ) {
+		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+	}
+
+	if ( ! atf_gf_entries_available() ) {
+		return array(
+			'imported'  => 0,
+			'skipped'   => 0,
+			'done'      => true,
+			'remaining' => 0,
+		);
+	}
+
+	$fields = atf_gf_entry_fields( $form_id );
+
+	if ( is_wp_error( $fields ) ) {
+		return $fields;
+	}
+
+	$seen         = atf_imported_entry_keys( $form_id );
+	$statuses     = atf_gf_entry_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+	// The page is larger than the limit because records already imported are
+	// skipped without costing a slot -- otherwise a second pass would spend its
+	// whole budget rediscovering the first pass.
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT id, status, date_created, ip, user_agent FROM {$wpdb->prefix}gf_entry
+				WHERE form_id = %d AND status IN ( {$placeholders} )
+				ORDER BY date_created ASC, id ASC
+				LIMIT %d",
+			array_merge( array( $source_id ), $statuses, array( count( $seen ) + (int) $limit ) )
+		)
+	);
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	$imported = 0;
+	$skipped  = 0;
+
+	foreach ( (array) $rows as $row ) {
+		if ( $imported >= (int) $limit ) {
+			break;
+		}
+
+		if ( isset( $seen[ atf_entry_source_key( 'gravityforms', $row->id ) ] ) ) {
+			++$skipped;
+			continue;
+		}
+
+		$result = atf_import_entry(
+			$form_id,
+			array(
+				'values'       => atf_gf_entry_values( (int) $row->id, $fields ),
+				'importer'     => 'gravityforms',
+				'record'       => (string) $row->id,
+				'submitted_at' => (int) strtotime( $row->date_created . ' UTC' ),
+				'spam'         => 'spam' === $row->status,
+				'ip'           => (string) $row->ip,
+				'user_agent'   => (string) $row->user_agent,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			// A single unreadable record must not strand the rest of the
+			// migration, but an error that would repeat on every one of them
+			// is worth stopping for.
+			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+				return $result;
+			}
+
+			++$skipped;
+			continue;
+		}
+
+		++$imported;
+	}
+
+	$remaining = atf_gf_entry_count( (string) $source_id, $form_id );
+
+	return array(
+		'imported'  => $imported,
+		'skipped'   => $skipped,
+		'done'      => 0 === $remaining,
+		'remaining' => $remaining,
+	);
+}
+
+/**
+ * Gravity field id => the imported field it became, for one AllTerrain form.
+ *
+ * The entry reader needs the *target* field's type to know what shape to
+ * assemble — the same dotted meta keys hold a name's parts on one field and a
+ * checkbox group's picks on another, and only the destination can say which.
+ *
+ * @since 0.3.0
+ *
+ * @param int $form_id The AllTerrain form.
+ * @return array|WP_Error Gravity field id => normalised field.
+ */
+function atf_gf_entry_fields( $form_id ) {
+	$schema = atf_get_form_schema( $form_id );
+
+	if ( ! $schema ) {
+		return new WP_Error( 'atf_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
+	}
+
+	$map = atf_form_import_map( $form_id );
+
+	if ( ! $map ) {
+		return new WP_Error(
+			'atf_no_import_map',
+			__( 'That form has no field map, so its stored submissions cannot be read. Import the form again to record one.', 'allterrain-forms' )
+		);
+	}
+
+	$by_id = array();
+
+	foreach ( atf_input_fields( $schema ) as $field ) {
+		$by_id[ $field['id'] ] = $field;
+	}
+
+	$fields = array();
+
+	foreach ( $map as $source_id => $field_id ) {
+		if ( isset( $by_id[ $field_id ] ) ) {
+			$fields[ (string) $source_id ] = $by_id[ $field_id ];
+		}
+	}
+
+	return $fields;
+}
+
+/**
+ * The submitted values of one Gravity entry, keyed by Gravity field id.
+ *
+ * Gravity keys its entry meta by *input* id: `5` for a single-input field, and
+ * `5.3`, `5.6` for the inputs of a multi-input one — where the same dotted
+ * shape means name parts on a name field, address lines on an address field
+ * and one row per ticked box on a checkbox group. The target field's type is
+ * what disambiguates, which is why the map of converted fields rides along.
+ *
+ * @since 0.3.0
+ *
+ * @param int   $entry_id The Gravity entry id.
+ * @param array $fields   Gravity field id => the imported field it became.
+ * @return array Gravity field id => value, shaped for the target field.
+ */
+function atf_gf_entry_values( $entry_id, $fields ) {
+	global $wpdb;
+
+	$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Another plugin's table; read once per imported entry.
+		$wpdb->prepare(
+			"SELECT meta_key, meta_value FROM {$wpdb->prefix}gf_entry_meta WHERE entry_id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Only the prefix is interpolated.
+			absint( $entry_id )
+		)
+	);
+
+	// One bucket per Gravity field: `single` for an undotted key, `subs` for
+	// the dotted ones, kept in input order so positional assembly is stable.
+	$buckets = array();
+
+	foreach ( (array) $rows as $row ) {
+		$key = (string) $row->meta_key;
+		$dot = strpos( $key, '.' );
+
+		if ( false === $dot ) {
+			$buckets[ $key ]['single'] = (string) $row->meta_value;
+			continue;
+		}
+
+		$root = substr( $key, 0, $dot );
+
+		$buckets[ $root ]['subs'][ substr( $key, $dot + 1 ) ] = (string) $row->meta_value;
+	}
+
+	$values = array();
+
+	foreach ( $fields as $source_id => $field ) {
+		if ( ! isset( $buckets[ $source_id ] ) ) {
+			continue;
+		}
+
+		$value = atf_gf_entry_value( $buckets[ $source_id ], $field );
+
+		if ( null !== $value ) {
+			$values[ $source_id ] = $value;
+		}
+	}
+
+	return $values;
+}
+
+/**
+ * One Gravity entry value, assembled into the shape its new field stores.
+ *
+ * @since 0.3.0
+ *
+ * @param array $bucket { single?: string, subs?: array }.
+ * @param array $field  The imported field the value now belongs to.
+ * @return mixed The assembled value, or null when the field holds nothing here.
+ */
+function atf_gf_entry_value( $bucket, $field ) {
+	$single = isset( $bucket['single'] ) ? $bucket['single'] : '';
+	$subs   = isset( $bucket['subs'] ) ? $bucket['subs'] : array();
+
+	switch ( $field['type'] ) {
+		case 'name':
+			// Gravity numbers name inputs `{field}.{part}`, and the sub-numbers
+			// are stable across every install -- the same table
+			// `atf_gf_name_parts()` reads when the form is converted.
+			$parts = array(
+				'2' => 'prefix',
+				'3' => 'first',
+				'4' => 'middle',
+				'6' => 'last',
+				'8' => 'suffix',
+			);
+
+			return atf_gf_entry_parts( $subs, $parts );
+
+		case 'address':
+			$parts = array(
+				'1' => 'line1',
+				'2' => 'line2',
+				'3' => 'city',
+				'4' => 'region',
+				'5' => 'postcode',
+				'6' => 'country',
+			);
+
+			return atf_gf_entry_parts( $subs, $parts );
+
+		case 'checkboxes':
+			// One dotted row per ticked box, holding the choice's value. An
+			// unticked box usually writes nothing, but old exports have been
+			// seen to write empty strings -- either way, absent means unticked.
+			if ( $subs ) {
+				uksort( $subs, 'strnatcmp' );
+
+				return array_values( array_filter( $subs, 'strlen' ) );
+			}
+
+			return '' !== $single ? array( $single ) : null;
+
+		case 'multiselect':
+			// Stored as a JSON list since Gravity 2.2, comma-joined before it.
+			if ( '' === $single ) {
+				return null;
+			}
+
+			if ( '[' === $single[0] ) {
+				$decoded = json_decode( $single, true );
+
+				if ( is_array( $decoded ) ) {
+					return array_map( 'strval', $decoded );
+				}
+			}
+
+			return array_map( 'trim', explode( ',', $single ) );
+
+		case 'repeater':
+			// A Gravity List survives as a serialised array: strings for a
+			// single-column list, one array per row for a multi-column one.
+			// Rows map onto the repeater's sub-fields positionally, because the
+			// sub-fields were minted from the columns in order.
+			$list = maybe_unserialize( $single );
+
+			if ( ! is_array( $list ) ) {
+				return null;
+			}
+
+			$sub_ids = array();
+
+			foreach ( isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array() as $sub ) {
+				if ( isset( $sub['id'] ) ) {
+					$sub_ids[] = (string) $sub['id'];
+				}
+			}
+
+			if ( ! $sub_ids ) {
+				return null;
+			}
+
+			$rows = array();
+
+			foreach ( $list as $row ) {
+				$row_values = is_array( $row ) ? array_values( $row ) : array( $row );
+				$assembled  = array();
+
+				foreach ( $sub_ids as $index => $sub_id ) {
+					$assembled[ $sub_id ] = isset( $row_values[ $index ] ) && is_scalar( $row_values[ $index ] )
+						? (string) $row_values[ $index ]
+						: '';
+				}
+
+				$rows[] = $assembled;
+			}
+
+			return $rows;
+
+		case 'file':
+			// Gravity stores upload URLs; entries here hold attachment ids. A
+			// URL on another plugin's disk is not an attachment, and inventing
+			// one would put a broken id in the entry -- the honest mapping is
+			// none, same as the sanitiser would enforce anyway.
+			return null;
+	}
+
+	return '' !== $single ? $single : null;
+}
+
+/**
+ * Dotted sub-values as a composite's parts.
+ *
+ * @since 0.3.0
+ *
+ * @param array $subs  Sub-number => stored value.
+ * @param array $parts Sub-number => part key.
+ * @return array|null Part key => value, or null when every part is empty.
+ */
+function atf_gf_entry_parts( $subs, $parts ) {
+	$value = array();
+
+	foreach ( $parts as $sub => $part ) {
+		if ( isset( $subs[ $sub ] ) && '' !== $subs[ $sub ] ) {
+			$value[ $part ] = $subs[ $sub ];
+		}
+	}
+
+	return $value ? $value : null;
 }

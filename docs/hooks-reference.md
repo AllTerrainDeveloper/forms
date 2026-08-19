@@ -812,7 +812,10 @@ add_filter( 'atf_importers', function ( $importers ) {
 An importer may add two more callables. They are optional, and they come as a
 pair: an importer that can count submissions but not import them would put a
 number on screen with no button behind it, so offering only one of the two drops
-both.
+both. All three built-in importers implement the pair — Contact Form 7 reads
+the messages Flamingo kept, Gravity Forms reads its `gf_entry` tables, and
+WPForms reads the entries table WPForms Pro writes (Lite stores nothing, so a
+Lite site is accurately offered nothing).
 
 ```php
 'entries'        => fn( $source_id, $form_id = 0 ) => 412,
