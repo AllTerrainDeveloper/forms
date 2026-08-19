@@ -50,7 +50,7 @@ function atf_register_post_types() {
 			'show_in_menu'        => false,
 			'show_in_rest'        => true,
 			'rest_base'           => 'atf-forms',
-			'supports'            => array( 'title', 'revisions', 'author' ),
+			'supports'            => array( 'title', 'excerpt', 'revisions', 'author' ),
 			'capability_type'     => array( 'atf_form', 'atf_forms' ),
 			'map_meta_cap'        => true,
 			'exclude_from_search' => true,
