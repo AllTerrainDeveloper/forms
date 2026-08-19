@@ -126,7 +126,7 @@ function atf_register_shell_surfaces() {
 		'register_window',
 		'allterrain-forms-entries',
 		array(
-			'title'        => __( 'Form Entries', 'allterrain-forms' ),
+			'title'        => __( 'AllTerrain Forms — Entries', 'allterrain-forms' ),
 			'icon'         => 'dashicons-list-view',
 			'template'     => 'atf_render_entries_template',
 			'script'       => 'allterrain-forms-entries',
@@ -144,7 +144,7 @@ function atf_register_shell_surfaces() {
 		'register_window',
 		'allterrain-forms-analytics',
 		array(
-			'title'        => __( 'Form Analytics', 'allterrain-forms' ),
+			'title'        => __( 'AllTerrain Forms — Analytics', 'allterrain-forms' ),
 			'icon'         => 'dashicons-chart-bar',
 			'template'     => 'atf_render_analytics_template',
 			'script'       => 'allterrain-forms-analytics',
@@ -165,7 +165,7 @@ function atf_register_shell_surfaces() {
 		'register_window',
 		'allterrain-forms-themes',
 		array(
-			'title'        => __( 'Theme Studio', 'allterrain-forms' ),
+			'title'        => __( 'AllTerrain Forms — Theme Studio', 'allterrain-forms' ),
 			'icon'         => 'dashicons-art',
 			'template'     => 'atf_render_theme_studio_template',
 			// The Studio ships inside the builder bundle rather than its own.
@@ -231,21 +231,21 @@ function atf_register_shell_surfaces() {
 		$commands = array(
 			array(
 				'slug'        => 'allterrain-forms',
-				'label'       => __( 'Forms: open the builder', 'allterrain-forms' ),
+				'label'       => __( 'AllTerrain Forms: open the builder', 'allterrain-forms' ),
 				'description' => __( 'Build a form by dragging fields onto a canvas.', 'allterrain-forms' ),
 				'icon'        => 'dashicons-feedback',
 				'script'      => 'allterrain-forms-builder',
 			),
 			array(
 				'slug'        => 'allterrain-forms-entries',
-				'label'       => __( 'Forms: open entries', 'allterrain-forms' ),
+				'label'       => __( 'AllTerrain Forms: open entries', 'allterrain-forms' ),
 				'description' => __( 'Read, filter and export what people have submitted.', 'allterrain-forms' ),
 				'icon'        => 'dashicons-list-view',
 				'script'      => 'allterrain-forms-entries',
 			),
 			array(
 				'slug'        => 'allterrain-forms-themes',
-				'label'       => __( 'Forms: open the Theme Studio', 'allterrain-forms' ),
+				'label'       => __( 'AllTerrain Forms: open the Theme Studio', 'allterrain-forms' ),
 				'description' => __( 'Make a form theme without writing any CSS.', 'allterrain-forms' ),
 				'icon'        => 'dashicons-art',
 				'script'      => 'allterrain-forms-builder',

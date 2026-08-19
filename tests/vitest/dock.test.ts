@@ -91,7 +91,7 @@ describe( 'the rest of the menu', () => {
 	it( 'offers analytics to somebody who may only read entries', () => {
 		// Reading a report is reading entries. Gating it on editing forms would
 		// deny it to exactly the people most likely to want it.
-		expect( titles( { canEdit: false, canRead: true } ) ).toEqual( [ 'Form entries', 'Analytics' ] );
+		expect( titles( { canEdit: false, canRead: true } ) ).toEqual( [ 'Entries', 'Analytics' ] );
 	} );
 
 	it( 'offers nothing to somebody with neither capability', () => {
@@ -139,7 +139,7 @@ describe( 'the import row', () => {
 			expect.objectContaining( {
 				id: 'allterrain-forms-import',
 				url: 'http://example.com/wp-admin/admin.php?page=allterrain-forms-import',
-				title: 'Import forms',
+				title: 'AllTerrain Forms — Import',
 			} )
 		);
 	} );

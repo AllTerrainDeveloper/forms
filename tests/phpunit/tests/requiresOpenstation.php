@@ -73,4 +73,27 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	public function test_notice_is_hooked() {
 		$this->assertSame( 10, has_action( 'admin_notices', 'atf_shell_missing_notice' ) );
 	}
+
+	/**
+	 * The admin surfaces do not render their tools on a shell-less site.
+	 *
+	 * The suite runs without OpenStation, which is exactly the install this
+	 * covers: a fork that strips the dependency header, or a WordPress too old
+	 * to read it. The page says what is missing instead of quietly mounting a
+	 * lesser builder.
+	 *
+	 * @covers ::atf_render_admin_shell
+	 */
+	public function test_admin_surfaces_are_gated_without_the_shell() {
+		atf_add_capabilities();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		ob_start();
+		atf_render_builder_page();
+		$page = ob_get_clean();
+
+		$this->assertStringContainsString( 'OpenStation desktop app', $page );
+		$this->assertStringContainsString( 'Install OpenStation', $page );
+		$this->assertStringNotContainsString( 'data-atfb-root', $page, 'The builder must not mount without the shell.' );
+	}
 }
