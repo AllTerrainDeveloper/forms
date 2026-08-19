@@ -413,6 +413,8 @@ npm run test:php      # 465 PHP tests, inside wp-env
 ## Documentation
 
 - [`docs/hooks-reference.md`](docs/hooks-reference.md) — every action and filter
+- [`docs/abilities.md`](docs/abilities.md) — the nine WordPress Abilities AI
+  agents use the forms through: build, theme, submit, query, report
 - [`docs/field-types.md`](docs/field-types.md) — adding a field type
 - [`docs/themes.md`](docs/themes.md) — the token surface, and adding a token
 - [`docs/javascript.md`](docs/javascript.md) — events, drag payloads, the bundles

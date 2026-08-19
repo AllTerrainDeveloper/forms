@@ -140,6 +140,21 @@ capabilities, search and the trash already work on your form data. A consent
 field, IP anonymisation and per-form storage controls are built in — and
 nothing is ever sent to us or to any third party.
 
+= Ready for AI agents — WordPress Abilities API and MCP =
+
+AllTerrain Forms describes itself to AI agents. Nine abilities registered
+through WordPress's Abilities API let an agent — over MCP or the REST API —
+list your forms, read a form's questions, **build a whole form from a
+description**, apply a theme, submit entries through the same validated
+anti-spam pipeline a visitor uses, query submissions with human-readable
+answers, and pull the full analytics report (conversion, distributions, NPS)
+as structured data.
+
+Every ability carries a JSON Schema and a capability check, and none of them
+has logic of its own — an agent and a human clicking the same button get the
+same behaviour. Ask your assistant to "make a booking form and show me last
+week's responses", and this is what it calls.
+
 = Built on OpenStation =
 
 AllTerrain Forms is an [OpenStation](https://wordpress.org/plugins/desktop-mode/)

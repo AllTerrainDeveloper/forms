@@ -165,6 +165,7 @@ require_once ATF_DIR . 'includes/importer-wpforms.php';
 require_once ATF_DIR . 'includes/importer-gravityforms.php';
 require_once ATF_DIR . 'includes/import-notice.php';
 require_once ATF_DIR . 'includes/rest.php';
+require_once ATF_DIR . 'includes/abilities.php';
 require_once ATF_DIR . 'includes/preview.php';
 require_once ATF_DIR . 'includes/shortcode.php';
 require_once ATF_DIR . 'includes/block.php';
