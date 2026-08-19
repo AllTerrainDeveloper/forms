@@ -32,7 +32,7 @@ var allTerrainFormsDock = function(exports) {
     }
     if (config2?.canRead) {
       submenu.push({
-        title: "Form entries",
+        title: "Entries",
         url: "",
         onSelect: () => open(ENTRIES),
         // Declaring the window lets the flyout list this row under
@@ -64,7 +64,7 @@ var allTerrainFormsDock = function(exports) {
         // Kept in step with what `onSelect` opens: the shell reads the
         // callback, but the URL is what the row means.
         url,
-        onSelect: () => openUrl(IMPORT, url, "Import forms"),
+        onSelect: () => openUrl(IMPORT, url, "AllTerrain Forms — Import"),
         // Declaring it lets the constellation list this row under "Open
         // windows" once it is, rather than offering to open a second copy.
         windowId: IMPORT

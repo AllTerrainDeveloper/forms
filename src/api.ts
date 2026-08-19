@@ -179,18 +179,42 @@ function query( params: Record< string, string | number | boolean | undefined > 
 	return string ? `?${ string }` : '';
 }
 
+/**
+ * Repairs the one spot where PHP's JSON and this codebase disagree.
+ *
+ * An empty `themeOverrides` map serialises from PHP as `[]`, so the schema
+ * arrives holding a real Array. Everything downstream writes into it by token
+ * name — which on an Array is a stray expando property that `JSON.stringify`
+ * silently drops. The visible failure was maddening: the preview showed the
+ * override (built from a plain-object copy), the save quietly lost it, and the
+ * control snapped back when the saved schema was adopted. Coerced here, at the
+ * single door every form response walks through, so no caller can meet the
+ * Array again.
+ */
+export function withObjectOverrides( form: Form ): Form {
+	const settings = form?.schema?.settings as { themeOverrides?: unknown } | undefined;
+
+	if ( settings && ( ! settings.themeOverrides || Array.isArray( settings.themeOverrides ) ) ) {
+		settings.themeOverrides = { ...( settings.themeOverrides as object ) };
+	}
+
+	return form;
+}
+
 export const api = {
 	config: () => get< BuilderConfig >( '/config' ),
 
 	listForms: () => get< FormSummary[] >( '/forms' ),
 
-	getForm: ( id: number ) => get< Form >( `/forms/${ id }` ),
+	getForm: ( id: number ) => get< Form >( `/forms/${ id }` ).then( withObjectOverrides ),
 
-	createForm: ( body: { template?: string; title?: string; schema?: unknown } ) => post< Form >( '/forms', body ),
+	createForm: ( body: { template?: string; title?: string; schema?: unknown } ) =>
+		post< Form >( '/forms', body ).then( withObjectOverrides ),
 
-	updateForm: ( id: number, body: { title?: string; schema?: unknown } ) => post< Form >( `/forms/${ id }`, body ),
+	updateForm: ( id: number, body: { title?: string; schema?: unknown } ) =>
+		post< Form >( `/forms/${ id }`, body ).then( withObjectOverrides ),
 
-	duplicateForm: ( id: number ) => post< Form >( `/forms/${ id }/duplicate`, {} ),
+	duplicateForm: ( id: number ) => post< Form >( `/forms/${ id }/duplicate`, {} ).then( withObjectOverrides ),
 
 	deleteForm: ( id: number ) => del< { deleted: boolean } >( `/forms/${ id }` ),
 

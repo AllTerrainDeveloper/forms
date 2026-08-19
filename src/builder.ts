@@ -861,6 +861,17 @@ export class Builder {
 	 * happen before the *next* edit.
 	 */
 	private rebindCanvas(): void {
+		// Rebinding exists for the Build tab: its field cards close over schema
+		// objects that an adopted save response has just replaced. The other
+		// tabs hold no cards — and the Theme tab in particular holds a mounted
+		// studio with a live preview, a scroll position and half-typed test
+		// answers. Rebuilding that after every autosave threw all of it away to
+		// fix a problem it does not have. The mounted panes keep writing through
+		// `this.schema`, which now points at the adopted copy either way.
+		if ( this.tab !== 'build' ) {
+			return;
+		}
+
 		const focused = document.activeElement;
 
 		if ( focused instanceof HTMLElement && this.canvas.contains( focused ) ) {
@@ -3411,6 +3422,16 @@ export class Builder {
 
 		try {
 			const html = await this.previewHtml( theme, this.schema.settings.themeOverrides ?? {} );
+
+			// A dark theme's text tokens assume the theme's own background. The
+			// canvas cards are builder-white, so without this the previews wore
+			// near-white text on white — the theme's colours with none of its
+			// ground. The server marks dark themes on the form it renders; the
+			// canvas previews are builder-built and never carry that class, so
+			// the flag is hoisted to the root and the stylesheet paints every
+			// preview's ground from it.
+			this.root.classList.toggle( 'atfb--dark-form', /atf-is-dark/.test( html ) );
+
 			const block = /<style>([\s\S]*?)<\/style>/.exec( html );
 
 			if ( ! block ) {

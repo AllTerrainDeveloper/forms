@@ -62,10 +62,15 @@ is a post. Nothing lives in a bespoke table, so the REST API,
 `current_user_can()`, revisions, search, the trash, and WordPress's own privacy
 exporter and eraser already work on this data without a line of integration code.
 
-**OpenStation is optional.** Every shell call sits behind a `function_exists()`
-gate, so a site without the shell loses the desktop affordances and keeps a
-complete forms plugin under **Forms** in wp-admin. There is deliberately no
-`Requires Plugins:` header.
+**OpenStation is required.** The plugin declares `Requires Plugins:
+desktop-mode`, so WordPress 6.5+ installs and activates the shell alongside it
+and refuses to pull the shell out from underneath it. The builder is a native
+shell window — the desktop is the product, not a skin on it — so the plugin
+does not ship a lesser version of itself for sites without one. The
+`function_exists()` gates in `includes/shell-api.php` remain as defense in
+depth for half-upgraded sites: without the shell an admin notice says what is
+missing, and published forms keep rendering so no visitor ever pays for an
+admin dependency.
 
 ---
 
@@ -82,7 +87,6 @@ renderer, same stylesheet, same theme resolution, so what you see is what a
 visitor gets. Save, and the preview window refreshes itself. Drag a field, watch
 it change, drag another; the builder never closes.
 
-Without OpenStation the same button opens the same URL in a tab.
 
 ---
 
@@ -233,6 +237,33 @@ and "Support scores 5.8 and everyone else is above 7".
 and integration with WordPress's own export and erase tools so a subject access
 request reaches form submissions without anybody having to remember they are a
 separate place.
+
+---
+
+## Nine abilities, so AI agents can use the forms
+
+The plugin registers its whole working surface with WordPress's Abilities API,
+which is how a site describes what it can do to agents and MCP clients. Each
+ability is a thin adapter over the same functions the windows and the REST API
+call — an agent and a human clicking the same button get the same behaviour,
+the same validation and the same capability checks.
+
+| Ability | What it does |
+|---|---|
+| `list-forms` | Every form with id, title, theme, shortcode, entry count and questions — the ids feed everything else |
+| `get-form` | One form's questions: field ids, types, labels, required flags, choices |
+| `list-field-types` | The building vocabulary: all 37 types and what each stores |
+| `create-form` | Builds a form from a title and a loose field list; returns the shortcode |
+| `set-form-theme` | Dresses a form in any installed theme |
+| `submit-form` | Submits through the visitor pipeline — validation, anti-spam, storage, notifications; refusals return per-field errors |
+| `list-entries` | Queries submissions — search, date range, status, pagination — raw and human-readable |
+| `get-entry` | One submission, every answer labelled and formatted |
+| `form-report` | The analytics as structured data: conversion, timeline, distributions, NPS, group-by breakdowns |
+
+Ask an assistant to *"make a booking form and show me last week's responses"*,
+and these are what it calls. The full contract — permissions, schemas, and the
+one honest liberty `submit-form` takes with the time trap — is in
+[`docs/abilities.md`](docs/abilities.md).
 
 ---
 
@@ -409,6 +440,8 @@ npm run test:php      # 465 PHP tests, inside wp-env
 ## Documentation
 
 - [`docs/hooks-reference.md`](docs/hooks-reference.md) — every action and filter
+- [`docs/abilities.md`](docs/abilities.md) — the nine WordPress Abilities AI
+  agents use the forms through: build, theme, submit, query, report
 - [`docs/field-types.md`](docs/field-types.md) — adding a field type
 - [`docs/themes.md`](docs/themes.md) — the token surface, and adding a token
 - [`docs/javascript.md`](docs/javascript.md) — events, drag payloads, the bundles

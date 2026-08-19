@@ -326,13 +326,20 @@ var allTerrainFormsBuilder = function(exports) {
     const string = search.toString();
     return string ? `?${string}` : "";
   }
+  function withObjectOverrides(form) {
+    const settings = form?.schema?.settings;
+    if (settings && (!settings.themeOverrides || Array.isArray(settings.themeOverrides))) {
+      settings.themeOverrides = { ...settings.themeOverrides };
+    }
+    return form;
+  }
   const api = {
     config: () => get("/config"),
     listForms: () => get("/forms"),
-    getForm: (id) => get(`/forms/${id}`),
-    createForm: (body) => post("/forms", body),
-    updateForm: (id, body) => post(`/forms/${id}`, body),
-    duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}),
+    getForm: (id) => get(`/forms/${id}`).then(withObjectOverrides),
+    createForm: (body) => post("/forms", body).then(withObjectOverrides),
+    updateForm: (id, body) => post(`/forms/${id}`, body).then(withObjectOverrides),
+    duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}).then(withObjectOverrides),
     deleteForm: (id) => del(`/forms/${id}`),
     preview: (id, body) => post(`/forms/${id}/preview`, body),
     /**
@@ -1768,7 +1775,12 @@ var allTerrainFormsBuilder = function(exports) {
     const repaint = debounce(async () => {
       try {
         const html = await options.previewFor(active, overrides);
+        const pane = preview.closest(".atf-studio__preview");
+        const scrolled = pane?.scrollTop ?? 0;
         preview.innerHTML = html;
+        if (pane) {
+          pane.scrollTop = scrolled;
+        }
         document.dispatchEvent(new CustomEvent("atf-refresh"));
       } catch (error) {
         clear(preview);
@@ -1777,8 +1789,24 @@ var allTerrainFormsBuilder = function(exports) {
         );
       }
     }, 180);
+    const CLASS_TOKENS = {
+      "label-position": "atf-labels-",
+      "field-style": "atf-fields-"
+    };
+    const swapClass = (target, prefix, value) => {
+      const safe = value.replace(/[^a-z0-9_-]/gi, "");
+      for (const existing of [...target.classList]) {
+        if (existing.startsWith(prefix)) {
+          target.classList.remove(existing);
+        }
+      }
+      if (safe) {
+        target.classList.add(prefix + safe);
+      }
+    };
     const paintNow = (written) => {
       const wrap = preview.querySelector(".atf-form-wrap");
+      const formEl = wrap?.querySelector(".atf-form");
       if (!wrap) {
         return;
       }
@@ -1788,6 +1816,17 @@ var allTerrainFormsBuilder = function(exports) {
         } else {
           wrap.style.setProperty(`--atf-${token}`, value);
         }
+        if (formEl && CLASS_TOKENS[token]) {
+          swapClass(formEl, CLASS_TOKENS[token], value || (themes.find((t) => t.slug === active)?.resolved[token] ?? ""));
+        }
+      }
+    };
+    const paintTheme = (theme) => {
+      paintNow(theme.resolved);
+      const formEl = preview.querySelector(".atf-form");
+      if (formEl) {
+        swapClass(formEl, "atf-theme-", theme.slug);
+        formEl.classList.toggle("atf-is-dark", !!theme.dark);
       }
     };
     const resolve = (token) => {
@@ -1834,11 +1873,10 @@ var allTerrainFormsBuilder = function(exports) {
               active = theme.slug;
               replaceOverrides({});
               options.onTheme(active);
-              paintNow(theme.resolved);
+              paintTheme(theme);
               renderThemes();
-              renderQuick();
-              renderControls();
-              repaint();
+              syncQuick();
+              syncControlsSoon();
               syncDeleteButton();
             }
           }
@@ -1854,6 +1892,42 @@ var allTerrainFormsBuilder = function(exports) {
       }
       return resolved;
     };
+    const keepScroll = (render) => {
+      const scroller = quick.closest(".atf-studio__controls");
+      const scrolled = scroller?.scrollTop ?? 0;
+      render();
+      if (scroller) {
+        scroller.scrollTop = scrolled;
+      }
+    };
+    const syncControlsSoon = debounce(() => keepScroll(renderControls), 150);
+    const syncQuick = () => {
+      const tokens = currentTokens();
+      const rows = quick.querySelectorAll(".atfs-dial");
+      quickDials().forEach((dial, index) => {
+        const row2 = rows[index];
+        if (!row2) {
+          return;
+        }
+        const at = dial.read(tokens);
+        if (dial.kind === "colour") {
+          const picker = row2.querySelector('input[type="color"]');
+          const text = row2.querySelector("input.atfb-input");
+          if (picker && document.activeElement !== picker) {
+            picker.value = normaliseHex(at);
+          }
+          if (text && document.activeElement !== text) {
+            text.value = at;
+          }
+          return;
+        }
+        row2.querySelectorAll(".atfs-segment").forEach((segment, step) => {
+          const on = dial.steps?.[step]?.value === at;
+          segment.classList.toggle("is-on", on);
+          segment.setAttribute("aria-pressed", String(on));
+        });
+      });
+    };
     const applyDial = (dial, step) => {
       const written = dial.apply(step, currentTokens());
       for (const [token, value] of Object.entries(written)) {
@@ -1861,9 +1935,8 @@ var allTerrainFormsBuilder = function(exports) {
         options.onOverride(token, value);
       }
       paintNow(written);
-      renderQuick();
-      renderControls();
-      repaint();
+      syncQuick();
+      syncControlsSoon();
     };
     const renderQuick = () => {
       clear(quick);
@@ -1963,7 +2036,6 @@ var allTerrainFormsBuilder = function(exports) {
         }
         options.onOverride(token.token, next);
         paintNow({ [token.token]: next });
-        repaint();
       };
       let control2;
       if (token.control === "color") {
@@ -2033,7 +2105,7 @@ var allTerrainFormsBuilder = function(exports) {
             on: {
               click: () => {
                 change("");
-                renderControls();
+                keepScroll(renderControls);
               }
             }
           })
@@ -2063,8 +2135,8 @@ var allTerrainFormsBuilder = function(exports) {
         replaceOverrides({});
         options.onTheme(active);
         renderThemes();
-        renderControls();
-        repaint();
+        syncQuick();
+        keepScroll(renderControls);
         notify("Theme saved", saved.label);
       } catch (error) {
         notify("Could not save the theme", error instanceof Error ? error.message : "", "error");
@@ -2086,8 +2158,12 @@ var allTerrainFormsBuilder = function(exports) {
         replaceOverrides({});
         options.onTheme(active);
         renderThemes();
-        renderControls();
-        repaint();
+        syncQuick();
+        keepScroll(renderControls);
+        const clean = themes.find((candidate) => candidate.slug === active);
+        if (clean) {
+          paintTheme(clean);
+        }
       } catch (error) {
         notify("Could not delete the theme", error instanceof Error ? error.message : "", "error");
       }
@@ -2121,8 +2197,8 @@ var allTerrainFormsBuilder = function(exports) {
           options.onOverride(name, String(value));
         }
         paintNow({ ...overrides });
-        renderControls();
-        repaint();
+        syncQuick();
+        keepScroll(renderControls);
       } catch (error) {
         notify("Could not read that theme", error instanceof Error ? error.message : "", "error");
       }
@@ -3104,6 +3180,9 @@ var allTerrainFormsBuilder = function(exports) {
      * happen before the *next* edit.
      */
     rebindCanvas() {
+      if (this.tab !== "build") {
+        return;
+      }
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && this.canvas.contains(focused)) {
         focused.addEventListener("blur", () => this.rebindCanvas(), { once: true });
@@ -4873,6 +4952,7 @@ var allTerrainFormsBuilder = function(exports) {
       this.canvasThemeSignature = signature;
       try {
         const html = await this.previewHtml(theme, this.schema.settings.themeOverrides ?? {});
+        this.root.classList.toggle("atfb--dark-form", /atf-is-dark/.test(html));
         const block = /<style>([\s\S]*?)<\/style>/.exec(html);
         if (!block) {
           return;

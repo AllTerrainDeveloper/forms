@@ -55,7 +55,7 @@ function atf_register_admin_pages() {
 
 	add_menu_page(
 		__( 'AllTerrain Forms', 'allterrain-forms' ),
-		__( 'Forms', 'allterrain-forms' ),
+		__( 'AllTerrain Forms', 'allterrain-forms' ),
 		$capability,
 		'allterrain-forms',
 		'atf_render_builder_page',
@@ -196,7 +196,7 @@ function atf_enqueue_admin_page_assets( $hook_suffix ) {
  * @return void
  */
 function atf_render_builder_page() {
-	atf_render_admin_shell( 'atf_render_builder_template', __( 'Forms', 'allterrain-forms' ), 'allterrain-forms' );
+	atf_render_admin_shell( 'atf_render_builder_template', __( 'AllTerrain Forms', 'allterrain-forms' ), 'allterrain-forms' );
 }
 
 /**
@@ -207,7 +207,7 @@ function atf_render_builder_page() {
  * @return void
  */
 function atf_render_entries_page() {
-	atf_render_admin_shell( 'atf_render_entries_template', __( 'Entries', 'allterrain-forms' ), 'allterrain-forms-entries' );
+	atf_render_admin_shell( 'atf_render_entries_template', __( 'AllTerrain Forms — Entries', 'allterrain-forms' ), 'allterrain-forms-entries' );
 }
 
 /**
@@ -218,7 +218,7 @@ function atf_render_entries_page() {
  * @return void
  */
 function atf_render_analytics_page() {
-	atf_render_admin_shell( 'atf_render_analytics_template', __( 'Analytics', 'allterrain-forms' ), 'allterrain-forms-analytics' );
+	atf_render_admin_shell( 'atf_render_analytics_template', __( 'AllTerrain Forms — Analytics', 'allterrain-forms' ), 'allterrain-forms-analytics' );
 }
 
 /**
@@ -229,7 +229,7 @@ function atf_render_analytics_page() {
  * @return void
  */
 function atf_render_theme_studio_page() {
-	atf_render_admin_shell( 'atf_render_theme_studio_template', __( 'Theme Studio', 'allterrain-forms' ), 'allterrain-forms-themes' );
+	atf_render_admin_shell( 'atf_render_theme_studio_template', __( 'AllTerrain Forms — Theme Studio', 'allterrain-forms' ), 'allterrain-forms-themes' );
 }
 
 /**
@@ -253,6 +253,26 @@ function atf_render_admin_shell( $template, $title, $window_id = '' ) {
 
 	if ( ! atf_shell_is_chromeless() ) {
 		printf( '<h1 class="wp-heading-inline">%s</h1>', esc_html( $title ) );
+	}
+
+	// No shell on the site at all: the tool does not render. These surfaces are
+	// OpenStation desktop apps -- the `Requires Plugins` header enforces that on
+	// WordPress 6.5+, and this covers the installs it cannot reach (an older
+	// WordPress, a force-removed shell). A fork that strips the header gets the
+	// same answer, stated politely, rather than a quietly lesser builder that
+	// misrepresents what this plugin is. Import stays available -- it has no
+	// `$window_id` -- and published forms keep rendering for visitors.
+	if ( '' !== $window_id && ! atf_shell_has( 'register_window' ) ) {
+		printf(
+			'<div class="atf-admin__pointer"><p>%1$s</p><p><a class="button button-primary" href="%2$s">%3$s</a></p></div>',
+			esc_html__( 'This tool is an OpenStation desktop app, and OpenStation is not running on this site. Published forms keep working for your visitors in the meantime.', 'allterrain-forms' ),
+			esc_url( admin_url( 'plugin-install.php?s=openstation&tab=search&type=term' ) ),
+			esc_html__( 'Install OpenStation', 'allterrain-forms' )
+		);
+
+		echo '</div>';
+
+		return;
 	}
 
 	// With the desktop shell up, this surface already exists as a native window

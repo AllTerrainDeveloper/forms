@@ -134,3 +134,37 @@ function atf_shell_is_chromeless() {
 
 	return (bool) atf_shell_call( 'is_chromeless_request' );
 }
+
+/**
+ * Tells an admin without OpenStation why the desktop is not happening.
+ *
+ * The `Requires Plugins: desktop-mode` header is the real gate — WordPress 6.5+
+ * refuses to activate this plugin without OpenStation and refuses to deactivate
+ * OpenStation underneath it. This notice covers the installs that header cannot
+ * reach: an older WordPress that ignores it, or a site that force-removed the
+ * shell from disk. Visitors' published forms keep rendering either way, because
+ * a missing admin dependency must never take down somebody's front end.
+ *
+ * @since 0.3.0
+ *
+ * @return void
+ */
+function atf_shell_missing_notice() {
+	if ( atf_shell_has( 'register_window' ) || ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+
+	printf(
+		'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s</p></div>',
+		esc_html__( 'AllTerrain Forms needs OpenStation.', 'allterrain-forms' ),
+		wp_kses(
+			sprintf(
+				/* translators: %s: link to install OpenStation. */
+				__( 'The form builder is an OpenStation desktop app, and the shell is not running on this site. <a href="%s">Install and activate OpenStation</a> to use it. Published forms keep working for your visitors in the meantime.', 'allterrain-forms' ),
+				esc_url( admin_url( 'plugin-install.php?s=openstation&tab=search&type=term' ) )
+			),
+			array( 'a' => array( 'href' => array() ) )
+		)
+	);
+}
+add_action( 'admin_notices', 'atf_shell_missing_notice' );
