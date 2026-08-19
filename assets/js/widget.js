@@ -86,13 +86,20 @@ var allTerrainFormsWidget = function(exports) {
     const string = search.toString();
     return string ? `?${string}` : "";
   }
+  function withObjectOverrides(form) {
+    const settings = form?.schema?.settings;
+    if (settings && (!settings.themeOverrides || Array.isArray(settings.themeOverrides))) {
+      settings.themeOverrides = { ...settings.themeOverrides };
+    }
+    return form;
+  }
   const api = {
     config: () => get("/config"),
     listForms: () => get("/forms"),
-    getForm: (id) => get(`/forms/${id}`),
-    createForm: (body) => post("/forms", body),
-    updateForm: (id, body) => post(`/forms/${id}`, body),
-    duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}),
+    getForm: (id) => get(`/forms/${id}`).then(withObjectOverrides),
+    createForm: (body) => post("/forms", body).then(withObjectOverrides),
+    updateForm: (id, body) => post(`/forms/${id}`, body).then(withObjectOverrides),
+    duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}).then(withObjectOverrides),
     deleteForm: (id) => del(`/forms/${id}`),
     preview: (id, body) => post(`/forms/${id}/preview`, body),
     /**
