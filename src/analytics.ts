@@ -35,7 +35,7 @@
  */
 
 import { api, runtime } from './api';
-import { button, clear, confirmAction, el, notify, select, whenComponents } from './ui';
+import { button, clear, confirmAction, el, notify, pinWindowBodyScroll, select, whenComponents } from './ui';
 import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary, NumberSummary } from './types';
 
 /** How the NPS bands are coloured, and what they are called. */
@@ -790,6 +790,7 @@ export function mountAnalytics(): void {
 	}
 
 	root.dataset.atfaMounted = '1';
+	pinWindowBodyScroll( root );
 	mounted = new AnalyticsWindow( root );
 
 	void mounted.start();

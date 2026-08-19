@@ -18,7 +18,7 @@
  */
 
 import { api } from './api';
-import { button, clear, confirmAction, debounce, el, notify, row, select, textInput } from './ui';
+import { button, clear, confirmAction, debounce, el, notify, pinWindowBodyScroll, row, select, textInput } from './ui';
 import { dialOwning, quickDials, type QuickDial, type Tokens } from './theme-quick';
 import type { FormSummary, Theme, ThemeToken } from './types';
 
@@ -97,6 +97,33 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 		}
 	}, 180 );
 
+	/**
+	 * Paints tokens straight onto the previewed form, ahead of the server.
+	 *
+	 * The server render is the truth — it resolves filters and sanitises — but
+	 * it is also a debounce plus a round trip away, and a control that does
+	 * nothing for a third of a second reads as a control that does nothing.
+	 * Every token is a custom property scoped to the form's wrapper, so the
+	 * same value written inline shows the change the moment it is clicked; the
+	 * next `repaint()` replaces the markup wholesale and reconciles whatever
+	 * the server thinks better.
+	 */
+	const paintNow = ( written: Record< string, string > ) => {
+		const wrap = preview.querySelector< HTMLElement >( '.atf-form-wrap' );
+
+		if ( ! wrap ) {
+			return;
+		}
+
+		for ( const [ token, value ] of Object.entries( written ) ) {
+			if ( '' === value ) {
+				wrap.style.removeProperty( `--atf-${ token }` );
+			} else {
+				wrap.style.setProperty( `--atf-${ token }`, value );
+			}
+		}
+	};
+
 	/** The resolved value of a token right now: override, theme, then default. */
 	const resolve = ( token: ThemeToken ): string => {
 		if ( overrides[ token.token ] !== undefined ) {
@@ -152,6 +179,10 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 						replaceOverrides( {} );
 
 						options.onTheme( active );
+						// The switched-to theme's full token set, inline, so the
+						// preview wears it this frame rather than after the
+						// round trip.
+						paintNow( theme.resolved );
 						renderThemes();
 						renderQuick();
 						renderControls();
@@ -186,6 +217,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			options.onOverride( token, value );
 		}
 
+		paintNow( written );
 		renderQuick();
 		renderControls();
 		repaint();
@@ -314,6 +346,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			}
 
 			options.onOverride( token.token, next );
+			paintNow( { [ token.token ]: next } );
 			repaint();
 		};
 
@@ -540,6 +573,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 				options.onOverride( name, String( value ) );
 			}
 
+			paintNow( { ...overrides } );
 			renderControls();
 			repaint();
 		} catch ( error ) {
@@ -661,6 +695,7 @@ export async function mountThemeStudio(): Promise< void > {
 	}
 
 	root.dataset.atfsMounted = '1';
+	pinWindowBodyScroll( root );
 
 	const bar = root.querySelector< HTMLElement >( '[data-atfs-bar]' );
 	const body = root.querySelector< HTMLElement >( '.atfs__body' ) ?? root;
