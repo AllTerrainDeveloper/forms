@@ -1303,7 +1303,8 @@
    them stacked on themselves rather than on a page. */
 .atfs-preview__frame:has( .atf-is-dark ),
 .atfb-preview:has( .atf-is-dark ),
-.atf-block-preview:has( .atf-is-dark ) {
+.atf-block-preview:has( .atf-is-dark ),
+.atfb--dark-form .atfb-preview {
 	background: #101418;
 	color: #f0f0f1;
 }

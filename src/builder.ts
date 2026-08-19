@@ -3422,6 +3422,16 @@ export class Builder {
 
 		try {
 			const html = await this.previewHtml( theme, this.schema.settings.themeOverrides ?? {} );
+
+			// A dark theme's text tokens assume the theme's own background. The
+			// canvas cards are builder-white, so without this the previews wore
+			// near-white text on white — the theme's colours with none of its
+			// ground. The server marks dark themes on the form it renders; the
+			// canvas previews are builder-built and never carry that class, so
+			// the flag is hoisted to the root and the stylesheet paints every
+			// preview's ground from it.
+			this.root.classList.toggle( 'atfb--dark-form', /atf-is-dark/.test( html ) );
+
 			const block = /<style>([\s\S]*?)<\/style>/.exec( html );
 
 			if ( ! block ) {

@@ -4952,6 +4952,7 @@ var allTerrainFormsBuilder = function(exports) {
       this.canvasThemeSignature = signature;
       try {
         const html = await this.previewHtml(theme, this.schema.settings.themeOverrides ?? {});
+        this.root.classList.toggle("atfb--dark-form", /atf-is-dark/.test(html));
         const block = /<style>([\s\S]*?)<\/style>/.exec(html);
         if (!block) {
           return;
