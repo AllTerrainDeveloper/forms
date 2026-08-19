@@ -35,6 +35,7 @@
  */
 
 import { api, runtime } from './api';
+import { takeFormFor } from './handoff';
 import { button, clear, confirmAction, el, notify, pinWindowBodyScroll, select, whenComponents } from './ui';
 import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary, NumberSummary } from './types';
 
@@ -178,12 +179,33 @@ class AnalyticsWindow {
 			}
 		}
 
-		this.formId = this.forms[ 0 ].id;
+		// A deep link's form wins; then whatever a warm event already set; the
+		// first form is only the answer when nobody asked for one. Assigning
+		// unconditionally here was the split-second flash: the deep-linked
+		// report rendered, then this stomped it back to the first form.
+		const requested = takeFormFor( 'analytics' );
+
+		if ( requested && this.forms.some( ( form ) => form.id === requested ) ) {
+			this.formId = requested;
+		} else if ( ! this.formId ) {
+			this.formId = this.forms[ 0 ].id;
+		}
 
 		await this.load();
 	}
 
 	/** Fetches the report for the current form and redraws. */
+	/**
+	 * Deep-link entry: report on one form.
+	 *
+	 * @param formId The form.
+	 */
+	public async showForm( formId: number ): Promise< void > {
+		this.formId = formId;
+		this.dimension = '';
+		await this.load();
+	}
+
 	private async load(): Promise< void > {
 		try {
 			this.report = await api.analytics( this.formId, this.dimension );
@@ -780,6 +802,17 @@ class AnalyticsWindow {
 }
 
 let mounted: AnalyticsWindow | null = null;
+
+// WP Explorer deep-link: open the report on one form.
+document.addEventListener( 'atf-open-analytics-form', ( event ) => {
+	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
+
+	if ( ! formId ) {
+		return;
+	}
+
+	void mounted?.showForm( formId );
+} );
 
 /** Mounts the window into whatever root is on the page. */
 export function mountAnalytics(): void {

@@ -1,0 +1,337 @@
+/**
+ * The Forms section inside WP Explorer.
+ *
+ * Rendered by `src/explorer-kind.ts` into the Explorer window's body, so
+ * everything reads the shell's UI tokens the way the builder's own panes do —
+ * the section should look like the window it lives in, not like a visitor.
+ */
+
+.atfx {
+	display: grid;
+	grid-template-columns: minmax( 240px, 320px ) minmax( 0, 1fr );
+	gap: 0;
+	block-size: 100%;
+	min-block-size: 0;
+	overflow: hidden;
+}
+
+.atfx-side {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	border-inline-end: 1px solid var( --os-ui-border, #dcdcde );
+	overflow-y: auto;
+	min-block-size: 0;
+}
+
+.atfx-search {
+	width: 100%;
+	padding: 8px 10px;
+	font: inherit;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+}
+
+.atfx-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.atfx-tile {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px 12px;
+	font: inherit;
+	text-align: start;
+	color: inherit;
+	background: var( --os-ui-surface, #fff );
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.atfx-tile:hover {
+	border-color: var( --os-ui-accent, #2271b1 );
+}
+
+.atfx-tile.is-selected {
+	border-color: var( --os-ui-accent, #2271b1 );
+	box-shadow: 0 0 0 1px var( --os-ui-accent, #2271b1 );
+}
+
+.atfx-tile__vitals {
+	font-size: 12px;
+	color: var( --os-ui-muted, #646970 );
+}
+
+.atfx-pane {
+	padding: 18px 20px;
+	overflow-y: auto;
+	min-block-size: 0;
+}
+
+.atfx-title {
+	margin: 0 0 12px;
+	font-size: 18px;
+}
+
+.atfx-cards {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 110px, 1fr ) );
+	gap: 10px;
+	margin-block-end: 14px;
+}
+
+.atfx-card {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 14px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	background: var( --os-ui-surface, #fff );
+}
+
+.atfx-card__value {
+	font-size: 20px;
+	line-height: 1.2;
+}
+
+.atfx-card__label {
+	font-size: 12px;
+	color: var( --os-ui-muted, #646970 );
+}
+
+/* The live preview at half size: the iframe is laid out at 200% of the slot in
+   both axes and scaled back by half, so the page inside believes in a full
+   desktop viewport while occupying a card. Pointer events stay off — this is a
+   preview, and a click that navigated a hidden iframe would be a haunting. */
+.atfx-preview {
+	margin-block: 6px 14px;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 10px;
+	overflow: hidden;
+	block-size: 340px;
+	background: #fff;
+}
+
+.atfx-preview__frame {
+	inline-size: 200%;
+	block-size: 200%;
+	border: 0;
+	transform: scale( 0.5 );
+	transform-origin: 0 0;
+	pointer-events: none;
+}
+
+.atfx-shortcode code {
+	font-size: 12px;
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: var( --os-ui-surface-sunken, #f0f0f1 );
+	user-select: all;
+}
+
+.atfx-empty {
+	color: var( --os-ui-muted, #646970 );
+	padding: 8px 2px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Icon tiles, the way the Explorer's own sections draw theirs                 */
+/* -------------------------------------------------------------------------- */
+
+.atfx-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 120px, 1fr ) );
+	gap: 10px;
+	align-content: start;
+}
+
+.atfx-grid--folder {
+	grid-template-columns: repeat( auto-fill, minmax( 150px, 1fr ) );
+	margin-block: 14px;
+}
+
+.atfx-grid .atfx-tile {
+	align-items: center;
+	text-align: center;
+	gap: 6px;
+	padding: 14px 10px 12px;
+}
+
+.atfx-icon {
+	font-size: 28px;
+	inline-size: 28px;
+	block-size: 28px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.atfx-tile__label {
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+/* Breadcrumbs for the trail the shell cannot draw for us yet. */
+.atfx-crumbs {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-block-end: 12px;
+	font-size: 13px;
+}
+
+.atfx-crumb {
+	padding: 2px 4px;
+	font: inherit;
+	color: var( --os-ui-accent, #2271b1 );
+	background: none;
+	border: 0;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.atfx-crumb.is-here {
+	color: inherit;
+	font-weight: 600;
+	cursor: default;
+}
+
+.atfx-crumb__sep {
+	color: var( --os-ui-muted, #646970 );
+}
+
+.atfx-full {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-direction: column;
+	padding: 16px 20px;
+	overflow-y: auto;
+	min-block-size: 0;
+}
+
+/* Inside the folder the preview takes whatever the cards and tiles left. */
+.atfx-full .atfx-preview--full {
+	flex: 1 1 auto;
+	block-size: auto;
+	min-block-size: 380px;
+}
+
+/* The folder's Preview: natural size, scrolling like a page, because quick
+   look means looking at the real thing. Half-scale stays for the list pane,
+   where the preview is a thumbnail beside the numbers. */
+.atfx-preview--full {
+	block-size: calc( 100% - 48px );
+	min-block-size: 420px;
+}
+
+.atfx-preview--full .atfx-preview__frame {
+	inline-size: 100%;
+	block-size: 100%;
+	transform: none;
+	pointer-events: auto;
+}
+
+.atfx-back {
+	display: inline-block;
+	margin-block-end: 10px;
+	padding: 4px 10px;
+	font: inherit;
+	color: var( --os-ui-accent, #2271b1 );
+	background: none;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+/* Entry rows. */
+.atfx-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.atfx-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	font: inherit;
+	text-align: start;
+	color: inherit;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.atfx-row:hover {
+	border-color: var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface, #fff );
+}
+
+.atfx-row__title {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.atfx-row__date {
+	font-size: 12px;
+	color: var( --os-ui-muted, #646970 );
+	white-space: nowrap;
+}
+
+.atfx-dot {
+	inline-size: 8px;
+	block-size: 8px;
+	border-radius: 50%;
+	background: var( --os-ui-border, #dcdcde );
+	flex: 0 0 auto;
+}
+
+.atfx-dot--atf-unread {
+	background: var( --os-ui-accent, #2271b1 );
+}
+
+.atfx-dot--atf-spam {
+	background: #d63638;
+}
+
+/* The answers list on one entry. */
+.atfx-answers {
+	margin: 12px 0;
+	display: grid;
+	grid-template-columns: minmax( 120px, 200px ) 1fr;
+	gap: 6px 14px;
+}
+
+.atfx-answers dt {
+	color: var( --os-ui-muted, #646970 );
+}
+
+.atfx-answers dd {
+	margin: 0;
+}
+
+.atfx-open {
+	padding: 6px 14px;
+	font: inherit;
+	border: 1px solid var( --os-ui-border, #dcdcde );
+	border-radius: 8px;
+	background: var( --os-ui-surface, #fff );
+	color: inherit;
+	cursor: pointer;
+}
+
+.atfx-open:hover {
+	border-color: var( --os-ui-accent, #2271b1 );
+	color: var( --os-ui-accent, #2271b1 );
+}

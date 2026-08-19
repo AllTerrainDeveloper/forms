@@ -27,6 +27,19 @@
 	container-name: atf-form;
 }
 
+/* The front end is the site theme's house, and site themes routinely colour
+   bare elements — `label { color: #1e293b }` — which beats inheritance and
+   paints dark answers onto a dark form theme (a Neon radio option arrived
+   slate). Re-asserting inheritance outranks any element selector a site theme
+   can write, and everything this stylesheet colours on purpose still wins
+   over it with its own, more specific rule. `button` is deliberately absent:
+   the submit's colour rule is single-class and this shield outranked it,
+   which painted the button's label in body text over the accent. The scale's
+   chips are labels, so they stay covered. */
+.atf-form :is( label, legend, span, p, small, li, dt, dd ) {
+	color: inherit;
+}
+
 .atf-form {
 	background: var( --atf-bg );
 	color: var( --atf-text );

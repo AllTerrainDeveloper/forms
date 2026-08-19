@@ -146,6 +146,18 @@ var allTerrainFormsAnalytics = function(exports) {
     saveTheme: (body) => post("/themes", body),
     deleteTheme: (id) => del(`/themes/${id}`)
   };
+  function requestedFormKeyFor(surface) {
+    return `allterrain-forms/requested-form-${surface}`;
+  }
+  function takeFormFor(surface) {
+    try {
+      const value = window.sessionStorage.getItem(requestedFormKeyFor(surface));
+      window.sessionStorage.removeItem(requestedFormKeyFor(surface));
+      return Number(value) || 0;
+    } catch {
+      return 0;
+    }
+  }
   function el(tag, options = {}) {
     const node = document.createElement(tag);
     if (options.class) {
@@ -374,10 +386,25 @@ var allTerrainFormsAnalytics = function(exports) {
           this.demoAvailable = false;
         }
       }
-      this.formId = this.forms[0].id;
+      const requested = takeFormFor("analytics");
+      if (requested && this.forms.some((form) => form.id === requested)) {
+        this.formId = requested;
+      } else if (!this.formId) {
+        this.formId = this.forms[0].id;
+      }
       await this.load();
     }
     /** Fetches the report for the current form and redraws. */
+    /**
+     * Deep-link entry: report on one form.
+     *
+     * @param formId The form.
+     */
+    async showForm(formId) {
+      this.formId = formId;
+      this.dimension = "";
+      await this.load();
+    }
     async load() {
       try {
         this.report = await api.analytics(this.formId, this.dimension);
@@ -866,6 +893,13 @@ var allTerrainFormsAnalytics = function(exports) {
     }
   }
   let mounted = null;
+  document.addEventListener("atf-open-analytics-form", (event) => {
+    const formId = Number(event.detail?.formId ?? 0);
+    if (!formId) {
+      return;
+    }
+    void mounted?.showForm(formId);
+  });
   function mountAnalytics() {
     const root = document.querySelector("[data-atfa-root]");
     if (!root || root.dataset.atfaMounted) {

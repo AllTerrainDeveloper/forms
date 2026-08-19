@@ -84,6 +84,18 @@ var allTerrainFormsEntries = function(exports) {
     } catch {
     }
   }
+  function requestedFormKeyFor(surface) {
+    return `allterrain-forms/requested-form-${surface}`;
+  }
+  function takeFormFor(surface) {
+    try {
+      const value = window.sessionStorage.getItem(requestedFormKeyFor(surface));
+      window.sessionStorage.removeItem(requestedFormKeyFor(surface));
+      return Number(value) || 0;
+    } catch {
+      return 0;
+    }
+  }
   function takeRequestedForm() {
     try {
       const value = window.sessionStorage.getItem(REQUESTED_FORM_KEY);
@@ -828,7 +840,7 @@ var allTerrainFormsEntries = function(exports) {
         );
         return;
       }
-      const requested = takeRequestedForm();
+      const requested = takeFormFor("entries") || takeRequestedForm();
       this.formId = (requested && this.forms.some((form) => form.id === requested) ? requested : 0) || // Otherwise the form with unread entries, which is almost always what
       // somebody coming to this window wants, and saves a click every visit.
       (this.forms.find((form) => form.unread > 0) ?? this.forms[0])?.id || 0;
@@ -907,6 +919,19 @@ var allTerrainFormsEntries = function(exports) {
       );
     }
     /** Fetches and paints the current page. */
+    /**
+     * Deep-link entry: show one form's entries.
+     *
+     * @param formId The form.
+     */
+    async showForm(formId) {
+      this.formId = formId;
+      this.page = 1;
+      this.selection.clear();
+      this.selected = null;
+      this.renderBar();
+      await this.load();
+    }
     async load() {
       if (!this.formId) {
         clear(this.list);
@@ -1344,6 +1369,13 @@ var allTerrainFormsEntries = function(exports) {
     }
   }
   let mountedEntries = null;
+  document.addEventListener("atf-open-entries-form", (event) => {
+    const formId = Number(event.detail?.formId ?? 0);
+    if (!formId) {
+      return;
+    }
+    void mountedEntries?.showForm(formId);
+  });
   let mountedEntriesRoot = null;
   function mountEntries() {
     if (mountedEntriesRoot?.isConnected) {

@@ -228,6 +228,65 @@ export function rememberRequestedForm( formId: number ): void {
  * from the dock, from the command palette — does not silently reopen it on a
  * form somebody chose ten minutes ago.
  */
+/**
+ * The per-surface spelling of the same store, for deep links that know which
+ * window they are aimed at. WP Explorer's action row opens three different
+ * windows off one selection; a single shared key would let the entries window
+ * consume a form that was remembered for the report.
+ *
+ * @param surface One of `builder`, `entries`, `analytics`.
+ */
+function requestedFormKeyFor( surface: string ): string {
+	return `allterrain-forms/requested-form-${ surface }`;
+}
+
+/** Remembers which form a deep link was about, for one specific window. */
+export function rememberFormFor( surface: string, formId: number ): void {
+	try {
+		window.sessionStorage.setItem( requestedFormKeyFor( surface ), String( formId ) );
+	} catch {
+		// Storage unavailable; the warm-window event path still works.
+	}
+}
+
+/** The form a deep link asked one window for. Reading it consumes it. */
+export function takeFormFor( surface: string ): number {
+	try {
+		const value = window.sessionStorage.getItem( requestedFormKeyFor( surface ) );
+
+		window.sessionStorage.removeItem( requestedFormKeyFor( surface ) );
+
+		return Number( value ) || 0;
+	} catch {
+		return 0;
+	}
+}
+
+/**
+ * Opens one of this plugin's windows on a specific form.
+ *
+ * Both halves of the race are covered: the remembered form is consumed by the
+ * window's own start() when it mounts cold, and the event reaches a window
+ * that is already alive. Neither path waits on a timer, because a deep link
+ * that lands on the wrong form for a split second reads as a bug even after
+ * it corrects itself.
+ *
+ * @param windowId The native window id.
+ * @param surface  Its store surface: `builder`, `entries`, `analytics`.
+ * @param event    The CustomEvent name its module listens on.
+ * @param formId   The form.
+ */
+export function openWindowOnForm( windowId: string, surface: string, event: string, formId: number ): void {
+	rememberFormFor( surface, formId );
+
+	( window as unknown as { wp?: { os?: { openWindow?: ( id: string, opts?: object ) => boolean } } } ).wp?.os?.openWindow?.(
+		windowId,
+		{ source: 'wp-explorer' }
+	);
+
+	document.dispatchEvent( new CustomEvent( event, { detail: { formId } } ) );
+}
+
 export function takeRequestedForm(): number {
 	try {
 		const value = window.sessionStorage.getItem( REQUESTED_FORM_KEY );

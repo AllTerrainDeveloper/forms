@@ -13,7 +13,7 @@
  * call mid-drag.
  */
 
-import { handOffToWindow, takeRequestedForm, watchHandoffButton } from './handoff';
+import { handOffToWindow, takeFormFor, takeRequestedForm, watchHandoffButton } from './handoff';
 import { api, runtime } from './api';
 import { buildPayload, getDragManager, watchShellDragVisuals } from './dnd';
 import {
@@ -123,7 +123,7 @@ class EntriesWindow {
 		// ask is to have said which one — the title bar's "Entries for this form",
 		// or the admin URL's `?form=`. Landing on a different form than the one
 		// just requested reads as the link being broken.
-		const requested = takeRequestedForm();
+		const requested = takeFormFor( 'entries' ) || takeRequestedForm();
 
 		this.formId =
 			( requested && this.forms.some( ( form ) => form.id === requested ) ? requested : 0 ) ||
@@ -227,6 +227,20 @@ class EntriesWindow {
 	}
 
 	/** Fetches and paints the current page. */
+	/**
+	 * Deep-link entry: show one form's entries.
+	 *
+	 * @param formId The form.
+	 */
+	public async showForm( formId: number ): Promise< void > {
+		this.formId = formId;
+		this.page = 1;
+		this.selection.clear();
+		this.selected = null;
+		this.renderBar();
+		await this.load();
+	}
+
 	private async load(): Promise< void > {
 		if ( ! this.formId ) {
 			clear( this.list );
@@ -781,6 +795,17 @@ class EntriesWindow {
 
 /** Mounts the entries window. */
 let mountedEntries: EntriesWindow | null = null;
+
+// WP Explorer deep-link: open on one form's entries.
+document.addEventListener( 'atf-open-entries-form', ( event ) => {
+	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
+
+	if ( ! formId ) {
+		return;
+	}
+
+	void mountedEntries?.showForm( formId );
+} );
 let mountedEntriesRoot: HTMLElement | null = null;
 
 export function mountEntries(): void {

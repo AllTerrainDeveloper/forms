@@ -63,7 +63,10 @@ function atf_explorer_entities( $entities ) {
 		'label'      => __( 'Forms', 'allterrain-forms' ),
 		'icon'       => 'dashicons-feedback',
 		'restPath'   => 'wp/v2/atf-forms',
-		'kind'       => 'post',
+		// A plugin-registered kind: `dock.ts` registers the renderer via
+		// `wp.os.myWordpress.registerEntityKind()`, so the whole section body
+		// — tiles, stat cards, the scaled live preview — is this plugin's.
+		'kind'       => 'atf-form',
 		'post_type'  => ATF_FORM_TYPE,
 		// A form has no featured image, and leaving thumbnails on makes the
 		// list request embed media on every tile and get nothing back.
@@ -92,7 +95,9 @@ function atf_explorer_preview_actions( $actions ) {
 		'label'      => __( 'Open in the form builder', 'allterrain-forms' ),
 		'icon'       => 'dashicons-feedback',
 		'capability' => 'atf_edit_forms',
-		'sections'   => array( 'atf-forms' ),
+		// Scoped by post type as well as section id, per the Explorer's
+		// matching rules — the type matches wherever its section came from.
+		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 
@@ -101,7 +106,7 @@ function atf_explorer_preview_actions( $actions ) {
 		'label'      => __( 'View entries', 'allterrain-forms' ),
 		'icon'       => 'dashicons-list-view',
 		'capability' => 'atf_read_entries',
-		'sections'   => array( 'atf-forms' ),
+		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 
@@ -110,7 +115,7 @@ function atf_explorer_preview_actions( $actions ) {
 		'label'      => __( 'Open the report', 'allterrain-forms' ),
 		'icon'       => 'dashicons-chart-bar',
 		'capability' => 'atf_read_entries',
-		'sections'   => array( 'atf-forms' ),
+		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 

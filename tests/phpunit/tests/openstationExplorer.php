@@ -55,7 +55,9 @@ class ATF_Test_Openstation_Explorer extends WP_UnitTestCase {
 		$this->assertSame( 'atf_read_entries', $by_id['allterrain-forms/open-analytics'] );
 
 		foreach ( $actions as $action ) {
-			$this->assertSame( array( 'atf-forms' ), $action['sections'] );
+			// Scoped by section id AND post type slug, per the Explorer's
+			// matching rules — the type matches wherever its section came from.
+			$this->assertSame( array( 'atf-forms', ATF_FORM_TYPE ), $action['sections'] );
 			$this->assertSame( 'allterrain-forms-dock', $action['script'] );
 		}
 	}

@@ -13,6 +13,9 @@
  * nothing else; the windows load their own bundles when they open.
  */
 
+import { renderFormsKind } from './explorer-kind';
+import { openWindowOnForm } from './handoff';
+
 interface SubmenuRow {
 	title: string;
 	url: string;
@@ -221,6 +224,8 @@ export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 
 /** Registers the tile. */
 function registerTile(): void {
+	registerFormsKind();
+
 	const os = shell();
 
 	if ( ! os?.registerSystemTile ) {
@@ -311,26 +316,51 @@ function registerExplorerActions(): void {
 		return;
 	}
 
-	const windows: Record< string, string > = {
-		'allterrain-forms/open-builder': BUILDER,
-		'allterrain-forms/open-entries': ENTRIES,
-		'allterrain-forms/open-analytics': ANALYTICS,
+	const targets: Record< string, { windowId: string; surface: string; event: string } > = {
+		'allterrain-forms/open-builder': { windowId: BUILDER, surface: 'builder', event: 'atf-open-form' },
+		'allterrain-forms/open-entries': { windowId: ENTRIES, surface: 'entries', event: 'atf-open-entries-form' },
+		'allterrain-forms/open-analytics': { windowId: ANALYTICS, surface: 'analytics', event: 'atf-open-analytics-form' },
 	};
 
 	hooks.addFilter( 'os.my-wordpress.preview-actions', 'allterrain-forms/explorer', ( actions: unknown[] ) =>
 		actions.map( ( action ) => {
 			const id = ( action as { id?: string } ).id ?? '';
+			const target = targets[ id ];
 
-			if ( ! windows[ id ] ) {
+			if ( ! target ) {
 				return action;
 			}
 
 			return {
 				...( action as object ),
-				onSelect: () => open( windows[ id ] ),
+				// The context carries the selected entity, so the window opens
+				// ON the form the click was about rather than wherever it was.
+				onSelect: ( ctx?: { item?: { id?: unknown }; itemId?: number } ) => {
+					const formId = Number( ctx?.itemId ?? ctx?.item?.id ?? 0 );
+
+					if ( formId ) {
+						openWindowOnForm( target.windowId, target.surface, target.event, formId );
+					} else {
+						open( target.windowId );
+					}
+				},
 			};
 		} )
 	);
+}
+
+/**
+ * Registers the Forms entity kind with WP Explorer.
+ *
+ * The shell's early-api queues registrations made before the Explorer's lazy
+ * bundle loads, so calling this the moment the shell exists is enough — no
+ * timing guards against the window opening later.
+ */
+function registerFormsKind(): void {
+	const mw = ( window as unknown as { wp?: { os?: { myWordpress?: { registerEntityKind?: ( kind: string, renderer: unknown ) => void } } } } )
+		.wp?.os?.myWordpress;
+
+	mw?.registerEntityKind?.( 'atf-form', renderFormsKind );
 }
 
 registerExplorerActions();
