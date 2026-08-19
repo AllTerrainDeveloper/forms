@@ -102,6 +102,35 @@ define( 'ATF_META_FORM', '_atf_form' );
  */
 define( 'ATF_META_CONTEXT', '_atf_context' );
 
+/**
+ * Where an imported form came from: `{ importer, source }`.
+ *
+ * Recorded so the migration can be finished later. Importing the form is the
+ * urgent half and the half somebody does immediately; bringing the stored
+ * submissions across is the half they think of a week afterwards, by which time
+ * nothing else remembers which source form became which AllTerrain form.
+ */
+define( 'ATF_META_IMPORT_SOURCE', '_atf_import_source' );
+
+/**
+ * Source field name => new field id, for an imported form.
+ *
+ * The importers already build this map to rewrite mail tags into merge tags;
+ * keeping it is what lets stored submissions be read afterwards, since every
+ * source keys its saved values by its own field names and nothing else can
+ * translate them.
+ */
+define( 'ATF_META_IMPORT_MAP', '_atf_import_map' );
+
+/**
+ * The source record an imported entry came from: `{ importer, source }`.
+ *
+ * Makes importing entries repeatable: a second run skips what it already
+ * brought across instead of duplicating it, which matters because the natural
+ * response to a migration that looks incomplete is to run it again.
+ */
+define( 'ATF_META_ENTRY_SOURCE', '_atf_entry_source' );
+
 /** Design tokens for a user-created theme. */
 define( 'ATF_META_TOKENS', '_atf_tokens' );
 
