@@ -785,8 +785,8 @@ apply_filters( 'atf_importers', array $importers );
 ```
 
 The registry behind **Forms → Import**. Each entry is keyed by importer id and
-holds four things: a `label`, and three callables — `available()` (does the
-source plugin's data exist on this site), `forms()` (source id => title, for
+holds four required things: a `label`, and three callables — `available()` (does
+the source plugin's data exist on this site), `forms()` (source id => title, for
 the picker), and `import( $source_id )` (returns the new form id or a
 `WP_Error`). The built-in importers register through this same filter, exactly
 as a third-party source would.
@@ -806,6 +806,69 @@ add_filter( 'atf_importers', function ( $importers ) {
 	return $importers;
 } );
 ```
+
+#### Bringing the stored submissions too
+
+An importer may add two more callables. They are optional, and they come as a
+pair: an importer that can count submissions but not import them would put a
+number on screen with no button behind it, so offering only one of the two drops
+both. All three built-in importers implement the pair — Contact Form 7 reads
+the messages Flamingo kept, Gravity Forms reads its `gf_entry` tables, and
+WPForms reads the entries table WPForms Pro writes (Lite stores nothing, so a
+Lite site is accurately offered nothing).
+
+```php
+'entries'        => fn( $source_id, $form_id = 0 ) => 412,
+'import_entries' => 'my_forms_import_entries', // ( $source_id, $form_id, $limit )
+```
+
+- **`entries( $source_id, $form_id = 0 )`** — how many stored submissions the
+  source holds for that form. Given a `$form_id`, report what is *still waiting*
+  rather than the total, so the offer disappears when the migration is finished.
+- **`import_entries( $source_id, $form_id, $limit )`** — brings at most `$limit`
+  of them across and returns `{ imported, skipped, done, remaining }`, or a
+  `WP_Error`. Called repeatedly until `done`; a form that has been live for years
+  is the normal case, not the exceptional one.
+
+Store each one with **`atf_import_entry( $form_id, $args )`**, which handles the
+parts every source gets wrong the same way:
+
+```php
+atf_import_entry( $form_id, array(
+	'values'       => array( 'your-name' => 'Elena Ruiz' ), // keyed by SOURCE field name
+	'importer'     => 'my-forms',
+	'record'       => '4182',        // the source's id for this submission
+	'submitted_at' => 1741080900,    // unix; the entry keeps this date, not today's
+	'spam'         => false,
+	'ip'           => '203.0.113.7',
+	'user_agent'   => 'Mozilla/5.0 …',
+) );
+```
+
+Three things it guarantees, each of which is a way migrations normally go wrong:
+
+- **Values are sanitised but deliberately not validated.** Validation enforces
+  *today's* rules — required fields, choice whitelists, bounds — against answers
+  given years ago under a form that may since have lost the option somebody
+  picked. Anything unsafe is stripped; anything merely unexpected is kept, because
+  a migration that dropped it would be deleting the history it was asked to move.
+- **The entry keeps its original date.** A history that all arrives today is not
+  a history.
+- **Running it twice imports nothing twice.** Each entry records
+  `{ importer, record }`, and a second pass skips what the first brought across —
+  which matters, because the natural response to a migration that looks incomplete
+  is to run it again.
+
+Reading the values requires knowing which source field became which new field.
+`atf_create_imported_form()` takes that map as its fifth argument and keeps it on
+the form; pass it when you import, or the submissions are unreadable afterwards.
+`atf_form_import_source()` and `atf_form_import_map()` read both back.
+
+> **Watch the post statuses.** Both sides of this migration hide records behind
+> `exclude_from_search` — Flamingo's spam status on the way in, every AllTerrain
+> entry status on the way out. A query using `post_status => 'any'` means "every
+> status *not* excluded from search", so it silently omits all of them. Name the
+> statuses explicitly.
 
 ### `atf_imported_schema` — Filter — *Experimental*
 
@@ -844,6 +907,17 @@ do_action( 'atf_form_imported', int $form_id, string $importer_id, string $sourc
 Fires after a form is imported. The source plugin's data is never modified, so
 importing is safe to repeat — hook here if you need to record the mapping or
 redirect shortcodes.
+
+### `atf_entries_imported` — Action — *Experimental*
+
+```php
+do_action( 'atf_entries_imported', int $form_id, array $result, array $source );
+```
+
+Fires after each pass of importing stored submissions. `$result` is
+`{ imported, skipped, done, remaining }`; `$source` is `{ importer, source }`.
+Fires once per pass, not once per migration, so a form imported in chunks fires
+it several times — check `$result['done']` for the last one.
 
 ---
 
