@@ -2406,3 +2406,21 @@ os-checkbox-label.atfb-check {
 	min-inline-size: 0;
 	flex: 1 1 auto;
 }
+
+/* -------------------------------------------------------------------------- */
+/* The window body never scrolls                                              */
+/* -------------------------------------------------------------------------- */
+
+/* The shell gives a native window's body `overflow: auto`, and under some
+   sequences of tab switches and resizes the browser decides these windows have
+   scrollable overflow even though every pane in them manages its own. A wheel
+   tick then hides the toolbar under the title bar and opens a dead band at the
+   bottom. Nothing here ever wants the body scrolled: this stops the wheel, and
+   `pinWindowBodyScroll()` in ui.ts undoes the programmatic scrolls CSS cannot
+   reach. */
+.os-window__body:has( > .atfb ),
+.os-window__body:has( > .atfe ),
+.os-window__body:has( > .atfs ),
+.os-window__body:has( > .atfa ) {
+	overflow: hidden;
+}

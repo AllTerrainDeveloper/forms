@@ -35,6 +35,7 @@ import {
 	readSetting,
 	whenComponents,
 	row,
+	pinWindowBodyScroll,
 	select,
 	textArea,
 	textInput,
@@ -4138,6 +4139,7 @@ export function mountBuilder(): void {
 	// pass it and mount two builders on one page.
 	root.dataset.atfbMounted = '1';
 	mountedRoot = root;
+	pinWindowBodyScroll( root );
 
 	void whenComponents().then( () => {
 		// The window may have been closed while the kit was loading.

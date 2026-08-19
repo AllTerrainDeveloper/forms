@@ -28,6 +28,7 @@ import {
 	select,
 	textInput,
 	whenComponents,
+	pinWindowBodyScroll,
 } from './ui';
 import { entryIdentity, setIdentity } from './relations';
 import type { Entry, FormSummary } from './types';
@@ -808,6 +809,7 @@ export function mountEntries(): void {
 	// the guard and the flag lets both through.
 	root.dataset.atfeMounted = '1';
 	mountedEntriesRoot = root;
+	pinWindowBodyScroll( root );
 
 	void whenComponents().then( () => {
 		if ( ! root.isConnected ) {

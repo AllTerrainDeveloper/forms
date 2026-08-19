@@ -504,3 +504,44 @@ export function writeSetting( key: string, value: string ): void {
 		// Storage unavailable; the preference lasts this session only.
 	}
 }
+
+/**
+ * Keeps the shell window body this root lives in from ever scrolling.
+ *
+ * A native window's body is `overflow: auto` in the shell, and under some
+ * sequences of tab switches and window resizes the browser decides it has
+ * scrollable overflow even though every pane in here manages its own. One
+ * stray wheel tick — or a `scrollIntoView` from focusing a control — then
+ * shunts the whole tool upward: the toolbar disappears under the title bar and
+ * an equal band of dead space opens at the bottom, which reads as a broken
+ * window rather than as a scrolled one. Nothing in these windows ever wants
+ * the body scrolled, so any scroll that happens is undone on arrival.
+ *
+ * A stylesheet rule blocks the wheel; this catches the programmatic scrolls
+ * CSS cannot.
+ */
+export function pinWindowBodyScroll( root: HTMLElement ): void {
+	const body = root.closest< HTMLElement >( '.os-window__body' );
+
+	if ( ! body ) {
+		return;
+	}
+
+	body.addEventListener(
+		'scroll',
+		() => {
+			if ( body.scrollTop ) {
+				body.scrollTop = 0;
+			}
+
+			if ( body.scrollLeft ) {
+				body.scrollLeft = 0;
+			}
+		},
+		{ passive: true }
+	);
+
+	// Undo anything that happened before this listener existed.
+	body.scrollTop = 0;
+	body.scrollLeft = 0;
+}
