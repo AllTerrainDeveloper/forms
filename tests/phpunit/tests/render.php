@@ -860,4 +860,30 @@ class ATF_Test_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'given-name', $html );
 		$this->assertStringNotContainsString( 'family-name', $html );
 	}
+
+	/**
+	 * An input with no placeholder of its own still reserves one.
+	 *
+	 * A single space: `:placeholder-shown` is the only selector that can tell
+	 * an empty input from a filled one without JavaScript, and it is only
+	 * answerable on an input that has a placeholder at all. The floating-label
+	 * theme rides on it; a space renders as nothing everywhere else.
+	 *
+	 * @covers ::atf_control_attributes
+	 */
+	public function test_placeholder_space_is_reserved() {
+		$bare = $this->render_field( array( 'type' => 'text' ) );
+
+		$this->assertStringContainsString( 'placeholder=" "', $bare );
+
+		$given = $this->render_field(
+			array(
+				'type'        => 'email',
+				'placeholder' => 'you@example.com',
+			)
+		);
+
+		$this->assertStringContainsString( 'placeholder="you@example.com"', $given );
+		$this->assertStringNotContainsString( 'placeholder=" "', $given );
+	}
 }

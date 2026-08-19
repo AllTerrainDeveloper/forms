@@ -191,26 +191,95 @@
    apart without JavaScript — which is why a floating theme needs a placeholder,
    and why the space is reserved with a non-breaking placeholder when there
    isn't one. */
-.atf-labels-floating .atf-field {
+/* Floating is only offered where a label *can* float: a single control the
+   label sits inside of and lifts out of. A radio group's legend, a scale's
+   heading or a signature pad's label has nothing to float into, and floating
+   them anyway painted the question straight across its own answers — so every
+   other type simply keeps its label on top, unstyled by this block.
+
+   Two sub-cases inside the floatable set:
+   - Text-shaped inputs lift on focus or once they hold a value, told apart by
+     `:placeholder-shown` — the reserved single-space placeholder in
+     `atf_control_attributes()` is what makes that selector answerable.
+   - Selects and date/time inputs always display something, so
+     `:placeholder-shown` never matches and their label is simply always
+     lifted — which is the only honest float for a control that is never
+     visually empty.
+
+   The lift raises the label into headroom reserved above the input rather
+   than parking it astride the input's top border: a border-straddling label
+   needs a background mask, and no one mask survives ten themes of gradients
+   and glass. */
+.atf-labels-floating
+	.atf-field:is(
+		.atf-field--text,
+		.atf-field--email,
+		.atf-field--tel,
+		.atf-field--url,
+		.atf-field--number,
+		.atf-field--password,
+		.atf-field--textarea,
+		.atf-field--select,
+		.atf-field--country,
+		.atf-field--date,
+		.atf-field--time,
+		.atf-field--datetime
+	) {
 	position: relative;
-	padding-block-start: 0;
+	padding-block-start: calc( var( --atf-size-label ) * 1.3 );
 }
 
-.atf-labels-floating .atf-label {
+.atf-labels-floating
+	.atf-field:is(
+		.atf-field--text,
+		.atf-field--email,
+		.atf-field--tel,
+		.atf-field--url,
+		.atf-field--number,
+		.atf-field--password,
+		.atf-field--textarea,
+		.atf-field--select,
+		.atf-field--country,
+		.atf-field--date,
+		.atf-field--time,
+		.atf-field--datetime
+	)
+	> .atf-label {
 	position: absolute;
-	inset-block-start: var( --atf-pad-field-y );
+	inset-block-start: calc( var( --atf-size-label ) * 1.3 + var( --atf-pad-field-y ) );
 	inset-inline-start: calc( var( --atf-pad-field-x ) + var( --atf-border-width ) );
+	max-inline-size: calc( 100% - 2 * var( --atf-pad-field-x ) );
+	overflow: hidden;
 	margin: 0;
 	pointer-events: none;
-	transform-origin: left top;
-	transition: transform var( --atf-transition-duration ) var( --atf-transition-easing ),
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	transform-origin: 0 0;
+	transition: inset-block-start var( --atf-transition-duration ) var( --atf-transition-easing ),
+		transform var( --atf-transition-duration ) var( --atf-transition-easing ),
 		color var( --atf-transition-duration ) var( --atf-transition-easing );
 	color: var( --atf-text-muted );
 }
 
-.atf-labels-floating .atf-input:not( :placeholder-shown ) ~ .atf-label,
-.atf-labels-floating .atf-input:focus ~ .atf-label {
-	transform: translateY( -0.85em ) scale( 0.78 );
+.atf-labels-floating
+	.atf-field:is(
+		.atf-field--text,
+		.atf-field--email,
+		.atf-field--tel,
+		.atf-field--url,
+		.atf-field--number,
+		.atf-field--password,
+		.atf-field--textarea,
+		.atf-field--select,
+		.atf-field--country,
+		.atf-field--date,
+		.atf-field--time,
+		.atf-field--datetime
+	):is( :has( > .atf-input:focus ), :has( > .atf-input:not( :placeholder-shown ) ) )
+	> .atf-label {
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	transform: scale( 0.82 );
 	color: var( --atf-accent );
 }
 

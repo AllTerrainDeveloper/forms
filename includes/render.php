@@ -863,6 +863,13 @@ function atf_control_attributes( $field, $context ) {
 
 	if ( '' !== $field['placeholder'] ) {
 		$attributes .= sprintf( ' placeholder="%s"', esc_attr( $field['placeholder'] ) );
+	} else {
+		// A single space, reserved: `:placeholder-shown` is the only selector
+		// that can tell an empty input from a filled one without JavaScript,
+		// and it is only answerable on an input that *has* a placeholder. The
+		// floating-label theme rides on it; a space renders as nothing
+		// everywhere else.
+		$attributes .= ' placeholder=" "';
 	}
 
 	foreach ( array( 'min', 'max', 'step', 'pattern' ) as $key ) {
