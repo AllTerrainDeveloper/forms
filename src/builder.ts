@@ -41,7 +41,7 @@ import {
 	textInput,
 	writeSetting,
 } from './ui';
-import { handOffToWindow, watchHandoffButton } from './handoff';
+import { handOffToWindow, watchHandoffButton, takeFormFor } from './handoff';
 import { LogicMap, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
 import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
@@ -630,7 +630,12 @@ export class Builder {
 		this.renderPalette();
 
 		if ( this.forms.length ) {
-			await this.open( this.forms[ 0 ].id );
+			// A deep link's form wins over the most recent one.
+			const requested = takeFormFor( 'builder' );
+
+			await this.open(
+				requested && this.forms.some( ( form ) => form.id === requested ) ? requested : this.forms[ 0 ].id
+			);
 		} else {
 			this.renderFormsList();
 		}
@@ -1228,6 +1233,15 @@ export class Builder {
 	/* ---------------------------------------------------------------- Forms */
 
 	/** Opens a form. */
+	/**
+	 * Deep-link entry: WP Explorer (and anything else) asks for a form by id.
+	 *
+	 * @param id The form to open on the canvas.
+	 */
+	public async openFormById( id: number ): Promise< void > {
+		await this.open( id );
+	}
+
 	private async open( id: number ): Promise< void > {
 		if ( this.dirty && ! ( await confirmAction( 'You have unsaved changes. Discard them?' ) ) ) {
 			return;
@@ -2469,6 +2483,13 @@ export class Builder {
 		}
 
 		const field = this.schema.fields.find( ( candidate ) => candidate.id === this.selected );
+
+		// In a narrow window there is room for one side rail, and which one is
+		// useful depends on what the user just did: nothing selected means they
+		// are adding (palette), a selected field means they are editing
+		// (inspector). The container queries in builder.css read this class to
+		// make the swap.
+		this.root.classList.toggle( 'atfb--has-selection', !! field );
 
 		if ( ! field ) {
 			this.inspector.append(
@@ -4143,6 +4164,19 @@ export class Builder {
 /** Mounts the builder into whatever root is on the page. */
 let mounted: Builder | null = null;
 let mountedRoot: HTMLElement | null = null;
+
+// WP Explorer's actions open this window and then say which form they meant.
+// The window may still be mounting when the event lands, so the ask waits the
+// same beat the analytics demo-panel deep link does.
+document.addEventListener( 'atf-open-form', ( event ) => {
+	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
+
+	if ( ! formId ) {
+		return;
+	}
+
+	void mounted?.openFormById( formId );
+} );
 
 export function mountBuilder(): void {
 	// One *live* builder per document.

@@ -236,6 +236,22 @@
 	.atfb__inspector {
 		display: none;
 	}
+
+	/* One rail's worth of room, so the rail follows the work: the palette
+	   while adding, the inspector the moment a field is selected — otherwise
+	   a narrow window could select a field and have nowhere to edit it. */
+	.atfb--has-selection .atfb__body {
+		grid-template-columns: minmax( 220px, 260px ) 1fr;
+	}
+
+	.atfb--has-selection .atfb__palette {
+		display: none;
+	}
+
+	.atfb--has-selection .atfb__inspector {
+		display: block;
+		order: -1;
+	}
 }
 
 @container ( max-width: 640px ) {
@@ -246,6 +262,12 @@
 
 	.atfb__palette {
 		display: none;
+	}
+
+	/* Even here a selected field keeps its editor: the inspector takes the
+	   rail back and the canvas keeps the rest. */
+	.atfb--has-selection .atfb__body {
+		grid-template-columns: minmax( 200px, 240px ) 1fr;
 	}
 }
 
@@ -1306,7 +1328,11 @@
 .atf-block-preview:has( .atf-is-dark ),
 .atfb--dark-form .atfb-preview {
 	background: #101418;
-	color: #f0f0f1;
+	/* The theme's own text token, not a hardcoded white: forcing #f0f0f1 made
+	   the canvas render choice labels brighter than the real front end does,
+	   and a canvas that flatters the theme is lying about it. The fallback
+	   only speaks when a preview carries no tokens at all. */
+	color: var( --atf-text, #f0f0f1 );
 }
 
 /* The pane around the frame, so the dark preview is not a bright card floating

@@ -374,6 +374,7 @@ function atf_enqueue_in_shell() {
 
 	wp_enqueue_script( 'allterrain-forms-config' );
 	wp_enqueue_script( 'allterrain-forms-dock' );
+	wp_enqueue_style( 'allterrain-forms-explorer' );
 	wp_enqueue_style( 'allterrain-forms-builder' );
 }
 
@@ -402,4 +403,5 @@ function atf_enqueue_shell_styles() {
 	wp_enqueue_style( 'allterrain-forms-builder' );
 	wp_enqueue_script( 'allterrain-forms-config' );
 	wp_enqueue_script( 'allterrain-forms-dock' );
+	wp_enqueue_style( 'allterrain-forms-explorer' );
 }

@@ -745,6 +745,18 @@ var allTerrainFormsBuilder = function(exports) {
     } catch {
     }
   }
+  function requestedFormKeyFor(surface) {
+    return `allterrain-forms/requested-form-${surface}`;
+  }
+  function takeFormFor(surface) {
+    try {
+      const value = window.sessionStorage.getItem(requestedFormKeyFor(surface));
+      window.sessionStorage.removeItem(requestedFormKeyFor(surface));
+      return Number(value) || 0;
+    } catch {
+      return 0;
+    }
+  }
   const OPERATORS = {
     is: "is",
     is_not: "is not",
@@ -3219,6 +3231,7 @@ var allTerrainFormsBuilder = function(exports) {
           return;
         }
         const field = this.schema.fields.find((candidate) => candidate.id === this.selected);
+        this.root.classList.toggle("atfb--has-selection", !!field);
         if (!field) {
           this.inspector.append(
             el("div", {
@@ -3429,7 +3442,10 @@ var allTerrainFormsBuilder = function(exports) {
       this.renderBar();
       this.renderPalette();
       if (this.forms.length) {
-        await this.open(this.forms[0].id);
+        const requested = takeFormFor("builder");
+        await this.open(
+          requested && this.forms.some((form) => form.id === requested) ? requested : this.forms[0].id
+        );
       } else {
         this.renderFormsList();
       }
@@ -3863,6 +3879,14 @@ var allTerrainFormsBuilder = function(exports) {
     }
     /* ---------------------------------------------------------------- Forms */
     /** Opens a form. */
+    /**
+     * Deep-link entry: WP Explorer (and anything else) asks for a form by id.
+     *
+     * @param id The form to open on the canvas.
+     */
+    async openFormById(id) {
+      await this.open(id);
+    }
     async open(id) {
       if (this.dirty && !await confirmAction("You have unsaved changes. Discard them?")) {
         return;
@@ -5996,6 +6020,13 @@ var allTerrainFormsBuilder = function(exports) {
   }
   let mounted = null;
   let mountedRoot = null;
+  document.addEventListener("atf-open-form", (event) => {
+    const formId = Number(event.detail?.formId ?? 0);
+    if (!formId) {
+      return;
+    }
+    void mounted?.openFormById(formId);
+  });
   function mountBuilder() {
     if (mountedRoot?.isConnected) {
       return;

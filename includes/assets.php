@@ -51,6 +51,13 @@ function atf_register_assets() {
 	);
 
 	wp_register_style(
+		'allterrain-forms-explorer',
+		ATF_URL . 'assets/css/explorer.css',
+		array(),
+		atf_asset_version( 'assets/css/explorer.css' )
+	);
+
+	wp_register_style(
 		'allterrain-forms-builder',
 		ATF_URL . 'assets/css/builder.css',
 		array( 'allterrain-forms' ),
