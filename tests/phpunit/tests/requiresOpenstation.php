@@ -2,7 +2,7 @@
 /**
  * OpenStation is a dependency, not a suggestion.
  *
- * The `Requires Plugins` header is the real gate — WordPress 6.5+ refuses to
+ * The `Requires Plugins` header is the real gate — WordPress refuses to
  * activate this plugin without the shell and refuses to deactivate the shell
  * underneath it. What is testable here is the header's presence and the notice
  * that covers the installs the header cannot reach.

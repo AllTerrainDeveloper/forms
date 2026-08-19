@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/AllTerrainDeveloper/forms
  * Description:       Forms for WordPress with every premium feature free — conditional logic, calculations, multi-page, file uploads, signatures, repeaters, entry management, ten themes — built as an OpenStation desktop app with a drag-and-drop builder.
  * Version:           0.1.0
- * Requires at least: 6.5
+ * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  desktop-mode
  * Author:            Daniel Lopez
@@ -42,7 +42,7 @@
  * integration code.
  *
  * OpenStation is **required** — the `Requires Plugins: desktop-mode` header
- * says so, and WordPress 6.5+ enforces it at activation. The builder is a
+ * says so, and WordPress enforces it at activation. The builder is a
  * native shell window; the desktop is the product, not a skin on it. Every
  * shell call still resolves through `includes/shell-api.php`'s
  * `function_exists()` gates, but as defense in depth for half-upgraded sites
