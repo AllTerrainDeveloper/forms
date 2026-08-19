@@ -2149,6 +2149,22 @@ os-checkbox-label.atfb-check {
 	margin-block-start: 4px;
 }
 
+/* …unless the form's theme is dark. Then the preview has to bring its own
+   ground (painted in the dark-theme block above), and a dark ground flush
+   against a light card reads as a hole punched in it. Breathing room, its own
+   radius, and a halo that fades the ink out into the shell's surface token —
+   a gradient to the base colour, so the theme sits on the card rather than
+   through it. On a dark OpenStation theme the halo blends away, which is the
+   point of mixing against the token instead of a constant. */
+.atfb--dark-form .atfb-preview {
+	padding: 16px 18px;
+	margin: 10px 4px 6px;
+	border-radius: calc( var( --atfb-radius ) - 2px );
+	box-shadow:
+		0 0 0 1px color-mix( in srgb, #101418 45%, var( --atfb-bg ) ),
+		0 0 14px 4px color-mix( in srgb, #05070a 22%, transparent );
+}
+
 /* Anything editable in place. Invisible until pointed at, because a canvas of
    twelve outlined boxes reads as a form full of errors. */
 .atfb-editable {
