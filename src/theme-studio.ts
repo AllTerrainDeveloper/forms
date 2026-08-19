@@ -81,9 +81,20 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 		try {
 			const html = await options.previewFor( active, overrides );
 
+			// Replacing the markup empties the preview pane for a moment, and
+			// an emptied scroller clamps to the top -- so somebody comparing
+			// two button styles at the bottom of a long form was yanked back
+			// to its title on every repaint. Put the scroll back where it was.
+			const pane = preview.closest< HTMLElement >( '.atf-studio__preview' );
+			const scrolled = pane?.scrollTop ?? 0;
+
 			// Server-rendered from this plugin's own renderer with this
 			// plugin's own schema, not from anything a visitor supplied.
 			preview.innerHTML = html;
+
+			if ( pane ) {
+				pane.scrollTop = scrolled;
+			}
 
 			// The front-end bundle enhances anything unenhanced on the page, so
 			// the preview gets working logic, totals and steps — which is what
@@ -98,18 +109,46 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 	}, 180 );
 
 	/**
-	 * Paints tokens straight onto the previewed form, ahead of the server.
+	 * The two tokens that are a class on the form rather than a custom
+	 * property — the renderer turns each into `atf-labels-*` / `atf-fields-*`,
+	 * because moving a label or redrawing a field is structure, not paint.
+	 */
+	const CLASS_TOKENS: Record< string, string > = {
+		'label-position': 'atf-labels-',
+		'field-style': 'atf-fields-',
+	};
+
+	/** Swaps one `prefix-*` class on an element for `prefix + value`. */
+	const swapClass = ( target: HTMLElement, prefix: string, value: string ) => {
+		const safe = value.replace( /[^a-z0-9_-]/gi, '' );
+
+		for ( const existing of [ ...target.classList ] ) {
+			if ( existing.startsWith( prefix ) ) {
+				target.classList.remove( existing );
+			}
+		}
+
+		if ( safe ) {
+			target.classList.add( prefix + safe );
+		}
+	};
+
+	/**
+	 * Paints tokens straight onto the previewed form. This IS the preview.
 	 *
-	 * The server render is the truth — it resolves filters and sanitises — but
-	 * it is also a debounce plus a round trip away, and a control that does
-	 * nothing for a third of a second reads as a control that does nothing.
-	 * Every token is a custom property scoped to the form's wrapper, so the
-	 * same value written inline shows the change the moment it is clicked; the
-	 * next `repaint()` replaces the markup wholesale and reconciles whatever
-	 * the server thinks better.
+	 * There used to be a debounced server re-render behind this, "reconciling"
+	 * what the inline paint had already shown — which replaced the preview's
+	 * markup wholesale, blinked it, reset its scroll and wiped whatever had
+	 * been typed or stepped into it, all to arrive at the same pixels. It had
+	 * no sense. Every token is either a custom property scoped to the wrapper
+	 * or one of the two structural classes above, and both are written here,
+	 * synchronously, from the same values the server would resolve. The server
+	 * render happens once, at mount, to produce the markup; after that the
+	 * preview is repainted, never replaced.
 	 */
 	const paintNow = ( written: Record< string, string > ) => {
 		const wrap = preview.querySelector< HTMLElement >( '.atf-form-wrap' );
+		const formEl = wrap?.querySelector< HTMLElement >( '.atf-form' );
 
 		if ( ! wrap ) {
 			return;
@@ -121,6 +160,29 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			} else {
 				wrap.style.setProperty( `--atf-${ token }`, value );
 			}
+
+			if ( formEl && CLASS_TOKENS[ token ] ) {
+				swapClass( formEl, CLASS_TOKENS[ token ], value || ( themes.find( ( t ) => t.slug === active )?.resolved[ token ] ?? '' ) );
+			}
+		}
+	};
+
+	/**
+	 * Dresses the preview in a whole theme, classes and all.
+	 *
+	 * A theme switch changes three things a token write cannot: the
+	 * `atf-theme-*` marker, the `atf-is-dark` flag, and every token at once.
+	 * All three are known client-side — `resolved` is the theme's full token
+	 * map — so the switch is as instant as a dial.
+	 */
+	const paintTheme = ( theme: Theme ) => {
+		paintNow( theme.resolved );
+
+		const formEl = preview.querySelector< HTMLElement >( '.atf-form' );
+
+		if ( formEl ) {
+			swapClass( formEl, 'atf-theme-', theme.slug );
+			formEl.classList.toggle( 'atf-is-dark', !! theme.dark );
 		}
 	};
 
@@ -182,11 +244,10 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 						// The switched-to theme's full token set, inline, so the
 						// preview wears it this frame rather than after the
 						// round trip.
-						paintNow( theme.resolved );
+						paintTheme( theme );
 						renderThemes();
-						renderQuick();
-						renderControls();
-						repaint();
+						syncQuick();
+						syncControlsSoon();
 						syncDeleteButton();
 					},
 				},
@@ -208,6 +269,84 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 		return resolved;
 	};
 
+	/**
+	 * Runs a render with the controls pane's scroll where the user left it.
+	 *
+	 * Rebuilding a pane empties it for a moment, an emptied scroller clamps to
+	 * the top, and the rebuilt content arrives with the scroll silently reset —
+	 * so every dial click threw the sidebar back to Accent. The scroll position
+	 * is ordinary state the same way the values are; a repaint has no business
+	 * moving it.
+	 */
+	const keepScroll = ( render: () => void ) => {
+		const scroller = quick.closest< HTMLElement >( '.atf-studio__controls' );
+		const scrolled = scroller?.scrollTop ?? 0;
+
+		render();
+
+		if ( scroller ) {
+			scroller.scrollTop = scrolled;
+		}
+	};
+
+	/**
+	 * Brings the Advanced token list up to date, off the click's critical path.
+	 *
+	 * Rebuilding 69 token rows synchronously in the click handler delayed the
+	 * frame — the browser could not paint `paintNow()`'s change until the
+	 * rebuild finished, which is exactly the lag the inline paint exists to
+	 * remove. Debounced past the paint instead: the list is usually folded
+	 * behind "Every setting" anyway, and 150ms behind is indistinguishable
+	 * from instant for a pane that is not being looked at.
+	 */
+	const syncControlsSoon = debounce( () => keepScroll( renderControls ), 150 );
+
+	/**
+	 * Updates the dials in place instead of rebuilding them.
+	 *
+	 * A rebuild replaces the very button under the pointer mid-click — hover
+	 * state gone, focus gone, and a colour picker mid-drag replaced between two
+	 * input events. The dials' structure never changes, only which step is on
+	 * and what the colour reads, so that is all that is written. An input the
+	 * user is holding is left alone; it already shows what they are typing.
+	 */
+	const syncQuick = () => {
+		const tokens = currentTokens();
+		const rows = quick.querySelectorAll( '.atfs-dial' );
+
+		quickDials().forEach( ( dial, index ) => {
+			const row = rows[ index ];
+
+			if ( ! row ) {
+				return;
+			}
+
+			const at = dial.read( tokens );
+
+			if ( dial.kind === 'colour' ) {
+				const picker = row.querySelector< HTMLInputElement >( 'input[type="color"]' );
+				const text = row.querySelector< HTMLInputElement >( 'input.atfb-input' );
+
+				if ( picker && document.activeElement !== picker ) {
+					picker.value = normaliseHex( at );
+				}
+
+				if ( text && document.activeElement !== text ) {
+					text.value = at;
+				}
+
+				return;
+			}
+
+			row.querySelectorAll< HTMLButtonElement >( '.atfs-segment' ).forEach( ( segment, step ) => {
+				const on = dial.steps?.[ step ]?.value === at;
+
+				segment.classList.toggle( 'is-on', on );
+				segment.setAttribute( 'aria-pressed', String( on ) );
+			} );
+		} );
+	};
+
 	/** Applies a dial's whole token family in one go. */
 	const applyDial = ( dial: QuickDial, step: string ) => {
 		const written = dial.apply( step, currentTokens() );
@@ -218,9 +357,8 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 		}
 
 		paintNow( written );
-		renderQuick();
-		renderControls();
-		repaint();
+		syncQuick();
+		syncControlsSoon();
 	};
 
 	/**
@@ -347,7 +485,6 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 
 			options.onOverride( token.token, next );
 			paintNow( { [ token.token ]: next } );
-			repaint();
 		};
 
 		let control: HTMLElement;
@@ -441,7 +578,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 					on: {
 						click: () => {
 							change( '' );
-							renderControls();
+							keepScroll( renderControls );
 						},
 					},
 				} )
@@ -488,8 +625,8 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			options.onTheme( active );
 
 			renderThemes();
-			renderControls();
-			repaint();
+			syncQuick();
+			keepScroll( renderControls );
 
 			notify( 'Theme saved', saved.label );
 		} catch ( error ) {
@@ -520,8 +657,14 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			options.onTheme( active );
 
 			renderThemes();
-			renderControls();
-			repaint();
+			syncQuick();
+			keepScroll( renderControls );
+
+			const clean = themes.find( ( candidate ) => candidate.slug === active );
+
+			if ( clean ) {
+				paintTheme( clean );
+			}
 		} catch ( error ) {
 			notify( 'Could not delete the theme', error instanceof Error ? error.message : '', 'error' );
 		}
@@ -574,8 +717,8 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			}
 
 			paintNow( { ...overrides } );
-			renderControls();
-			repaint();
+			syncQuick();
+			keepScroll( renderControls );
 		} catch ( error ) {
 			notify( 'Could not read that theme', error instanceof Error ? error.message : '', 'error' );
 		}
