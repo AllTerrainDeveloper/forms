@@ -107,6 +107,11 @@ conditional logic across, payment and product fields keep their prices, an
 order total keeps calculating, and a Gravity Forms List becomes a real
 repeater.
 
+The stored submissions come too. Messages Flamingo kept for Contact Form 7,
+Gravity Forms entries, and WPForms Pro entries can all be brought across after
+their form is — each with its original date, spam filed as spam, and the
+originals left untouched. Running it twice never imports anything twice.
+
 = Anti-spam that does not charge your visitors =
 
 A honeypot, a signed time trap, a per-address rate limit, a word blocklist, and
