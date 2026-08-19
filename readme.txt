@@ -1,9 +1,10 @@
 === AllTerrain Forms ===
 Contributors: allterraindeveloper
 Tags: contact form, form builder, forms, conditional logic, survey
-Requires at least: 6.0
+Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
+Requires Plugins: desktop-mode
 Stable tag: 0.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -134,15 +135,18 @@ lives in a custom table, so the REST API, user capabilities, search, the trash,
 and WordPress's own privacy exporter and eraser already work on your form data
 without a line of integration code.
 
-= Optional: a desktop for your admin =
+= Built on OpenStation =
 
-AllTerrain Forms is built to shine inside [OpenStation](https://wordpress.org/plugins/desktop-mode/),
-which turns wp-admin into a windowed desktop. There the builder is a real window
-you can put beside your entries, drag a field from one form into another, and
-drop an image straight from the media browser onto a choice.
+AllTerrain Forms is an [OpenStation](https://wordpress.org/plugins/desktop-mode/)
+desktop app, and OpenStation is **required** — WordPress installs it alongside
+this plugin and keeps the two together. OpenStation turns wp-admin into a
+windowed desktop: the builder is a real window you can put beside your entries,
+drag a field from one form into another, and drop an image straight from the
+media browser onto a choice. That spatial way of working is the product, which
+is why the plugin does not ship a lesser version of itself without it.
 
-**OpenStation is entirely optional.** Without it you get the same plugin as an
-ordinary admin page under **Forms**, with every feature intact.
+Your visitors are never part of that dependency: published forms render and
+submit on the front end regardless of what is happening in the admin.
 
 = Built in the open =
 
@@ -174,8 +178,10 @@ this plugin.
 
 = Do I need the OpenStation plugin? =
 
-No. It makes the builder nicer — a real window you can drag things between — but
-every feature works without it, as an ordinary admin page.
+Yes. The builder is an OpenStation desktop app — a real window you can drag
+things between — and WordPress installs and activates OpenStation for you when
+you install this plugin. Your visitors never need it: published forms render
+and submit on the front end without any of the admin machinery.
 
 = Will my forms keep working if I deactivate the plugin? =
 
@@ -245,7 +251,7 @@ a REST namespace. Full reference in the repository.
 * Anti-spam without a CAPTCHA; spam is kept, not discarded.
 * Save and continue later, quizzes, surveys, user registration.
 * Works without JavaScript and meets WCAG AA in every theme.
-* Optional OpenStation desktop integration.
+* A native OpenStation desktop app: windowed builder, dock, cross-window drag and drop.
 
 == Upgrade Notice ==
 

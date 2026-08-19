@@ -33,10 +33,13 @@ build step. Themes are token sets; the renderer only ever reads tokens.
 
 ## 1. Non-negotiables
 
-- **OpenStation is optional.** Every shell call sits behind a `function_exists()`
-  gate resolved through `includes/shell-api.php` (same pattern as AllTerrain
-  Work). No shell → the builder renders on a plain admin page and the front-end
-  is untouched. No `Requires Plugins:` header.
+- **OpenStation is required.** `Requires Plugins: desktop-mode` in the header;
+  WordPress 6.5+ enforces it at activation and blocks deactivating the shell
+  underneath us. The builder is a native shell window — the desktop *is* the
+  product. `includes/shell-api.php`'s `function_exists()` gates stay as defense
+  in depth (older WP, force-removed shell): admin shows a notice, the front end
+  keeps rendering published forms. *(Changed 2026-08-19; was "optional" through
+  0.1.0.)*
 - **Everything is a post.** A form is a post, an entry is a post, an entry note
   is a *comment*, a theme is a post. No bespoke tables. That buys REST,
   `current_user_can()`, revisions, search, trash, the privacy exporter/eraser

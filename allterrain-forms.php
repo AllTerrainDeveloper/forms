@@ -4,8 +4,9 @@
  * Plugin URI:        https://github.com/AllTerrainDeveloper/forms
  * Description:       Forms for WordPress with every premium feature free — conditional logic, calculations, multi-page, file uploads, signatures, repeaters, entry management, ten themes — built as an OpenStation desktop app with a drag-and-drop builder.
  * Version:           0.1.0
- * Requires at least: 6.0
+ * Requires at least: 6.5
  * Requires PHP:      7.4
+ * Requires Plugins:  desktop-mode
  * Author:            Daniel Lopez
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -40,10 +41,14 @@
  * privacy exporter and eraser already work on this data without a line of
  * integration code.
  *
- * OpenStation is **optional**. Every shell call sits behind a `function_exists()`
- * gate resolved through `includes/shell-api.php`, so a site without the shell
- * loses the desktop affordances and keeps a complete forms plugin. That is why
- * there is deliberately no `Requires Plugins:` header.
+ * OpenStation is **required** — the `Requires Plugins: desktop-mode` header
+ * says so, and WordPress 6.5+ enforces it at activation. The builder is a
+ * native shell window; the desktop is the product, not a skin on it. Every
+ * shell call still resolves through `includes/shell-api.php`'s
+ * `function_exists()` gates, but as defense in depth for half-upgraded sites
+ * rather than as a supported mode: without the shell, an admin notice says
+ * what is missing, visitors' published forms keep rendering so nobody's
+ * front end breaks, and nothing else pretends to work.
  *
  * @package AllTerrain_Forms
  */
