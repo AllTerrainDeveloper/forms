@@ -138,7 +138,7 @@ function atf_shell_is_chromeless() {
 /**
  * Tells an admin without OpenStation why the desktop is not happening.
  *
- * The `Requires Plugins: desktop-mode` header is the real gate — WordPress 6.5+
+ * The `Requires Plugins: desktop-mode` header is the real gate — WordPress
  * refuses to activate this plugin without OpenStation and refuses to deactivate
  * OpenStation underneath it. This notice covers the installs that header cannot
  * reach: an older WordPress that ignores it, or a site that force-removed the

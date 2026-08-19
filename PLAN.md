@@ -34,7 +34,7 @@ build step. Themes are token sets; the renderer only ever reads tokens.
 ## 1. Non-negotiables
 
 - **OpenStation is required.** `Requires Plugins: desktop-mode` in the header;
-  WordPress 6.5+ enforces it at activation and blocks deactivating the shell
+  WordPress enforces it at activation and blocks deactivating the shell
   underneath us. The builder is a native shell window — the desktop *is* the
   product. `includes/shell-api.php`'s `function_exists()` gates stay as defense
   in depth (older WP, force-removed shell): admin shows a notice, the front end

@@ -257,7 +257,7 @@ function atf_render_admin_shell( $template, $title, $window_id = '' ) {
 
 	// No shell on the site at all: the tool does not render. These surfaces are
 	// OpenStation desktop apps -- the `Requires Plugins` header enforces that on
-	// WordPress 6.5+, and this covers the installs it cannot reach (an older
+	// WordPress, and this covers the installs it cannot reach (an older
 	// WordPress, a force-removed shell). A fork that strips the header gets the
 	// same answer, stated politely, rather than a quietly lesser builder that
 	// misrepresents what this plugin is. Import stays available -- it has no

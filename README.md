@@ -8,7 +8,7 @@
 [OpenStation](https://wordpress.org/plugins/desktop-mode/) desktop app with a
 drag-and-drop builder, ten themes, and no paywall anywhere in it.**
 
-[![WordPress 6.0+](https://img.shields.io/badge/WordPress-6.0%2B-21759b)](https://wordpress.org)
+[![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-21759b)](https://wordpress.org)
 [![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://php.net)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSE)
 
@@ -63,7 +63,7 @@ is a post. Nothing lives in a bespoke table, so the REST API,
 exporter and eraser already work on this data without a line of integration code.
 
 **OpenStation is required.** The plugin declares `Requires Plugins:
-desktop-mode`, so WordPress 6.5+ installs and activates the shell alongside it
+desktop-mode`, so WordPress installs and activates the shell alongside it
 and refuses to pull the shell out from underneath it. The builder is a native
 shell window — the desktop is the product, not a skin on it — so the plugin
 does not ship a lesser version of itself for sites without one. The
