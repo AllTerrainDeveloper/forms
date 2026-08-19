@@ -29,10 +29,12 @@ defined( 'ABSPATH' ) || exit;
  */
 function atf_register_cf7_importer( $importers ) {
 	$importers['contact-form-7'] = array(
-		'label'     => __( 'Contact Form 7', 'allterrain-forms' ),
-		'available' => 'atf_cf7_available',
-		'forms'     => 'atf_cf7_forms',
-		'import'    => 'atf_cf7_import',
+		'label'          => __( 'Contact Form 7', 'allterrain-forms' ),
+		'available'      => 'atf_cf7_available',
+		'forms'          => 'atf_cf7_forms',
+		'import'         => 'atf_cf7_import',
+		'entries'        => 'atf_cf7_entry_count',
+		'import_entries' => 'atf_cf7_import_entries',
 	);
 
 	return $importers;
@@ -98,14 +100,259 @@ function atf_cf7_import( $source_id ) {
 		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
+	$template = (string) get_post_meta( $post->ID, '_form', true );
+
 	$schema = atf_cf7_convert(
-		(string) get_post_meta( $post->ID, '_form', true ),
+		$template,
 		(array) get_post_meta( $post->ID, '_mail', true ),
 		(array) get_post_meta( $post->ID, '_mail_2', true ),
 		(array) get_post_meta( $post->ID, '_messages', true )
 	);
 
-	return atf_create_imported_form( $post->post_title, $schema, 'contact-form-7', (string) $post->ID );
+	// Parsed a second time for its name => id map alone. The template is a few
+	// hundred bytes and this happens once per form ever imported; thread the map
+	// out of atf_cf7_convert() and every caller of it has to care about it.
+	$parsed = atf_cf7_parse_template( $template );
+
+	return atf_create_imported_form(
+		$post->post_title,
+		$schema,
+		'contact-form-7',
+		(string) $post->ID,
+		$parsed['map']
+	);
+}
+
+/**
+ * The Flamingo channel term id a CF7 form's messages are filed under.
+ *
+ * CF7 caches it in the form's own `_flamingo` meta on the first submission; when
+ * that is absent the term is looked up by slug, which is what CF7 named it after.
+ *
+ * @param WP_Post $form The CF7 form post.
+ * @return int Term id, or 0 when the form has no channel.
+ */
+function atf_cf7_channel_id( $form ) {
+	$meta = get_post_meta( $form->ID, '_flamingo', true );
+
+	if ( is_array( $meta ) && ! empty( $meta['channel'] ) ) {
+		return (int) $meta['channel'];
+	}
+
+	$term = get_term_by( 'slug', $form->post_name, 'flamingo_inbound_channel' );
+
+	return $term && ! is_wp_error( $term ) ? (int) $term->term_id : 0;
+}
+
+/**
+ * The post statuses a stored message worth importing can be in.
+ *
+ * Trash is excluded: a trashed message was thrown away on purpose, and a
+ * migration that resurrected it would undo a decision somebody made.
+ *
+ * Note that `'any'` cannot be used against these records. Flamingo registers its
+ * spam status with `exclude_from_search`, and `'any'` means "every status not
+ * excluded from search" — so `'any'` silently omits every spam message.
+ *
+ * @return string[]
+ */
+function atf_cf7_message_statuses() {
+	return array( 'publish', 'flamingo-spam' );
+}
+
+/**
+ * How many stored submissions a CF7 form has that have not been imported yet.
+ *
+ * Read straight from the posts table rather than through Flamingo, for the same
+ * reason the forms are: the moment somebody migrates is the moment the old
+ * plugins are being switched off, and a deactivated plugin registers no post
+ * type for `WP_Query` to find.
+ *
+ * @param string $source_id The CF7 post id.
+ * @param int    $form_id   The AllTerrain form the messages would land on.
+ * @return int
+ */
+function atf_cf7_entry_count( $source_id, $form_id = 0 ) {
+	global $wpdb;
+
+	$form = get_post( absint( $source_id ) );
+
+	if ( ! $form || 'wpcf7_contact_form' !== $form->post_type ) {
+		return 0;
+	}
+
+	$channel_id = atf_cf7_channel_id( $form );
+
+	if ( ! $channel_id ) {
+		return 0;
+	}
+
+	$statuses     = atf_cf7_message_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders is a generated list of %s.
+	$total = (int) $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
+				INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+				WHERE p.post_type = 'flamingo_inbound'
+				AND p.post_status IN ( {$placeholders} )
+				AND tt.taxonomy = 'flamingo_inbound_channel'
+				AND tt.term_id = %d",
+			array_merge( $statuses, array( $channel_id ) )
+		)
+	);
+	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	if ( ! $form_id ) {
+		return $total;
+	}
+
+	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+}
+
+/**
+ * Brings a slice of a CF7 form's stored submissions across as entries.
+ *
+ * Oldest first, so an interrupted migration leaves a contiguous history rather
+ * than a scatter, and so a second pass resumes where the first stopped.
+ *
+ * @param string $source_id The CF7 post id.
+ * @param int    $form_id   The AllTerrain form to import onto.
+ * @param int    $limit     How many to attempt in this pass.
+ * @return array|WP_Error { imported, skipped, done, remaining }.
+ */
+function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
+	global $wpdb;
+
+	$form = get_post( absint( $source_id ) );
+
+	if ( ! $form || 'wpcf7_contact_form' !== $form->post_type ) {
+		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+	}
+
+	$channel_id = atf_cf7_channel_id( $form );
+
+	if ( ! $channel_id ) {
+		return array(
+			'imported'  => 0,
+			'skipped'   => 0,
+			'done'      => true,
+			'remaining' => 0,
+		);
+	}
+
+	$seen         = atf_imported_entry_keys( (int) $form_id );
+	$statuses     = atf_cf7_message_statuses();
+	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+	// Fetched a page at a time, and the page is larger than the limit because
+	// records already imported are skipped without costing a slot -- otherwise a
+	// second pass would spend its whole budget rediscovering the first pass.
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders is a generated list of %s.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT p.ID, p.post_status, p.post_date_gmt FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
+				INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+				WHERE p.post_type = 'flamingo_inbound'
+				AND p.post_status IN ( {$placeholders} )
+				AND tt.taxonomy = 'flamingo_inbound_channel'
+				AND tt.term_id = %d
+				ORDER BY p.post_date_gmt ASC, p.ID ASC
+				LIMIT %d",
+			array_merge( $statuses, array( $channel_id, count( $seen ) + (int) $limit ) )
+		)
+	);
+	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+	$imported = 0;
+	$skipped  = 0;
+
+	foreach ( (array) $rows as $row ) {
+		if ( $imported >= (int) $limit ) {
+			break;
+		}
+
+		if ( isset( $seen[ atf_entry_source_key( 'contact-form-7', $row->ID ) ] ) ) {
+			++$skipped;
+			continue;
+		}
+
+		$result = atf_import_entry(
+			(int) $form_id,
+			array(
+				'values'       => atf_cf7_message_values( (int) $row->ID ),
+				'importer'     => 'contact-form-7',
+				'record'       => (string) $row->ID,
+				'submitted_at' => (int) strtotime( $row->post_date_gmt . ' UTC' ),
+				'spam'         => 'flamingo-spam' === $row->post_status,
+				'ip'           => atf_cf7_message_meta( (int) $row->ID, 'remote_ip' ),
+				'user_agent'   => atf_cf7_message_meta( (int) $row->ID, 'user_agent' ),
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			// A single unreadable record must not strand the rest of the
+			// migration, but an error that would repeat on every one of them --
+			// a missing schema or field map -- is worth stopping for.
+			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+				return $result;
+			}
+
+			++$skipped;
+			continue;
+		}
+
+		++$imported;
+	}
+
+	$remaining = atf_cf7_entry_count( $source_id, (int) $form_id );
+
+	return array(
+		'imported'  => $imported,
+		'skipped'   => $skipped,
+		'done'      => 0 === $remaining,
+		'remaining' => $remaining,
+	);
+}
+
+/**
+ * The submitted values of one stored message, keyed by CF7 field name.
+ *
+ * Read from the per-field `_field_<name>` rows rather than the `_fields` array,
+ * because Flamingo nulls every value inside `_fields` as it writes the per-field
+ * rows — the array survives as a list of names with nothing in it.
+ *
+ * @param int $message_id The `flamingo_inbound` post id.
+ * @return array Field name => value.
+ */
+function atf_cf7_message_values( $message_id ) {
+	$values = array();
+
+	foreach ( get_post_meta( $message_id ) as $key => $raw ) {
+		if ( 0 !== strpos( $key, '_field_' ) ) {
+			continue;
+		}
+
+		$values[ substr( $key, 7 ) ] = maybe_unserialize( $raw[0] );
+	}
+
+	return $values;
+}
+
+/**
+ * One of the special mail tags CF7 stores alongside a message.
+ *
+ * @param int    $message_id The `flamingo_inbound` post id.
+ * @param string $key        The tag name, e.g. `remote_ip`.
+ * @return string
+ */
+function atf_cf7_message_meta( $message_id, $key ) {
+	$meta = get_post_meta( $message_id, '_meta', true );
+
+	return is_array( $meta ) && isset( $meta[ $key ] ) ? (string) $meta[ $key ] : '';
 }
 
 /**
