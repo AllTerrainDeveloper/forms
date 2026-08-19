@@ -240,6 +240,33 @@ separate place.
 
 ---
 
+## Nine abilities, so AI agents can use the forms
+
+The plugin registers its whole working surface with WordPress's Abilities API,
+which is how a site describes what it can do to agents and MCP clients. Each
+ability is a thin adapter over the same functions the windows and the REST API
+call — an agent and a human clicking the same button get the same behaviour,
+the same validation and the same capability checks.
+
+| Ability | What it does |
+|---|---|
+| `list-forms` | Every form with id, title, theme, shortcode, entry count and questions — the ids feed everything else |
+| `get-form` | One form's questions: field ids, types, labels, required flags, choices |
+| `list-field-types` | The building vocabulary: all 37 types and what each stores |
+| `create-form` | Builds a form from a title and a loose field list; returns the shortcode |
+| `set-form-theme` | Dresses a form in any installed theme |
+| `submit-form` | Submits through the visitor pipeline — validation, anti-spam, storage, notifications; refusals return per-field errors |
+| `list-entries` | Queries submissions — search, date range, status, pagination — raw and human-readable |
+| `get-entry` | One submission, every answer labelled and formatted |
+| `form-report` | The analytics as structured data: conversion, timeline, distributions, NPS, group-by breakdowns |
+
+Ask an assistant to *"make a booking form and show me last week's responses"*,
+and these are what it calls. The full contract — permissions, schemas, and the
+one honest liberty `submit-form` takes with the time trap — is in
+[`docs/abilities.md`](docs/abilities.md).
+
+---
+
 ## Accessibility
 
 Not a section that says "we care about accessibility". The things that were

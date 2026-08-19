@@ -150,6 +150,18 @@ anti-spam pipeline a visitor uses, query submissions with human-readable
 answers, and pull the full analytics report (conversion, distributions, NPS)
 as structured data.
 
+The nine, by name:
+
+* **list-forms** — every form with its id, title, theme, shortcode, entry count and questions. The starting point; its ids feed everything else.
+* **get-form** — one form's questions in full: field ids, types, labels, required flags and choices. Read it before submitting or interpreting entries.
+* **list-field-types** — the vocabulary for building: all 37 field types with what each stores.
+* **create-form** — builds a form from a title and a plain list of fields, and returns the shortcode ready to paste.
+* **set-form-theme** — dresses a form in any installed theme, by slug.
+* **submit-form** — submits answers through the visitor pipeline: availability, validation, anti-spam, storage, notifications. Refusals return per-field errors and store nothing.
+* **list-entries** — queries submissions with search, date range, status and pagination; answers come back raw and human-readable.
+* **get-entry** — one submission in full, every answer labelled and formatted.
+* **form-report** — the analytics as data: views, conversion, completion, a 90-day timeline, per-question distributions, NPS, and breakdowns by any grouping question.
+
 Every ability carries a JSON Schema and a capability check, and none of them
 has logic of its own — an agent and a human clicking the same button get the
 same behaviour. Ask your assistant to "make a booking form and show me last
