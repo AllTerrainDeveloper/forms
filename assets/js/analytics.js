@@ -283,6 +283,26 @@ var allTerrainFormsAnalytics = function(exports) {
     }
     console.info(`[AllTerrain Forms] ${title}${body ? `: ${body}` : ""}`);
   }
+  function pinWindowBodyScroll(root) {
+    const body = root.closest(".os-window__body");
+    if (!body) {
+      return;
+    }
+    body.addEventListener(
+      "scroll",
+      () => {
+        if (body.scrollTop) {
+          body.scrollTop = 0;
+        }
+        if (body.scrollLeft) {
+          body.scrollLeft = 0;
+        }
+      },
+      { passive: true }
+    );
+    body.scrollTop = 0;
+    body.scrollLeft = 0;
+  }
   const NPS_BANDS = [
     { key: "detractors", label: "Detractors", hint: "0–6" },
     { key: "passives", label: "Passives", hint: "7–8" },
@@ -852,6 +872,7 @@ var allTerrainFormsAnalytics = function(exports) {
       return;
     }
     root.dataset.atfaMounted = "1";
+    pinWindowBodyScroll(root);
     mounted = new AnalyticsWindow(root);
     void mounted.start();
   }

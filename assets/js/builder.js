@@ -641,6 +641,26 @@ var allTerrainFormsBuilder = function(exports) {
     } catch {
     }
   }
+  function pinWindowBodyScroll(root) {
+    const body = root.closest(".os-window__body");
+    if (!body) {
+      return;
+    }
+    body.addEventListener(
+      "scroll",
+      () => {
+        if (body.scrollTop) {
+          body.scrollTop = 0;
+        }
+        if (body.scrollLeft) {
+          body.scrollLeft = 0;
+        }
+      },
+      { passive: true }
+    );
+    body.scrollTop = 0;
+    body.scrollLeft = 0;
+  }
   function hosts() {
     const found = [window];
     try {
@@ -1764,6 +1784,19 @@ var allTerrainFormsBuilder = function(exports) {
         );
       }
     }, 180);
+    const paintNow = (written) => {
+      const wrap = preview.querySelector(".atf-form-wrap");
+      if (!wrap) {
+        return;
+      }
+      for (const [token, value] of Object.entries(written)) {
+        if ("" === value) {
+          wrap.style.removeProperty(`--atf-${token}`);
+        } else {
+          wrap.style.setProperty(`--atf-${token}`, value);
+        }
+      }
+    };
     const resolve = (token) => {
       if (overrides[token.token] !== void 0) {
         return overrides[token.token];
@@ -1808,6 +1841,7 @@ var allTerrainFormsBuilder = function(exports) {
               active = theme.slug;
               replaceOverrides({});
               options.onTheme(active);
+              paintNow(theme.resolved);
               renderThemes();
               renderQuick();
               renderControls();
@@ -1833,6 +1867,7 @@ var allTerrainFormsBuilder = function(exports) {
         overrides[token] = value;
         options.onOverride(token, value);
       }
+      paintNow(written);
       renderQuick();
       renderControls();
       repaint();
@@ -1934,6 +1969,7 @@ var allTerrainFormsBuilder = function(exports) {
           overrides[token.token] = next;
         }
         options.onOverride(token.token, next);
+        paintNow({ [token.token]: next });
         repaint();
       };
       let control2;
@@ -2091,6 +2127,7 @@ var allTerrainFormsBuilder = function(exports) {
           overrides[name] = String(value);
           options.onOverride(name, String(value));
         }
+        paintNow({ ...overrides });
         renderControls();
         repaint();
       } catch (error) {
@@ -2179,6 +2216,7 @@ var allTerrainFormsBuilder = function(exports) {
       return;
     }
     root.dataset.atfsMounted = "1";
+    pinWindowBodyScroll(root);
     const bar = root.querySelector("[data-atfs-bar]");
     const body = root.querySelector(".atfs__body") ?? root;
     try {
@@ -5452,6 +5490,7 @@ var allTerrainFormsBuilder = function(exports) {
     }
     root.dataset.atfbMounted = "1";
     mountedRoot = root;
+    pinWindowBodyScroll(root);
     void whenComponents().then(() => {
       if (!root.isConnected) {
         return;

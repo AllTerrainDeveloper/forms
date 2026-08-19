@@ -653,6 +653,26 @@ var allTerrainFormsEntries = function(exports) {
       timer = window.setTimeout(() => fn(...args), wait);
     };
   }
+  function pinWindowBodyScroll(root) {
+    const body = root.closest(".os-window__body");
+    if (!body) {
+      return;
+    }
+    body.addEventListener(
+      "scroll",
+      () => {
+        if (body.scrollTop) {
+          body.scrollTop = 0;
+        }
+        if (body.scrollLeft) {
+          body.scrollLeft = 0;
+        }
+      },
+      { passive: true }
+    );
+    body.scrollTop = 0;
+    body.scrollLeft = 0;
+  }
   const FORM_TYPE = "allterrain-forms/form";
   const ENTRY_TYPE = "allterrain-forms/entry";
   function relations() {
@@ -1340,6 +1360,7 @@ var allTerrainFormsEntries = function(exports) {
     }
     root.dataset.atfeMounted = "1";
     mountedEntriesRoot = root;
+    pinWindowBodyScroll(root);
     void whenComponents().then(() => {
       if (!root.isConnected) {
         return;
