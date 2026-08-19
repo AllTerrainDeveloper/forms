@@ -1,0 +1,84 @@
+<?php
+/**
+ * The Explorer integration: the Forms section, its tiles, its buttons.
+ *
+ * @package AllTerrain_Forms
+ * @group allterrain-forms
+ */
+
+/**
+ * Section registration, capability gating, tile vitals and preview actions.
+ *
+ * @group allterrain-forms
+ */
+class ATF_Test_Openstation_Explorer extends WP_UnitTestCase {
+
+	/**
+	 * The Forms section appears for somebody with a stake in forms.
+	 *
+	 * @covers ::atf_explorer_entities
+	 */
+	public function test_section_is_added_for_editors() {
+		atf_add_capabilities();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$entities = atf_explorer_entities( array() );
+
+		$this->assertCount( 1, $entities );
+		$this->assertSame( 'atf-forms', $entities[0]['id'] );
+		$this->assertSame( 'wp/v2/atf-forms', $entities[0]['restPath'] );
+		$this->assertFalse( $entities[0]['thumbnails'] );
+	}
+
+	/**
+	 * Somebody with no forms capability gets no section at all.
+	 *
+	 * @covers ::atf_explorer_entities
+	 */
+	public function test_section_is_withheld_without_capability() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$this->assertSame( array(), atf_explorer_entities( array() ) );
+	}
+
+	/**
+	 * Three buttons, each pointing at its own surface and capability.
+	 *
+	 * @covers ::atf_explorer_preview_actions
+	 */
+	public function test_preview_actions_cover_the_surfaces() {
+		$actions = atf_explorer_preview_actions( array() );
+		$by_id   = wp_list_pluck( $actions, 'capability', 'id' );
+
+		$this->assertSame( 'atf_edit_forms', $by_id['allterrain-forms/open-builder'] );
+		$this->assertSame( 'atf_read_entries', $by_id['allterrain-forms/open-entries'] );
+		$this->assertSame( 'atf_read_entries', $by_id['allterrain-forms/open-analytics'] );
+
+		foreach ( $actions as $action ) {
+			$this->assertSame( array( 'atf-forms' ), $action['sections'] );
+			$this->assertSame( 'allterrain-forms-dock', $action['script'] );
+		}
+	}
+
+	/**
+	 * A form's tile excerpt states its vitals, not its absence of prose.
+	 *
+	 * @covers ::atf_explorer_form_excerpt
+	 */
+	public function test_tile_excerpt_is_the_vitals() {
+		atf_add_capabilities();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$form_id = atf_create_form_from_template( 'blank', 'Explorer test' );
+		$post    = get_post( $form_id );
+
+		$response = new WP_REST_Response(
+			array( 'excerpt' => array( 'rendered' => '' ) )
+		);
+
+		$filtered = atf_explorer_form_excerpt( $response, $post );
+
+		$this->assertStringContainsString( 'question', $filtered->data['excerpt']['rendered'] );
+		$this->assertStringContainsString( '0 entries', $filtered->data['excerpt']['rendered'] );
+	}
+}

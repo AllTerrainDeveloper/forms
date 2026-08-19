@@ -294,3 +294,43 @@ function boot(): boolean {
 if ( ! boot() ) {
 	document.addEventListener( 'os-init', () => void boot(), { once: true } );
 }
+
+/**
+ * Wires the Explorer's preview-action buttons to this plugin's windows.
+ *
+ * The PHP side declares the buttons (`includes/openstation-explorer.php`);
+ * the shell filters them through `os.my-wordpress.preview-actions` so each
+ * plugin attaches its own `onSelect`. This runs at module load rather than
+ * behind `boot()`, because `wp.hooks` filters can be added before the shell
+ * reads them — order is the point of a hook.
+ */
+function registerExplorerActions(): void {
+	const hooks = ( window as unknown as { wp?: { hooks?: { addFilter?: ( h: string, ns: string, cb: ( a: unknown[] ) => unknown[] ) => void } } } ).wp?.hooks;
+
+	if ( ! hooks?.addFilter ) {
+		return;
+	}
+
+	const windows: Record< string, string > = {
+		'allterrain-forms/open-builder': BUILDER,
+		'allterrain-forms/open-entries': ENTRIES,
+		'allterrain-forms/open-analytics': ANALYTICS,
+	};
+
+	hooks.addFilter( 'os.my-wordpress.preview-actions', 'allterrain-forms/explorer', ( actions: unknown[] ) =>
+		actions.map( ( action ) => {
+			const id = ( action as { id?: string } ).id ?? '';
+
+			if ( ! windows[ id ] ) {
+				return action;
+			}
+
+			return {
+				...( action as object ),
+				onSelect: () => open( windows[ id ] ),
+			};
+		} )
+	);
+}
+
+registerExplorerActions();

@@ -127,6 +127,32 @@ var allTerrainFormsDock = function(exports) {
   if (!boot()) {
     document.addEventListener("os-init", () => void boot(), { once: true });
   }
+  function registerExplorerActions() {
+    const hooks = window.wp?.hooks;
+    if (!hooks?.addFilter) {
+      return;
+    }
+    const windows = {
+      "allterrain-forms/open-builder": BUILDER,
+      "allterrain-forms/open-entries": ENTRIES,
+      "allterrain-forms/open-analytics": ANALYTICS
+    };
+    hooks.addFilter(
+      "os.my-wordpress.preview-actions",
+      "allterrain-forms/explorer",
+      (actions) => actions.map((action) => {
+        const id = action.id ?? "";
+        if (!windows[id]) {
+          return action;
+        }
+        return {
+          ...action,
+          onSelect: () => open(windows[id])
+        };
+      })
+    );
+  }
+  registerExplorerActions();
   exports.submenuFor = submenuFor;
   Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
   return exports;

@@ -201,6 +201,7 @@ require_once ATF_DIR . 'includes/block.php';
 require_once ATF_DIR . 'includes/assets.php';
 require_once ATF_DIR . 'includes/admin-page.php';
 require_once ATF_DIR . 'includes/openstation.php';
+require_once ATF_DIR . 'includes/openstation-explorer.php';
 require_once ATF_DIR . 'includes/privacy.php';
 
 register_activation_hook( __FILE__, 'atf_activate' );
