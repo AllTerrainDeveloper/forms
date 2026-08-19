@@ -2441,3 +2441,63 @@ os-checkbox-label.atfb-check {
 .os-window__body:has( > .atfa ) {
 	overflow: hidden;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Formula editor                                                              */
+/* -------------------------------------------------------------------------- */
+
+.atfb-formula__row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: stretch;
+}
+
+.atfb-formula {
+	max-inline-size: 560px;
+}
+
+.atfb-formula__input {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 13px;
+	resize: vertical;
+	min-block-size: 64px;
+}
+
+/* The live verdict. Polite because it changes on every keystroke. */
+.atfb-formula__result {
+	margin: 6px 0 2px;
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfb-formula__result.is-error {
+	color: var( --atfb-danger, #d63638 );
+}
+
+.atfb-formula__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.atfb-formula__chip {
+	padding: 4px 10px;
+	font: inherit;
+	font-size: 12px;
+	color: var( --atfb-fg );
+	background: var( --atfb-surface );
+	border: 1px solid var( --atfb-border );
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.atfb-formula__chip:hover {
+	border-color: var( --atfb-accent );
+	color: var( --atfb-accent );
+}
+
+.atfb-formula__chip:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+}

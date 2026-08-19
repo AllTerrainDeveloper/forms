@@ -2383,6 +2383,432 @@ var allTerrainFormsBuilder = function(exports) {
     }
     return "#888888";
   }
+  const FUNCTIONS = {
+    min: -1,
+    max: -1,
+    sum: -1,
+    avg: -1,
+    round: -1,
+    ceil: 1,
+    floor: 1,
+    abs: 1,
+    sqrt: 1,
+    pow: 2
+  };
+  const PRECEDENCE = {
+    "+": { precedence: 1, right: false },
+    "-": { precedence: 1, right: false },
+    "*": { precedence: 2, right: false },
+    "/": { precedence: 2, right: false },
+    "%": { precedence: 2, right: false },
+    "^": { precedence: 4, right: true }
+  };
+  function calculate(formula, values, fields = []) {
+    if (!formula || !formula.trim()) {
+      return null;
+    }
+    if (formula.length > 2e3) {
+      return null;
+    }
+    const resolved = resolveRefs(formula, values, fields);
+    const tokens = tokenize(resolved);
+    if (!tokens) {
+      return null;
+    }
+    const postfix = toPostfix(tokens);
+    if (!postfix) {
+      return null;
+    }
+    const result = evalPostfix(postfix);
+    return result === null || !Number.isFinite(result) ? null : result;
+  }
+  function resolveRefs(formula, values, fields) {
+    return formula.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, fieldId) => {
+      const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
+      const field = fields.find((candidate) => candidate.id === fieldId) ?? null;
+      const literal = numericValue(value, field).toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+      return literal === "" || literal === "-" ? "0" : literal;
+    });
+  }
+  function numericValue(value, field) {
+    if (typeof value === "boolean") {
+      return value ? 1 : 0;
+    }
+    if (Array.isArray(value)) {
+      return value.reduce((total, item) => total + numericValue(item, field), 0);
+    }
+    if (value === null || value === void 0 || value === "") {
+      return 0;
+    }
+    const choices = field?.choices ?? [];
+    for (const choice of choices) {
+      if (String(choice.value) === String(value)) {
+        if (typeof choice.price === "number") {
+          return choice.price;
+        }
+        if (typeof choice.points === "number") {
+          return choice.points;
+        }
+        break;
+      }
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function tokenize(formula) {
+    const tokens = [];
+    let i = 0;
+    while (i < formula.length) {
+      const char = formula[i];
+      if (/\s/.test(char)) {
+        i++;
+        continue;
+      }
+      if (/[0-9.]/.test(char)) {
+        let number = "";
+        while (i < formula.length && /[0-9.]/.test(formula[i])) {
+          number += formula[i];
+          i++;
+        }
+        const parsed = Number(number);
+        if (!Number.isFinite(parsed)) {
+          return null;
+        }
+        tokens.push({ type: "number", value: parsed });
+        continue;
+      }
+      if (/[a-zA-Z_]/.test(char)) {
+        let name = "";
+        while (i < formula.length && /[a-zA-Z0-9_]/.test(formula[i])) {
+          name += formula[i];
+          i++;
+        }
+        name = name.toLowerCase();
+        if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, name)) {
+          return null;
+        }
+        tokens.push({ type: "function", value: name });
+        continue;
+      }
+      if (char === "(" || char === ")") {
+        tokens.push({ type: char, value: char });
+        i++;
+        continue;
+      }
+      if (char === ",") {
+        tokens.push({ type: "comma", value: "," });
+        i++;
+        continue;
+      }
+      if ("+-*/%^".includes(char)) {
+        const previous = tokens[tokens.length - 1];
+        const isUnary = char === "-" && (!previous || previous.type === "operator" || previous.type === "unary" || previous.type === "(" || previous.type === "comma");
+        tokens.push({ type: isUnary ? "unary" : "operator", value: char });
+        i++;
+        continue;
+      }
+      return null;
+    }
+    return tokens;
+  }
+  function precedenceOf(token) {
+    if (token.type === "unary") {
+      return { precedence: 3, right: true };
+    }
+    return PRECEDENCE[token.value] ?? { precedence: 0, right: false };
+  }
+  function toPostfix(tokens) {
+    const output = [];
+    const operators = [];
+    const arity = [];
+    for (const token of tokens) {
+      switch (token.type) {
+        case "number":
+          output.push(token);
+          break;
+        case "function":
+          operators.push(token);
+          arity.push(1);
+          break;
+        case "comma":
+          while (operators.length && operators[operators.length - 1].type !== "(") {
+            output.push(operators.pop());
+          }
+          if (!operators.length) {
+            return null;
+          }
+          if (arity.length) {
+            arity[arity.length - 1]++;
+          }
+          break;
+        case "unary":
+          operators.push(token);
+          break;
+        case "operator": {
+          const info = PRECEDENCE[token.value];
+          while (operators.length) {
+            const top = operators[operators.length - 1];
+            if (top.type !== "operator" && top.type !== "unary") {
+              break;
+            }
+            const topInfo = precedenceOf(top);
+            if (topInfo.precedence > info.precedence || topInfo.precedence === info.precedence && !info.right) {
+              output.push(operators.pop());
+              continue;
+            }
+            break;
+          }
+          operators.push(token);
+          break;
+        }
+        case "(":
+          operators.push(token);
+          break;
+        case ")": {
+          while (operators.length && operators[operators.length - 1].type !== "(") {
+            output.push(operators.pop());
+          }
+          if (!operators.length) {
+            return null;
+          }
+          operators.pop();
+          if (operators.length && operators[operators.length - 1].type === "function") {
+            const fn = operators.pop();
+            fn.arity = arity.length ? arity.pop() : 1;
+            output.push(fn);
+          }
+          break;
+        }
+      }
+    }
+    while (operators.length) {
+      const top = operators.pop();
+      if (top.type === "(") {
+        return null;
+      }
+      output.push(top);
+    }
+    return output;
+  }
+  function evalPostfix(postfix) {
+    const stack = [];
+    for (const token of postfix) {
+      switch (token.type) {
+        case "number":
+          stack.push(token.value);
+          break;
+        case "unary": {
+          if (!stack.length) {
+            return null;
+          }
+          stack.push(-stack.pop());
+          break;
+        }
+        case "operator": {
+          if (stack.length < 2) {
+            return null;
+          }
+          const right = stack.pop();
+          const left = stack.pop();
+          switch (token.value) {
+            case "+":
+              stack.push(left + right);
+              break;
+            case "-":
+              stack.push(left - right);
+              break;
+            case "*":
+              stack.push(left * right);
+              break;
+            case "/":
+              stack.push(right === 0 ? 0 : left / right);
+              break;
+            case "%":
+              stack.push(right === 0 ? 0 : left % right);
+              break;
+            case "^":
+              stack.push(Math.pow(left, right));
+              break;
+            default:
+              return null;
+          }
+          break;
+        }
+        case "function": {
+          const count = token.arity ?? 1;
+          if (stack.length < count) {
+            return null;
+          }
+          const args = [];
+          for (let i = 0; i < count; i++) {
+            args.unshift(stack.pop());
+          }
+          const result = applyFunction(token.value, args);
+          if (result === null) {
+            return null;
+          }
+          stack.push(result);
+          break;
+        }
+        default:
+          return null;
+      }
+    }
+    return stack.length === 1 ? stack[0] : null;
+  }
+  function applyFunction(name, args) {
+    if (!args.length) {
+      return null;
+    }
+    switch (name) {
+      case "min":
+        return Math.min(...args);
+      case "max":
+        return Math.max(...args);
+      case "sum":
+        return args.reduce((total, value) => total + value, 0);
+      case "avg":
+        return args.reduce((total, value) => total + value, 0) / args.length;
+      case "round": {
+        const precision = Math.max(-10, Math.min(10, Math.trunc(args[1] ?? 0)));
+        const factor = Math.pow(10, precision);
+        return Math.round(args[0] * factor) / factor;
+      }
+      case "ceil":
+        return Math.ceil(args[0]);
+      case "floor":
+        return Math.floor(args[0]);
+      case "abs":
+        return Math.abs(args[0]);
+      case "sqrt":
+        return args[0] < 0 ? 0 : Math.sqrt(args[0]);
+      case "pow":
+        return Math.pow(args[0], args[1] ?? 2);
+      default:
+        return null;
+    }
+  }
+  const FORMULA_FUNCTIONS = ["sum", "min", "max", "avg", "round", "ceil", "floor", "abs", "sqrt", "pow"];
+  const NUMERIC_FRIENDLY = [
+    "number",
+    "range",
+    "scale",
+    "rating",
+    "total",
+    "select",
+    "multiselect",
+    "radio",
+    "checkboxes",
+    "switch",
+    "quiz"
+  ];
+  function formulaTargets(fields, except) {
+    return fields.filter((field) => field.id !== except && NUMERIC_FRIENDLY.includes(field.type));
+  }
+  function formulaSampleValues(fields, except) {
+    const values = {};
+    formulaTargets(fields, except).forEach((field, index) => {
+      values[field.id] = index + 1;
+    });
+    return values;
+  }
+  function openFormulaEditor(options) {
+    const overlay = el("div", { class: "atfb-overlay" });
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKeydown);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") {
+        close();
+      }
+    };
+    const input = el("textarea", {
+      class: "atfb-input atfb-formula__input",
+      attrs: { rows: "3", "aria-label": "Formula" }
+    });
+    input.value = String(options.field.formula ?? "");
+    const result = el("p", { class: "atfb-formula__result", attrs: { "aria-live": "polite" } });
+    const samples = formulaSampleValues(options.fields, options.field.id);
+    const preview = () => {
+      const formula = input.value.trim();
+      if ("" === formula) {
+        result.textContent = "Empty. Reference a question below to start.";
+        result.classList.remove("is-error");
+        return;
+      }
+      const computed = calculate(formula, samples, options.fields);
+      if (null === computed) {
+        result.textContent = "This does not compute yet — check the braces and parentheses.";
+        result.classList.add("is-error");
+        return;
+      }
+      const sampled = formulaTargets(options.fields, options.field.id).map((field, index) => `${field.label || field.id} = ${index + 1}`).join(", ");
+      result.textContent = `With sample answers (${sampled}): ${computed}`;
+      result.classList.remove("is-error");
+    };
+    input.addEventListener("input", preview);
+    const chip = (label, insert, caretBack = 0) => el("button", {
+      class: "atfb-formula__chip",
+      type: "button",
+      text: label,
+      on: {
+        click: () => {
+          insertAtCursor(input, insert);
+          if (caretBack > 0) {
+            const caret = (input.selectionStart ?? input.value.length) - caretBack;
+            input.setSelectionRange(caret, caret);
+          }
+        }
+      }
+    });
+    const targets = formulaTargets(options.fields, options.field.id);
+    const questions = el("div", {
+      class: "atfb-formula__chips",
+      children: targets.length ? targets.map((field) => chip(field.label || field.id, `{${field.id}}`)) : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
+    });
+    const functions = el("div", {
+      class: "atfb-formula__chips",
+      children: FORMULA_FUNCTIONS.map((name) => chip(`${name}()`, `${name}()`, 1))
+    });
+    overlay.append(
+      el("div", {
+        class: "atfb-modal atfb-formula",
+        attrs: { role: "dialog", "aria-label": "Formula editor" },
+        children: [
+          el("h2", { text: "Formula" }),
+          input,
+          result,
+          row("Your questions", questions, "Click one to reference its answer."),
+          row("Functions", functions),
+          el("div", {
+            class: "atfb-modal__actions",
+            children: [
+              button("Cancel", close),
+              button(
+                "Save formula",
+                () => {
+                  options.onSave(input.value.trim());
+                  close();
+                },
+                "primary"
+              )
+            ]
+          })
+        ]
+      })
+    );
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        close();
+      }
+    });
+    document.addEventListener("keydown", onKeydown);
+    options.root.append(overlay);
+    preview();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
   function shell() {
     return window.wp?.os ?? null;
   }
@@ -2915,8 +3341,30 @@ var allTerrainFormsBuilder = function(exports) {
           this.inspector.append(
             row(
               "Formula",
-              textInput(String(field.formula ?? ""), (value) => update("formula", value)),
-              "Reference fields with braces: {f1} * {f2} + 10. Functions: min, max, sum, avg, round, ceil, floor, abs, sqrt, pow."
+              el("div", {
+                class: "atfb-formula__row",
+                children: [
+                  textInput(String(field.formula ?? ""), (value) => update("formula", value)),
+                  // The editor is where the formula is meant to be
+                  // written: the questions and the functions are
+                  // buttons there, and the result computes live
+                  // against sample answers. The bare box stays for
+                  // somebody pasting one in.
+                  button(
+                    "Formula editor",
+                    () => openFormulaEditor({
+                      root: this.root,
+                      fields: this.schema?.fields ?? [],
+                      field,
+                      onSave: (formula) => {
+                        update("formula", formula);
+                        this.renderInspector();
+                      }
+                    })
+                  )
+                ]
+              }),
+              "Reference answers with braces — {f1} * {f2} + 10 — or open the editor and click them in."
             ),
             row("Currency symbol", textInput(String(field.currency ?? ""), (value) => update("currency", value)))
           );

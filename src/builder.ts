@@ -47,6 +47,7 @@ import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
+import { openFormulaEditor } from './formula-editor';
 import { openPreview, refreshPreview, registerPreviewButton } from './preview-button';
 import { formIdentity, setIdentity } from './relations';
 
@@ -2618,8 +2619,29 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Formula',
-					textInput( String( field.formula ?? '' ), ( value ) => update( 'formula', value ) ),
-					'Reference fields with braces: {f1} * {f2} + 10. Functions: min, max, sum, avg, round, ceil, floor, abs, sqrt, pow.'
+					el( 'div', {
+						class: 'atfb-formula__row',
+						children: [
+							textInput( String( field.formula ?? '' ), ( value ) => update( 'formula', value ) ),
+							// The editor is where the formula is meant to be
+							// written: the questions and the functions are
+							// buttons there, and the result computes live
+							// against sample answers. The bare box stays for
+							// somebody pasting one in.
+							button( 'Formula editor', () =>
+								openFormulaEditor( {
+									root: this.root,
+									fields: this.schema?.fields ?? [],
+									field,
+									onSave: ( formula ) => {
+										update( 'formula', formula );
+										this.renderInspector();
+									},
+								} )
+							),
+						],
+					} ),
+					'Reference answers with braces — {f1} * {f2} + 10 — or open the editor and click them in.'
 				),
 				row( 'Currency symbol', textInput( String( field.currency ?? '' ), ( value ) => update( 'currency', value ) ) )
 			);

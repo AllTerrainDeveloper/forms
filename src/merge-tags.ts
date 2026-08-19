@@ -151,7 +151,7 @@ if ( typeof document !== 'undefined' ) {
  * cut-and-paste afterwards. The caret lands after the inserted tag so a second
  * insertion continues where the first left off.
  */
-function insertAtCursor( field: HTMLInputElement | HTMLTextAreaElement, text: string ): void {
+export function insertAtCursor( field: HTMLInputElement | HTMLTextAreaElement, text: string ): void {
 	const start = field.selectionStart ?? field.value.length;
 	const end = field.selectionEnd ?? field.value.length;
 
