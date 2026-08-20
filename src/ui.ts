@@ -106,16 +106,39 @@ export function icon( slug: string ): HTMLElement {
 	} );
 }
 
-/** A labelled control row for the inspector. */
+/**
+ * A labelled control row for the inspector.
+ *
+ * A `<label for>` may only point at a form control. When the control passed in
+ * is a wrapper — a flex of input-plus-button, a group of tick boxes — the id
+ * lands on the first real control inside it, and a wrapper holding none gets a
+ * plain heading span instead of a label, because a label bound to a `<div>` is
+ * the thing DevTools rightly flags on every field selection.
+ */
 export function row( label: string, control: HTMLElement, hint?: string ): HTMLElement {
-	const id = control.id || `atf-c-${ Math.random().toString( 36 ).slice( 2, 9 ) }`;
+	const target = control.matches( 'input, select, textarea, button' )
+		? control
+		: control.querySelector< HTMLElement >( 'input, select, textarea' );
 
-	control.id = id;
+	if ( target ) {
+		const id = target.id || `atf-c-${ Math.random().toString( 36 ).slice( 2, 9 ) }`;
+
+		target.id = id;
+
+		return el( 'div', {
+			class: 'atfb-row',
+			children: [
+				el( 'label', { class: 'atfb-row__label', text: label, attrs: { for: id } } ),
+				control,
+				hint ? el( 'p', { class: 'atfb-row__hint', text: hint } ) : null,
+			],
+		} );
+	}
 
 	return el( 'div', {
 		class: 'atfb-row',
 		children: [
-			el( 'label', { class: 'atfb-row__label', text: label, attrs: { for: id } } ),
+			el( 'span', { class: 'atfb-row__label', text: label } ),
 			control,
 			hint ? el( 'p', { class: 'atfb-row__hint', text: hint } ) : null,
 		],
