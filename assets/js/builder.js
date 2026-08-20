@@ -3409,6 +3409,17 @@ var allTerrainFormsBuilder = function(exports) {
       this.palette = root.querySelector("[data-atfb-palette]") ?? el("div");
       this.canvas = root.querySelector("[data-atfb-canvas]") ?? el("div");
       this.inspector = root.querySelector("[data-atfb-inspector]") ?? el("div");
+      this.canvas.addEventListener("click", (event) => {
+        const target = event.target;
+        if (this.tab !== "build" || !this.selected || target.closest("[data-atfb-card], button, os-button, a, input, textarea, select, os-select, label, [contenteditable]")) {
+          return;
+        }
+        this.selected = null;
+        for (const card of this.canvas.querySelectorAll(".atfb-card.is-selected")) {
+          card.classList.remove("is-selected");
+        }
+        this.renderInspector();
+      });
     }
     /** Loads everything and paints. */
     async start() {
