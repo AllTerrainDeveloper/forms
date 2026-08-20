@@ -240,8 +240,10 @@
 	/* One rail's worth of room, so the rail follows the work: the palette
 	   while adding, the inspector the moment a field is selected — otherwise
 	   a narrow window could select a field and have nowhere to edit it. */
+	/* The inspector keeps its own side of the room: canvas left, editor
+	   right, exactly where it lives at full width — only the palette yields. */
 	.atfb--has-selection .atfb__body {
-		grid-template-columns: minmax( 220px, 260px ) 1fr;
+		grid-template-columns: minmax( 0, 1fr ) minmax( 220px, 280px );
 	}
 
 	.atfb--has-selection .atfb__palette {
@@ -250,7 +252,6 @@
 
 	.atfb--has-selection .atfb__inspector {
 		display: block;
-		order: -1;
 	}
 }
 
@@ -267,7 +268,7 @@
 	/* Even here a selected field keeps its editor: the inspector takes the
 	   rail back and the canvas keeps the rest. */
 	.atfb--has-selection .atfb__body {
-		grid-template-columns: minmax( 200px, 240px ) 1fr;
+		grid-template-columns: minmax( 0, 1fr ) minmax( 200px, 240px );
 	}
 }
 

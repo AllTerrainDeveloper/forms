@@ -440,12 +440,23 @@ var allTerrainFormsBuilder = function(exports) {
     });
   }
   function row(label, control2, hint2) {
-    const id = control2.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
-    control2.id = id;
+    const target = control2.matches("input, select, textarea, button") ? control2 : control2.querySelector("input, select, textarea");
+    if (target) {
+      const id = target.id || `atf-c-${Math.random().toString(36).slice(2, 9)}`;
+      target.id = id;
+      return el("div", {
+        class: "atfb-row",
+        children: [
+          el("label", { class: "atfb-row__label", text: label, attrs: { for: id } }),
+          control2,
+          hint2 ? el("p", { class: "atfb-row__hint", text: hint2 }) : null
+        ]
+      });
+    }
     return el("div", {
       class: "atfb-row",
       children: [
-        el("label", { class: "atfb-row__label", text: label, attrs: { for: id } }),
+        el("span", { class: "atfb-row__label", text: label }),
         control2,
         hint2 ? el("p", { class: "atfb-row__hint", text: hint2 }) : null
       ]
