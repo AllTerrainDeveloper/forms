@@ -559,6 +559,31 @@ export class Builder {
 		this.palette = root.querySelector< HTMLElement >( '[data-atfb-palette]' ) ?? el( 'div' );
 		this.canvas = root.querySelector< HTMLElement >( '[data-atfb-canvas]' ) ?? el( 'div' );
 		this.inspector = root.querySelector< HTMLElement >( '[data-atfb-inspector]' ) ?? el( 'div' );
+
+		// Clicking the canvas's empty space puts the selection down. In a
+		// narrow window that is also what folds the inspector away and brings
+		// the palette back — the two rails are mutually exclusive there, and
+		// this is the gesture that swaps them home. Anything interactive, or a
+		// card itself, keeps the click.
+		this.canvas.addEventListener( 'click', ( event ) => {
+			const target = event.target as HTMLElement;
+
+			if (
+				this.tab !== 'build' ||
+				! this.selected ||
+				target.closest( '[data-atfb-card], button, os-button, a, input, textarea, select, os-select, label, [contenteditable]' )
+			) {
+				return;
+			}
+
+			this.selected = null;
+
+			for ( const card of this.canvas.querySelectorAll( '.atfb-card.is-selected' ) ) {
+				card.classList.remove( 'is-selected' );
+			}
+
+			this.renderInspector();
+		} );
 	}
 
 	/** Loads everything and paints. */

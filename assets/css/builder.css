@@ -229,46 +229,56 @@
    than media queries, because the width that matters is the window's, and the
    viewport knows nothing about it. */
 @container ( max-width: 900px ) {
+	/* One rail's worth of room, so the rails become mutually exclusive and
+	   trade places with a fly-over: selecting a field slides the palette out
+	   and the inspector in from its own right side; putting the selection
+	   down (a click on the canvas's empty space) plays it backwards. The
+	   tracks themselves animate — Chromium interpolates grid columns — and
+	   the contents fade rather than squeeze. */
 	.atfb__body {
-		grid-template-columns: 200px 1fr;
+		grid-template-columns: 200px minmax( 0, 1fr ) 0px;
+		transition: grid-template-columns 0.28s ease;
+	}
+
+	.atfb__palette,
+	.atfb__inspector {
+		overflow: hidden;
+		transition: opacity 0.18s ease;
 	}
 
 	.atfb__inspector {
-		display: none;
+		opacity: 0;
+		pointer-events: none;
 	}
 
-	/* One rail's worth of room, so the rail follows the work: the palette
-	   while adding, the inspector the moment a field is selected — otherwise
-	   a narrow window could select a field and have nowhere to edit it. */
-	/* The inspector keeps its own side of the room: canvas left, editor
-	   right, exactly where it lives at full width — only the palette yields. */
 	.atfb--has-selection .atfb__body {
-		grid-template-columns: minmax( 0, 1fr ) minmax( 220px, 280px );
+		grid-template-columns: 0px minmax( 0, 1fr ) 280px;
 	}
 
 	.atfb--has-selection .atfb__palette {
-		display: none;
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.atfb--has-selection .atfb__inspector {
-		display: block;
+		opacity: 1;
+		pointer-events: auto;
 	}
 }
 
 @container ( max-width: 640px ) {
-	.atfb__body,
 	.atfe__body {
 		grid-template-columns: 1fr;
 	}
 
-	.atfb__palette {
-		display: none;
+	/* No room for a resting rail at all: the palette starts folded too, and
+	   the inspector still flies in over selection. */
+	.atfb__body {
+		grid-template-columns: 0px minmax( 0, 1fr ) 0px;
 	}
 
-	/* Even here a selected field keeps its editor: the inspector takes the
-	   rail back and the canvas keeps the rest. */
 	.atfb--has-selection .atfb__body {
-		grid-template-columns: minmax( 0, 1fr ) minmax( 200px, 240px );
+		grid-template-columns: 0px minmax( 0, 1fr ) 240px;
 	}
 }
 
