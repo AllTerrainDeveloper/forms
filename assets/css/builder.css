@@ -1183,13 +1183,29 @@
 	background: var( --atfb-surface );
 }
 
+/* The WYSIWYG's own ground. `--atfb-bg` here resolved the shell's window
+   token, so picking a legacy or dark OpenStation theme re-grounded every
+   preview — a form that will publish onto a light page previewed on whatever
+   the desktop happened to wear. The preview answers to one thing only: the
+   form's own theme. Fixed neutrals, flipped by the dark block further down
+   when the theme marks itself dark, plus the tokens the editing layer (ghost
+   inputs, dashed summaries, remove buttons) draws with, so annotations stay
+   legible on the preview's ground instead of following the shell's.
+   `color-scheme` pins the parts the browser paints itself — scrollbars, date
+   pickers — to the same answer. */
 .atfs-preview__frame,
 .atfb-preview {
+	--atfb-preview-ground: #fff;
+	--atfb-preview-muted: #646970;
+	--atfb-preview-border: #dcdcde;
+	--atfb-preview-border-strong: #c3c4c7;
 	max-inline-size: 640px;
 	margin-inline: auto;
 	padding: 20px;
 	border-radius: var( --atfb-radius );
-	background: var( --atfb-bg );
+	background: var( --atfb-preview-ground );
+	color: var( --atf-text, #1e1e1e );
+	color-scheme: light;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1338,12 +1354,17 @@
 .atfb-preview:has( .atf-is-dark ),
 .atf-block-preview:has( .atf-is-dark ),
 .atfb--dark-form .atfb-preview {
-	background: #101418;
+	--atfb-preview-ground: #101418;
+	--atfb-preview-muted: #a7aaad;
+	--atfb-preview-border: #3c434a;
+	--atfb-preview-border-strong: #5b6570;
+	background: var( --atfb-preview-ground );
 	/* The theme's own text token, not a hardcoded white: forcing #f0f0f1 made
 	   the canvas render choice labels brighter than the real front end does,
 	   and a canvas that flatters the theme is lying about it. The fallback
 	   only speaks when a preview carries no tokens at all. */
 	color: var( --atf-text, #f0f0f1 );
+	color-scheme: dark;
 }
 
 /* The pane around the frame, so the dark preview is not a bright card floating
@@ -2177,29 +2198,20 @@ os-checkbox-label.atfb-check {
  * preview and starts being an impression of one. */
 
 .atfb-preview {
-	/* The theme paints the form's own card; on the canvas the builder's card is
-	   already that surface, so the preview contributes only its contents. */
-	background: none;
+	/* Its own ground, always. `background: none` let the shell's card surface
+	   show through, which was faithful while that surface was white and a lie
+	   under any other OpenStation theme. The ground is the fixed neutral from
+	   the preview-backdrop block; the halo's ring mixes that ground out into
+	   the card's own token — a gradient to the base colour — so the preview
+	   sits on the card rather than through it, light or dark, whatever the
+	   shell wears. */
 	border: 0;
-	box-shadow: none;
-	padding: 0;
-	margin-block-start: 4px;
-}
-
-/* …unless the form's theme is dark. Then the preview has to bring its own
-   ground (painted in the dark-theme block above), and a dark ground flush
-   against a light card reads as a hole punched in it. Breathing room, its own
-   radius, and a halo that fades the ink out into the shell's surface token —
-   a gradient to the base colour, so the theme sits on the card rather than
-   through it. On a dark OpenStation theme the halo blends away, which is the
-   point of mixing against the token instead of a constant. */
-.atfb--dark-form .atfb-preview {
 	padding: 16px 18px;
 	margin: 10px 4px 6px;
 	border-radius: calc( var( --atfb-radius ) - 2px );
 	box-shadow:
-		0 0 0 1px color-mix( in srgb, #101418 45%, var( --atfb-bg ) ),
-		0 0 14px 4px color-mix( in srgb, #05070a 22%, transparent );
+		0 0 0 1px color-mix( in srgb, var( --atfb-preview-ground ) 45%, var( --atfb-bg ) ),
+		0 0 14px 4px color-mix( in srgb, #05070a 16%, transparent );
 }
 
 /* Anything editable in place. Invisible until pointed at, because a canvas of
@@ -2215,7 +2227,7 @@ os-checkbox-label.atfb-check {
 }
 
 .atfb-editable:hover {
-	outline-color: var( --atfb-border-strong );
+	outline-color: var( --atfb-preview-border-strong );
 }
 
 .atfb-editable:focus {
@@ -2284,7 +2296,7 @@ os-checkbox-label.atfb-check {
 	border: 0;
 	border-radius: 4px;
 	background: none;
-	color: var( --atfb-muted );
+	color: var( --atfb-preview-muted );
 	font-size: 15px;
 	line-height: 1;
 	cursor: pointer;
@@ -2388,9 +2400,9 @@ os-checkbox-label.atfb-check {
 .atfb-preview__summary {
 	margin: 0;
 	padding: 8px 10px;
-	border: 1px dashed var( --atfb-border );
+	border: 1px dashed var( --atfb-preview-border );
 	border-radius: 6px;
-	color: var( --atfb-muted );
+	color: var( --atfb-preview-muted );
 	font-size: 11px;
 }
 
