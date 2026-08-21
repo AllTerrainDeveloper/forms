@@ -42,21 +42,31 @@
 	--atfb-border-strong: var( --os-ui-border-strong, #c3c4c7 );
 	--atfb-hover: var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) );
 
-	/* `--os-ui-accent` is the accent, and reading anything else was a mistake.
+	/* The desktop theme's accent first, the control kit's second.
 	 *
-	 * This used to follow `--os-titlebar-bg-focused` on the reasoning that
-	 * `--os-ui-accent` was pinned to the brand's Pulse pink and never changed.
-	 * That is true of the *brand* theme and of nothing else: a desktop theme sets
-	 * `--os-ui-accent` and the whole kit follows it, which is exactly what the
-	 * token is for. Meanwhile a title bar is a *surface* — on a monochrome theme
-	 * it is `#1a1721`, so every accent in this window resolved to near-black:
-	 * unfilled buttons, an active tab that looked inactive, and condition chips
-	 * that were invisible on their own background.
+	 * Two accent tokens exist in the shell and they can disagree. `--os-accent`
+	 * is the one a desktop theme *declares* — the voice of the chrome this
+	 * window wears (Legacy declares WordPress blue). `--os-ui-accent` is the
+	 * control kit's accent, and the shell writes the user's accent preference
+	 * over it as an inline style — a value that sits at the brand's Pulse pink
+	 * until the person actually picks one. Reading only `--os-ui-accent`
+	 * painted this window pink inside blue chrome: two brands in one window.
 	 *
-	 * A surface token can never stand in for an accent token. The fallback chain
-	 * ends at wp-admin blue, for the plain admin page where there is no shell. */
-	--atfb-accent: var( --os-ui-accent, #2271b1 );
-	--atfb-accent-strong: var( --os-ui-accent-strong, var( --os-ui-accent, #135e96 ) );
+	 * Theme first, kit second: with a theme worn, the window stays on the
+	 * theme's palette next to the theme's own title bar; with no theme worn,
+	 * both names resolve to the same brand accent and nothing changes. (An
+	 * even earlier revision read `--os-titlebar-bg-focused` here — a *surface*
+	 * token, near-black on monochrome themes; `--os-accent` is an accent by
+	 * contract, so a theme whose accent is near-black means it.) The chain
+	 * ends at wp-admin blue, for the plain admin page where there is no
+	 * shell. */
+	--atfb-accent: var( --os-accent, var( --os-ui-accent, #2271b1 ) );
+
+	/* One step darker, for hovers and pressed states — derived from the accent
+	   itself so the pair can never disagree the way two independently themed
+	   tokens can. Flat fallback first, for browsers without `color-mix()`. */
+	--atfb-accent-strong: var( --os-ui-accent-strong, #135e96 );
+	--atfb-accent-strong: color-mix( in srgb, var( --atfb-accent ) 82%, #000 );
 
 	/* Ink that sits *on* the accent. Not a hardcoded white: an accent light
 	   enough to need dark text exists, and white on it is unreadable. */
@@ -85,13 +95,29 @@
 	--atfb-warning: var( --os-ui-warning-fg, #dba617 );
 	--atfb-success: var( --os-ui-success-fg, #1a7f37 );
 
-	/* The shell's focus rings, so focus looks the same in this window as in the
-	   rest of the desktop. `focus-ring-field` is the quieter one, and a form of
-	   twelve inputs should not look alarmed. */
-	--atfb-focus: var( --os-ui-focus-ring, 0 0 0 2px var( --atfb-accent ) );
-	--atfb-focus-field: var( --os-ui-focus-ring-field, 0 0 0 1px var( --atfb-accent ) );
+	/* Focus rings built from the accent above rather than read from the shell's
+	   ring tokens: those follow the control kit's accent, and a pink ring
+	   around a blue control reads as an error, not an outline. The field ring
+	   mirrors the shell's own shape — a hairline plus a soft wash — and is the
+	   quieter of the two, because a form of twelve inputs should not look
+	   alarmed. Flat fallbacks first, for browsers without `color-mix()`. */
+	--atfb-focus: 0 0 0 2px var( --atfb-accent );
+	--atfb-focus-field: 0 0 0 1px var( --atfb-accent );
+	--atfb-focus-field: 0 0 0 1px var( --atfb-accent ),
+		0 0 0 4px color-mix( in srgb, var( --atfb-accent ) 16%, transparent );
 
-	--atfb-radius: 8px;
+	/* Rounding from the shell's own scale: cards, tiles and panels wear the
+	   theme's card radius, controls the theme's button radius — so a corner
+	   here matches the corner of every other window on the desktop. The
+	   fallbacks are the old fixed values, for the plain admin page. */
+	--atfb-radius: var( --os-ui-card-radius, 8px );
+	--atfb-radius-ctl: var( --os-ui-btn-radius, 6px );
+
+	/* The card hairline. The shell draws its cards with a translucent border
+	   rather than the flat admin grey, which is what lets a card sit on any
+	   surface a theme paints without carrying a halo of the wrong colour. */
+	--atfb-card-border: var( --os-ui-card-border, var( --os-ui-border, #dcdcde ) );
+
 	--atfb-gap: 12px;
 
 	display: flex;
@@ -108,6 +134,36 @@
 .atfe *,
 .atfs * {
 	box-sizing: border-box;
+}
+
+/* The shell components these windows embed — <os-button>, <os-select>,
+   <os-segmented>, the checkbox helper — paint their filled and "on" states
+   from the kit's own `--os-ui-accent`, which tracks the user's accent
+   preference rather than the worn theme (see the note on `--atfb-accent`).
+   Re-point the kit tokens at this window's accent so a primary button here
+   is the same colour as the tab strip beside it, not the same colour as a
+   switch in OS Settings.
+
+   Scoped to the roots' *children* rather than declared on the roots
+   themselves, and that is load-bearing: `--atfb-accent` reads
+   `--os-ui-accent` in its fallback chain, so declaring `--os-ui-accent`
+   from `--atfb-accent` on the same element is a dependency cycle, and CSS
+   resolves a cycle by invalidating every property in it. On a child, the
+   inherited `--atfb-accent` is already a substituted value, so there is no
+   edge back. Custom properties inherit from there into every descendant
+   and shadow root. */
+.atfb > *,
+.atfe > *,
+.atfs > *,
+.atfa > * {
+	--os-ui-accent: var( --atfb-accent );
+	--wp-admin-theme-color: var( --atfb-accent );
+	--os-ui-accent-strong: var( --atfb-accent-strong );
+	--os-ui-accent-dim: var( --atfb-accent-strong );
+	--os-ui-accent-soft: var( --atfb-accent-soft );
+	--os-ui-fg-on-accent: var( --atfb-accent-ink );
+	--os-ui-focus-ring: var( --atfb-focus );
+	--os-ui-focus-ring-field: var( --atfb-focus-field );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,7 +207,7 @@
 	background: transparent;
 	color: inherit;
 	padding: 5px 8px;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	min-inline-size: 12ch;
 	flex: 1 1 auto;
 }
@@ -180,7 +236,7 @@
 	background: transparent;
 	color: var( --atfb-muted );
 	padding: 6px 12px;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	cursor: pointer;
 	font: inherit;
 }
@@ -348,8 +404,8 @@
 	gap: 8px;
 	inline-size: 100%;
 	padding: 7px 9px;
-	border: 1px solid var( --atfb-border );
-	border-radius: 6px;
+	border: 1px solid var( --atfb-card-border );
+	border-radius: var( --atfb-radius-ctl );
 	background: var( --atfb-bg );
 	color: inherit;
 	font: inherit;
@@ -402,7 +458,7 @@
 .atfb-shortcode {
 	margin: 0 0 14px;
 	padding: 6px 10px;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	background: var( --atfb-surface );
 	border: 1px solid var( --atfb-border );
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -431,15 +487,20 @@
 	align-items: center;
 	gap: 10px;
 	padding: 10px 12px;
-	border: 1px solid var( --atfb-border );
+	border: 1px solid var( --atfb-card-border );
 	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
 	cursor: grab;
 	touch-action: none;
+	transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .atfb-card:hover {
 	border-color: var( --atfb-accent );
+
+	/* The shell's own card lift, so a card rising under the pointer here rises
+	   exactly as far as a card anywhere else on the desktop. */
+	box-shadow: var( --os-ui-card-shadow-hover, 0 4px 16px rgba( 0, 0, 0, 0.08 ) );
 }
 
 .atfb-card.is-selected {
@@ -613,7 +674,7 @@
 	inline-size: 100%;
 	padding: 6px 8px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	/* `--os-ui-modal-field-bg` is a *modal* token — the palette re-points it
 	   inside `<os-modal>` only, so outside one it fell through to a hardcoded
 	   white and every input in the builder was a bright rectangle on a dark
@@ -682,7 +743,7 @@
 	padding: 8px;
 	background: var( --atfb-well );
 	border: 1px solid var( --atfb-border );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 }
 
 /* The question line carries the card's remove button, so the card needs no
@@ -751,7 +812,7 @@
 	inline-size: 44px;
 	block-size: 44px;
 	border: 2px dashed var( --atfb-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	color: var( --atfb-muted );
 	cursor: pointer;
 	transition: border-color 120ms ease, background 120ms ease;
@@ -790,7 +851,7 @@
 	gap: 6px;
 	padding: 6px 12px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	background: var( --atfb-bg );
 	color: var( --atfb-fg );
 	font: inherit;
@@ -1073,7 +1134,7 @@
 	align-items: center;
 	gap: 6px;
 	padding: 8px 12px;
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
 	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.3 );
 	pointer-events: none;
@@ -1122,7 +1183,7 @@
 
 .atfe__quiz {
 	padding: 8px 12px;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	background: var( --atfb-accent-soft );
 }
 
@@ -1147,7 +1208,7 @@
 	justify-items: center;
 	padding: 10px 6px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
 	color: inherit;
 	cursor: pointer;
@@ -1216,7 +1277,7 @@
 	block-size: 30px;
 	padding: 0;
 	border: 1px solid var( --atfb-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	background: none;
 	cursor: pointer;
 }
@@ -1350,7 +1411,7 @@
 	min-block-size: 520px;
 	margin-block-start: 12px;
 	border: 1px solid var( --atfb-border, #dcdcde );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	overflow: hidden;
 	background: #fff;
 	container-type: inline-size;
@@ -1443,7 +1504,7 @@
 	margin-block-start: 16px;
 	padding: 24px;
 	border: 1px solid var( --os-ui-border, #dcdcde );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --os-ui-surface, #fff );
 }
 
@@ -1575,7 +1636,7 @@
 	justify-items: center;
 	padding: 7px 6px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
 	color: inherit;
 	cursor: pointer;
@@ -1640,13 +1701,13 @@
 	gap: 2px;
 	padding: 2px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
 }
 
 .atfs-segment {
 	border: 0;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	padding: 6px 4px;
 	background: transparent;
 	color: var( --atfb-muted );
@@ -1835,7 +1896,7 @@
 	text-align: start;
 	padding: 6px 8px;
 	border: 0;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	background: none;
 	color: inherit;
 	font: inherit;
@@ -2051,14 +2112,14 @@ input.atfb-cond__value:focus {
 
 .atfb-cond:has( os-select ) input.atfb-cond__value {
 	padding: 7px 10px;
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	font-size: 12px;
 }
 
 .atfb-cond:has( os-select ) .atfb-cond__chip {
 	padding: 3px 8px;
 	font-size: 12px;
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 }
 
 .atfb-cond__join {
@@ -2581,7 +2642,7 @@ os-checkbox-label.atfb-check {
 	margin: 0;
 	padding: 8px 10px;
 	border: 1px dashed var( --atfb-preview-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	color: var( --atfb-preview-muted );
 	font-size: 11px;
 }
@@ -2872,7 +2933,7 @@ os-checkbox-label.atfb-check {
 	margin-block: 14px;
 	padding: 10px 12px;
 	border: 1px solid var( --atfb-border );
-	border-radius: 8px;
+	border-radius: var( --atfb-radius );
 	background: var( --atfb-well );
 }
 

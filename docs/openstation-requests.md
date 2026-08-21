@@ -366,13 +366,23 @@ So this does not read as a list of other people's problems:
   inner control as a documented getter. Any component wrapping a text input that
   another plugin wants to insert into needs this — templating fields, code
   editors, anything with an autocomplete.
-- Read `--os-ui-accent` for the accent. We had been reading
-  `--os-titlebar-bg-focused` on the mistaken belief that `--os-ui-accent` was
-  pinned to the brand pink — true of the brand theme and of nothing else. On a
-  monochrome theme a title bar is `#1a1721`, so every accent in our builder
-  resolved to near-black: unfilled buttons, an active tab that looked inactive,
-  invisible chips. **A surface token cannot stand in for an accent token**, and
-  that was our error, not the shell's.
+- Read `--os-accent` first, `--os-ui-accent` second, for the accent. We had
+  been reading `--os-titlebar-bg-focused` on the mistaken belief that
+  `--os-ui-accent` was pinned to the brand pink — true of the brand theme and
+  of nothing else. On a monochrome theme a title bar is `#1a1721`, so every
+  accent in our builder resolved to near-black: unfilled buttons, an active tab
+  that looked inactive, invisible chips. **A surface token cannot stand in for
+  an accent token**, and that was our error, not the shell's.
+
+  The second lesson took longer: `--os-ui-accent` alone was not right either,
+  because the shell writes the user's accent *preference* over it as an inline
+  style — a value that sits at the brand's Pulse pink until the person actually
+  picks one. Under a worn theme that declares a different accent (Legacy
+  declares WordPress blue), reading only the kit token painted our windows pink
+  inside blue chrome. `--os-accent` is the accent the *theme* declares, so our
+  windows now read theme first, kit second — and re-point the kit tokens for
+  the `os-*` components they embed, so a primary button inside our window
+  matches the window rather than a switch in OS Settings.
 - Read the documented palette names for status colours rather than the
   component-local `badge-*` ones.
 - Use `surface-sunken` for rails and `surface-elevated` for bars, instead of
