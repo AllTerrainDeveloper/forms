@@ -397,8 +397,22 @@ function openAsChildWindow( manager: ShellWindowManager, parentId: string, optio
 		autofocus: '.atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea',
 		render: ( body ) => {
 			const host = el( 'div', { class: 'atfa atfb-valwin atfb-valwin--window' } );
+			const scroll = el( 'div', { class: 'atfb-valwin__scroll' } );
 
-			buildEditor( host, options, state, close, 'window' );
+			host.append( scroll );
+			buildEditor( scroll, options, state, close, 'window' );
+
+			// The action bar is chrome, not content. Out of the scroller and
+			// into the host's flex column, it sits on the window's bottom
+			// edge at every size — and stops counting toward the scroll
+			// height, so a window tall enough to show everything scrolls by
+			// exactly nothing.
+			const actions = scroll.querySelector( '.atfb-modal__actions' );
+
+			if ( actions ) {
+				host.append( actions );
+			}
+
 			body.append( host );
 		},
 		// Fires however the window closes — Save, Cancel, the title-bar X,

@@ -2696,32 +2696,39 @@ os-checkbox-label.atfb-check {
 	   button somewhere nobody could reach. Absolute against the body's
 	   `position: relative` is exact at every window size.
 
-	   No bottom padding: the sticky action bar below owns the bottom edge,
-	   and padding under it would be 14px the bar could never cover. */
+	   A flex column of exactly two things — the scroll region and the action
+	   bar — rather than one scroller with a sticky bar inside it. Sticky kept
+	   the bar in the scroll math, which produced both of its failure modes: a
+	   window a few pixels shorter than the content scrolled by those few
+	   pixels with nothing meaningful hidden, and a window taller than the
+	   content left the bar floating at the end of the text instead of on the
+	   window's edge. As a flex footer the bar is chrome: always on the bottom
+	   edge, never part of what scrolls. */
 	position: absolute;
 	inset: 0;
+	display: flex;
+	flex-direction: column;
 	inline-size: auto;
 	max-block-size: none;
 	block-size: auto;
-	padding: 14px 16px 0;
-	overflow-y: auto;
-	display: block;
+	padding: 0;
+	overflow: hidden;
 }
 
-/* Save and Cancel ride the bottom of the scrollport rather than the bottom of
-   the content: in a window the person sizes themselves, "scroll to find Save"
-   is a chore the chrome can simply remove. Stretched across the host's padding
-   and given a top border + opaque background so content sliding under it reads
-   as under it.
+/* The scrollable half. `min-block-size: 0` is what lets a flex child actually
+   shrink below its content and scroll, instead of stretching its parent. */
+.atfb-valwin__scroll {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	overflow-y: auto;
+	padding: 14px 16px;
+}
 
-   `inset-block-end: 0`, exactly — a negative offset here parks part of the bar
-   past the scrollport edge, where the window body's `overflow: hidden` cuts
-   it in half. */
+/* The fixed half: Save and Cancel on the window's bottom edge, top border and
+   opaque background so content scrolling beneath reads as beneath. */
 .atfb-valwin--window .atfb-modal__actions {
-	position: sticky;
-	inset-block-end: 0;
-	margin-inline: -16px;
-	margin-block-start: 12px;
+	flex: 0 0 auto;
+	margin: 0;
 	padding: 10px 16px;
 	background: var( --atfb-bg );
 	border-block-start: 1px solid var( --atfb-border );
