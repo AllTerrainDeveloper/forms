@@ -1904,22 +1904,29 @@ button.atfb-cond__join:focus-visible {
 
 button.atfb-cond__verb:focus-visible,
 button.atfb-cond__join:focus-visible,
-select.atfb-cond__op:focus-visible,
+.atfb-cond__control:focus-visible,
 .atfb-cond__value:focus-visible {
 	outline: 2px solid var( --atfb-accent );
 	outline-offset: 1px;
 	border-radius: 3px;
 }
 
-.atfb-cond__op {
-	font-style: italic;
-	opacity: 0.9;
+/* The dropdowns in the row — the comparison and, for a choice question, the
+   answer. Under the shell this is the shell's own <os-select>, the same
+   control the inspector uses, so nothing on the card reads as a foreign
+   widget. The host shrink-wraps its trigger; the cap stops a long operator
+   from eating the row. */
+.atfb-cond__control {
+	flex: 0 1 auto;
+	max-inline-size: 22ch;
+	min-inline-size: 0;
 }
 
-/* The operator as a borderless select: reads as the words it shows until
-   pointed at, then admits it is a control. The browser's own chrome is turned
-   off so the row keeps reading as a sentence. */
-select.atfb-cond__op {
+/* The fallback for the plain admin page, where the shell's components do not
+   exist: a compact native select, sized to the sentence it sits in.
+   `min-block-size: 0` matters — wp-admin gives every select a 30px floor,
+   which is what left the old control towering over its own row. */
+select.atfb-cond__control--native {
 	appearance: none;
 	-webkit-appearance: none;
 	border: 1px solid transparent;
@@ -1933,10 +1940,11 @@ select.atfb-cond__op {
 	line-height: 1.5;
 	color: inherit;
 	cursor: pointer;
-	max-inline-size: 16ch;
+	min-block-size: 0;
+	block-size: auto;
 }
 
-select.atfb-cond__op:hover {
+select.atfb-cond__control--native:hover {
 	border-color: var( --atfb-border );
 	background: var( --atfb-surface );
 }
@@ -1944,12 +1952,6 @@ select.atfb-cond__op:hover {
 /* The answer as an editable chip. Same outline as the read-only chip it
    replaced, so nothing about the card's look changes until it is touched. */
 input.atfb-cond__value {
-	min-inline-size: 3ch;
-	field-sizing: content;
-}
-
-input.atfb-cond__value,
-select.atfb-cond__value {
 	appearance: none;
 	-webkit-appearance: none;
 	margin: 0;
@@ -1963,19 +1965,37 @@ select.atfb-cond__value {
 	line-height: 1.5;
 	color: var( --atfb-fg );
 	max-inline-size: 24ch;
+	min-inline-size: 3ch;
+	field-sizing: content;
 	cursor: text;
 	min-block-size: 0;
 	block-size: auto;
 }
 
-select.atfb-cond__value {
-	cursor: pointer;
+input.atfb-cond__value:hover,
+input.atfb-cond__value:focus {
+	border-color: var( --atfb-accent );
 }
 
-input.atfb-cond__value:hover,
-input.atfb-cond__value:focus,
-select.atfb-cond__value:hover {
-	border-color: var( --atfb-accent );
+/* When the shell's selects are in the row, every neighbour rises to their
+   scale — the input matches the trigger's height and radius, the chips grow a
+   step — and `align-items: center` on the row keeps the sentence reading as
+   one centered line rather than as parts stacked on different baselines. */
+.atfb-cond:has( os-select ) {
+	gap: 6px;
+	row-gap: 4px;
+}
+
+.atfb-cond:has( os-select ) input.atfb-cond__value {
+	padding: 7px 10px;
+	border-radius: 8px;
+	font-size: 12px;
+}
+
+.atfb-cond:has( os-select ) .atfb-cond__chip {
+	padding: 3px 8px;
+	font-size: 12px;
+	border-radius: 6px;
 }
 
 .atfb-cond__join {
@@ -2669,12 +2689,35 @@ os-checkbox-label.atfb-check {
    size the person drags it to. `.atfa` on the same element brings the token
    palette a child window's body does not inherit from the builder's root. */
 .atfb-valwin--window {
+	/* Pinned to the body's box rather than sized 100%: the body is a flex
+	   item with `overflow: hidden` and no explicit height, so a percentage
+	   here can resolve against nothing — the content then grows past the
+	   window and the body clips it with no scrollbar, which put the Save
+	   button somewhere nobody could reach. Absolute against the body's
+	   `position: relative` is exact at every window size. */
+	position: absolute;
+	inset: 0;
 	inline-size: auto;
 	max-block-size: none;
-	block-size: 100%;
+	block-size: auto;
 	padding: 14px 16px;
 	overflow-y: auto;
 	display: block;
+}
+
+/* Save and Cancel ride the bottom of the scrollport rather than the bottom of
+   the content: in a window the person sizes themselves, "scroll to find Save"
+   is a chore the chrome can simply remove. Stretched across the host's padding
+   and given a top border + opaque background so content sliding under it reads
+   as under it. */
+.atfb-valwin--window .atfb-modal__actions {
+	position: sticky;
+	inset-block-end: -14px;
+	margin-inline: -16px;
+	margin-block-end: -14px;
+	padding: 10px 16px;
+	background: var( --atfb-bg );
+	border-block-start: 1px solid var( --atfb-border );
 }
 
 .atfb-valwin__tabs {
