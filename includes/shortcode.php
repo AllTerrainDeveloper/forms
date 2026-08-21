@@ -65,6 +65,9 @@ function atf_shortcode( $atts ) {
 			$args['message'] = isset( $confirmation['message'] ) && '' !== $confirmation['message']
 				? $confirmation['message']
 				: __( 'Thank you. Your submission has been received.', 'allterrain-forms' );
+			$args['success'] = isset( $confirmation['success'] ) && is_array( $confirmation['success'] )
+				? $confirmation['success']
+				: array();
 		} else {
 			$args['errors'] = $result['errors'];
 			$args['values'] = atf_rehydrate_values( $form_id, $stashed['request'] );

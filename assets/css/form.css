@@ -694,22 +694,32 @@
 	);
 }
 
-/* Every star up to and including the checked one lights up. `:has()` reads
-   forwards, which is the direction this needs and the reason it cannot be done
-   with a sibling combinator alone. */
+/* The fill, twice over: once for the checked state, once for the hover
+   preview. Each is "light everything, then unlight what comes after" —
+   `:has()` reads forwards for the first half, a sibling combinator for the
+   second. All four rules weigh the same (0,4,0), so source order is the
+   arbitration: hover, declared last, wins while a star is under the pointer.
+
+   Two traps this shape avoids. The unlight half must start *after the checked
+   star's own label* (`:checked + label ~ label`) — the label follows its
+   input, so the shorter `:checked ~ label` unlights the star that was just
+   clicked and shows a three as a two. And the hover half must key on a *star*
+   being hovered, not the row: `.atf-rating__stars:hover` is true in the gaps
+   between stars and stays true after a click, which lit all five whatever was
+   chosen. */
 .atf-rating__stars:has( .atf-rating__input:checked ) .atf-rating__star {
 	background: var( --atf-accent );
 }
 
-.atf-rating__input:checked ~ .atf-rating__star {
+.atf-rating__input:checked + .atf-rating__star ~ .atf-rating__star {
 	background: var( --atf-border );
 }
 
-.atf-rating__stars:hover .atf-rating__star {
+.atf-rating__stars:has( .atf-rating__star:hover ) .atf-rating__star {
 	background: var( --atf-accent );
 }
 
-.atf-rating__star:hover ~ .atf-rating__star {
+.atf-rating__stars .atf-rating__star:hover ~ .atf-rating__star {
 	background: var( --atf-border );
 }
 
@@ -988,8 +998,13 @@
 
 /* Breathing room the button was missing: it sits under the row cards, not
    glued to them, and never stretches to the form's full width — themes whose
-   `--atf-button-width` is 100% mean the submit button, not this one. */
-.atf-repeater__add {
+   `--atf-button-width` is 100% mean the submit button, not this one.
+
+   Two class names, not one: the `:where( button )` reset further down weighs
+   (0,1,0) and zeroes every button margin, and it appears later in the file —
+   so at equal weight this rule loses on source order and the button ends up
+   glued to the last row card after all. */
+.atf-repeater .atf-repeater__add {
 	margin-block-start: 18px;
 	inline-size: auto;
 }
@@ -1130,6 +1145,24 @@
 .atf-button--ghost:hover:not( :disabled ) {
 	background: var( --atf-accent-soft );
 	box-shadow: none;
+}
+
+/* The label's colour, re-asserted for every interactive state.
+ *
+ * The `:where( button )` reset above covers the *base* state, but a site
+ * theme's `button:hover { color: #fff }` weighs (0,1,1) and outranks any
+ * single-class rule of ours — which painted the ghost "Add another" label
+ * white onto its own pale accent-soft hover, unreadable. Scoping under
+ * `.atf-form` lifts these to (0,2,0)+, the same shield the control rules use,
+ * and `:is()` covers focus and active where themes routinely colour those
+ * too. */
+.atf-form .atf-button:is( :hover, :focus, :active ):not( :disabled ) {
+	color: var( --atf-button-text );
+}
+
+.atf-form .atf-button--secondary:is( :hover, :focus, :active ):not( :disabled ),
+.atf-form .atf-button--ghost:is( :hover, :focus, :active ):not( :disabled ) {
+	color: var( --atf-text );
 }
 
 .atf-button__spinner {
@@ -1274,6 +1307,15 @@
 	padding-inline-start: 1.2em;
 }
 
+/* A repeater's failing boxes, indented under the repeater's own line so the
+   list reads as one question with its problem rows, not three unrelated
+   problems. */
+.atf-errors .atf-errors__sub {
+	margin-block: 4px 6px;
+	padding-inline-start: 1.4em;
+	list-style: circle;
+}
+
 .atf-errors a {
 	color: var( --atf-error );
 }
@@ -1284,16 +1326,32 @@
 	color: var( --atf-error );
 }
 
-.atf-field.has-error .atf-input,
-.atf-field.has-error .atf-file__input {
+/* `:not(--repeater)` because a repeater's wrapper going into error must not
+   bleed red into every control in every row — its rows mark their own failing
+   boxes, each a little `.atf-field` of its own that these rules then cover. */
+.atf-field.has-error:not( .atf-field--repeater ) .atf-input,
+.atf-field.has-error:not( .atf-field--repeater ) .atf-file__input {
 	border-color: var( --atf-error );
 }
 
 /* An invalid field's own ring beats the shared focus ring, so a field in error
    focuses in red rather than in the accent colour. */
-.atf-field.has-error .atf-input:focus {
+.atf-field.has-error:not( .atf-field--repeater ) .atf-input:focus {
 	outline-color: var( --atf-error );
 	box-shadow: none;
+}
+
+/* A repeater in error keeps the red where it belongs: a ring around the whole
+   container, the failing row's card border, and the failing control — never
+   every box in every row. The ring is a shadow, not a border, so nothing
+   shifts when it appears. */
+.atf-field--repeater.has-error .atf-repeater__rows {
+	box-shadow: 0 0 0 2px var( --atf-error );
+	border-radius: var( --atf-radius-field );
+}
+
+.atf-repeater__row.has-error {
+	border-color: var( --atf-error );
 }
 
 .atf-notice {
@@ -1328,6 +1386,310 @@
 .atf-confirmation:focus-visible {
 	outline: var( --atf-focus-ring-width ) solid var( --atf-focus-ring-color );
 	outline-offset: var( --atf-focus-ring-offset );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Success screens                                                             */
+/* -------------------------------------------------------------------------- */
+
+/* The styled screens replace the confirmation's quiet left-edge treatment
+   with their own composition; `plain` keeps the block above untouched. */
+.atf-success {
+	position: relative;
+	overflow: hidden;
+	padding: 36px 28px;
+	border-inline-start: 0;
+	text-align: center;
+}
+
+.atf-success__inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	max-inline-size: 46ch;
+	margin-inline: auto;
+}
+
+.atf-success__icon {
+	font-size: 44px;
+	line-height: 1;
+}
+
+.atf-success__title {
+	margin: 0;
+	font-family: var( --atf-font-family-heading );
+	font-size: var( --atf-size-heading );
+	font-weight: var( --atf-weight-heading );
+	color: var( --atf-heading );
+}
+
+.atf-success__message {
+	color: var( --atf-text );
+}
+
+.atf-success__message > :first-child {
+	margin-block-start: 0;
+}
+
+.atf-success__message > :last-child {
+	margin-block-end: 0;
+}
+
+.atf-success .atf-success__again {
+	margin-block-start: 10px;
+	inline-size: auto;
+}
+
+/* Simple: everything drifts gently up into place. */
+.atf-success--simple .atf-success__inner {
+	animation: atf-success-rise 0.5s ease-out both;
+}
+
+.atf-success--simple .atf-success__icon {
+	display: grid;
+	place-items: center;
+	inline-size: 64px;
+	block-size: 64px;
+	border-radius: 50%;
+	font-size: 30px;
+	color: var( --atf-accent-text );
+	background: var( --atf-accent );
+	animation: atf-success-pop 0.55s cubic-bezier( 0.34, 1.56, 0.64, 1 ) 0.15s both;
+}
+
+/* Minimalistic: quiet type, generous space, one slow fade. */
+.atf-success--minimal {
+	padding: 72px 28px;
+	background: var( --atf-bg );
+}
+
+.atf-success--minimal .atf-success__inner {
+	gap: 18px;
+	animation: atf-success-fade 1.1s ease-out both;
+}
+
+.atf-success--minimal .atf-success__title {
+	font-weight: 400;
+	letter-spacing: 0.04em;
+}
+
+.atf-success--minimal .atf-success__message {
+	color: var( --atf-text-muted );
+}
+
+.atf-success--minimal .atf-success__icon {
+	font-size: 22px;
+	color: var( --atf-text-muted );
+}
+
+/* Card: an elevated panel with an accent crown that pops into place. */
+.atf-success--card {
+	background: var( --atf-surface );
+	box-shadow: var( --atf-shadow-card );
+	border-block-start: 5px solid var( --atf-accent );
+	animation: atf-success-pop 0.5s cubic-bezier( 0.34, 1.56, 0.64, 1 ) both;
+}
+
+.atf-success--card .atf-success__icon {
+	display: grid;
+	place-items: center;
+	inline-size: 72px;
+	block-size: 72px;
+	border-radius: 50%;
+	font-size: 34px;
+	background: var( --atf-accent-soft );
+	animation: atf-success-pop 0.6s cubic-bezier( 0.34, 1.56, 0.64, 1 ) 0.2s both;
+}
+
+/* Check mark: the ring and the tick draw themselves, then the words follow. */
+.atf-success__check {
+	inline-size: 84px;
+	block-size: 84px;
+	stroke: var( --atf-success );
+	stroke-width: 3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.atf-success__check-ring {
+	stroke-dasharray: 151;
+	stroke-dashoffset: 151;
+	animation: atf-success-draw 0.7s ease-out forwards;
+}
+
+.atf-success__check-mark {
+	stroke-dasharray: 36;
+	stroke-dashoffset: 36;
+	animation: atf-success-draw 0.4s ease-out 0.65s forwards;
+}
+
+.atf-success--check .atf-success__title,
+.atf-success--check .atf-success__message,
+.atf-success--check .atf-success__again {
+	animation: atf-success-rise 0.5s ease-out 0.9s both;
+}
+
+/* Confetti and sparkles share the celebratory entrance; the particles are the
+   bundle's work, drawn on a page-level canvas or floated as spans. */
+.atf-success--confetti .atf-success__inner,
+.atf-success--sparkles .atf-success__inner {
+	animation: atf-success-pop 0.55s cubic-bezier( 0.34, 1.56, 0.64, 1 ) both;
+}
+
+.atf-success--confetti .atf-success__icon,
+.atf-success--sparkles .atf-success__icon {
+	animation: atf-success-pop 0.6s cubic-bezier( 0.34, 1.56, 0.64, 1 ) 0.2s both;
+}
+
+/* Fireworks: a dark stage whatever the theme, so the show reads. */
+.atf-success--fireworks {
+	background: #10141f;
+	color: #e2e8f0;
+	padding: 48px 28px;
+}
+
+.atf-success--fireworks .atf-success__title {
+	color: #f8fafc;
+	text-shadow: 0 0 18px rgba( 120, 170, 255, 0.45 );
+}
+
+.atf-success--fireworks .atf-success__message {
+	color: #cbd5e1;
+}
+
+.atf-success--fireworks .atf-success__inner {
+	animation: atf-success-glow 1.4s ease-out both;
+}
+
+.atf-success--fireworks .atf-success__again {
+	color: #e2e8f0;
+	border-color: #475569;
+	background: transparent;
+}
+
+/* Typewriter: monospace with a blinking caret while the bundle types. */
+.atf-success--typewriter {
+	text-align: start;
+}
+
+.atf-success--typewriter .atf-success__inner {
+	align-items: flex-start;
+}
+
+.atf-success--typewriter .atf-success__message {
+	font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	min-block-size: 1.5em;
+}
+
+.atf-success--typewriter .atf-success__message.is-typing::after {
+	content: '▋';
+	margin-inline-start: 2px;
+	animation: atf-success-caret 0.8s step-end infinite;
+}
+
+/* The celebration canvas covers the page, catches nothing, and is removed by
+   the bundle the moment the last particle dies. Not scoped to `.atf-form` on
+   purpose — confetti falling over the whole page is the effect. */
+.atf-success-canvas {
+	position: fixed;
+	inset: 0;
+	inline-size: 100vw;
+	block-size: 100vh;
+	pointer-events: none;
+	z-index: 99999;
+}
+
+/* One floating particle, spawned by the sparkles effect. */
+.atf-success__spark {
+	position: absolute;
+	inset-block-end: -28px;
+	animation: atf-success-float 3s ease-out both;
+	pointer-events: none;
+}
+
+@keyframes atf-success-rise {
+	from {
+		opacity: 0;
+		transform: translateY( 14px );
+	}
+
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes atf-success-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes atf-success-pop {
+	from {
+		opacity: 0;
+		transform: scale( 0.55 );
+	}
+
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+}
+
+@keyframes atf-success-draw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+
+@keyframes atf-success-glow {
+	from {
+		opacity: 0;
+		filter: brightness( 2.2 );
+	}
+
+	to {
+		opacity: 1;
+		filter: none;
+	}
+}
+
+@keyframes atf-success-caret {
+	50% {
+		opacity: 0;
+	}
+}
+
+@keyframes atf-success-float {
+	from {
+		opacity: 0;
+		transform: translateY( 0 ) rotate( -8deg );
+	}
+
+	12% {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
+		transform: translateY( -420px ) rotate( 10deg );
+	}
+}
+
+/* The visitor asked for calm; every entrance settles instantly and the bundle
+   skips its particle systems entirely. */
+@media ( prefers-reduced-motion: reduce ) {
+	.atf-success *,
+	.atf-success {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0s !important;
+	}
 }
 
 /* -------------------------------------------------------------------------- */

@@ -81,6 +81,14 @@ function atf_default_schema() {
 				'retention' => 0,
 				'anonymise' => false,
 			),
+			'analytics'      => array(
+				// Both aggregate-only: counters, never a per-visitor row. `tech`
+				// is the device / browser / OS tally, kept behind its own switch
+				// so a site can keep conversion numbers while declining even
+				// coarse technology profiling.
+				'enabled' => true,
+				'tech'    => true,
+			),
 			'resume'         => array(
 				'enabled' => false,
 				'days'    => 30,
@@ -693,6 +701,9 @@ function atf_normalize_settings( $raw, $defaults ) {
 	$settings['storage']['ip']        = ! empty( $settings['storage']['ip'] );
 	$settings['storage']['userAgent'] = ! empty( $settings['storage']['userAgent'] );
 	$settings['storage']['anonymise'] = ! empty( $settings['storage']['anonymise'] );
+
+	$settings['analytics']['enabled'] = ! empty( $settings['analytics']['enabled'] );
+	$settings['analytics']['tech']    = ! empty( $settings['analytics']['tech'] );
 	$settings['storage']['retention'] = max( 0, (int) $settings['storage']['retention'] );
 
 	$settings['limit']['total']   = max( 0, (int) $settings['limit']['total'] );
@@ -784,11 +795,51 @@ function atf_normalize_confirmations( $raw ) {
 			'url'     => isset( $confirmation['url'] ) ? sanitize_text_field( (string) $confirmation['url'] ) : '',
 			'pageId'  => isset( $confirmation['pageId'] ) ? absint( $confirmation['pageId'] ) : 0,
 			'query'   => isset( $confirmation['query'] ) ? sanitize_text_field( (string) $confirmation['query'] ) : '',
+			'success' => atf_normalize_success_screen( isset( $confirmation['success'] ) ? $confirmation['success'] : array() ),
 			'logic'   => atf_normalize_logic( isset( $confirmation['logic'] ) ? $confirmation['logic'] : array() ),
 		);
 	}
 
 	return $confirmations;
+}
+
+/**
+ * Normalises a confirmation's success screen.
+ *
+ * The screen is what a message confirmation *looks like*: a style from
+ * `atf_success_styles()` plus the handful of knobs every style shares. An
+ * unknown style falls back to `simple` rather than erroring, so a form saved
+ * by a newer version still shows something sensible on an older one.
+ *
+ * @since 0.2.0
+ *
+ * @param mixed $raw Raw success screen config.
+ * @return array
+ */
+function atf_normalize_success_screen( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		$raw = array();
+	}
+
+	$style     = isset( $raw['style'] ) ? sanitize_key( $raw['style'] ) : 'simple';
+	$intensity = isset( $raw['intensity'] ) ? sanitize_key( $raw['intensity'] ) : 'medium';
+	$accent    = isset( $raw['accent'] ) ? sanitize_hex_color( (string) $raw['accent'] ) : '';
+
+	// The icon is a glyph, not markup: an emoji or two, never HTML. Length is
+	// capped in characters rather than bytes because a single emoji with skin
+	// tone and ZWJ sequences can run long in bytes while still being one glyph.
+	$icon = isset( $raw['icon'] ) ? sanitize_text_field( (string) $raw['icon'] ) : '';
+	$icon = function_exists( 'mb_substr' ) ? mb_substr( $icon, 0, 8 ) : substr( $icon, 0, 8 );
+
+	return array(
+		'style'       => array_key_exists( $style, atf_success_styles() ) ? $style : 'simple',
+		'title'       => isset( $raw['title'] ) ? sanitize_text_field( (string) $raw['title'] ) : '',
+		'icon'        => $icon,
+		'accent'      => is_string( $accent ) ? $accent : '',
+		'intensity'   => in_array( $intensity, array( 'low', 'medium', 'high' ), true ) ? $intensity : 'medium',
+		'showButton'  => ! empty( $raw['showButton'] ),
+		'buttonLabel' => isset( $raw['buttonLabel'] ) ? sanitize_text_field( (string) $raw['buttonLabel'] ) : '',
+	);
 }
 
 /**

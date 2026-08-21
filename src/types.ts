@@ -89,6 +89,31 @@ export interface Notification {
 	logic: Logic;
 }
 
+/** The style keys the success screen renderer knows. */
+export type SuccessStyle =
+	| 'plain'
+	| 'simple'
+	| 'minimal'
+	| 'card'
+	| 'check'
+	| 'confetti'
+	| 'fireworks'
+	| 'sparkles'
+	| 'typewriter';
+
+/** How a message confirmation looks and behaves once the form succeeds. */
+export interface SuccessScreen {
+	style: SuccessStyle;
+	title: string;
+	/** An emoji glyph; empty means the style's own default. */
+	icon: string;
+	/** A hex accent colour; empty means the theme's accent. */
+	accent: string;
+	intensity: 'low' | 'medium' | 'high';
+	showButton: boolean;
+	buttonLabel: string;
+}
+
 export interface Confirmation {
 	id: string;
 	enabled: boolean;
@@ -98,6 +123,7 @@ export interface Confirmation {
 	url: string;
 	pageId: number;
 	query: string;
+	success: SuccessScreen;
 	logic: Logic;
 }
 
@@ -136,6 +162,7 @@ export interface FormSettings {
 		retention: number;
 		anonymise: boolean;
 	};
+	analytics: { enabled: boolean; tech: boolean };
 	resume: { enabled: boolean; days: number };
 	quiz: { enabled: boolean; passMark: number; showScore: boolean };
 }
@@ -295,6 +322,7 @@ export interface SubmissionResult {
 		type?: 'message' | 'redirect' | 'page';
 		message?: string;
 		url?: string;
+		success?: SuccessScreen;
 	};
 	preview?: boolean;
 }
@@ -482,6 +510,25 @@ export interface Breakdown {
 	} >;
 }
 
+/** One class in a technology tally: a browser, a device kind, an OS. */
+export interface TechRow {
+	id: string;
+	label: string;
+	views: number;
+	submissions: number;
+	/** Percent of the facet's total, 0-100. */
+	share: number;
+	/** Percent conversion for this class, or null when no views were tallied. */
+	conversion: number | null;
+}
+
+/** The aggregate device / browser / OS tallies. */
+export interface TechReport {
+	device: TechRow[];
+	browser: TechRow[];
+	os: TechRow[];
+}
+
 /** A form's whole report. */
 export interface AnalyticsReport {
 	views: number;
@@ -496,6 +543,7 @@ export interface AnalyticsReport {
 	timeline: Array< { date: string; count: number } >;
 	dimensions: Array< { id: string; label: string } >;
 	breakdown: Breakdown | null;
+	tech: TechReport | null;
 }
 
 /** What demo data exists right now. */

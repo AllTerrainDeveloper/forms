@@ -235,6 +235,18 @@ function atf_register_meta() {
 		)
 	);
 
+	register_post_meta(
+		ATF_FORM_TYPE,
+		ATF_META_TECH,
+		array(
+			'type'          => 'string',
+			'single'        => true,
+			'default'       => '',
+			'show_in_rest'  => false,
+			'auth_callback' => $forms_editable,
+		)
+	);
+
 	foreach ( array( ATF_META_VALUES, ATF_META_CONTEXT, ATF_META_RESUME ) as $key ) {
 		register_post_meta(
 			ATF_ENTRY_TYPE,

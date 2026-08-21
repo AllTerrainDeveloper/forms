@@ -1010,15 +1010,29 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 	$out .= '</div>';
 	$out .= '<div class="atf-repeater__row-grid">';
 
+	$row_has_error = false;
+
 	foreach ( $sub_fields as $sub ) {
+		// The row's own errors, for the no-JavaScript re-render. Keyed by the
+		// position among the rows the sanitiser kept, which for a re-render is
+		// exactly the rows being drawn.
+		$sub_error = '';
+
+		if ( is_numeric( $index ) && ! empty( $context['errors'] ) ) {
+			$sub_key   = $field['id'] . '.' . $index . '.' . $sub['id'];
+			$sub_error = isset( $context['errors'][ $sub_key ] ) ? (string) $context['errors'][ $sub_key ] : '';
+		}
+
+		$row_has_error = $row_has_error || '' !== $sub_error;
+
 		$sub_id      = $context['id'] . '-' . $index . '-' . $sub['id'];
 		$sub_context = array(
 			'id'          => $sub_id,
 			'instance'    => $context['instance'],
 			'schema'      => $context['schema'],
 			'values'      => array(),
-			'error'       => '',
-			'describedby' => '',
+			'error'       => $sub_error,
+			'describedby' => '' !== $sub_error ? $sub_id . '-error' : '',
 		);
 
 		// The sub-field is rendered through the ordinary control renderer and
@@ -1044,14 +1058,30 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 			$control
 		);
 
+		// Each sub-field is a little field of its own: it carries its error
+		// node and its `has-error` class itself, so a failing answer is marked
+		// on the box that failed rather than on the whole card.
 		$out .= sprintf(
-			'<div class="atf-field atf-field--%s atf-repeater__field">%s</div>',
+			'<div class="atf-field atf-field--%1$s atf-repeater__field%2$s" data-atf-sub="%3$s">%4$s<p class="atf-error" id="%5$s-error"%6$s>%7$s</p></div>',
 			esc_attr( $sub['width'] ),
-			$control
+			'' !== $sub_error ? ' has-error' : '',
+			esc_attr( $sub['id'] ),
+			$control,
+			esc_attr( $sub_id ),
+			'' === $sub_error ? ' hidden' : '',
+			esc_html( $sub_error )
 		);
 	}
 
-	return $out . '</div></div>';
+	$out .= '</div></div>';
+
+	// The failing row's card wears the error border; painted here for the
+	// no-JavaScript render, and toggled live by the bundle everywhere else.
+	if ( $row_has_error ) {
+		$out = str_replace( 'class="atf-repeater__row"', 'class="atf-repeater__row has-error"', $out );
+	}
+
+	return $out;
 }
 
 /**

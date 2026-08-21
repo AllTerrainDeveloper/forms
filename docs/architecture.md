@@ -16,6 +16,7 @@ Nothing lives in a bespoke table.
 | Theme | post type `atf_theme` | tokens in `_atf_tokens` |
 | Entry status | real post statuses | `atf-unread`, `atf-read`, `atf-spam`, `atf-partial` |
 | Uploads | attachments, `post_parent` = the entry | `_atf_upload` |
+| Analytics counters | form meta | views/starts/submissions in `_atf_stats`; aggregate device / browser / OS tallies in `_atf_tech` — coarse classes and counts only, never a user-agent string or a per-visitor row |
 
 ### Why posts
 
@@ -338,7 +339,7 @@ includes/
   confirmations.php           what happens next
   actions.php                 post, user, webhook
   entries.php                 query, export, retention
-  analytics.php               counters, rates, timeline, NPS, cross-tabs
+  analytics.php               counters, rates, timeline, NPS, cross-tabs, device/browser tallies
   dev-mode.php                the developer-mode gate
   demo-data.php               the survey and the people who answered it
   templates.php               the template library
@@ -349,6 +350,7 @@ includes/
   privacy.php                 exporter, eraser, policy text
 src/
   form.ts                     the front-end bundle
+  success.ts                  the success screens and their celebrations
   builder.ts                  palette, canvas, inspector
   theme-studio.ts             the token editor
   entries.ts                  the submissions window

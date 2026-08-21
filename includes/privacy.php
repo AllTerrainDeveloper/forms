@@ -239,7 +239,8 @@ function atf_register_privacy_policy_text() {
 
 	$content = '<p>' . __( 'When you fill in a form on this site, we store the answers you give, along with the date and time you submitted them and — unless we have switched it off — the IP address you submitted from and your browser\'s user-agent string.', 'allterrain-forms' ) . '</p>'
 		. '<p>' . __( 'Files you upload through a form are stored in a protected directory that is not reachable by URL, and are only accessible to site administrators.', 'allterrain-forms' ) . '</p>'
-		. '<p>' . __( 'Submissions are kept until they are deleted, unless a retention period has been set on the form, in which case they are deleted automatically once that period has passed. You can ask for a copy of everything we hold about you, or ask us to delete it, and both requests are handled through this site\'s privacy tools.', 'allterrain-forms' ) . '</p>';
+		. '<p>' . __( 'Submissions are kept until they are deleted, unless a retention period has been set on the form, in which case they are deleted automatically once that period has passed. You can ask for a copy of everything we hold about you, or ask us to delete it, and both requests are handled through this site\'s privacy tools.', 'allterrain-forms' ) . '</p>'
+		. '<p>' . __( 'For form statistics we keep aggregate counters only: how many times a form was viewed, started and submitted, and — unless it has been switched off — a running tally of coarse device type (phone, tablet or desktop), browser family and operating system. These tallies contain no identifier, no IP address and no user-agent string, and cannot be traced back to any individual visit.', 'allterrain-forms' ) . '</p>';
 
 	wp_add_privacy_policy_content( 'AllTerrain Forms', wp_kses_post( wpautop( $content, false ) ) );
 }

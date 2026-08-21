@@ -386,6 +386,363 @@ var allTerrainFormsFront = function(exports) {
     }
     return next;
   }
+  const SUCCESS_STYLE_ICONS = {
+    plain: "",
+    simple: "✓",
+    minimal: "",
+    card: "🎉",
+    check: "",
+    confetti: "🎉",
+    fireworks: "🎆",
+    sparkles: "✨",
+    typewriter: ""
+  };
+  function defaultSuccessScreen() {
+    return {
+      style: "simple",
+      title: "",
+      icon: "",
+      accent: "",
+      intensity: "medium",
+      showButton: false,
+      buttonLabel: ""
+    };
+  }
+  function normalizeSuccessScreen(raw) {
+    const success = { ...defaultSuccessScreen(), ...raw ?? {} };
+    if (!(success.style in SUCCESS_STYLE_ICONS)) {
+      success.style = "simple";
+    }
+    return success;
+  }
+  function reducedMotion() {
+    return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+  function renderSuccessScreen(message, raw, onAgain) {
+    const success = normalizeSuccessScreen(raw);
+    const root = document.createElement("div");
+    root.className = `atf-confirmation atf-success atf-success--${success.style}`;
+    root.setAttribute("role", "status");
+    root.setAttribute("tabindex", "-1");
+    if (success.style === "plain") {
+      root.className = "atf-confirmation";
+      root.innerHTML = message;
+      return root;
+    }
+    if (success.accent) {
+      root.style.setProperty("--atf-accent", success.accent);
+    }
+    const inner = document.createElement("div");
+    inner.className = "atf-success__inner";
+    root.append(inner);
+    const icon = success.icon || SUCCESS_STYLE_ICONS[success.style];
+    if (success.style === "check") {
+      inner.insertAdjacentHTML(
+        "beforeend",
+        '<svg class="atf-success__check" viewBox="0 0 52 52" aria-hidden="true"><circle class="atf-success__check-ring" cx="26" cy="26" r="24" fill="none" /><path class="atf-success__check-mark" fill="none" d="M14 27l8 8 16-17" /></svg>'
+      );
+    } else if (icon) {
+      const glyph = document.createElement("span");
+      glyph.className = "atf-success__icon";
+      glyph.setAttribute("aria-hidden", "true");
+      glyph.textContent = icon;
+      inner.append(glyph);
+    }
+    if (success.title) {
+      const title = document.createElement("h2");
+      title.className = "atf-success__title";
+      title.textContent = success.title;
+      inner.append(title);
+    }
+    const body = document.createElement("div");
+    body.className = "atf-success__message";
+    body.innerHTML = message;
+    inner.append(body);
+    if (success.style === "typewriter") {
+      root.setAttribute("aria-label", body.textContent ?? "");
+    }
+    if (success.showButton) {
+      const again = document.createElement("button");
+      again.type = "button";
+      again.className = "atf-button atf-button--ghost atf-success__again";
+      again.textContent = success.buttonLabel || "Fill it in again";
+      again.addEventListener("click", () => window.location.reload());
+      inner.append(again);
+    }
+    return root;
+  }
+  function playSuccessEffects(root, raw) {
+    const success = normalizeSuccessScreen(raw);
+    if (reducedMotion()) {
+      return () => {
+      };
+    }
+    switch (success.style) {
+      case "confetti":
+        return confetti(root, success);
+      case "fireworks":
+        return fireworks(success);
+      case "sparkles":
+        return sparkles(root, success);
+      case "typewriter":
+        return typewriter(root);
+      default:
+        return () => {
+        };
+    }
+  }
+  function scale(success) {
+    return { low: 0.5, medium: 1, high: 1.8 }[success.intensity];
+  }
+  function makeCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.className = "atf-success-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    document.body.append(canvas);
+    const ctx = canvas.getContext("2d");
+    ctx?.scale(dpr, dpr);
+    return { canvas, ctx, stop: () => canvas.remove() };
+  }
+  const CONFETTI_COLORS = ["#f43f5e", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#eab308"];
+  function confetti(root, success) {
+    const { ctx, stop } = makeCanvas();
+    if (!ctx) {
+      stop();
+      return () => {
+      };
+    }
+    const colors = success.accent ? [success.accent, ...CONFETTI_COLORS] : CONFETTI_COLORS;
+    const pieces = [];
+    const rect = root.getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = Math.min(rect.top + 40, window.innerHeight - 20);
+    const make = (x, y, burst) => {
+      const angle = burst ? Math.PI * (1.15 + 0.7 * Math.random()) : 0;
+      const speed = burst ? 9 + Math.random() * 8 : 0;
+      return {
+        x,
+        y,
+        vx: burst ? Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1) : (Math.random() - 0.5) * 1.5,
+        vy: burst ? Math.sin(angle) * speed : 1 + Math.random() * 2,
+        w: 6 + Math.random() * 5,
+        h: 8 + Math.random() * 7,
+        angle: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        wobble: Math.random() * Math.PI * 2
+      };
+    };
+    const burstCount = Math.round(90 * scale(success));
+    for (let i = 0; i < burstCount; i++) {
+      pieces.push(make(originX, originY, true));
+    }
+    const rainCount = Math.round(70 * scale(success));
+    let rained = 0;
+    const rain = window.setInterval(() => {
+      if (rained >= rainCount) {
+        window.clearInterval(rain);
+        return;
+      }
+      pieces.push(make(Math.random() * window.innerWidth, -20, false));
+      rained++;
+    }, 2e3 / rainCount);
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now) => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      let alive = false;
+      for (const piece of pieces) {
+        piece.vy += 0.16;
+        piece.vx *= 0.99;
+        piece.vy *= 0.985;
+        piece.wobble += 0.1;
+        piece.x += piece.vx + Math.sin(piece.wobble) * 0.8;
+        piece.y += piece.vy;
+        piece.angle += piece.spin;
+        if (piece.y < window.innerHeight + 30) {
+          alive = true;
+        }
+        ctx.save();
+        ctx.translate(piece.x, piece.y);
+        ctx.rotate(piece.angle);
+        ctx.scale(1, 0.4 + 0.6 * Math.abs(Math.cos(piece.wobble)));
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(-piece.w / 2, -piece.h / 2, piece.w, piece.h);
+        ctx.restore();
+      }
+      if (alive && now - started < 7e3) {
+        frame = window.requestAnimationFrame(tick);
+      } else {
+        stop();
+      }
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      window.clearInterval(rain);
+      window.cancelAnimationFrame(frame);
+      stop();
+    };
+  }
+  function fireworks(success) {
+    const { ctx, stop } = makeCanvas();
+    if (!ctx) {
+      stop();
+      return () => {
+      };
+    }
+    const rockets = [];
+    const sparks = [];
+    const total = Math.round(6 * scale(success)) + 2;
+    let launched = 0;
+    const launch = () => {
+      rockets.push({
+        x: window.innerWidth * (0.15 + 0.7 * Math.random()),
+        y: window.innerHeight,
+        vy: -(9 + Math.random() * 4),
+        targetY: window.innerHeight * (0.15 + 0.3 * Math.random()),
+        hue: Math.floor(Math.random() * 360)
+      });
+      launched++;
+    };
+    launch();
+    const launcher = window.setInterval(() => {
+      if (launched >= total) {
+        window.clearInterval(launcher);
+        return;
+      }
+      launch();
+    }, 3500 / total);
+    const explode = (rocket) => {
+      const count = Math.round(70 * scale(success));
+      for (let i = 0; i < count; i++) {
+        const angle = Math.PI * 2 * i / count + Math.random() * 0.1;
+        const speed = 2 + Math.random() * 4.5;
+        sparks.push({
+          x: rocket.x,
+          y: rocket.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          decay: 0.012 + Math.random() * 0.014,
+          hue: rocket.hue + Math.floor(Math.random() * 40) - 20
+        });
+      }
+    };
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now) => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const rocket = rockets[i];
+        rocket.y += rocket.vy;
+        rocket.vy += 0.08;
+        ctx.fillStyle = `hsl(${rocket.hue} 90% 65%)`;
+        ctx.fillRect(rocket.x - 1.5, rocket.y, 3, 10);
+        if (rocket.y <= rocket.targetY || rocket.vy >= -1) {
+          explode(rocket);
+          rockets.splice(i, 1);
+        }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const spark = sparks[i];
+        spark.x += spark.vx;
+        spark.y += spark.vy;
+        spark.vy += 0.045;
+        spark.vx *= 0.985;
+        spark.vy *= 0.985;
+        spark.life -= spark.decay;
+        if (spark.life <= 0) {
+          sparks.splice(i, 1);
+          continue;
+        }
+        const flicker = spark.life * (0.7 + 0.3 * Math.random());
+        ctx.globalAlpha = Math.max(0, flicker);
+        ctx.fillStyle = `hsl(${spark.hue} 95% ${55 + 25 * spark.life}%)`;
+        ctx.beginPath();
+        ctx.arc(spark.x, spark.y, 1.1 + 1.6 * spark.life, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const done = launched >= total && rockets.length === 0 && sparks.length === 0;
+      if (!done && now - started < 9e3) {
+        frame = window.requestAnimationFrame(tick);
+      } else {
+        stop();
+      }
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      window.clearInterval(launcher);
+      window.cancelAnimationFrame(frame);
+      stop();
+    };
+  }
+  function sparkles(root, success) {
+    const glyph = success.icon || SUCCESS_STYLE_ICONS.sparkles;
+    const count = Math.round(22 * scale(success));
+    const spawned = [];
+    let made = 0;
+    const spawn = () => {
+      const spark = document.createElement("span");
+      spark.className = "atf-success__spark";
+      spark.setAttribute("aria-hidden", "true");
+      spark.textContent = glyph;
+      spark.style.insetInlineStart = `${4 + Math.random() * 92}%`;
+      spark.style.animationDuration = `${2.6 + Math.random() * 1.8}s`;
+      spark.style.animationDelay = `${Math.random() * 0.3}s`;
+      spark.style.fontSize = `${14 + Math.random() * 14}px`;
+      spark.addEventListener("animationend", () => spark.remove());
+      root.append(spark);
+      spawned.push(spark);
+      made++;
+    };
+    spawn();
+    const spawner = window.setInterval(() => {
+      if (made >= count) {
+        window.clearInterval(spawner);
+        return;
+      }
+      spawn();
+    }, 2800 / count);
+    return () => {
+      window.clearInterval(spawner);
+      spawned.forEach((spark) => spark.remove());
+    };
+  }
+  function typewriter(root) {
+    const body = root.querySelector(".atf-success__message");
+    if (!body) {
+      return () => {
+      };
+    }
+    const html = body.innerHTML;
+    const text = body.textContent ?? "";
+    if (!text) {
+      return () => {
+      };
+    }
+    body.textContent = "";
+    body.classList.add("is-typing");
+    const step = Math.min(45, 3800 / text.length);
+    let at = 0;
+    const typer = window.setInterval(() => {
+      at++;
+      body.textContent = text.slice(0, at);
+      if (at >= text.length) {
+        window.clearInterval(typer);
+        body.classList.remove("is-typing");
+        body.innerHTML = html;
+      }
+    }, step);
+    return () => {
+      window.clearInterval(typer);
+      body.classList.remove("is-typing");
+      body.innerHTML = html;
+    };
+  }
   function conditionsMet(logic, values) {
     if (!logic?.enabled || !logic.rules?.length) {
       return true;
@@ -1027,10 +1384,52 @@ var allTerrainFormsFront = function(exports) {
       if (!field) {
         return true;
       }
+      if ("repeater" === field.type) {
+        return this.validateRepeater(element, field);
+      }
       const value = this.readField(field);
       const error = this.checkField(field, value);
       this.setFieldError(element, error);
       return error === "";
+    }
+    /**
+     * Validates a repeater the way the server does: control by control.
+     *
+     * Each failing box is marked itself, its row's card wears the error
+     * border, and the repeater's own error node carries the "Attendee 2: …"
+     * summary — the same message the server would send. A row where every box
+     * is empty is skipped entirely, mirroring the sanitiser dropping it; only
+     * a row somebody has started owes its required answers.
+     */
+    validateRepeater(element, field) {
+      const subs = field.fields ?? [];
+      const rows = this.readField(field);
+      const values = Array.isArray(rows) ? rows : [];
+      const rowElements = Array.from(element.querySelectorAll("[data-atf-repeater-row]"));
+      const itemLabel = element.querySelector("[data-atf-repeater]")?.dataset.atfItemLabel || "";
+      let summary = "";
+      rowElements.forEach((rowElement, index) => {
+        const row = values[index] ?? {};
+        const empty = subs.every((sub) => isEmptyValue(row[sub.id] ?? ""));
+        let rowBad = false;
+        for (const sub of subs) {
+          const wrapper = rowElement.querySelector(`[data-atf-sub="${sub.id}"]`);
+          if (!wrapper) {
+            continue;
+          }
+          const error = empty ? "" : this.checkField(sub, row[sub.id] ?? "");
+          this.setFieldError(wrapper, error);
+          if (error !== "") {
+            rowBad = true;
+            if (summary === "") {
+              summary = `${itemLabel} ${index + 1}: ${error}`;
+            }
+          }
+        }
+        rowElement.classList.toggle("has-error", rowBad);
+      });
+      this.setFieldError(element, summary);
+      return summary === "";
     }
     /**
      * The client's copy of the validation rules.
@@ -1098,11 +1497,14 @@ var allTerrainFormsFront = function(exports) {
     }
     /** Paints or clears one field's error. */
     setFieldError(element, message) {
-      const error = element.querySelector(".atf-error");
+      const error = element.querySelector(":scope > .atf-error") ?? element.querySelector(".atf-error");
       element.classList.toggle("has-error", message !== "");
       if (error) {
         error.textContent = message;
         error.hidden = message === "";
+      }
+      if ("repeater" === element.dataset.atfType) {
+        return;
       }
       element.querySelectorAll("input, select, textarea").forEach((input) => {
         if (message === "") {
@@ -1111,6 +1513,38 @@ var allTerrainFormsFront = function(exports) {
           input.setAttribute("aria-invalid", "true");
         }
       });
+    }
+    /**
+     * Resolves a server error key like `rep.0.age` to that control's wrapper.
+     *
+     * The server numbers rows after the sanitiser drops the all-empty ones, so
+     * its row 0 is the first row somebody actually filled in — the DOM rows
+     * are filtered the same way before indexing. The matched row's card is
+     * marked on the way through.
+     */
+    repeaterSubElement(key) {
+      const parts = key.split(".");
+      if (parts.length !== 3) {
+        return null;
+      }
+      const [repId, rowIndex, subId] = parts;
+      const element = this.fieldElement(repId);
+      const field = this.schema.fields.find((candidate) => candidate.id === repId);
+      if (!element || !field || "repeater" !== field.type) {
+        return null;
+      }
+      const subs = field.fields ?? [];
+      const rows = this.readField(field);
+      const values = Array.isArray(rows) ? rows : [];
+      const kept = Array.from(element.querySelectorAll("[data-atf-repeater-row]")).filter(
+        (row, index) => row && !subs.every((sub) => isEmptyValue(values[index]?.[sub.id] ?? ""))
+      );
+      const rowElement = kept[Number(rowIndex)];
+      const wrapper = rowElement?.querySelector(`[data-atf-sub="${subId}"]`) ?? null;
+      if (wrapper && rowElement) {
+        rowElement.classList.add("has-error");
+      }
+      return wrapper;
     }
     /** Moves focus to a field's first control. */
     focusField(element) {
@@ -1190,7 +1624,7 @@ var allTerrainFormsFront = function(exports) {
       let firstBad = null;
       let firstPage = 0;
       for (const [fieldId, message] of Object.entries(result.errors ?? {})) {
-        const element = this.fieldElement(fieldId);
+        const element = this.fieldElement(fieldId) ?? this.repeaterSubElement(fieldId);
         if (!element) {
           continue;
         }
@@ -1213,16 +1647,33 @@ var allTerrainFormsFront = function(exports) {
       if (!this.errorSummary) {
         return;
       }
-      const bad = Array.from(this.form.querySelectorAll(".atf-field.has-error"));
+      const bad = Array.from(this.form.querySelectorAll(".atf-field.has-error")).filter(
+        (element) => !element.closest("[data-atf-repeater]")
+      );
       if (!bad.length && !message) {
         this.errorSummary.hidden = true;
         return;
       }
-      const items = bad.map((element) => {
+      const line = (element, prefix = "") => {
         const label = this.labelTextOf(element);
-        const text = element.querySelector(".atf-error")?.textContent?.trim() ?? "";
+        const text = (element.querySelector(":scope > .atf-error") ?? element.querySelector(".atf-error"))?.textContent?.trim() ?? "";
         const id = element.querySelector("input, select, textarea")?.id ?? "";
-        return `<li><a href="#${id}">${escapeHtml(label ? `${label}: ${text}` : text)}</a></li>`;
+        return `<li><a href="#${id}">${escapeHtml(prefix + (label ? `${label}: ${text}` : text))}</a></li>`;
+      };
+      const items = bad.map((element) => {
+        const failing = Array.from(
+          element.querySelectorAll(".atf-repeater__field.has-error")
+        );
+        if (failing.length) {
+          const label = this.labelTextOf(element);
+          const id = failing[0].querySelector("input, select, textarea")?.id ?? "";
+          const nested = failing.map((sub) => {
+            const row = sub.closest("[data-atf-repeater-row]")?.querySelector("[data-atf-repeater-title]")?.textContent?.trim();
+            return line(sub, row ? `${row} — ` : "");
+          }).join("");
+          return `<li><a href="#${id}">${escapeHtml(label)}</a><ul class="atf-errors__sub">${nested}</ul></li>`;
+        }
+        return line(element);
       }).join("");
       this.errorSummary.innerHTML = `<p class="atf-errors__title">${escapeHtml(
         message || i18n("errorsFound", "There are problems to fix.")
@@ -1266,12 +1717,9 @@ var allTerrainFormsFront = function(exports) {
       if (!wrapper) {
         return;
       }
-      const panel = document.createElement("div");
-      panel.className = "atf-confirmation";
-      panel.setAttribute("role", "status");
-      panel.setAttribute("tabindex", "-1");
-      panel.innerHTML = confirmation.message ?? "";
+      const panel = renderSuccessScreen(confirmation.message ?? "", confirmation.success);
       this.form.replaceWith(panel);
+      playSuccessEffects(panel, confirmation.success);
       panel.focus();
       panel.scrollIntoView({ behavior: "smooth", block: "center" });
       document.dispatchEvent(

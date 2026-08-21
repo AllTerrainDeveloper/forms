@@ -75,6 +75,214 @@ function atf_bump_stat( $form_id, $key, $by = 1 ) {
 }
 
 /**
+ * Whether a form has an analytics switch turned on.
+ *
+ * @since 0.2.0
+ *
+ * @param int    $form_id The form.
+ * @param string $key     'enabled' or 'tech'.
+ * @return bool
+ */
+function atf_analytics_setting( $form_id, $key ) {
+	$schema   = atf_get_form_schema( $form_id );
+	$settings = isset( $schema['settings']['analytics'] ) ? $schema['settings']['analytics'] : array();
+
+	return ! empty( $settings[ $key ] );
+}
+
+/**
+ * Sorts a user-agent string into coarse classes.
+ *
+ * Deliberately blunt. This answers "phone or desktop, roughly which browser" --
+ * the two facts that change how a form should be designed -- and nothing finer,
+ * because anything finer stops being an aggregate and starts being a
+ * fingerprint. The string itself is read, classified and dropped.
+ *
+ * Order matters everywhere here: every Chromium browser says "Chrome", every
+ * WebKit browser says "Safari", and an iPad says "like Mac OS X", so the
+ * specific tokens have to win before the generic ones get a look.
+ *
+ * @since 0.2.0
+ *
+ * @param string $ua The user-agent string.
+ * @return array { device: string, browser: string, os: string }
+ */
+function atf_classify_user_agent( $ua ) {
+	$ua = trim( (string) $ua );
+
+	if ( '' === $ua ) {
+		return array(
+			'device'  => 'unknown',
+			'browser' => 'unknown',
+			'os'      => 'unknown',
+		);
+	}
+
+	$has = static function ( $needle ) use ( $ua ) {
+		return false !== stripos( $ua, $needle );
+	};
+
+	// Device. Android splits on the word "Mobile": phones carry it, tablets
+	// leave it out -- that is Google's own documented convention.
+	$device = 'desktop';
+
+	if ( $has( 'iPad' ) || $has( 'Tablet' ) || ( $has( 'Android' ) && ! $has( 'Mobile' ) ) ) {
+		$device = 'tablet';
+	} elseif ( $has( 'Mobi' ) || $has( 'iPhone' ) || $has( 'iPod' ) || $has( 'Windows Phone' ) || $has( 'BlackBerry' ) || $has( 'Opera Mini' ) ) {
+		$device = 'mobile';
+	}
+
+	// Browser, most-specific token first.
+	$browser = 'other';
+
+	if ( $has( 'Edg' ) ) {
+		$browser = 'edge';
+	} elseif ( $has( 'OPR' ) || $has( 'Opera' ) ) {
+		$browser = 'opera';
+	} elseif ( $has( 'SamsungBrowser' ) ) {
+		$browser = 'samsung';
+	} elseif ( $has( 'Firefox' ) || $has( 'FxiOS' ) ) {
+		$browser = 'firefox';
+	} elseif ( $has( 'Chrome' ) || $has( 'CriOS' ) ) {
+		$browser = 'chrome';
+	} elseif ( $has( 'Safari' ) ) {
+		$browser = 'safari';
+	} elseif ( $has( 'MSIE' ) || $has( 'Trident' ) ) {
+		$browser = 'ie';
+	}
+
+	// OS. iOS before macOS because an iPad claims to be "like Mac OS X";
+	// Android before Linux because every Android is also a Linux.
+	$os = 'other';
+
+	if ( $has( 'CrOS' ) ) {
+		$os = 'chromeos';
+	} elseif ( $has( 'iPhone' ) || $has( 'iPad' ) || $has( 'iPod' ) ) {
+		$os = 'ios';
+	} elseif ( $has( 'Android' ) ) {
+		$os = 'android';
+	} elseif ( $has( 'Windows' ) ) {
+		$os = 'windows';
+	} elseif ( $has( 'Mac OS X' ) || $has( 'Macintosh' ) ) {
+		$os = 'macos';
+	} elseif ( $has( 'Linux' ) || $has( 'X11' ) ) {
+		$os = 'linux';
+	}
+
+	return array(
+		'device'  => $device,
+		'browser' => $browser,
+		'os'      => $os,
+	);
+}
+
+/**
+ * Reads a form's device / browser / OS tallies.
+ *
+ * @since 0.2.0
+ *
+ * @param int $form_id The form.
+ * @return array { views: array, submissions: array } -- each holding sparse
+ *               `device` / `browser` / `os` count maps.
+ */
+function atf_get_tech_stats( $form_id ) {
+	$stored = json_decode( (string) get_post_meta( absint( $form_id ), ATF_META_TECH, true ), true );
+	$tech   = array(
+		'views'       => array(),
+		'submissions' => array(),
+	);
+
+	foreach ( $tech as $kind => $unused ) {
+		foreach ( array( 'device', 'browser', 'os' ) as $facet ) {
+			$counts = isset( $stored[ $kind ][ $facet ] ) && is_array( $stored[ $kind ][ $facet ] )
+				? $stored[ $kind ][ $facet ]
+				: array();
+
+			$clean = array();
+
+			foreach ( $counts as $class => $count ) {
+				$class = sanitize_key( $class );
+
+				if ( '' !== $class ) {
+					$clean[ $class ] = absint( $count );
+				}
+			}
+
+			$tech[ $kind ][ $facet ] = $clean;
+		}
+	}
+
+	return $tech;
+}
+
+/**
+ * Adds one visitor's technology to a form's tallies.
+ *
+ * The switch and the consent question live with the caller's settings; what is
+ * enforced here is the shape of what gets stored -- three coarse classes, each
+ * a counter, and nothing else. Passing a user-agent explicitly is what lets the
+ * demo seeder tally a fabricated population through the same door.
+ *
+ * @since 0.2.0
+ *
+ * @param int         $form_id The form.
+ * @param string      $kind    'views' or 'submissions'.
+ * @param string|null $ua      A user-agent string, or null for the request's own.
+ * @param int         $by      How much to add.
+ * @return void
+ */
+function atf_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
+	$form_id = absint( $form_id );
+
+	if ( ! $form_id || ! in_array( $kind, array( 'views', 'submissions' ), true ) ) {
+		return;
+	}
+
+	if ( null === $ua ) {
+		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
+	}
+
+	$classes = atf_classify_user_agent( $ua );
+	$tech    = atf_get_tech_stats( $form_id );
+
+	foreach ( $classes as $facet => $class ) {
+		$current = isset( $tech[ $kind ][ $facet ][ $class ] ) ? $tech[ $kind ][ $facet ][ $class ] : 0;
+
+		$tech[ $kind ][ $facet ][ $class ] = max( 0, $current + (int) $by );
+	}
+
+	update_post_meta( $form_id, ATF_META_TECH, wp_slash( wp_json_encode( $tech ) ) );
+}
+
+/**
+ * Whether this request's technology should be tallied for a form.
+ *
+ * @since 0.2.0
+ *
+ * @param int $form_id The form.
+ * @return bool
+ */
+function atf_should_record_tech( $form_id ) {
+	if ( ! atf_analytics_setting( $form_id, 'enabled' ) || ! atf_analytics_setting( $form_id, 'tech' ) ) {
+		return false;
+	}
+
+	/**
+	 * Filters whether a visitor's device / browser / OS is tallied.
+	 *
+	 * Only ever aggregate counters, but a site under a strict privacy posture
+	 * can still switch it off per request -- by geography, by role, by consent
+	 * plugin -- without touching the form's settings.
+	 *
+	 * @since 0.2.0
+	 *
+	 * @param bool $record  Whether to tally it.
+	 * @param int  $form_id The form.
+	 */
+	return (bool) apply_filters( 'atf_record_tech', true, $form_id );
+}
+
+/**
  * Counts a view of a form.
  *
  * Skipped for anyone who can edit forms, so building and previewing a form does
@@ -103,7 +311,15 @@ function atf_record_view( $form_id ) {
 		return;
 	}
 
+	if ( ! atf_analytics_setting( $form_id, 'enabled' ) ) {
+		return;
+	}
+
 	atf_bump_stat( $form_id, 'views' );
+
+	if ( atf_should_record_tech( $form_id ) ) {
+		atf_bump_tech( $form_id, 'views' );
+	}
 }
 
 /**
@@ -116,6 +332,10 @@ function atf_record_view( $form_id ) {
  */
 function atf_record_submission( $form_id ) {
 	atf_bump_stat( $form_id, 'submissions' );
+
+	if ( atf_should_record_tech( $form_id ) ) {
+		atf_bump_tech( $form_id, 'submissions' );
+	}
 }
 
 /**
@@ -132,6 +352,10 @@ function atf_record_submission( $form_id ) {
  * @return void
  */
 function atf_record_start( $form_id ) {
+	if ( ! atf_analytics_setting( $form_id, 'enabled' ) ) {
+		return;
+	}
+
 	atf_bump_stat( $form_id, 'starts' );
 }
 
@@ -188,6 +412,7 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 
 	$report['sampled']  = $sample['sampled'];
 	$report['timeline'] = atf_analytics_timeline( $sample['rows'] );
+	$report['tech']     = atf_analytics_tech( $form_id );
 
 	// The numeric summaries are attached to the fields they belong to rather than
 	// listed separately, so a client drawing the per-field report has everything
@@ -247,6 +472,115 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 	 * @param int   $form_id The form.
 	 */
 	return apply_filters( 'atf_form_analytics', $report, $form_id );
+}
+
+/**
+ * Human names for the coarse technology classes.
+ *
+ * @since 0.2.0
+ *
+ * @return array<string, array<string, string>> Facet => class => label.
+ */
+function atf_tech_labels() {
+	return array(
+		'device'  => array(
+			'desktop' => __( 'Desktop', 'allterrain-forms' ),
+			'mobile'  => __( 'Phone', 'allterrain-forms' ),
+			'tablet'  => __( 'Tablet', 'allterrain-forms' ),
+			'unknown' => __( 'Unknown', 'allterrain-forms' ),
+		),
+		'browser' => array(
+			'chrome'  => __( 'Chrome', 'allterrain-forms' ),
+			'safari'  => __( 'Safari', 'allterrain-forms' ),
+			'firefox' => __( 'Firefox', 'allterrain-forms' ),
+			'edge'    => __( 'Edge', 'allterrain-forms' ),
+			'opera'   => __( 'Opera', 'allterrain-forms' ),
+			'samsung' => __( 'Samsung Internet', 'allterrain-forms' ),
+			'ie'      => __( 'Internet Explorer', 'allterrain-forms' ),
+			'other'   => __( 'Other', 'allterrain-forms' ),
+			'unknown' => __( 'Unknown', 'allterrain-forms' ),
+		),
+		'os'      => array(
+			'windows'  => __( 'Windows', 'allterrain-forms' ),
+			'macos'    => __( 'macOS', 'allterrain-forms' ),
+			'ios'      => __( 'iOS', 'allterrain-forms' ),
+			'android'  => __( 'Android', 'allterrain-forms' ),
+			'linux'    => __( 'Linux', 'allterrain-forms' ),
+			'chromeos' => __( 'ChromeOS', 'allterrain-forms' ),
+			'other'    => __( 'Other', 'allterrain-forms' ),
+			'unknown'  => __( 'Unknown', 'allterrain-forms' ),
+		),
+	);
+}
+
+/**
+ * The technology section of a form's report.
+ *
+ * Each facet becomes a ranked list: how many submissions came from each class,
+ * what share of the whole that is, and -- where views were tallied too -- the
+ * conversion rate for that class, which is the number that says "phone users
+ * see this form and give up".
+ *
+ * @since 0.2.0
+ *
+ * @param int $form_id The form.
+ * @return array|null Facet => rows, or null when nothing has been tallied.
+ */
+function atf_analytics_tech( $form_id ) {
+	$tech   = atf_get_tech_stats( $form_id );
+	$labels = atf_tech_labels();
+	$out    = array();
+	$any    = false;
+
+	foreach ( array( 'device', 'browser', 'os' ) as $facet ) {
+		$views       = $tech['views'][ $facet ];
+		$submissions = $tech['submissions'][ $facet ];
+		$classes     = array_unique( array_merge( array_keys( $views ), array_keys( $submissions ) ) );
+
+		// Share is of whichever total exists: a form whose tallying began
+		// before anybody submitted still shows how its viewers split.
+		$total_subs  = array_sum( $submissions );
+		$total_views = array_sum( $views );
+		$share_of    = $total_subs > 0 ? $submissions : $views;
+		$share_total = $total_subs > 0 ? $total_subs : $total_views;
+
+		$rows = array();
+
+		foreach ( $classes as $class ) {
+			$class_views = isset( $views[ $class ] ) ? $views[ $class ] : 0;
+			$class_subs  = isset( $submissions[ $class ] ) ? $submissions[ $class ] : 0;
+			$class_share = isset( $share_of[ $class ] ) ? $share_of[ $class ] : 0;
+
+			$rows[] = array(
+				'id'          => $class,
+				'label'       => isset( $labels[ $facet ][ $class ] ) ? $labels[ $facet ][ $class ] : ucfirst( $class ),
+				'views'       => $class_views,
+				'submissions' => $class_subs,
+				'share'       => $share_total > 0 ? (int) round( ( $class_share / $share_total ) * 100 ) : 0,
+				// Same floor-and-cap the headline conversion uses, and null
+				// where no views were tallied so the client shows a dash
+				// rather than a fabricated zero.
+				'conversion'  => $class_views > 0 ? min( 100, (int) floor( ( $class_subs / $class_views ) * 100 ) ) : null,
+			);
+
+			$any = $any || $class_views > 0 || $class_subs > 0;
+		}
+
+		usort(
+			$rows,
+			static function ( $a, $b ) {
+				if ( $a['submissions'] !== $b['submissions'] ) {
+					return $b['submissions'] - $a['submissions'];
+				}
+
+				return $b['views'] - $a['views'];
+			}
+		);
+
+		$out[ $facet ] = $rows;
+	}
+
+	return $any ? $out : null;
 }
 
 /**

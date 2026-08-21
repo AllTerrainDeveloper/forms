@@ -16,6 +16,7 @@
  */
 
 import { applyCalculations } from './shared/calc';
+import { playSuccessEffects, renderSuccessScreen } from './success';
 import { isEmptyValue, visibleFields } from './shared/logic';
 import { presetPasses, validationPreset } from './shared/validation';
 import type { Field, FieldValue, RuntimeConfig, SubmissionResult, Values } from './types';
@@ -522,12 +523,66 @@ class AllTerrainForm {
 			return true;
 		}
 
+		if ( 'repeater' === field.type ) {
+			return this.validateRepeater( element, field );
+		}
+
 		const value = this.readField( field );
 		const error = this.checkField( field, value );
 
 		this.setFieldError( element, error );
 
 		return error === '';
+	}
+
+	/**
+	 * Validates a repeater the way the server does: control by control.
+	 *
+	 * Each failing box is marked itself, its row's card wears the error
+	 * border, and the repeater's own error node carries the "Attendee 2: …"
+	 * summary — the same message the server would send. A row where every box
+	 * is empty is skipped entirely, mirroring the sanitiser dropping it; only
+	 * a row somebody has started owes its required answers.
+	 */
+	private validateRepeater( element: HTMLElement, field: Field ): boolean {
+		const subs = ( field.fields ?? [] ) as Field[];
+		const rows = this.readField( field );
+		const values = Array.isArray( rows ) ? ( rows as unknown as Array< Record< string, FieldValue > > ) : [];
+		const rowElements = Array.from( element.querySelectorAll< HTMLElement >( '[data-atf-repeater-row]' ) );
+		const itemLabel = element.querySelector< HTMLElement >( '[data-atf-repeater]' )?.dataset.atfItemLabel || '';
+		let summary = '';
+
+		rowElements.forEach( ( rowElement, index ) => {
+			const row = values[ index ] ?? {};
+			const empty = subs.every( ( sub ) => isEmptyValue( row[ sub.id ] ?? '' ) );
+			let rowBad = false;
+
+			for ( const sub of subs ) {
+				const wrapper = rowElement.querySelector< HTMLElement >( `[data-atf-sub="${ sub.id }"]` );
+
+				if ( ! wrapper ) {
+					continue;
+				}
+
+				const error = empty ? '' : this.checkField( sub, ( row[ sub.id ] ?? '' ) as FieldValue );
+
+				this.setFieldError( wrapper, error );
+
+				if ( error !== '' ) {
+					rowBad = true;
+
+					if ( summary === '' ) {
+						summary = `${ itemLabel } ${ index + 1 }: ${ error }`;
+					}
+				}
+			}
+
+			rowElement.classList.toggle( 'has-error', rowBad );
+		} );
+
+		this.setFieldError( element, summary );
+
+		return summary === '';
 	}
 
 	/**
@@ -628,13 +683,24 @@ class AllTerrainForm {
 
 	/** Paints or clears one field's error. */
 	private setFieldError( element: HTMLElement, message: string ): void {
-		const error = element.querySelector< HTMLElement >( '.atf-error' );
+		// The element's *own* error node. A repeater's rows carry error nodes
+		// of their own, and the first `.atf-error` in document order would be
+		// a sub-field's, not the field's.
+		const error =
+			element.querySelector< HTMLElement >( ':scope > .atf-error' ) ??
+			element.querySelector< HTMLElement >( '.atf-error' );
 
 		element.classList.toggle( 'has-error', message !== '' );
 
 		if ( error ) {
 			error.textContent = message;
 			error.hidden = message === '';
+		}
+
+		// A repeater's summary must not smear aria-invalid across every
+		// control in every row — the failing boxes are marked individually.
+		if ( 'repeater' === element.dataset.atfType ) {
+			return;
 		}
 
 		element
@@ -646,6 +712,47 @@ class AllTerrainForm {
 					input.setAttribute( 'aria-invalid', 'true' );
 				}
 			} );
+	}
+
+	/**
+	 * Resolves a server error key like `rep.0.age` to that control's wrapper.
+	 *
+	 * The server numbers rows after the sanitiser drops the all-empty ones, so
+	 * its row 0 is the first row somebody actually filled in — the DOM rows
+	 * are filtered the same way before indexing. The matched row's card is
+	 * marked on the way through.
+	 */
+	private repeaterSubElement( key: string ): HTMLElement | null {
+		const parts = key.split( '.' );
+
+		if ( parts.length !== 3 ) {
+			return null;
+		}
+
+		const [ repId, rowIndex, subId ] = parts;
+		const element = this.fieldElement( repId );
+		const field = this.schema.fields.find( ( candidate ) => candidate.id === repId );
+
+		if ( ! element || ! field || 'repeater' !== field.type ) {
+			return null;
+		}
+
+		const subs = ( field.fields ?? [] ) as Field[];
+		const rows = this.readField( field );
+		const values = Array.isArray( rows ) ? ( rows as unknown as Array< Record< string, FieldValue > > ) : [];
+
+		const kept = Array.from( element.querySelectorAll< HTMLElement >( '[data-atf-repeater-row]' ) ).filter(
+			( row, index ) => row && ! subs.every( ( sub ) => isEmptyValue( values[ index ]?.[ sub.id ] ?? '' ) )
+		);
+
+		const rowElement = kept[ Number( rowIndex ) ];
+		const wrapper = rowElement?.querySelector< HTMLElement >( `[data-atf-sub="${ subId }"]` ) ?? null;
+
+		if ( wrapper && rowElement ) {
+			rowElement.classList.add( 'has-error' );
+		}
+
+		return wrapper;
 	}
 
 	/** Moves focus to a field's first control. */
@@ -763,7 +870,10 @@ class AllTerrainForm {
 		let firstPage = 0;
 
 		for ( const [ fieldId, message ] of Object.entries( result.errors ?? {} ) ) {
-			const element = this.fieldElement( fieldId );
+			// A dotted key — `rep.0.age` — is a repeater's per-control error;
+			// the server sends those *before* the row-level summary, so the
+			// first bad element found is the exact box to focus.
+			const element = this.fieldElement( fieldId ) ?? this.repeaterSubElement( fieldId );
 
 			if ( ! element ) {
 				continue;
@@ -794,7 +904,12 @@ class AllTerrainForm {
 			return;
 		}
 
-		const bad = Array.from( this.form.querySelectorAll< HTMLElement >( '.atf-field.has-error' ) );
+		// Top-level fields only: a repeater's failing boxes are also
+		// `.atf-field.has-error`, but they are listed nested under their
+		// repeater, not as siblings of it.
+		const bad = Array.from( this.form.querySelectorAll< HTMLElement >( '.atf-field.has-error' ) ).filter(
+			( element ) => ! element.closest( '[data-atf-repeater]' )
+		);
 
 		if ( ! bad.length && ! message ) {
 			this.errorSummary.hidden = true;
@@ -802,13 +917,45 @@ class AllTerrainForm {
 			return;
 		}
 
+		const line = ( element: HTMLElement, prefix = '' ): string => {
+			const label = this.labelTextOf( element );
+			const text =
+				(
+					element.querySelector( ':scope > .atf-error' ) ?? element.querySelector( '.atf-error' )
+				)?.textContent?.trim() ?? '';
+			const id = element.querySelector( 'input, select, textarea' )?.id ?? '';
+
+			return `<li><a href="#${ id }">${ escapeHtml( prefix + ( label ? `${ label }: ${ text }` : text ) ) }</a></li>`;
+		};
+
 		const items = bad
 			.map( ( element ) => {
-				const label = this.labelTextOf( element );
-				const text = element.querySelector( '.atf-error' )?.textContent?.trim() ?? '';
-				const id = element.querySelector( 'input, select, textarea' )?.id ?? '';
+				const failing = Array.from(
+					element.querySelectorAll< HTMLElement >( '.atf-repeater__field.has-error' )
+				);
 
-				return `<li><a href="#${ id }">${ escapeHtml( label ? `${ label }: ${ text }` : text ) }</a></li>`;
+				// A repeater heads its own indented group: the question alone on
+				// the parent line — its detail would only repeat what the nested
+				// lines say — and one line per failing box, named by its row.
+				if ( failing.length ) {
+					const label = this.labelTextOf( element );
+					const id = failing[ 0 ].querySelector( 'input, select, textarea' )?.id ?? '';
+
+					const nested = failing
+						.map( ( sub ) => {
+							const row = sub
+								.closest( '[data-atf-repeater-row]' )
+								?.querySelector( '[data-atf-repeater-title]' )
+								?.textContent?.trim();
+
+							return line( sub, row ? `${ row } — ` : '' );
+						} )
+						.join( '' );
+
+					return `<li><a href="#${ id }">${ escapeHtml( label ) }</a><ul class="atf-errors__sub">${ nested }</ul></li>`;
+				}
+
+				return line( element );
 			} )
 			.join( '' );
 
@@ -874,13 +1021,10 @@ class AllTerrainForm {
 			return;
 		}
 
-		const panel = document.createElement( 'div' );
-		panel.className = 'atf-confirmation';
-		panel.setAttribute( 'role', 'status' );
-		panel.setAttribute( 'tabindex', '-1' );
-		panel.innerHTML = confirmation.message ?? '';
+		const panel = renderSuccessScreen( confirmation.message ?? '', confirmation.success );
 
 		this.form.replaceWith( panel );
+		playSuccessEffects( panel, confirmation.success );
 
 		// Focus moves into the confirmation so a screen-reader user is told the
 		// form succeeded rather than being left on a control that no longer

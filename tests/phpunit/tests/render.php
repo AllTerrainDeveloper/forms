@@ -294,6 +294,80 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A repeater's control errors nest, indented, under the repeater's line.
+	 *
+	 * And the failing row's markup is marked in place: the row card, the exact
+	 * sub-field, and nobody else — the no-JavaScript render of the same
+	 * marking the bundle does live.
+	 *
+	 * @covers ::atf_render_error_summary
+	 * @covers ::atf_render_repeater_row
+	 */
+	public function test_repeater_errors_nest_in_the_summary() {
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'att',
+						'type'      => 'repeater',
+						'label'     => 'Attendees',
+						'itemLabel' => 'Attendee',
+						'fields'    => array(
+							array(
+								'id'    => 'name',
+								'type'  => 'text',
+								'label' => 'Name',
+							),
+							array(
+								'id'       => 'age',
+								'type'     => 'number',
+								'label'    => 'Age',
+								'required' => true,
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$html = atf_render_form(
+			$form_id,
+			array(
+				'values' => array(
+					'att' => array(
+						array(
+							'name' => 'Ana',
+							'age'  => '30',
+						),
+						array(
+							'name' => 'Luz',
+							'age'  => '',
+						),
+					),
+				),
+				'errors' => array(
+					'att.1.age' => 'Age is required.',
+					'att'       => 'Attendee 2: Age is required.',
+				),
+			)
+		);
+
+		// The summary: one top-level line for the repeater, the box nested
+		// under it in its own indented list, named by its row.
+		$this->assertStringContainsString( 'atf-errors__sub', $html );
+		$this->assertStringContainsString( 'Attendee 2 — Age: Age is required.', $html );
+		$this->assertSame( 1, substr_count( $html, '<p class="atf-errors__title">' ) );
+		$this->assertStringContainsString( 'There is 1 thing to fix', $html, 'Nested lines are not double-counted.' );
+
+		// The markup: the failing row and box wear the error, the clean row
+		// does not.
+		$this->assertStringContainsString( 'atf-repeater__row has-error', $html );
+		$this->assertSame( 1, substr_count( $html, 'atf-repeater__row has-error' ), 'Only the failing row is marked.' );
+		$this->assertStringContainsString( 'atf-repeater__field has-error" data-atf-sub="age"', $html );
+		$this->assertStringNotContainsString( 'atf-repeater__field has-error" data-atf-sub="name"', $html );
+	}
+
+	/**
 	 * A field hidden by logic is hidden in the server's own output.
 	 *
 	 * Without this a conditional field flashes into view before the bundle boots.
@@ -754,7 +828,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 */
 	public function data_reachable_settings() {
 		return array(
-			'heading level'      => array(
+			'heading level'     => array(
 				array(
 					'type'  => 'heading',
 					'level' => 5,
@@ -762,35 +836,35 @@ class ATF_Test_Render extends WP_UnitTestCase {
 				),
 				'<h5',
 			),
-			'html content'       => array(
+			'html content'      => array(
 				array(
 					'type'    => 'html',
 					'content' => '<p>Read this first.</p>',
 				),
 				'Read this first.',
 			),
-			'spacer height'      => array(
+			'spacer height'     => array(
 				array(
 					'type'   => 'spacer',
 					'height' => 64,
 				),
 				'64px',
 			),
-			'consent text'       => array(
+			'consent text'      => array(
 				array(
 					'type'        => 'consent',
 					'consentText' => 'I agree to the rules.',
 				),
 				'I agree to the rules.',
 			),
-			'textarea rows'      => array(
+			'textarea rows'     => array(
 				array(
 					'type' => 'textarea',
 					'rows' => 9,
 				),
 				'rows="9"',
 			),
-			'scale end labels'   => array(
+			'scale end labels'  => array(
 				array(
 					'type'     => 'scale',
 					'minLabel' => 'Not at all',
@@ -798,7 +872,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 				),
 				'Every day',
 			),
-			'rating ceiling'     => array(
+			'rating ceiling'    => array(
 				array(
 					'type' => 'rating',
 					'max'  => 3,
@@ -806,23 +880,23 @@ class ATF_Test_Render extends WP_UnitTestCase {
 				// Three stars and no fourth.
 				'value="3"',
 			),
-			'file types'         => array(
+			'file types'        => array(
 				array(
 					'type'      => 'file',
 					'filetypes' => array( 'pdf' ),
 				),
 				'.pdf',
 			),
-			'chosen name parts'  => array(
+			'chosen name parts' => array(
 				array(
 					'type'  => 'name',
 					'parts' => array( 'first' ),
 				),
 				'given-name',
 			),
-			'likert statements'  => array(
+			'likert statements' => array(
 				array(
-					'type' => 'likert',
+					'type'    => 'likert',
 					'rows'    => array(
 						array(
 							'key'   => 'r1',

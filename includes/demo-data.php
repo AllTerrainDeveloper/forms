@@ -267,6 +267,12 @@ function atf_demo_survey_schema() {
 				'id'      => 'c1',
 				'type'    => 'message',
 				'message' => __( 'Thank you — that is genuinely useful.', 'allterrain-forms' ),
+				// The demo doubles as a showroom, so its thank-you wears the
+				// confetti screen rather than the plain paragraph.
+				'success' => array(
+					'style' => 'confetti',
+					'title' => __( 'That went through!', 'allterrain-forms' ),
+				),
 			),
 		),
 	);
@@ -356,6 +362,80 @@ function atf_demo_bell( $mean, $spread, &$state ) {
 	}
 
 	return max( 0, min( 1, $mean + ( ( $sum / 3 ) - 0.5 ) * 2 * $spread ) );
+}
+
+/**
+ * The browsers the demo population uses.
+ *
+ * Each row is a real user-agent string with two weights: how likely a
+ * *visitor* is to be on it, and how likely a *finished submission* is. They
+ * differ on purpose — phones carry more of the viewing than of the finishing —
+ * so the technology panel has a true pattern to find: the mobile conversion
+ * rate really is lower, which is the single most actionable thing this report
+ * can say about a form.
+ *
+ * @since 0.2.0
+ *
+ * @return array<string, array{ua: string, view: int, submit: int}>
+ */
+function atf_demo_user_agents() {
+	return array(
+		'chrome_windows'  => array(
+			'ua'     => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+			'view'   => 24,
+			'submit' => 30,
+		),
+		'edge_windows'    => array(
+			'ua'     => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+			'view'   => 7,
+			'submit' => 9,
+		),
+		'firefox_windows' => array(
+			'ua'     => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0',
+			'view'   => 4,
+			'submit' => 5,
+		),
+		'chrome_mac'      => array(
+			'ua'     => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+			'view'   => 9,
+			'submit' => 11,
+		),
+		'safari_mac'      => array(
+			'ua'     => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+			'view'   => 9,
+			'submit' => 11,
+		),
+		'firefox_linux'   => array(
+			'ua'     => 'Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0',
+			'view'   => 1,
+			'submit' => 2,
+		),
+		'safari_iphone'   => array(
+			'ua'     => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+			'view'   => 24,
+			'submit' => 16,
+		),
+		'chrome_android'  => array(
+			'ua'     => 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+			'view'   => 14,
+			'submit' => 9,
+		),
+		'samsung_android' => array(
+			'ua'     => 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36',
+			'view'   => 4,
+			'submit' => 3,
+		),
+		'safari_ipad'     => array(
+			'ua'     => 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+			'view'   => 3,
+			'submit' => 3,
+		),
+		'chrome_tablet'   => array(
+			'ua'     => 'Mozilla/5.0 (Linux; Android 14; SM-X910) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+			'view'   => 1,
+			'submit' => 1,
+		),
+	);
 }
 
 /**
@@ -966,8 +1046,33 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 	// than zeroes. Roughly two in five people who saw it answered, and four in
 	// five who began finished — both plausible for an internal survey, and both
 	// visibly *not* 100%, which is what makes the panel worth reading.
-	atf_bump_stat( $form_id, 'views', (int) round( $made / 0.42 ) );
+	$views = (int) round( $made / 0.42 );
+
+	atf_bump_stat( $form_id, 'views', $views );
 	atf_bump_stat( $form_id, 'starts', (int) round( $made / 0.78 ) );
+
+	// The viewers get browsers too, drawn from the same pool under its
+	// visitor weights, so per-device conversion rates come out of two honest
+	// distributions rather than one number split evenly.
+	$agents  = atf_demo_user_agents();
+	$weights = wp_list_pluck( $agents, 'view' );
+	$total   = array_sum( $weights );
+	$dealt   = 0;
+
+	foreach ( $agents as $key => $agent ) {
+		$share = (int) round( $views * $weights[ $key ] / $total );
+		$share = min( $share, $views - $dealt );
+
+		if ( $share > 0 ) {
+			atf_bump_tech( $form_id, 'views', $agent['ua'], $share );
+
+			$dealt += $share;
+		}
+	}
+
+	if ( $views - $dealt > 0 ) {
+		atf_bump_tech( $form_id, 'views', $agents['chrome_windows']['ua'], $views - $dealt );
+	}
 
 	return atf_demo_status();
 }
@@ -997,7 +1102,24 @@ function atf_demo_submit( $form_id, $answers, $when, &$state ) {
 		'atf'         => $answers,
 	);
 
+	// The respondent gets a browser, worn as the request's own user-agent so
+	// the technology tally and the stored entry context both see it through
+	// exactly the door a real submission uses. Restored afterwards -- this
+	// runs inside an admin request whose real user-agent belongs to whoever
+	// clicked the button.
+	$agents = atf_demo_user_agents();
+	$chosen = atf_demo_weighted( wp_list_pluck( $agents, 'submit' ), $state );
+
+	$real_ua                    = isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Held only to be restored verbatim below.
+	$_SERVER['HTTP_USER_AGENT'] = $agents[ $chosen ]['ua'];
+
 	$result = atf_process_submission( $form_id, $request );
+
+	if ( null === $real_ua ) {
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+	} else {
+		$_SERVER['HTTP_USER_AGENT'] = $real_ua;
+	}
 
 	if ( empty( $result['success'] ) || empty( $result['entry_id'] ) ) {
 		return new WP_Error( 'atf_demo_failed', __( 'A demo submission was rejected.', 'allterrain-forms' ) );
