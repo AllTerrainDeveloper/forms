@@ -2682,6 +2682,14 @@ os-checkbox-label.atfb-check {
 	align-items: stretch;
 }
 
+/* The stretch above is for the formula box; the button under it must not
+   inherit it. Stretched to the column's full width, the button's own hover
+   wash painted the entire row — a click target the size of a paragraph that
+   looks like a highlight bug, not a button. */
+.atfb-formula__row > .atfb-button {
+	align-self: flex-start;
+}
+
 .atfb-formula {
 	max-inline-size: 560px;
 }
