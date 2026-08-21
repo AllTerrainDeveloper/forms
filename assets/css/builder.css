@@ -671,6 +671,74 @@
 	opacity: 1;
 }
 
+/* The hand closes the moment the button goes down on anything liftable, and
+   stays closed for the whole drag. The pressed state is per-element; the
+   body class comes from the drag managers (both of them) at lift, and the
+   `!important` blanket exists because mid-drag the pointer crosses inputs,
+   buttons and editable text, each with a cursor of its own — a hand that
+   flickers to a caret halfway through a drag reads as the drag ending. */
+.atfb-chip:active,
+.atfb-card:active,
+.atfb-subcard:active,
+.atfe__row:active {
+	cursor: grabbing;
+}
+
+/* The shell resets the cursor OS-wide — `body.os-active * { cursor: default
+   !important }` paints the arrow over everything, the way a desktop does —
+   so inside a window the hand never appeared at all. The draggables are the
+   one place that arrow costs something: the cursor is the only affordance
+   that says "this lifts" before you try. Beating an `!important` takes an
+   `!important`, and then specificity decides — these run at (0,2,1) and
+   (0,1,2) against the shell's (0,1,1), so they win by weight rather than by
+   load order. The plain-class rules above still carry the no-shell admin
+   page. */
+/* The shell's reset hits every element, so the draggable itself is not
+   enough: its title bar, grip and preview whitespace — all places a drag can
+   start — need the hand too. Everything inside a draggable gets it EXCEPT
+   the interactive elements (and their insides), which keep their own
+   affordances: a button is for pressing and an editable label for typing,
+   even when the surface around them is for lifting. */
+body.os-active :is( .atfb-chip, .atfb-card, .atfb-subcard, .atfe__row ),
+body.os-active :is( .atfb-chip, .atfb-card, .atfb-subcard, .atfe__row )
+	*:not( :where( button:not( .atfb-chip, .atfe__row ), input, textarea, select, a, label, [contenteditable], .atfb-editable, os-button, os-select, os-checkbox-label, os-number-field ) ):not( :where( :is( button:not( .atfb-chip, .atfe__row ), a, label, os-button, os-select, os-checkbox-label, os-number-field ) * ) ) {
+	cursor: grab !important;
+}
+
+body.os-active :is( .atfb-chip, .atfb-card, .atfb-subcard, .atfe__row ):active,
+body.os-active :is( .atfb-chip, .atfb-card, .atfb-subcard, .atfe__row ):active
+	*:not( :where( button:not( .atfb-chip, .atfe__row ), input, textarea, select, a, label, [contenteditable], .atfb-editable, os-button, os-select, os-checkbox-label, os-number-field ) ):not( :where( :is( button:not( .atfb-chip, .atfe__row ), a, label, os-button, os-select, os-checkbox-label, os-number-field ) * ) ) {
+	cursor: grabbing !important;
+}
+
+/* The shell's reset also flattens the I-beam on the in-place editables, and
+   an editable that shows the arrow does not look editable. Same weight as
+   the grab rules above. */
+body.os-active :is( .atfb-editable, .atfb [contenteditable] ) {
+	cursor: text !important;
+}
+
+/* The class repeats four times, on purpose: each repeat counts, and the
+   shell's own selective restores run heavy, so the closed hand needs the
+   weight to hold over nearly everything for the duration of a drag. A
+   transient body class is the one place this kind of arms race is
+   acceptable. */
+body.atf-drag-active,
+html body.atf-drag-active.atf-drag-active.atf-drag-active.atf-drag-active * {
+	cursor: grabbing !important;
+}
+
+/* One survivor outweighs even that: the shell restores the I-beam on text
+   fields through a nine-guard selector. Mid-drag nothing can be typed into,
+   so the closed hand holds there too — by mirroring the same selector shape
+   one element heavier. */
+html body.atf-drag-active input:not( [type="checkbox"] ):not( [type="radio"] ):not( [type="range"] ):not( [type="color"] ):not( [type="file"] ):not( [type="button"] ):not( [type="submit"] ):not( [type="reset"] ):not( [type="image"] ),
+html body.atf-drag-active textarea,
+html body.atf-drag-active [contenteditable=""],
+html body.atf-drag-active [contenteditable="true"] {
+	cursor: grabbing !important;
+}
+
 /* The insertion line that follows the pointer during a drag. */
 .atfb-marker {
 	block-size: 3px;
@@ -1152,7 +1220,10 @@
 	gap: 8px;
 	padding: 10px 14px;
 	border-block-end: 1px solid var( --atfb-border );
-	cursor: pointer;
+	/* `grab`, like every other draggable in the suite: a row opens on click,
+	   but it also lifts — out to the desktop, into another window — and the
+	   cursor is the only thing that says so before you try. */
+	cursor: grab;
 	touch-action: none;
 }
 
@@ -3141,12 +3212,17 @@ os-checkbox-label.atfb-check {
 	text-align: center;
 }
 
-/* One sub-field: a smaller card with its own head, selection ring and grab
-   cursor, holding a full live preview of the control. */
+/* One sub-field: a window in miniature, the same reading as the canvas cards
+   above — title bar, body, focused-when-selected — at one size smaller. It
+   sits *inside* a preview, where the dark-form flip re-points the preview
+   tokens, so nothing in this head may read a preview token: the bar and its
+   ink come from the titlebar pair, which are designed together and stay
+   legible whatever theme the form inside is wearing. */
 .atfb-subcard {
-	border: 1px solid var( --atfb-border );
-	border-radius: var( --atfb-radius );
-	background: var( --atfb-bg );
+	border: 1px solid var( --os-window-border, var( --atfb-card-border ) );
+	border-radius: calc( var( --atfb-card-r, var( --atfb-radius ) ) - 4px );
+	background: var( --os-window-bg, var( --atfb-bg ) );
+	overflow: hidden;
 	cursor: grab;
 	touch-action: none;
 }
@@ -3169,8 +3245,16 @@ os-checkbox-label.atfb-check {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 10px;
-	border-block-end: 1px solid var( --atfb-border );
+	padding: 4px 8px 4px 10px;
+	border-block-end: 1px solid var( --os-window-border, var( --atfb-border ) );
+	background: var( --os-titlebar-bg, var( --atfb-raised ) );
+	color: var( --os-titlebar-color, var( --atfb-muted ) );
+}
+
+.atfb-subcard.is-selected .atfb-subcard__head {
+	background: var( --os-titlebar-bg-focused, var( --atfb-accent ) );
+	color: var( --os-titlebar-color-focused, var( --atfb-accent-ink ) );
+	border-block-end-color: transparent;
 }
 
 .atfb-subcard__type {
@@ -3178,17 +3262,23 @@ os-checkbox-label.atfb-check {
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.02em;
-	color: var( --atfb-muted );
+	color: inherit;
 }
 
+/* Bar ink at a step back, not the warning colour: an amber word on a focused
+   title bar read as an alert, and "Required" is a fact, not a warning. */
 .atfb-subcard__required {
 	font-size: 11px;
-	color: var( --atfb-warning );
+	color: inherit;
+	opacity: 0.75;
 }
 
+/* The remove button normally wears preview ink; on the bar it wears the bar's,
+   or a dark form flips it light against a light bar and it disappears. */
 .atfb-subcard__head .atfb-preview__remove {
 	margin-inline-start: auto;
 	opacity: 1;
+	color: inherit;
 }
 
 .atfb-subcard .atfb-preview {

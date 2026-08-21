@@ -30,6 +30,7 @@ var allTerrainFormsBuilder = function(exports) {
         ghost?.remove();
         ghost = null;
         payload.source.classList.remove("atf-is-dragging");
+        document.body.classList.remove("atf-drag-active");
         hovered?.onLeave?.(session);
         hovered = null;
         this.active = null;
@@ -50,6 +51,7 @@ var allTerrainFormsBuilder = function(exports) {
       const lift = (event) => {
         lifted = true;
         payload.source.classList.add("atf-is-dragging");
+        document.body.classList.add("atf-drag-active");
         const rect = payload.source.getBoundingClientRect();
         offsetX = payload.ghost?.offsetX ?? startX - rect.left;
         offsetY = payload.ghost?.offsetY ?? startY - rect.top;
@@ -196,8 +198,20 @@ var allTerrainFormsBuilder = function(exports) {
       const payload = event.detail?.payload;
       return payload && payloadTypes.includes(payload.type) ? payload.source : null;
     };
-    const onStart = (event) => sourceOf(event)?.classList.add("atf-is-dragging");
-    const onEnd = (event) => sourceOf(event)?.classList.remove("atf-is-dragging");
+    const onStart = (event) => {
+      const source = sourceOf(event);
+      if (source) {
+        source.classList.add("atf-is-dragging");
+        document.body.classList.add("atf-drag-active");
+      }
+    };
+    const onEnd = (event) => {
+      const source = sourceOf(event);
+      if (source) {
+        source.classList.remove("atf-is-dragging");
+        document.body.classList.remove("atf-drag-active");
+      }
+    };
     document.addEventListener("os.drag.start", onStart);
     document.addEventListener("os.drag.end", onEnd);
     return () => {

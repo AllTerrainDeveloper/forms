@@ -69,6 +69,7 @@ class FallbackDragManager implements DragManagerApi {
 			ghost?.remove();
 			ghost = null;
 			payload.source.classList.remove( 'atf-is-dragging' );
+			document.body.classList.remove( 'atf-drag-active' );
 			hovered?.onLeave?.( session );
 			hovered = null;
 			this.active = null;
@@ -92,6 +93,9 @@ class FallbackDragManager implements DragManagerApi {
 		const lift = ( event: PointerEvent ) => {
 			lifted = true;
 			payload.source.classList.add( 'atf-is-dragging' );
+			// The whole document shows a closed hand for the duration — set at
+			// lift, not pointerdown, so a plain click never flashes it.
+			document.body.classList.add( 'atf-drag-active' );
 
 			const rect = payload.source.getBoundingClientRect();
 
@@ -321,8 +325,25 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
 		return payload && payloadTypes.includes( payload.type ) ? payload.source : null;
 	};
 
-	const onStart = ( event: Event ) => sourceOf( event )?.classList.add( 'atf-is-dragging' );
-	const onEnd = ( event: Event ) => sourceOf( event )?.classList.remove( 'atf-is-dragging' );
+	const onStart = ( event: Event ) => {
+		const source = sourceOf( event );
+
+		if ( source ) {
+			source.classList.add( 'atf-is-dragging' );
+			// The closed-hand cursor for the whole drag, same as the fallback
+			// manager sets at lift — the shell moves the ghost but knows
+			// nothing about this plugin's cursors.
+			document.body.classList.add( 'atf-drag-active' );
+		}
+	};
+	const onEnd = ( event: Event ) => {
+		const source = sourceOf( event );
+
+		if ( source ) {
+			source.classList.remove( 'atf-is-dragging' );
+			document.body.classList.remove( 'atf-drag-active' );
+		}
+	};
 
 	document.addEventListener( 'os.drag.start', onStart );
 	document.addEventListener( 'os.drag.end', onEnd );
