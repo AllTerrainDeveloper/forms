@@ -22,6 +22,7 @@
  */
 
 import { button, el, row } from './ui';
+import { windowIdOf } from './relations';
 import type { Field } from './types';
 
 /** The blocks, as filled in. Stored as JSON so the editor can be reopened. */
@@ -274,7 +275,7 @@ export function recipePasses( recipe: ValidationRecipe, value: string ): boolean
 
 /** What the editor needs from its host. */
 export interface ValidationEditorOptions {
-	/** Where the overlay mounts — the builder root, so it stays inside the window. */
+	/** The builder's root — resolves which shell window owns the editor, and hosts the fallback overlay. */
 	root: HTMLElement;
 	/** The field whose rule this is — read for its stored recipe and label. */
 	field: Field;
@@ -285,12 +286,199 @@ export interface ValidationEditorOptions {
 }
 
 /**
- * Opens the custom-rule builder as a child window over the builder.
+ * The slice of the shell's window manager this module uses.
+ *
+ * Everything optional — the builder also runs on the plain admin page, where
+ * there is no shell and the editor falls back to an overlay.
+ */
+interface ShellWindowManager {
+	openChild?: (
+		parentWindowId: string,
+		config: {
+			id: string;
+			baseId?: string;
+			url: string;
+			title: string;
+			icon?: string;
+			native?: boolean;
+			width?: number;
+			height?: number;
+			minWidth?: number;
+			minHeight?: number;
+			ephemeral?: boolean;
+			autofocus?: boolean | string;
+			render?: ( body: HTMLElement ) => void;
+			onClose?: () => void;
+		}
+	) => Promise< unknown >;
+	getById?: ( id: string ) => { close?: () => void } | null | undefined;
+	remove?: ( id: string ) => void;
+}
+
+/** The shell's window manager, when a shell is hosting us. */
+function shellWindows(): ShellWindowManager | null {
+	return (
+		( window as unknown as { wp?: { os?: { windowManager?: ShellWindowManager } } } ).wp?.os?.windowManager ??
+		null
+	);
+}
+
+/** Geometry memory is shared across fields; the id itself is per field. */
+const EDITOR_WINDOW_BASE = 'allterrain-forms-validation';
+
+/**
+ * Opens the custom-rule builder.
+ *
+ * Under the shell this is a real **child window** — its own chrome, drag,
+ * resize, minimize, a taskbar entry — owned by the builder window via
+ * `windowManager.openChild()`, so the builder can never sit above it but stays
+ * scrollable and readable beside it the whole time. That is the difference
+ * between a dialog and a child window, and it matters here: the rule being
+ * written is *about* a field the person can still see, select and reread while
+ * they write it.
+ *
+ * On the plain admin page, where there is no shell to ask, the same editor
+ * mounts as an overlay over the builder — the one place a dialog is the honest
+ * fallback rather than a missed opportunity.
  *
  * @param options What to edit and where to say so.
  * @return void
  */
 export function openValidationEditor( options: ValidationEditorOptions ): void {
+	const manager = shellWindows();
+	const parentId = windowIdOf( options.root );
+
+	if ( manager?.openChild && parentId ) {
+		openAsChildWindow( manager, parentId, options );
+
+		return;
+	}
+
+	openAsOverlay( options );
+}
+
+/** The editor as a shell child window, owned by the builder. */
+function openAsChildWindow( manager: ShellWindowManager, parentId: string, options: ValidationEditorOptions ): void {
+	const id = `${ EDITOR_WINDOW_BASE }-${ options.field.id }`;
+
+	// An editor for this same field may already be open — from a double click,
+	// or left behind after the rule changed under it. Its content is stale by
+	// definition, so it is replaced rather than focused.
+	if ( manager.getById?.( id ) ) {
+		manager.remove?.( id );
+	}
+
+	const state = { saved: false };
+
+	const close = () => {
+		const win = manager.getById?.( id );
+
+		if ( win?.close ) {
+			win.close();
+		} else {
+			manager.remove?.( id );
+		}
+	};
+
+	void manager.openChild?.( parentId, {
+		id,
+		baseId: EDITOR_WINDOW_BASE,
+		url: `#${ id }`,
+		title: `Custom rule — ${ options.field.label || 'this question' }`,
+		icon: 'dashicons-yes-alt',
+		native: true,
+		width: 560,
+		height: 700,
+		minWidth: 440,
+		minHeight: 480,
+		// A rule mid-edit is not worth resurrecting against a field that may
+		// be gone; children are excluded from snapshots anyway, this says so.
+		ephemeral: true,
+		autofocus: '.atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea',
+		render: ( body ) => {
+			const host = el( 'div', { class: 'atfa atfb-valwin atfb-valwin--window' } );
+
+			buildEditor( host, options, state, close, 'window' );
+			body.append( host );
+		},
+		// Fires however the window closes — Save, Cancel, the title-bar X,
+		// or its owner closing. One place decides whether that was a cancel.
+		onClose: () => {
+			if ( ! state.saved ) {
+				options.onCancel?.();
+			}
+		},
+	} );
+}
+
+/** The editor as an overlay — the no-shell fallback. */
+function openAsOverlay( options: ValidationEditorOptions ): void {
+	const overlay = el( 'div', { class: 'atfb-overlay' } );
+	const state = { saved: false };
+
+	const close = () => {
+		overlay.remove();
+		document.removeEventListener( 'keydown', onKeydown );
+
+		if ( ! state.saved ) {
+			options.onCancel?.();
+		}
+	};
+
+	const onKeydown = ( event: KeyboardEvent ) => {
+		if ( 'Escape' === event.key ) {
+			close();
+		}
+	};
+
+	const modal = el( 'div', {
+		class: 'atfb-modal atfb-valwin',
+		attrs: { role: 'dialog', 'aria-label': 'Custom validation rule' },
+		children: [ el( 'h2', { text: 'Custom rule' } ) ],
+	} );
+
+	buildEditor( modal, options, state, close, 'overlay' );
+	overlay.append( modal );
+
+	overlay.addEventListener( 'click', ( event ) => {
+		if ( event.target === overlay ) {
+			close();
+		}
+	} );
+
+	document.addEventListener( 'keydown', onKeydown );
+	options.root.append( overlay );
+
+	overlay
+		.querySelector< HTMLInputElement >(
+			'.atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea'
+		)
+		?.focus();
+}
+
+/**
+ * The editor itself, appended into whichever host is showing it.
+ *
+ * Everything both hosts share: the tabs, the blocks, the expression pane, the
+ * plain-words summary, the playground and the actions. The hosts differ only
+ * in chrome — a shell window carries its own title bar, so the `window` mode
+ * skips the heading the overlay draws itself.
+ *
+ * @param host         Where the editor mounts.
+ * @param options      What to edit and where to say so.
+ * @param state        Shared save flag — the host's close path reads it to
+ *                     tell Save from Cancel.
+ * @param requestClose Asks the host to close (window close or overlay removal).
+ * @param chrome       Which host is showing the editor.
+ * @return void
+ */
+function buildEditor(
+	host: HTMLElement,
+	options: ValidationEditorOptions,
+	state: { saved: boolean },
+	requestClose: () => void,
+	chrome: 'window' | 'overlay'
+): void {
 	const recipe = parseRecipe( String( options.field.validationRecipe ?? '' ) );
 
 	// A field that has a hand-written pattern but no recipe — authored before
@@ -304,24 +492,6 @@ export function openValidationEditor( options: ValidationEditorOptions ): void {
 	if ( ! recipe.message ) {
 		recipe.message = String( ( options.field.messages as Record< string, string > | undefined )?.invalid ?? '' );
 	}
-
-	const overlay = el( 'div', { class: 'atfb-overlay' } );
-	let saved = false;
-
-	const close = () => {
-		overlay.remove();
-		document.removeEventListener( 'keydown', onKeydown );
-
-		if ( ! saved ) {
-			options.onCancel?.();
-		}
-	};
-
-	const onKeydown = ( event: KeyboardEvent ) => {
-		if ( 'Escape' === event.key ) {
-			close();
-		}
-	};
 
 	/* ------------------------------------------------------------- Blocks */
 
@@ -503,7 +673,8 @@ export function openValidationEditor( options: ValidationEditorOptions ): void {
 	const refresh = () => {
 		const description = describeRecipe( recipe );
 
-		summary.textContent = description || 'Nothing yet — fill in a block above and the rule appears here in plain words.';
+		summary.textContent =
+			description || 'Nothing yet — fill in a block above and the rule appears here in plain words.';
 
 		for ( const sample of Array.from( samples.querySelectorAll< HTMLElement >( '.atfb-valwin__sample' ) ) ) {
 			const input = sample.querySelector< HTMLInputElement >( 'input' );
@@ -523,76 +694,59 @@ export function openValidationEditor( options: ValidationEditorOptions ): void {
 
 	/* -------------------------------------------------------------- Shell */
 
-	overlay.append(
+	host.append(
+		el( 'p', {
+			class: 'atfb-hint',
+			text: `Describe what a good answer to “${
+				options.field.label || 'this question'
+			}” looks like — no code needed.`,
+		} ),
+		tabs,
+		blocksPane,
+		regexPane,
 		el( 'div', {
-			class: 'atfb-modal atfb-valwin',
-			attrs: { role: 'dialog', 'aria-label': 'Custom validation rule' },
+			class: 'atfb-valwin__try',
 			children: [
-				el( 'h2', { text: 'Custom rule' } ),
-				el( 'p', {
-					class: 'atfb-hint',
-					text: `Describe what a good answer to “${
-						options.field.label || 'this question'
-					}” looks like — no code needed.`,
-				} ),
-				tabs,
-				blocksPane,
-				regexPane,
-				el( 'div', {
-					class: 'atfb-valwin__try',
-					children: [
-						el( 'h3', { text: 'Try it out' } ),
-						summary,
-						samples,
-						button(
-							'Add another sample',
-							() => {
-								sampleRow( '' );
-								refresh();
-							},
-							'ghost',
-							'plus-alt2'
-						),
-					],
-				} ),
-				row(
-					'When it fails, say',
-					messageInput,
-					'Shown to the visitor when their answer breaks the rule. Leave empty for the default wording.'
+				el( 'h3', { text: 'Try it out' } ),
+				summary,
+				samples,
+				button(
+					'Add another sample',
+					() => {
+						sampleRow( '' );
+						refresh();
+					},
+					'ghost',
+					'plus-alt2'
 				),
-				el( 'div', {
-					class: 'atfb-modal__actions',
-					children: [
-						button( 'Cancel', close ),
-						button(
-							'Save rule',
-							() => {
-								const pattern = compileRecipe( recipe );
-								recipe.tests = readSamples()
-									.filter( ( value ) => '' !== value )
-									.slice( 0, 10 );
+			],
+		} ),
+		row(
+			'When it fails, say',
+			messageInput,
+			'Shown to the visitor when their answer breaks the rule. Leave empty for the default wording.'
+		),
+		el( 'div', {
+			class: 'atfb-modal__actions',
+			children: [
+				button( 'window' === chrome ? 'Close without saving' : 'Cancel', requestClose ),
+				button(
+					'Save rule',
+					() => {
+						const pattern = compileRecipe( recipe );
+						recipe.tests = readSamples()
+							.filter( ( value ) => '' !== value )
+							.slice( 0, 10 );
 
-								saved = true;
-								options.onSave( { pattern, recipe, message: recipe.message.trim() } );
-								close();
-							},
-							'primary'
-						),
-					],
-				} ),
+						state.saved = true;
+						options.onSave( { pattern, recipe, message: recipe.message.trim() } );
+						requestClose();
+					},
+					'primary'
+				),
 			],
 		} )
 	);
 
-	overlay.addEventListener( 'click', ( event ) => {
-		if ( event.target === overlay ) {
-			close();
-		}
-	} );
-
-	document.addEventListener( 'keydown', onKeydown );
-	options.root.append( overlay );
 	refresh();
-
-	overlay.querySelector< HTMLInputElement >( '.atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea' )?.focus();
 }

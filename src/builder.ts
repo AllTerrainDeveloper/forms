@@ -28,6 +28,7 @@ import {
 	confirmAction,
 	debounce,
 	el,
+	hasComponent,
 	icon,
 	notify,
 	numberInput,
@@ -1880,6 +1881,66 @@ export class Builder {
 	}
 
 	/**
+	 * A small dropdown for the condition row.
+	 *
+	 * The shell's own `<os-select>` when its components are loaded, so the
+	 * control on the card is the same control everywhere else on the desktop —
+	 * a bare browser `<select>` next to os-styled chrome read as a seam. On
+	 * the plain admin page, where the components do not exist, a native select
+	 * is the seamless choice for exactly the same reason.
+	 *
+	 * @param value    The selected value.
+	 * @param options  What can be picked.
+	 * @param key      The `data-cond` refocus key.
+	 * @param label    The accessible name.
+	 * @param onChange Called with the newly picked value.
+	 * @return The control.
+	 */
+	private condSelect(
+		value: string,
+		options: Array< { value: string; label: string } >,
+		key: string,
+		label: string,
+		onChange: ( picked: string ) => void
+	): HTMLElement {
+		if ( hasComponent( 'os-select' ) && hasComponent( 'os-option' ) ) {
+			const host = document.createElement( 'os-select' );
+
+			host.setAttribute( 'value', value );
+			host.setAttribute( 'aria-label', label );
+			host.setAttribute( 'data-cond', key );
+			host.className = 'atfb-cond__control';
+			host.title = label;
+
+			for ( const option of options ) {
+				const item = document.createElement( 'os-option' );
+
+				item.setAttribute( 'value', option.value );
+				item.textContent = option.label;
+				host.append( item );
+			}
+
+			host.addEventListener( 'os-pick', ( event: Event ) => {
+				onChange( String( ( event as CustomEvent< { value?: string } > ).detail?.value ?? '' ) );
+			} );
+
+			return host;
+		}
+
+		return el( 'select', {
+			class: 'atfb-cond__control atfb-cond__control--native',
+			title: label,
+			attrs: { 'aria-label': label, 'data-cond': key },
+			on: {
+				change: ( event: Event ) => onChange( ( event.target as HTMLSelectElement ).value ),
+			},
+			children: options.map( ( option ) =>
+				el( 'option', { value: option.value, text: option.label, attrs: { selected: option.value === value } } )
+			),
+		} );
+	}
+
+	/**
 	 * One tagged part of a condition — as the control that edits it.
 	 *
 	 * The row used to *describe* the rule and send you to the inspector to
@@ -1959,32 +2020,25 @@ export class Builder {
 		if ( 'operator' === token.kind ) {
 			const key = `${ owner.id }:op:${ token.ruleIndex }`;
 
-			return el( 'select', {
-				class: 'atfb-cond__op',
-				title: 'How the answer is compared.',
-				attrs: { 'aria-label': 'How the answer is compared', 'data-cond': key },
-				on: {
-					change: ( event: Event ) => {
-						const operator = ( event.target as HTMLSelectElement ).value as keyof typeof OPERATOR_LABELS;
+			return this.condSelect(
+				token.operator,
+				Object.entries( OPERATOR_LABELS ).map( ( [ value, label ] ) => ( { value, label } ) ),
+				key,
+				'How the answer is compared',
+				( picked ) =>
+					this.editCondition(
+						owner.id,
+						( logic ) => {
+							const rule = logic.rules[ token.ruleIndex ];
 
-						this.editCondition(
-							owner.id,
-							( logic ) => {
-								const rule = logic.rules[ token.ruleIndex ];
-
-								if ( rule ) {
-									rule.operator = operator;
-								}
-							},
-							true,
-							key
-						);
-					},
-				},
-				children: Object.entries( OPERATOR_LABELS ).map( ( [ value, label ] ) =>
-					el( 'option', { value, text: label, attrs: { selected: value === token.operator } } )
-				),
-			} );
+							if ( rule ) {
+								rule.operator = picked as keyof typeof OPERATOR_LABELS;
+							}
+						},
+						true,
+						key
+					)
+			);
 		}
 
 		if ( 'value' === token.kind ) {
@@ -2026,26 +2080,21 @@ export class Builder {
 			);
 
 		if ( source?.choices?.length ) {
-			const options = source.choices.map( ( choice ) =>
-				el( 'option', { value: choice.value, text: choice.label || choice.value, attrs: { selected: choice.value === token.raw } } )
-			);
+			const options = source.choices.map( ( choice ) => ( {
+				value: choice.value,
+				label: choice.label || choice.value,
+			} ) );
 
 			// A stored value no choice carries any more — the option was renamed
 			// or deleted — is kept visible rather than silently swapped for the
 			// first choice, so what the select shows is always what the rule says.
 			if ( token.raw !== '' && ! source.choices.some( ( choice ) => choice.value === token.raw ) ) {
-				options.unshift( el( 'option', { value: token.raw, text: token.text, attrs: { selected: true } } ) );
+				options.unshift( { value: token.raw, label: token.text } );
 			}
 
-			return el( 'select', {
-				class: 'atfb-cond__chip atfb-cond__chip--value atfb-cond__value',
-				title: 'The answer that triggers this.',
-				attrs: { 'aria-label': 'The answer that triggers this', 'data-cond': key },
-				on: {
-					change: ( event: Event ) => write( ( event.target as HTMLSelectElement ).value, true ),
-				},
-				children: options,
-			} );
+			return this.condSelect( token.raw, options, key, 'The answer that triggers this', ( picked ) =>
+				write( picked, true )
+			);
 		}
 
 		const numeric = [ 'number', 'range', 'scale', 'rating', 'total' ].includes( source?.type ?? '' );

@@ -2838,6 +2838,97 @@ var allTerrainFormsBuilder = function(exports) {
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
+  const FORM_TYPE = "allterrain-forms/form";
+  function relations() {
+    const os = window.wp?.os;
+    return os?.relations ?? null;
+  }
+  function windowIdOf(element) {
+    const host = element.closest("[data-window-id], .os-window");
+    if (!host) {
+      return null;
+    }
+    const attribute = host.getAttribute("data-window-id");
+    if (attribute) {
+      return attribute;
+    }
+    const id = host.id ?? "";
+    return id ? id.replace(/^wp-window-/, "") : null;
+  }
+  const ATTACH_TIMEOUT_MS = 6e3;
+  const ATTACH_POLL_MS = 120;
+  function setIdentity(element, ref) {
+    const api2 = relations();
+    wanted.set(element, ref);
+    if (!api2?.set) {
+      return;
+    }
+    const attempt = (deadline) => {
+      if (pending.get(element) !== token) {
+        return;
+      }
+      const windowId = windowIdOf(element);
+      if (!windowId) {
+        if (Date.now() < deadline) {
+          window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
+        }
+        return;
+      }
+      try {
+        api2.set(windowId, ref);
+      } catch (error) {
+        if (!warned) {
+          warned = true;
+          console.error("[AllTerrain Forms] The shell refused a window identity.", error, ref);
+        }
+        pending.delete(element);
+        return;
+      }
+      const stuck = !ref || api2.get?.(windowId)?.id === ref.id;
+      if (stuck || Date.now() >= deadline) {
+        pending.delete(element);
+        return;
+      }
+      window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
+    };
+    const token = Symbol("atf-identity");
+    pending.set(element, token);
+    attempt(Date.now() + ATTACH_TIMEOUT_MS);
+  }
+  let warned = false;
+  const pending = /* @__PURE__ */ new WeakMap();
+  const wanted = /* @__PURE__ */ new Map();
+  function reapply() {
+    for (const [element, ref] of wanted) {
+      if (!element.isConnected) {
+        wanted.delete(element);
+        continue;
+      }
+      setIdentity(element, ref);
+    }
+  }
+  if (typeof document !== "undefined") {
+    for (const event of ["os-window-content-loaded", "os-window-opened"]) {
+      document.addEventListener(event, () => reapply());
+    }
+  }
+  function formIdentity(form, adminUrl) {
+    return {
+      type: FORM_TYPE,
+      id: form.id,
+      label: form.title || "Untitled form",
+      related: [
+        {
+          id: `allterrain-forms/entries-${form.id}`,
+          label: "Entries for this form",
+          url: `${adminUrl}admin.php?page=allterrain-forms-entries&form=${form.id}`,
+          group: "allterrain-forms",
+          groupLabel: "Forms",
+          icon: "dashicons-list-view"
+        }
+      ]
+    };
+  }
   const CHAR_GROUPS = {
     letters: { label: "Letters", chars: "A-Za-zÀ-ÖØ-öø-ÿ" },
     numbers: { label: "Numbers", chars: "0-9" },
@@ -2967,21 +3058,69 @@ var allTerrainFormsBuilder = function(exports) {
       return null;
     }
   }
+  function shellWindows() {
+    return window.wp?.os?.windowManager ?? null;
+  }
+  const EDITOR_WINDOW_BASE = "allterrain-forms-validation";
   function openValidationEditor(options) {
-    const recipe = parseRecipe(String(options.field.validationRecipe ?? ""));
-    if ("blocks" === recipe.mode && "" === compileRecipe(recipe) && options.field.pattern) {
-      recipe.mode = "regex";
-      recipe.regex = String(options.field.pattern);
+    const manager = shellWindows();
+    const parentId = windowIdOf(options.root);
+    if (manager?.openChild && parentId) {
+      openAsChildWindow(manager, parentId, options);
+      return;
     }
-    if (!recipe.message) {
-      recipe.message = String(options.field.messages?.invalid ?? "");
+    openAsOverlay(options);
+  }
+  function openAsChildWindow(manager, parentId, options) {
+    const id = `${EDITOR_WINDOW_BASE}-${options.field.id}`;
+    if (manager.getById?.(id)) {
+      manager.remove?.(id);
     }
+    const state = { saved: false };
+    const close = () => {
+      const win = manager.getById?.(id);
+      if (win?.close) {
+        win.close();
+      } else {
+        manager.remove?.(id);
+      }
+    };
+    void manager.openChild?.(parentId, {
+      id,
+      baseId: EDITOR_WINDOW_BASE,
+      url: `#${id}`,
+      title: `Custom rule — ${options.field.label || "this question"}`,
+      icon: "dashicons-yes-alt",
+      native: true,
+      width: 560,
+      height: 700,
+      minWidth: 440,
+      minHeight: 480,
+      // A rule mid-edit is not worth resurrecting against a field that may
+      // be gone; children are excluded from snapshots anyway, this says so.
+      ephemeral: true,
+      autofocus: ".atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea",
+      render: (body) => {
+        const host = el("div", { class: "atfa atfb-valwin atfb-valwin--window" });
+        buildEditor(host, options, state, close, "window");
+        body.append(host);
+      },
+      // Fires however the window closes — Save, Cancel, the title-bar X,
+      // or its owner closing. One place decides whether that was a cancel.
+      onClose: () => {
+        if (!state.saved) {
+          options.onCancel?.();
+        }
+      }
+    });
+  }
+  function openAsOverlay(options) {
     const overlay = el("div", { class: "atfb-overlay" });
-    let saved = false;
+    const state = { saved: false };
     const close = () => {
       overlay.remove();
       document.removeEventListener("keydown", onKeydown);
-      if (!saved) {
+      if (!state.saved) {
         options.onCancel?.();
       }
     };
@@ -2990,6 +3129,33 @@ var allTerrainFormsBuilder = function(exports) {
         close();
       }
     };
+    const modal = el("div", {
+      class: "atfb-modal atfb-valwin",
+      attrs: { role: "dialog", "aria-label": "Custom validation rule" },
+      children: [el("h2", { text: "Custom rule" })]
+    });
+    buildEditor(modal, options, state, close, "overlay");
+    overlay.append(modal);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        close();
+      }
+    });
+    document.addEventListener("keydown", onKeydown);
+    options.root.append(overlay);
+    overlay.querySelector(
+      ".atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea"
+    )?.focus();
+  }
+  function buildEditor(host, options, state, requestClose, chrome) {
+    const recipe = parseRecipe(String(options.field.validationRecipe ?? ""));
+    if ("blocks" === recipe.mode && "" === compileRecipe(recipe) && options.field.pattern) {
+      recipe.mode = "regex";
+      recipe.regex = String(options.field.pattern);
+    }
+    if (!recipe.message) {
+      recipe.message = String(options.field.messages?.invalid ?? "");
+    }
     const blockInput = (key, placeholder) => {
       const input = el("input", {
         class: "atfb-input",
@@ -3141,70 +3307,55 @@ var allTerrainFormsBuilder = function(exports) {
         verdict.classList.toggle("is-fail", false === result);
       }
     };
-    overlay.append(
+    host.append(
+      el("p", {
+        class: "atfb-hint",
+        text: `Describe what a good answer to “${options.field.label || "this question"}” looks like — no code needed.`
+      }),
+      tabs,
+      blocksPane,
+      regexPane,
       el("div", {
-        class: "atfb-modal atfb-valwin",
-        attrs: { role: "dialog", "aria-label": "Custom validation rule" },
+        class: "atfb-valwin__try",
         children: [
-          el("h2", { text: "Custom rule" }),
-          el("p", {
-            class: "atfb-hint",
-            text: `Describe what a good answer to “${options.field.label || "this question"}” looks like — no code needed.`
-          }),
-          tabs,
-          blocksPane,
-          regexPane,
-          el("div", {
-            class: "atfb-valwin__try",
-            children: [
-              el("h3", { text: "Try it out" }),
-              summary,
-              samples,
-              button(
-                "Add another sample",
-                () => {
-                  sampleRow("");
-                  refresh();
-                },
-                "ghost",
-                "plus-alt2"
-              )
-            ]
-          }),
-          row(
-            "When it fails, say",
-            messageInput,
-            "Shown to the visitor when their answer breaks the rule. Leave empty for the default wording."
-          ),
-          el("div", {
-            class: "atfb-modal__actions",
-            children: [
-              button("Cancel", close),
-              button(
-                "Save rule",
-                () => {
-                  const pattern = compileRecipe(recipe);
-                  recipe.tests = readSamples().filter((value) => "" !== value).slice(0, 10);
-                  saved = true;
-                  options.onSave({ pattern, recipe, message: recipe.message.trim() });
-                  close();
-                },
-                "primary"
-              )
-            ]
-          })
+          el("h3", { text: "Try it out" }),
+          summary,
+          samples,
+          button(
+            "Add another sample",
+            () => {
+              sampleRow("");
+              refresh();
+            },
+            "ghost",
+            "plus-alt2"
+          )
+        ]
+      }),
+      row(
+        "When it fails, say",
+        messageInput,
+        "Shown to the visitor when their answer breaks the rule. Leave empty for the default wording."
+      ),
+      el("div", {
+        class: "atfb-modal__actions",
+        children: [
+          button("window" === chrome ? "Close without saving" : "Cancel", requestClose),
+          button(
+            "Save rule",
+            () => {
+              const pattern = compileRecipe(recipe);
+              recipe.tests = readSamples().filter((value) => "" !== value).slice(0, 10);
+              state.saved = true;
+              options.onSave({ pattern, recipe, message: recipe.message.trim() });
+              requestClose();
+            },
+            "primary"
+          )
         ]
       })
     );
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) {
-        close();
-      }
-    });
-    document.addEventListener("keydown", onKeydown);
-    options.root.append(overlay);
     refresh();
-    overlay.querySelector(".atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea")?.focus();
   }
   const VALIDATION_GROUPS = ["Contact", "Numbers & codes", "Text shape", "Web"];
   const VALIDATION_PRESETS = [
@@ -3431,97 +3582,6 @@ var allTerrainFormsBuilder = function(exports) {
     }
     const separator = url.includes("?") ? "&" : "?";
     openPreviewWindow(formId, title, `${url}${separator}atf_r=${Date.now()}`);
-  }
-  const FORM_TYPE = "allterrain-forms/form";
-  function relations() {
-    const os = window.wp?.os;
-    return os?.relations ?? null;
-  }
-  function windowIdOf(element) {
-    const host = element.closest("[data-window-id], .os-window");
-    if (!host) {
-      return null;
-    }
-    const attribute = host.getAttribute("data-window-id");
-    if (attribute) {
-      return attribute;
-    }
-    const id = host.id ?? "";
-    return id ? id.replace(/^wp-window-/, "") : null;
-  }
-  const ATTACH_TIMEOUT_MS = 6e3;
-  const ATTACH_POLL_MS = 120;
-  function setIdentity(element, ref) {
-    const api2 = relations();
-    wanted.set(element, ref);
-    if (!api2?.set) {
-      return;
-    }
-    const attempt = (deadline) => {
-      if (pending.get(element) !== token) {
-        return;
-      }
-      const windowId = windowIdOf(element);
-      if (!windowId) {
-        if (Date.now() < deadline) {
-          window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
-        }
-        return;
-      }
-      try {
-        api2.set(windowId, ref);
-      } catch (error) {
-        if (!warned) {
-          warned = true;
-          console.error("[AllTerrain Forms] The shell refused a window identity.", error, ref);
-        }
-        pending.delete(element);
-        return;
-      }
-      const stuck = !ref || api2.get?.(windowId)?.id === ref.id;
-      if (stuck || Date.now() >= deadline) {
-        pending.delete(element);
-        return;
-      }
-      window.setTimeout(() => attempt(deadline), ATTACH_POLL_MS);
-    };
-    const token = Symbol("atf-identity");
-    pending.set(element, token);
-    attempt(Date.now() + ATTACH_TIMEOUT_MS);
-  }
-  let warned = false;
-  const pending = /* @__PURE__ */ new WeakMap();
-  const wanted = /* @__PURE__ */ new Map();
-  function reapply() {
-    for (const [element, ref] of wanted) {
-      if (!element.isConnected) {
-        wanted.delete(element);
-        continue;
-      }
-      setIdentity(element, ref);
-    }
-  }
-  if (typeof document !== "undefined") {
-    for (const event of ["os-window-content-loaded", "os-window-opened"]) {
-      document.addEventListener(event, () => reapply());
-    }
-  }
-  function formIdentity(form, adminUrl) {
-    return {
-      type: FORM_TYPE,
-      id: form.id,
-      label: form.title || "Untitled form",
-      related: [
-        {
-          id: `allterrain-forms/entries-${form.id}`,
-          label: "Entries for this form",
-          url: `${adminUrl}admin.php?page=allterrain-forms-entries&form=${form.id}`,
-          group: "allterrain-forms",
-          groupLabel: "Forms",
-          icon: "dashicons-list-view"
-        }
-      ]
-    };
   }
   const FIELD_PAYLOAD_TYPE = "allterrain-forms/field";
   const MEDIA_PAYLOAD_TYPES = ["openstation/file", "desktop-mode/file", "openstation/attachment"];
@@ -4892,6 +4952,53 @@ var allTerrainFormsBuilder = function(exports) {
       }
     }
     /**
+     * A small dropdown for the condition row.
+     *
+     * The shell's own `<os-select>` when its components are loaded, so the
+     * control on the card is the same control everywhere else on the desktop —
+     * a bare browser `<select>` next to os-styled chrome read as a seam. On
+     * the plain admin page, where the components do not exist, a native select
+     * is the seamless choice for exactly the same reason.
+     *
+     * @param value    The selected value.
+     * @param options  What can be picked.
+     * @param key      The `data-cond` refocus key.
+     * @param label    The accessible name.
+     * @param onChange Called with the newly picked value.
+     * @return The control.
+     */
+    condSelect(value, options, key, label, onChange) {
+      if (hasComponent("os-select") && hasComponent("os-option")) {
+        const host = document.createElement("os-select");
+        host.setAttribute("value", value);
+        host.setAttribute("aria-label", label);
+        host.setAttribute("data-cond", key);
+        host.className = "atfb-cond__control";
+        host.title = label;
+        for (const option of options) {
+          const item = document.createElement("os-option");
+          item.setAttribute("value", option.value);
+          item.textContent = option.label;
+          host.append(item);
+        }
+        host.addEventListener("os-pick", (event) => {
+          onChange(String(event.detail?.value ?? ""));
+        });
+        return host;
+      }
+      return el("select", {
+        class: "atfb-cond__control atfb-cond__control--native",
+        title: label,
+        attrs: { "aria-label": label, "data-cond": key },
+        on: {
+          change: (event) => onChange(event.target.value)
+        },
+        children: options.map(
+          (option) => el("option", { value: option.value, text: option.label, attrs: { selected: option.value === value } })
+        )
+      });
+    }
+    /**
      * One tagged part of a condition — as the control that edits it.
      *
      * The row used to *describe* the rule and send you to the inspector to
@@ -4961,30 +5068,23 @@ var allTerrainFormsBuilder = function(exports) {
       }
       if ("operator" === token.kind) {
         const key = `${owner.id}:op:${token.ruleIndex}`;
-        return el("select", {
-          class: "atfb-cond__op",
-          title: "How the answer is compared.",
-          attrs: { "aria-label": "How the answer is compared", "data-cond": key },
-          on: {
-            change: (event) => {
-              const operator = event.target.value;
-              this.editCondition(
-                owner.id,
-                (logic) => {
-                  const rule = logic.rules[token.ruleIndex];
-                  if (rule) {
-                    rule.operator = operator;
-                  }
-                },
-                true,
-                key
-              );
-            }
-          },
-          children: Object.entries(OPERATOR_LABELS).map(
-            ([value, label]) => el("option", { value, text: label, attrs: { selected: value === token.operator } })
+        return this.condSelect(
+          token.operator,
+          Object.entries(OPERATOR_LABELS).map(([value, label]) => ({ value, label })),
+          key,
+          "How the answer is compared",
+          (picked) => this.editCondition(
+            owner.id,
+            (logic) => {
+              const rule = logic.rules[token.ruleIndex];
+              if (rule) {
+                rule.operator = picked;
+              }
+            },
+            true,
+            key
           )
-        });
+        );
       }
       if ("value" === token.kind) {
         return this.renderConditionValue(owner, token);
@@ -5014,21 +5114,20 @@ var allTerrainFormsBuilder = function(exports) {
         key
       );
       if (source?.choices?.length) {
-        const options = source.choices.map(
-          (choice) => el("option", { value: choice.value, text: choice.label || choice.value, attrs: { selected: choice.value === token.raw } })
-        );
+        const options = source.choices.map((choice) => ({
+          value: choice.value,
+          label: choice.label || choice.value
+        }));
         if (token.raw !== "" && !source.choices.some((choice) => choice.value === token.raw)) {
-          options.unshift(el("option", { value: token.raw, text: token.text, attrs: { selected: true } }));
+          options.unshift({ value: token.raw, label: token.text });
         }
-        return el("select", {
-          class: "atfb-cond__chip atfb-cond__chip--value atfb-cond__value",
-          title: "The answer that triggers this.",
-          attrs: { "aria-label": "The answer that triggers this", "data-cond": key },
-          on: {
-            change: (event) => write(event.target.value, true)
-          },
-          children: options
-        });
+        return this.condSelect(
+          token.raw,
+          options,
+          key,
+          "The answer that triggers this",
+          (picked) => write(picked, true)
+        );
       }
       const numeric = ["number", "range", "scale", "rating", "total"].includes(source?.type ?? "");
       const input = el("input", {
