@@ -304,6 +304,12 @@
 	display: block;
 	width: 100%;
 	min-height: var( --atf-field-height );
+	/* `auto`, explicitly: site themes size bare fields with a fixed height —
+	   Astra pins `input[type="text"]` and `select` at 40px — and a fixed
+	   height under this rule's padding leaves a 24px line box 20px of room,
+	   which cuts every descender off. Padding is the height policy here, so
+	   the box must be allowed to be as tall as its line. */
+	height: auto;
 	padding: var( --atf-pad-field-y ) var( --atf-pad-field-x );
 	font-family: inherit;
 	font-size: inherit;
