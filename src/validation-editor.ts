@@ -21,7 +21,7 @@
  * form instead of the compiled hieroglyphics.
  */
 
-import { button, el, row } from './ui';
+import { button, checkbox, el, hasComponent, row } from './ui';
 import { windowIdOf } from './relations';
 import type { Field } from './types';
 
@@ -526,22 +526,20 @@ function buildEditor(
 		return input;
 	};
 
+	// The `checkbox()` helper rather than raw inputs: under the shell it
+	// renders `<os-checkbox-label>`, the same control as every other tick box
+	// on the desktop — and it sidesteps the wp-admin stylesheet quirks that
+	// helper's own documentation catalogues.
 	const charBoxes = el( 'div', {
 		class: 'atfb-valwin__chars',
-		children: Object.entries( CHAR_GROUPS ).map( ( [ key, group ] ) => {
-			const box = el( 'input', {
-				attrs: { type: 'checkbox', checked: recipe.chars.includes( key ) },
-			} ) as HTMLInputElement;
-
-			box.addEventListener( 'change', () => {
-				recipe.chars = box.checked
+		children: Object.entries( CHAR_GROUPS ).map( ( [ key, group ] ) =>
+			checkbox( group.label, recipe.chars.includes( key ), ( checked ) => {
+				recipe.chars = checked
 					? [ ...recipe.chars, key ]
 					: recipe.chars.filter( ( item ) => item !== key );
 				refresh();
-			} );
-
-			return el( 'label', { class: 'atfb-valwin__char', children: [ box, el( 'span', { text: group.label } ) ] } );
-		} ),
+			} )
+		),
 	} );
 
 	const blocksPane = el( 'div', {
@@ -595,36 +593,77 @@ function buildEditor(
 
 	/* --------------------------------------------------------------- Tabs */
 
-	const tabs = el( 'div', { class: 'atfb-valwin__tabs', attrs: { role: 'tablist' } } );
+	const MODES = [
+		[ 'blocks', 'Easy blocks' ],
+		[ 'regex', 'Expression (advanced)' ],
+	] as const;
 
-	const paintTabs = () => {
-		tabs.replaceChildren(
-			...( [
-				[ 'blocks', 'Easy blocks' ],
-				[ 'regex', 'Expression (advanced)' ],
-			] as const ).map( ( [ mode, label ] ) => {
-				const active = recipe.mode === mode;
-
-				return el( 'button', {
-					class: `atfb-valwin__tab${ active ? ' is-active' : '' }`,
-					type: 'button',
-					text: label,
-					attrs: { role: 'tab', 'aria-selected': active ? 'true' : 'false' },
-					on: {
-						click: () => {
-							recipe.mode = mode;
-							blocksPane.hidden = 'blocks' !== mode;
-							regexPane.hidden = 'regex' !== mode;
-							paintTabs();
-							refresh();
-						},
-					},
-				} );
-			} )
-		);
+	const setMode = ( mode: 'blocks' | 'regex' ) => {
+		recipe.mode = mode;
+		blocksPane.hidden = 'blocks' !== mode;
+		regexPane.hidden = 'regex' !== mode;
+		refresh();
 	};
 
-	paintTabs();
+	/** The two-mode switch — the shell's segmented control when it exists. */
+	const buildTabs = (): HTMLElement => {
+		if ( hasComponent( 'os-segmented' ) && hasComponent( 'os-segment' ) ) {
+			const host = document.createElement( 'os-segmented' );
+
+			host.setAttribute( 'value', recipe.mode );
+			host.setAttribute( 'label', 'How to write the rule' );
+			host.classList.add( 'atfb-valwin__tabs' );
+
+			for ( const [ mode, label ] of MODES ) {
+				const segment = document.createElement( 'os-segment' );
+
+				segment.setAttribute( 'value', mode );
+				segment.textContent = label;
+				host.append( segment );
+			}
+
+			host.addEventListener( 'os-pick', ( event: Event ) => {
+				const mode = ( event as CustomEvent< { value?: string } > ).detail?.value;
+
+				if ( 'blocks' === mode || 'regex' === mode ) {
+					host.setAttribute( 'value', mode );
+					setMode( mode );
+				}
+			} );
+
+			return host;
+		}
+
+		const list = el( 'div', { class: 'atfb-valwin__tabs', attrs: { role: 'tablist' } } );
+
+		const paint = () => {
+			list.replaceChildren(
+				...MODES.map( ( [ mode, label ] ) => {
+					const active = recipe.mode === mode;
+
+					return el( 'button', {
+						class: `atfb-valwin__tab${ active ? ' is-active' : '' }`,
+						type: 'button',
+						text: label,
+						attrs: { role: 'tab', 'aria-selected': active ? 'true' : 'false' },
+						on: {
+							click: () => {
+								setMode( mode );
+								paint();
+							},
+						},
+					} );
+				} )
+			);
+		};
+
+		paint();
+
+		return list;
+	};
+
+	const tabs = buildTabs();
+
 	blocksPane.hidden = 'blocks' !== recipe.mode;
 	regexPane.hidden = 'regex' !== recipe.mode;
 
