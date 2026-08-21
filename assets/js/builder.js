@@ -3102,7 +3102,13 @@ var allTerrainFormsBuilder = function(exports) {
       autofocus: ".atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea",
       render: (body) => {
         const host = el("div", { class: "atfa atfb-valwin atfb-valwin--window" });
-        buildEditor(host, options, state, close, "window");
+        const scroll = el("div", { class: "atfb-valwin__scroll" });
+        host.append(scroll);
+        buildEditor(scroll, options, state, close, "window");
+        const actions = scroll.querySelector(".atfb-modal__actions");
+        if (actions) {
+          host.append(actions);
+        }
         body.append(host);
       },
       // Fires however the window closes — Save, Cancel, the title-bar X,
