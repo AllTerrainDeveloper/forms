@@ -665,4 +665,122 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			'empty'                 => array( '', false, 'Emptiness is handled by `required`, not by the format check.' ),
 		);
 	}
+
+	/**
+	 * A required sub-field inside a repeater rejects the row that skipped it.
+	 *
+	 * @covers ::atf_validate_repeater_rows
+	 */
+	public function test_repeater_required_subfield_names_the_row() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'att',
+						'type'      => 'repeater',
+						'label'     => 'Attendees',
+						'itemLabel' => 'Attendee',
+						'fields'    => array(
+							array(
+								'id'    => 'name',
+								'type'  => 'text',
+								'label' => 'Name',
+							),
+							array(
+								'id'       => 'age',
+								'type'     => 'number',
+								'label'    => 'Age',
+								'required' => true,
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$errors = atf_validate_submission(
+			$schema,
+			array(
+				'att' => array(
+					array(
+						'name' => 'Ana',
+						'age'  => '30',
+					),
+					array(
+						'name' => 'Luz',
+						'age'  => '',
+					),
+				),
+			)
+		);
+
+		$this->assertArrayHasKey( 'att', $errors );
+		$this->assertStringContainsString( 'Attendee 2', $errors['att'] );
+		$this->assertStringContainsString( 'Age is required.', $errors['att'] );
+	}
+
+	/**
+	 * A row that passes its sub-fields' bounds passes, and one that does not
+	 * fails with the bound's own message.
+	 *
+	 * @covers ::atf_validate_repeater_rows
+	 */
+	public function test_repeater_rows_enforce_bounds() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'     => 'att',
+						'type'   => 'repeater',
+						'label'  => 'Attendees',
+						'fields' => array(
+							array(
+								'id'    => 'age',
+								'type'  => 'number',
+								'label' => 'Age',
+								'max'   => '120',
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$fine = atf_validate_submission( $schema, array( 'att' => array( array( 'age' => '30' ) ) ) );
+		$this->assertArrayNotHasKey( 'att', $fine );
+
+		$errors = atf_validate_submission( $schema, array( 'att' => array( array( 'age' => '200' ) ) ) );
+		$this->assertArrayHasKey( 'att', $errors );
+	}
+
+	/**
+	 * Fewer rows than `minRows` is an error the visitor can act on.
+	 *
+	 * @covers ::atf_validate_repeater_rows
+	 */
+	public function test_repeater_enforces_min_rows() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'      => 'att',
+						'type'    => 'repeater',
+						'label'   => 'Attendees',
+						'minRows' => 2,
+						'fields'  => array(
+							array(
+								'id'   => 'name',
+								'type' => 'text',
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$errors = atf_validate_submission( $schema, array( 'att' => array( array( 'name' => 'Ana' ) ) ) );
+
+		$this->assertArrayHasKey( 'att', $errors );
+		$this->assertStringContainsString( 'at least 2', $errors['att'] );
+	}
 }

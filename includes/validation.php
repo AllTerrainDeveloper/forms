@@ -120,6 +120,17 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 		return '';
 	}
 
+	// A repeater's rows hold real fields, and each one is validated with the
+	// same rules a top-level field gets. Without this, "required" on a
+	// sub-field was decoration: the repeater itself had rows, so it passed.
+	if ( 'repeater' === $field['type'] && is_array( $value ) ) {
+		$row_error = atf_validate_repeater_rows( $field, $value, $schema, $context );
+
+		if ( '' !== $row_error ) {
+			return $row_error;
+		}
+	}
+
 	$definition = atf_get_field_type( $field['type'] );
 
 	if ( $definition && is_callable( $definition['validate'] ) ) {
@@ -159,6 +170,71 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 	 * @param array  $schema The form schema.
 	 */
 	return (string) apply_filters( 'atf_validate_field', '', $field, $value, $schema );
+}
+
+/**
+ * Validates every row of a repeater against its sub-fields.
+ *
+ * The first failure wins and is named by row -- "Attendee 2: Age is
+ * required." -- because "something in there is wrong" is not an error anybody
+ * can act on when there are nine rows of four fields.
+ *
+ * @since 0.1.0
+ *
+ * @param array $field   The repeater field.
+ * @param array $rows    Its sanitised rows.
+ * @param array $schema  The form schema.
+ * @param array $context Submission context.
+ * @return string The error message, or an empty string.
+ */
+function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
+	$min = isset( $field['minRows'] ) ? absint( $field['minRows'] ) : 1;
+
+	if ( count( $rows ) < $min ) {
+		return atf_field_message(
+			$field,
+			'minrows',
+			sprintf(
+				/* translators: 1: the field's label, 2: minimum number of rows. */
+				__( '%1$s needs at least %2$d rows.', 'allterrain-forms' ),
+				'' !== $field['label'] ? $field['label'] : __( 'This', 'allterrain-forms' ),
+				$min
+			)
+		);
+	}
+
+	$subs = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
+
+	foreach ( array_values( $rows ) as $index => $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+
+		foreach ( $subs as $sub ) {
+			if ( empty( $sub['id'] ) ) {
+				continue;
+			}
+
+			$error = atf_validate_field(
+				$sub,
+				isset( $row[ $sub['id'] ] ) ? $row[ $sub['id'] ] : '',
+				$schema,
+				$context
+			);
+
+			if ( '' !== $error ) {
+				return sprintf(
+					/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's error. */
+					__( '%1$s %2$d: %3$s', 'allterrain-forms' ),
+					atf_repeater_item_label( $field ),
+					$index + 1,
+					$error
+				);
+			}
+		}
+	}
+
+	return '';
 }
 
 /**

@@ -886,4 +886,103 @@ class ATF_Test_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'placeholder="you@example.com"', $given );
 		$this->assertStringNotContainsString( 'placeholder=" "', $given );
 	}
+
+	/**
+	 * The client schema carries a repeater's sub-fields, prices included.
+	 *
+	 * The browser-side calculation engine resolves `{repeater.sub}` against
+	 * these; without them a live total that sums a repeater column shows 0
+	 * until submit, then "corrects" itself — which reads as a broken form.
+	 *
+	 * @covers ::atf_client_field
+	 */
+	public function test_client_schema_includes_repeater_subfields() {
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'att',
+						'type'      => 'repeater',
+						'label'     => 'Attendees',
+						'itemLabel' => 'Attendee',
+						'fields'    => array(
+							array(
+								'id'    => 'age',
+								'type'  => 'number',
+								'label' => 'Age',
+							),
+							array(
+								'id'      => 'meal',
+								'type'    => 'select',
+								'label'   => 'Meal',
+								'choices' => array(
+									array(
+										'label' => 'Steak',
+										'value' => 'steak',
+										'price' => 25,
+									),
+								),
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$html = atf_render_form( $form_id );
+
+		preg_match( '/<script type="application\/json" data-atf-schema[^>]*>(.*?)<\/script>/s', $html, $match );
+		$this->assertNotEmpty( $match, 'The client schema block is missing.' );
+
+		$payload = json_decode( $match[1], true );
+		$this->assertIsArray( $payload );
+
+		$repeater = null;
+
+		foreach ( $payload['fields'] as $field ) {
+			if ( 'att' === $field['id'] ) {
+				$repeater = $field;
+			}
+		}
+
+		$this->assertNotNull( $repeater );
+		$this->assertSame( 'Attendee', $repeater['itemLabel'] );
+		$this->assertCount( 2, $repeater['fields'] );
+		$this->assertSame( 'age', $repeater['fields'][0]['id'] );
+		$this->assertEquals( 25, $repeater['fields'][1]['choices'][0]['price'] );
+	}
+
+	/**
+	 * Repeater rows render as titled cards, numbered from one.
+	 *
+	 * @covers ::atf_render_repeater
+	 */
+	public function test_repeater_renders_titled_row_cards() {
+		$form_id = atf_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'att',
+						'type'      => 'repeater',
+						'label'     => 'Attendees',
+						'itemLabel' => 'Attendee',
+						'fields'    => array(
+							array(
+								'id'    => 'name',
+								'type'  => 'text',
+								'label' => 'Name',
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$html = atf_render_form( $form_id );
+
+		$this->assertStringContainsString( 'data-atf-item-label="Attendee"', $html );
+		$this->assertStringContainsString( 'Attendee 1', $html );
+		$this->assertStringContainsString( 'atf-repeater__row-head', $html );
+		$this->assertStringContainsString( 'Remove this Attendee', $html );
+	}
 }

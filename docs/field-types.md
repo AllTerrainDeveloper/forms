@@ -99,6 +99,7 @@ reach, and `tests/vitest/field-settings.test.ts` fails if one appears.
 | `nextlabel` | `nextLabel` | The page break's forward button, edited on the button itself |
 | `prevlabel` | `prevLabel` | The button that comes back from the page after |
 | `addlabel` | `addLabel` | The repeater's add button |
+| `itemlabel` | `itemLabel` | What one repeater row is called — "Attendee" numbers every card "Attendee 1", "Attendee 2" and names the Remove button |
 | `endlabels` | `minLabel`, `maxLabel` | The words on the ends of a scale |
 
 **Bounds and validation**
@@ -260,6 +261,28 @@ Give a choice a `price` and it feeds a total automatically:
 
 A multi-choice field sums the prices of everything picked. A `points` value works
 the same way and is what quiz scoring reads.
+
+### Repeaters in formulas
+
+A repeater is a *list* of answers, and a formula can read it three ways:
+
+```
+{attendees}              the number of rows — "15 per attendee" is {attendees} * 15
+sum( {attendees.age} )   one argument per row: sum, avg, min and max see every row
+{attendees.age} * 2      anywhere else, the reference is the total across rows
+```
+
+The per-row spread happens only when `{repeater.sub}` is the **sole argument**
+of `sum`, `avg`, `min` or `max` — spreading into a fixed-arity call like
+`pow( {a.b}, 2 )` would silently push the `2` out of its parameter slot, so
+everywhere else the reference collapses to its sum. A row the visitor added
+and never filled in counts nowhere, which keeps `{attendees}` agreeing with
+what the entry stores. Priced choices inside a repeater contribute their price
+per row, so `sum( {attendees.meal} )` totals an order.
+
+Both engines — `includes/calc.php` on submit, `src/shared/calc.ts` as the
+visitor types — resolve these identically, and the shared conformance table in
+`tests/fixtures/calc-cases.json` is what holds them to it.
 
 ---
 

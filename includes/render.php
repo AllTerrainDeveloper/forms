@@ -385,38 +385,7 @@ function atf_render_client_schema( $schema, $instance ) {
 	$fields = array();
 
 	foreach ( isset( $schema['fields'] ) ? $schema['fields'] : array() as $field ) {
-		$client = array(
-			'id'       => $field['id'],
-			'type'     => $field['type'],
-			'label'    => $field['label'],
-			'required' => (bool) $field['required'],
-			'logic'    => $field['logic'],
-			'messages' => $field['messages'],
-		);
-
-		foreach ( array( 'min', 'max', 'step', 'minlength', 'maxlength', 'pattern', 'minChoices', 'maxChoices', 'formula', 'decimals', 'currency', 'minRows', 'maxRows' ) as $key ) {
-			if ( isset( $field[ $key ] ) && '' !== $field[ $key ] ) {
-				$client[ $key ] = $field[ $key ];
-			}
-		}
-
-		// Only the parts of a choice a calculation or a logic rule needs. The
-		// label is already in the DOM beside the control that carries it.
-		if ( ! empty( $field['choices'] ) ) {
-			$client['choices'] = array();
-
-			foreach ( $field['choices'] as $choice ) {
-				$entry = array( 'value' => $choice['value'] );
-
-				if ( isset( $choice['price'] ) ) {
-					$entry['price'] = $choice['price'];
-				}
-
-				$client['choices'][] = $entry;
-			}
-		}
-
-		$fields[] = $client;
+		$fields[] = atf_client_field( $field );
 	}
 
 	$payload = array(
@@ -448,6 +417,61 @@ function atf_render_client_schema( $schema, $instance ) {
 		// close the same family of escapes for quotes and ampersands.
 		wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT )
 	);
+}
+
+/**
+ * One field's slice of the client schema.
+ *
+ * Recursive so a repeater carries its sub-fields: the browser-side calculation
+ * engine resolves `{repeater.sub}` references and needs each sub-field's type
+ * and choice prices to do it, exactly as the server does.
+ *
+ * @since 0.1.0
+ *
+ * @param array $field A normalised field.
+ * @return array What the front-end bundle needs to know about it.
+ */
+function atf_client_field( $field ) {
+	$client = array(
+		'id'       => $field['id'],
+		'type'     => $field['type'],
+		'label'    => $field['label'],
+		'required' => (bool) $field['required'],
+		'logic'    => $field['logic'],
+		'messages' => $field['messages'],
+	);
+
+	foreach ( array( 'min', 'max', 'step', 'minlength', 'maxlength', 'pattern', 'minChoices', 'maxChoices', 'formula', 'decimals', 'currency', 'minRows', 'maxRows', 'itemLabel' ) as $key ) {
+		if ( isset( $field[ $key ] ) && '' !== $field[ $key ] ) {
+			$client[ $key ] = $field[ $key ];
+		}
+	}
+
+	// Only the parts of a choice a calculation or a logic rule needs. The
+	// label is already in the DOM beside the control that carries it.
+	if ( ! empty( $field['choices'] ) ) {
+		$client['choices'] = array();
+
+		foreach ( $field['choices'] as $choice ) {
+			$entry = array( 'value' => $choice['value'] );
+
+			if ( isset( $choice['price'] ) ) {
+				$entry['price'] = $choice['price'];
+			}
+
+			$client['choices'][] = $entry;
+		}
+	}
+
+	if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
+		$client['fields'] = array();
+
+		foreach ( $field['fields'] as $sub ) {
+			$client['fields'][] = atf_client_field( $sub );
+		}
+	}
+
+	return $client;
 }
 
 /**

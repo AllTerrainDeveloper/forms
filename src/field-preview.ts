@@ -53,7 +53,8 @@ export type PreviewShape =
 	| 'range'
 	| 'composite'
 	| 'static'
-	| 'summary';
+	| 'summary'
+	| 'repeater';
 
 /**
  * Which shape a field type is drawn as.
@@ -89,7 +90,7 @@ const SHAPES: Record< string, PreviewShape > = {
 	scale: 'summary',
 	likert: 'summary',
 	signature: 'summary',
-	repeater: 'summary',
+	repeater: 'repeater',
 	color: 'text',
 	name: 'composite',
 	address: 'composite',
@@ -132,6 +133,15 @@ export interface PreviewHandlers {
 	edit: ( apply: ( field: Field ) => void ) => void;
 	/** The field's shape changed — snapshot, update, re-render. */
 	restructure: ( apply: ( field: Field ) => void ) => void;
+	/**
+	 * Resolves a type name to its registered definition.
+	 *
+	 * Needed by containers: a repeater draws each of its sub-fields through
+	 * {@link renderFieldPreview}, and each sub-field has a type of its own.
+	 */
+	types?: ( type: string ) => FieldType | undefined;
+	/** The id of the field currently selected in the builder, for highlighting. */
+	selectedId?: string | null;
 }
 
 /** What an inline-editable piece of text needs to know about itself. */
@@ -395,6 +405,9 @@ function control(
 		case 'static':
 			return staticBlock( field, type, handlers );
 
+		case 'repeater':
+			return repeaterContainer( field, handlers );
+
 		default:
 			// The elaborate controls — a Likert matrix, a signature pad — say what
 			// they are rather than pretending. A preview that is subtly wrong is
@@ -406,14 +419,144 @@ function control(
 						class: 'atfb-preview__summary',
 						text: `${ type?.label ?? field.type } — set this up in the panel on the right.`,
 					} ),
-					// A repeater's one visible piece of chrome is the button that adds
-					// another row, and its wording is already a setting. Drawing the
-					// real button is both the honest preview and the only place the
-					// wording was reachable.
-					'repeater' === field.type ? repeatButton( field, handlers ) : null,
 				],
 			} );
 	}
+}
+
+/**
+ * The repeater, drawn as what it is: a container.
+ *
+ * One row card, exactly as the front end will draw every row, with the real
+ * sub-fields inside it — each one a full preview of its own, editable in
+ * place, selectable, and removable. The card's title is the `itemLabel`
+ * setting made touchable: type "Attendee" into it and the front end numbers
+ * every card "Attendee 1", "Attendee 2".
+ *
+ * The builder wires dragging into `[data-atfb-repeater-zone]` after render,
+ * because only it knows the drag manager; this draws the places to drop.
+ */
+function repeaterContainer( field: Field, handlers: PreviewHandlers ): HTMLElement {
+	const subs = ( field.fields ?? [] ) as Field[];
+
+	const zone = el( 'div', {
+		class: 'atfb-repeater__zone',
+		attrs: { 'data-atfb-repeater-zone': field.id },
+	} );
+
+	subs.forEach( ( sub ) => zone.append( repeaterSubCard( field, sub, handlers ) ) );
+
+	if ( ! subs.length ) {
+		zone.append(
+			el( 'p', {
+				class: 'atfb-repeater__empty',
+				text: 'Drag fields from the palette in here — the visitor gets a fresh copy of each with every row they add.',
+			} )
+		);
+	}
+
+	return el( 'div', {
+		class: 'atfb-repeater',
+		attrs: { 'data-atfb-repeater': field.id },
+		children: [
+			el( 'div', {
+				class: 'atf-repeater__row atfb-repeater__frame',
+				children: [
+					el( 'div', {
+						class: 'atf-repeater__row-head',
+						children: [
+							el( 'span', {
+								class: 'atf-repeater__title atfb-repeater__title',
+								children: [
+									editableText( {
+										value: String( field.itemLabel ?? '' ),
+										placeholder: 'Row',
+										class: 'atfb-repeater__item-label',
+										bind: 'itemLabel',
+										onInput: ( value ) => handlers.edit( ( live ) => { live.itemLabel = value; } ),
+									} ),
+									el( 'span', { class: 'atfb-repeater__ordinal', text: '1', attrs: { 'aria-hidden': 'true' } } ),
+								],
+							} ),
+						],
+					} ),
+					zone,
+				],
+			} ),
+			repeatButton( field, handlers ),
+		],
+	} );
+}
+
+/**
+ * One sub-field, as a card inside the repeater's row.
+ *
+ * The preview inside is the ordinary {@link renderFieldPreview}, writing
+ * through handlers that first resolve the *live* repeater and then the
+ * sub-field inside it by id — the same two-step the top-level cards do, for
+ * the same reason: a save replaces every object this card was rendered from.
+ */
+function repeaterSubCard( repeater: Field, sub: Field, handlers: PreviewHandlers ): HTMLElement {
+	const subId = sub.id;
+
+	const forSub = ( apply: ( field: Field ) => void ) => ( live: Field ) => {
+		const target = ( ( live.fields ?? [] ) as Field[] ).find( ( candidate ) => candidate.id === subId );
+
+		if ( target ) {
+			apply( target );
+		}
+	};
+
+	const subHandlers: PreviewHandlers = {
+		edit: ( apply ) => handlers.edit( forSub( apply ) ),
+		restructure: ( apply ) => handlers.restructure( forSub( apply ) ),
+		types: handlers.types,
+		selectedId: handlers.selectedId,
+	};
+
+	const type = handlers.types?.( sub.type );
+
+	return el( 'div', {
+		class: `atfb-subcard${ handlers.selectedId === subId ? ' is-selected' : '' }`,
+		attrs: {
+			'data-atfb-subfield': subId,
+			'data-atfb-parent': repeater.id,
+			tabindex: '0',
+			role: 'button',
+			'aria-label': `${ sub.label || type?.label || sub.type }, inside ${ repeater.label || 'the repeater' }`,
+		},
+		children: [
+			el( 'div', {
+				class: 'atfb-subcard__head',
+				children: [
+					el( 'span', { class: 'atfb-subcard__type', text: type?.label ?? sub.type } ),
+					sub.required ? el( 'span', { class: 'atfb-subcard__required', text: 'Required' } ) : null,
+					el( 'button', {
+						class: 'atfb-preview__remove',
+						type: 'button',
+						title: 'Remove this field from the repeater',
+						attrs: { 'aria-label': `Remove ${ sub.label || type?.label || 'this field' }` },
+						on: {
+							pointerdown: ( event: Event ) => event.stopPropagation(),
+							click: ( event: Event ) => {
+								event.stopPropagation();
+								handlers.restructure( ( live ) => {
+									const list = ( live.fields ?? [] ) as Field[];
+									const index = list.findIndex( ( candidate ) => candidate.id === subId );
+
+									if ( index >= 0 ) {
+										list.splice( index, 1 );
+									}
+								} );
+							},
+						},
+						children: [ el( 'span', { text: '×' } ) ],
+					} ),
+				],
+			} ),
+			renderFieldPreview( sub, type, subHandlers ),
+		],
+	} );
 }
 
 /** A box whose placeholder is edited by typing into it. */
@@ -475,7 +618,7 @@ function repeatButton( field: Field, handlers: PreviewHandlers ): HTMLElement {
 	return labelledButton(
 		String( field.addLabel ?? '' ),
 		'Add another',
-		'atf-button--secondary',
+		'atf-button--ghost atfb-repeater__add',
 		'addLabel',
 		handlers,
 		( live, value ) => {

@@ -118,7 +118,7 @@ function atf_calculate( $formula, $values, $schema = array() ) {
 }
 
 /**
- * Replaces `{field}` references with their numeric values.
+ * Replaces `{field}` and `{repeater.sub}` references with numeric literals.
  *
  * A field that was not answered, or whose answer is not a number, contributes
  * zero. That is the only reading that lets a running total work: a quantity box
@@ -128,6 +128,18 @@ function atf_calculate( $formula, $values, $schema = array() ) {
  * "Ticket type" able to participate in an order total without a hidden field
  * shadowing it.
  *
+ * A repeater is a *list* of answers, and the grammar reads it three ways:
+ *
+ * - `{attendees}` is the number of rows -- "charge 15 per attendee" is
+ *   `{attendees} * 15`.
+ * - `sum( {attendees.age} )` spreads into one argument per row, so `sum`,
+ *   `avg`, `min` and `max` see every row's answer individually. The spread
+ *   happens only when the reference is the sole argument of one of those
+ *   four -- spreading into `pow( {a.b}, 2 )` would silently push the `2`
+ *   out of its parameter slot.
+ * - `{attendees.age}` anywhere else is the total across rows, which is what
+ *   an aggregate reference standing alone in arithmetic can only mean.
+ *
  * @since 0.1.0
  *
  * @param string $formula The formula.
@@ -136,22 +148,171 @@ function atf_calculate( $formula, $values, $schema = array() ) {
  * @return string The formula with references replaced by literals.
  */
 function atf_calc_resolve_refs( $formula, $values, $schema ) {
-	return preg_replace_callback(
-		'/\{([a-zA-Z0-9_]+)\}/',
-		static function ( $matches ) use ( $values, $schema ) {
-			$field_id = $matches[1];
-			$value    = array_key_exists( $field_id, $values ) ? $values[ $field_id ] : null;
-			$field    = $schema ? atf_find_field( $schema, $field_id ) : null;
+	// Assembled by offset rather than `preg_replace_callback()`, because a
+	// repeater reference resolves differently depending on what surrounds it,
+	// and the callback never learns where in the formula it is standing.
+	if ( ! preg_match_all( '/\{([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?\}/', $formula, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
+		return $formula;
+	}
 
-			// A bare float cast can produce scientific notation ("1.0E-5"),
-			// which the tokenizer reads as an unknown symbol and the whole
-			// formula dies. Substitute plain decimals at every magnitude.
-			$literal = rtrim( rtrim( sprintf( '%.10F', atf_calc_numeric_value( $value, $field ) ), '0' ), '.' );
+	$out    = '';
+	$cursor = 0;
 
-			return '' === $literal || '-' === $literal ? '0' : $literal;
-		},
-		$formula
-	);
+	foreach ( $matches as $match ) {
+		$whole  = $match[0][0];
+		$offset = (int) $match[0][1];
+		$sub_id = isset( $match[2] ) && -1 !== $match[2][1] ? $match[2][0] : '';
+
+		$out .= substr( $formula, $cursor, $offset - $cursor );
+		$out .= atf_calc_ref_literal( $formula, $offset, strlen( $whole ), $match[1][0], $sub_id, $values, $schema );
+
+		$cursor = $offset + strlen( $whole );
+	}
+
+	return $out . substr( $formula, $cursor );
+}
+
+/**
+ * The literal one reference resolves to.
+ *
+ * @since 0.1.0
+ *
+ * @param string $formula  The whole formula, for reading the reference's context.
+ * @param int    $offset   Where the reference starts.
+ * @param int    $length   How long the reference is.
+ * @param string $field_id The field named before the dot, or alone.
+ * @param string $sub_id   The repeater sub-field named after the dot, or ''.
+ * @param array  $values   Field id => value.
+ * @param array  $schema   The form schema.
+ * @return string A numeric literal, or a parenthesised/comma-separated list of them.
+ */
+function atf_calc_ref_literal( $formula, $offset, $length, $field_id, $sub_id, $values, $schema ) {
+	$field = $schema ? atf_find_field( $schema, $field_id ) : null;
+	$value = array_key_exists( $field_id, $values ) ? $values[ $field_id ] : null;
+
+	if ( '' === $sub_id ) {
+		// A repeater referenced whole is its row count; anything else is its
+		// numeric value as before.
+		$number = $field && 'repeater' === $field['type']
+			? (float) count( atf_calc_repeater_rows( $value ) )
+			: atf_calc_numeric_value( $value, $field );
+
+		return atf_calc_number_literal( $number );
+	}
+
+	$sub = null;
+
+	if ( $field && ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
+		foreach ( $field['fields'] as $candidate ) {
+			if ( isset( $candidate['id'] ) && (string) $candidate['id'] === $sub_id ) {
+				$sub = $candidate;
+				break;
+			}
+		}
+	}
+
+	$numbers = array();
+
+	foreach ( atf_calc_repeater_rows( $value ) as $row ) {
+		$numbers[] = atf_calc_numeric_value( isset( $row[ $sub_id ] ) ? $row[ $sub_id ] : '', $sub );
+	}
+
+	if ( ! $numbers ) {
+		return '0';
+	}
+
+	$literals = array_map( 'atf_calc_number_literal', $numbers );
+
+	if ( atf_calc_ref_spreads( $formula, $offset, $length ) ) {
+		return implode( ', ', $literals );
+	}
+
+	return 1 === count( $literals ) ? $literals[0] : '( ' . implode( ' + ', $literals ) . ' )';
+}
+
+/**
+ * Whether a reference at this position spreads into one argument per row.
+ *
+ * True only when it is the sole argument of a variadic aggregate --
+ * `sum( {a.b} )` -- where "one argument per row" is unambiguously what was
+ * meant. Everywhere else the reference collapses to its sum, because spreading
+ * into a fixed-arity call like `pow( {a.b}, 2 )` would silently shift every
+ * later argument out of its slot.
+ *
+ * @since 0.1.0
+ *
+ * @param string $formula The whole formula.
+ * @param int    $offset  Where the reference starts.
+ * @param int    $length  How long the reference is.
+ * @return bool
+ */
+function atf_calc_ref_spreads( $formula, $offset, $length ) {
+	$after = ltrim( substr( $formula, $offset + $length ) );
+
+	if ( '' === $after || ')' !== $after[0] ) {
+		return false;
+	}
+
+	$before = rtrim( substr( $formula, 0, $offset ) );
+
+	if ( ! preg_match( '/([a-zA-Z_][a-zA-Z0-9_]*)\s*\($/', $before, $match ) ) {
+		return false;
+	}
+
+	return in_array( strtolower( $match[1] ), array( 'sum', 'avg', 'min', 'max' ), true );
+}
+
+/**
+ * A repeater value's rows that were actually filled in.
+ *
+ * A row where every answer is empty is a row the visitor added and abandoned;
+ * counting it would make `{attendees}` disagree with what the entry stores,
+ * because `atf_sanitize_repeater_value()` drops exactly the same rows.
+ *
+ * @since 0.1.0
+ *
+ * @param mixed $value The repeater's value.
+ * @return array[] Rows with at least one non-empty answer.
+ */
+function atf_calc_repeater_rows( $value ) {
+	if ( ! is_array( $value ) ) {
+		return array();
+	}
+
+	$rows = array();
+
+	foreach ( $value as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+
+		foreach ( $row as $item ) {
+			if ( '' !== $item && null !== $item && false !== $item && array() !== $item ) {
+				$rows[] = $row;
+				break;
+			}
+		}
+	}
+
+	return $rows;
+}
+
+/**
+ * A number as a formula literal the tokenizer can read back.
+ *
+ * A bare float cast can produce scientific notation ("1.0E-5"), which the
+ * tokenizer reads as an unknown symbol and the whole formula dies. This prints
+ * plain decimals at every magnitude.
+ *
+ * @since 0.1.0
+ *
+ * @param float $number The number.
+ * @return string
+ */
+function atf_calc_number_literal( $number ) {
+	$literal = rtrim( rtrim( sprintf( '%.10F', $number ), '0' ), '.' );
+
+	return '' === $literal || '-' === $literal ? '0' : $literal;
 }
 
 /**

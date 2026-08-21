@@ -937,10 +937,11 @@ function atf_render_repeater( $field, $value, $context ) {
 	$rows       = is_array( $value ) && $value ? $value : array( array() );
 
 	$out  = sprintf(
-		'<div class="atf-repeater" data-atf-repeater="%s" data-atf-min="%d" data-atf-max="%d">',
+		'<div class="atf-repeater" data-atf-repeater="%s" data-atf-min="%d" data-atf-max="%d" data-atf-item-label="%s">',
 		esc_attr( $field['id'] ),
 		isset( $field['minRows'] ) ? absint( $field['minRows'] ) : 1,
-		isset( $field['maxRows'] ) ? absint( $field['maxRows'] ) : 10
+		isset( $field['maxRows'] ) ? absint( $field['maxRows'] ) : 10,
+		esc_attr( atf_repeater_item_label( $field ) )
 	);
 	$out .= atf_render_label( $field, $context['id'] );
 	$out .= '<div class="atf-repeater__rows">';
@@ -982,7 +983,32 @@ function atf_render_repeater( $field, $value, $context ) {
  * @return string
  */
 function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) {
-	$out = '<div class="atf-repeater__row" data-atf-repeater-row>';
+	$item_label = atf_repeater_item_label( $field );
+
+	// The template row's number is unknowable until it is cloned; the bundle
+	// renumbers every row after each add and remove anyway, so the template
+	// ships its title empty rather than shipping a lie.
+	$title = is_numeric( $index )
+		/* translators: 1: what one row is called, e.g. "Attendee", 2: row number. */
+		? sprintf( __( '%1$s %2$d', 'allterrain-forms' ), $item_label, (int) $index + 1 )
+		: '';
+
+	$out  = sprintf(
+		'<div class="atf-repeater__row" data-atf-repeater-row role="group" aria-label="%s">',
+		esc_attr( $title )
+	);
+	$out .= '<div class="atf-repeater__row-head">';
+	$out .= sprintf(
+		'<span class="atf-repeater__title" data-atf-repeater-title>%s</span>',
+		esc_html( $title )
+	);
+	$out .= sprintf(
+		'<button type="button" class="atf-repeater__remove" data-atf-repeater-remove aria-label="%s">&times;</button>',
+		/* translators: %s: what one row is called, e.g. "Attendee". */
+		esc_attr( sprintf( __( 'Remove this %s', 'allterrain-forms' ), $item_label ) )
+	);
+	$out .= '</div>';
+	$out .= '<div class="atf-repeater__row-grid">';
 
 	foreach ( $sub_fields as $sub ) {
 		$sub_id      = $context['id'] . '-' . $index . '-' . $sub['id'];
@@ -1025,12 +1051,7 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 		);
 	}
 
-	$out .= sprintf(
-		'<button type="button" class="atf-repeater__remove" data-atf-repeater-remove aria-label="%s">&times;</button>',
-		esc_attr__( 'Remove this row', 'allterrain-forms' )
-	);
-
-	return $out . '</div>';
+	return $out . '</div></div>';
 }
 
 /**

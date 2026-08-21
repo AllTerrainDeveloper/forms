@@ -109,6 +109,140 @@
 		{ "formula": "* 2", "values": {}, "result": null },
 		{ "formula": "1 2", "values": {}, "result": null },
 		{ "_why": "A tiny value must substitute as a plain decimal — a bare float-to-string cast yields scientific notation, which the tokenizer refuses.", "formula": "{a} * 1000000", "values": { "a": 1e-7 }, "result": 0.1 },
-		{ "_why": "The same guarantee when the tiny value arrives as a string.", "formula": "{a} + 1", "values": { "a": "0.00001" }, "result": 1.00001 }
+		{ "_why": "The same guarantee when the tiny value arrives as a string.", "formula": "{a} + 1", "values": { "a": "0.00001" }, "result": 1.00001 },
+
+		{
+			"_why": "A repeater sub-field spreads into one argument per row when it is the sole argument of a variadic aggregate.",
+			"formula": "sum( {att.age} )",
+			"values": { "att": [ { "age": "30" }, { "age": "12" }, { "age": "45" } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 87
+		},
+		{
+			"_why": "avg over rows sees each row, not their sum.",
+			"formula": "avg( {att.age} )",
+			"values": { "att": [ { "age": 2 }, { "age": 4 }, { "age": 6 } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 4
+		},
+		{
+			"_why": "min and max over rows.",
+			"formula": "max( {att.age} ) - min( {att.age} )",
+			"values": { "att": [ { "age": 7 }, { "age": 3 }, { "age": 11 } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 8
+		},
+		{
+			"_why": "Outside a variadic aggregate, an aggregate reference is the total across rows.",
+			"formula": "{att.age} * 2",
+			"values": { "att": [ { "age": 10 }, { "age": 5 } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 30
+		},
+		{
+			"_why": "Spreading into a fixed-arity function would shift its arguments, so pow gets the total.",
+			"formula": "pow( {att.age}, 2 )",
+			"values": { "att": [ { "age": 1 }, { "age": 2 } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 9
+		},
+		{
+			"_why": "A repeater referenced whole is its row count.",
+			"formula": "{att} * 15",
+			"values": { "att": [ { "name": "Ana" }, { "name": "Luz" } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "name", "type": "text", "choices": [] } ] }
+			],
+			"result": 30
+		},
+		{
+			"_why": "A row the visitor added and never filled in is not a row — the sanitiser drops it, so the count must agree.",
+			"formula": "{att} + sum( {att.age} )",
+			"values": { "att": [ { "age": 5, "name": "Ana" }, { "age": "", "name": "" }, { "age": "", "name": "Luz" } ] },
+			"fields": [
+				{
+					"id": "att",
+					"type": "repeater",
+					"fields": [
+						{ "id": "age", "type": "number", "choices": [] },
+						{ "id": "name", "type": "text", "choices": [] }
+					]
+				}
+			],
+			"result": 7
+		},
+		{
+			"_why": "A repeater with no rows contributes zero everywhere rather than voiding the formula.",
+			"formula": "sum( {att.age} ) + avg( {att.age} ) + {att} + 1",
+			"values": { "att": [] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "age", "type": "number", "choices": [] } ] }
+			],
+			"result": 1
+		},
+		{
+			"_why": "A priced choice inside a repeater contributes its price per row.",
+			"formula": "sum( {att.meal} )",
+			"values": { "att": [ { "meal": "steak" }, { "meal": "veg" } ] },
+			"fields": [
+				{
+					"id": "att",
+					"type": "repeater",
+					"fields": [
+						{
+							"id": "meal",
+							"type": "select",
+							"choices": [
+								{ "value": "steak", "price": 25 },
+								{ "value": "veg", "price": 18 }
+							]
+						}
+					]
+				}
+			],
+			"result": 43
+		},
+		{
+			"_why": "A negative answer survives the spread — the tokenizer reads the minus as a sign.",
+			"formula": "sum( {att.delta} )",
+			"values": { "att": [ { "delta": -5 }, { "delta": 12 } ] },
+			"fields": [
+				{ "id": "att", "type": "repeater", "fields": [ { "id": "delta", "type": "number", "choices": [] } ] }
+			],
+			"result": 7
+		},
+		{
+			"_why": "A sub-field reference into something that is not a repeater contributes zero rather than erroring.",
+			"formula": "{f1.x} + 2",
+			"values": { "f1": "hello" },
+			"fields": [ { "id": "f1", "type": "text", "choices": [] } ],
+			"result": 2
+		},
+		{
+			"_why": "An unanswered sub-field in an otherwise-filled row contributes zero, exactly like an unanswered field.",
+			"formula": "sum( {att.age} )",
+			"values": { "att": [ { "age": 8, "name": "Ana" }, { "age": "", "name": "Luz" } ] },
+			"fields": [
+				{
+					"id": "att",
+					"type": "repeater",
+					"fields": [
+						{ "id": "age", "type": "number", "choices": [] },
+						{ "id": "name", "type": "text", "choices": [] }
+					]
+				}
+			],
+			"result": 8
+		}
 	]
 }

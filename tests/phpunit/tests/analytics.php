@@ -439,4 +439,142 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			'time'   => time(),
 		);
 	}
+
+	/**
+	 * A repeater's sub-fields report as questions of their own.
+	 *
+	 * @covers ::atf_repeater_report_rows
+	 */
+	public function test_repeater_subfields_report_across_rows() {
+		$field = atf_normalize_field(
+			array(
+				'id'     => 'att',
+				'type'   => 'repeater',
+				'label'  => 'Attendees',
+				'fields' => array(
+					array(
+						'id'    => 'age',
+						'type'  => 'number',
+						'label' => 'Age',
+					),
+					array(
+						'id'      => 'meal',
+						'type'    => 'select',
+						'label'   => 'Meal',
+						'choices' => array(
+							array(
+								'label' => 'Steak',
+								'value' => 'steak',
+							),
+							array(
+								'label' => 'Veg',
+								'value' => 'veg',
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$sample = array(
+			'sampled' => 2,
+			'rows'    => array(
+				array(
+					'values' => array(
+						'att' => array(
+							array(
+								'age'  => '30',
+								'meal' => 'steak',
+							),
+							array(
+								'age'  => '12',
+								'meal' => 'veg',
+							),
+						),
+					),
+					'time'   => time(),
+				),
+				array(
+					'values' => array(
+						'att' => array(
+							array(
+								'age'  => '45',
+								'meal' => 'steak',
+							),
+						),
+					),
+					'time'   => time(),
+				),
+			),
+		);
+
+		$rows = atf_repeater_report_rows( $field, $sample );
+
+		$this->assertCount( 2, $rows );
+
+		$age = $rows[0];
+		$this->assertSame( 'att.age', $age['id'] );
+		$this->assertSame( 'Attendees · Age', $age['label'] );
+		$this->assertSame( 3, $age['answered'], 'Three rows answered the age.' );
+		$this->assertSame( 3, $age['of'] );
+		$this->assertSame( 100, $age['rate'] );
+		$this->assertSame( 3, $age['numbers']['count'] );
+		$this->assertSame( 29.0, $age['numbers']['mean'] );
+
+		$meal = $rows[1];
+		$this->assertSame( 'att.meal', $meal['id'] );
+		$this->assertSame( 2, $meal['choices'][0]['count'], 'Steak was picked in two rows.' );
+		$this->assertSame( 1, $meal['choices'][1]['count'] );
+	}
+
+	/**
+	 * A sub-field skipped in some rows reports an honest per-row rate.
+	 *
+	 * @covers ::atf_repeater_report_rows
+	 */
+	public function test_repeater_subfield_rate_is_per_row() {
+		$field = atf_normalize_field(
+			array(
+				'id'     => 'att',
+				'type'   => 'repeater',
+				'fields' => array(
+					array(
+						'id'   => 'age',
+						'type' => 'number',
+					),
+					array(
+						'id'   => 'name',
+						'type' => 'text',
+					),
+				),
+			)
+		);
+
+		$sample = array(
+			'sampled' => 1,
+			'rows'    => array(
+				array(
+					'values' => array(
+						'att' => array(
+							array(
+								'age'  => '8',
+								'name' => 'Ana',
+							),
+							array(
+								'age'  => '',
+								'name' => 'Luz',
+							),
+						),
+					),
+					'time'   => time(),
+				),
+			),
+		);
+
+		$rows = atf_repeater_report_rows( $field, $sample );
+
+		$this->assertSame( 1, $rows[0]['answered'] );
+		$this->assertSame( 2, $rows[0]['of'] );
+		$this->assertSame( 50, $rows[0]['rate'] );
+	}
 }

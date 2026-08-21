@@ -1043,7 +1043,7 @@ var allTerrainFormsBuilder = function(exports) {
     scale: "summary",
     likert: "summary",
     signature: "summary",
-    repeater: "summary",
+    repeater: "repeater",
     color: "text",
     name: "composite",
     address: "composite",
@@ -1208,6 +1208,8 @@ var allTerrainFormsBuilder = function(exports) {
         });
       case "static":
         return staticBlock(field, type, handlers);
+      case "repeater":
+        return repeaterContainer(field, handlers);
       default:
         return el("div", {
           class: "atfb-preview__stack",
@@ -1215,15 +1217,115 @@ var allTerrainFormsBuilder = function(exports) {
             el("p", {
               class: "atfb-preview__summary",
               text: `${type?.label ?? field.type} — set this up in the panel on the right.`
-            }),
-            // A repeater's one visible piece of chrome is the button that adds
-            // another row, and its wording is already a setting. Drawing the
-            // real button is both the honest preview and the only place the
-            // wording was reachable.
-            "repeater" === field.type ? repeatButton(field, handlers) : null
+            })
           ]
         });
     }
+  }
+  function repeaterContainer(field, handlers) {
+    const subs = field.fields ?? [];
+    const zone = el("div", {
+      class: "atfb-repeater__zone",
+      attrs: { "data-atfb-repeater-zone": field.id }
+    });
+    subs.forEach((sub) => zone.append(repeaterSubCard(field, sub, handlers)));
+    if (!subs.length) {
+      zone.append(
+        el("p", {
+          class: "atfb-repeater__empty",
+          text: "Drag fields from the palette in here — the visitor gets a fresh copy of each with every row they add."
+        })
+      );
+    }
+    return el("div", {
+      class: "atfb-repeater",
+      attrs: { "data-atfb-repeater": field.id },
+      children: [
+        el("div", {
+          class: "atf-repeater__row atfb-repeater__frame",
+          children: [
+            el("div", {
+              class: "atf-repeater__row-head",
+              children: [
+                el("span", {
+                  class: "atf-repeater__title atfb-repeater__title",
+                  children: [
+                    editableText({
+                      value: String(field.itemLabel ?? ""),
+                      placeholder: "Row",
+                      class: "atfb-repeater__item-label",
+                      bind: "itemLabel",
+                      onInput: (value) => handlers.edit((live) => {
+                        live.itemLabel = value;
+                      })
+                    }),
+                    el("span", { class: "atfb-repeater__ordinal", text: "1", attrs: { "aria-hidden": "true" } })
+                  ]
+                })
+              ]
+            }),
+            zone
+          ]
+        }),
+        repeatButton(field, handlers)
+      ]
+    });
+  }
+  function repeaterSubCard(repeater, sub, handlers) {
+    const subId = sub.id;
+    const forSub = (apply) => (live) => {
+      const target = (live.fields ?? []).find((candidate) => candidate.id === subId);
+      if (target) {
+        apply(target);
+      }
+    };
+    const subHandlers = {
+      edit: (apply) => handlers.edit(forSub(apply)),
+      restructure: (apply) => handlers.restructure(forSub(apply)),
+      types: handlers.types,
+      selectedId: handlers.selectedId
+    };
+    const type = handlers.types?.(sub.type);
+    return el("div", {
+      class: `atfb-subcard${handlers.selectedId === subId ? " is-selected" : ""}`,
+      attrs: {
+        "data-atfb-subfield": subId,
+        "data-atfb-parent": repeater.id,
+        tabindex: "0",
+        role: "button",
+        "aria-label": `${sub.label || type?.label || sub.type}, inside ${repeater.label || "the repeater"}`
+      },
+      children: [
+        el("div", {
+          class: "atfb-subcard__head",
+          children: [
+            el("span", { class: "atfb-subcard__type", text: type?.label ?? sub.type }),
+            sub.required ? el("span", { class: "atfb-subcard__required", text: "Required" }) : null,
+            el("button", {
+              class: "atfb-preview__remove",
+              type: "button",
+              title: "Remove this field from the repeater",
+              attrs: { "aria-label": `Remove ${sub.label || type?.label || "this field"}` },
+              on: {
+                pointerdown: (event) => event.stopPropagation(),
+                click: (event) => {
+                  event.stopPropagation();
+                  handlers.restructure((live) => {
+                    const list = live.fields ?? [];
+                    const index = list.findIndex((candidate) => candidate.id === subId);
+                    if (index >= 0) {
+                      list.splice(index, 1);
+                    }
+                  });
+                }
+              },
+              children: [el("span", { text: "×" })]
+            })
+          ]
+        }),
+        renderFieldPreview(sub, type, subHandlers)
+      ]
+    });
   }
   function placeholderBox(field, className, handlers, tall = false) {
     const box = editableText({
@@ -1256,7 +1358,7 @@ var allTerrainFormsBuilder = function(exports) {
     return labelledButton(
       String(field.addLabel ?? ""),
       "Add another",
-      "atf-button--secondary",
+      "atf-button--ghost atfb-repeater__add",
       "addLabel",
       handlers,
       (live, value) => {
@@ -2452,12 +2554,75 @@ var allTerrainFormsBuilder = function(exports) {
     return result === null || !Number.isFinite(result) ? null : result;
   }
   function resolveRefs(formula, values, fields) {
-    return formula.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, fieldId) => {
-      const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
-      const field = fields.find((candidate) => candidate.id === fieldId) ?? null;
-      const literal = numericValue(value, field).toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
-      return literal === "" || literal === "-" ? "0" : literal;
-    });
+    return formula.replace(
+      /\{([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?\}/g,
+      (match, fieldId, subId, offset) => refLiteral(formula, offset, match.length, fieldId, subId ?? "", values, fields)
+    );
+  }
+  function refLiteral(formula, offset, length, fieldId, subId, values, fields) {
+    const field = findField(fields, fieldId);
+    const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
+    if (subId === "") {
+      const number = field?.type === "repeater" ? repeaterRows(value).length : numericValue(value, field);
+      return numberLiteral(number);
+    }
+    const subs = field?.fields ?? [];
+    const sub = subs.find((candidate) => candidate.id === subId) ?? null;
+    const numbers = repeaterRows(value).map(
+      (row2) => numericValue(row2[subId] ?? "", sub)
+    );
+    if (!numbers.length) {
+      return "0";
+    }
+    const literals = numbers.map(numberLiteral);
+    if (refSpreads(formula, offset, length)) {
+      return literals.join(", ");
+    }
+    return literals.length === 1 ? literals[0] : `( ${literals.join(" + ")} )`;
+  }
+  function findField(fields, fieldId) {
+    for (const field of fields) {
+      if (field.id === fieldId) {
+        return field;
+      }
+      for (const sub of field.fields ?? []) {
+        if (sub.id === fieldId) {
+          return sub;
+        }
+      }
+    }
+    return null;
+  }
+  function refSpreads(formula, offset, length) {
+    const after = formula.slice(offset + length).replace(/^\s+/, "");
+    if (after === "" || after[0] !== ")") {
+      return false;
+    }
+    const before = formula.slice(0, offset).replace(/\s+$/, "");
+    const match = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\($/.exec(before);
+    return !!match && ["sum", "avg", "min", "max"].includes(match[1].toLowerCase());
+  }
+  function repeaterRows(value) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const rows = [];
+    for (const row2 of value) {
+      if (!row2 || typeof row2 !== "object" || Array.isArray(row2)) {
+        continue;
+      }
+      const filled = Object.values(row2).some(
+        (item) => item !== "" && item !== null && item !== void 0 && item !== false && !(Array.isArray(item) && !item.length)
+      );
+      if (filled) {
+        rows.push(row2);
+      }
+    }
+    return rows;
+  }
+  function numberLiteral(number) {
+    const literal = number.toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+    return literal === "" || literal === "-" ? "0" : literal;
   }
   function numericValue(value, field) {
     if (typeof value === "boolean") {
@@ -2734,11 +2899,39 @@ var allTerrainFormsBuilder = function(exports) {
   function formulaTargets(fields, except) {
     return fields.filter((field) => field.id !== except && NUMERIC_FRIENDLY.includes(field.type));
   }
+  function repeaterReferences(fields) {
+    const references = [];
+    for (const field of fields) {
+      if (field.type !== "repeater") {
+        continue;
+      }
+      const name = field.label || field.id;
+      references.push({ label: `${name} (how many)`, insert: `{${field.id}}` });
+      for (const sub of field.fields ?? []) {
+        if (!NUMERIC_FRIENDLY.includes(sub.type)) {
+          continue;
+        }
+        references.push({
+          label: `${name} · ${sub.label || sub.id}`,
+          insert: `{${field.id}.${sub.id}}`
+        });
+      }
+    }
+    return references;
+  }
   function formulaSampleValues(fields, except) {
     const values = {};
     formulaTargets(fields, except).forEach((field, index) => {
       values[field.id] = index + 1;
     });
+    for (const field of fields) {
+      if (field.type !== "repeater" || field.id === except) {
+        continue;
+      }
+      const subs = field.fields ?? [];
+      const row2 = (bump) => Object.fromEntries(subs.map((sub, index) => [sub.id, index + 1 + bump]));
+      values[field.id] = [row2(0), row2(1)];
+    }
     return values;
   }
   function openFormulaEditor(options) {
@@ -2772,7 +2965,9 @@ var allTerrainFormsBuilder = function(exports) {
         result.classList.add("is-error");
         return;
       }
-      const sampled = formulaTargets(options.fields, options.field.id).map((field, index) => `${field.label || field.id} = ${index + 1}`).join(", ");
+      const sampled = formulaTargets(options.fields, options.field.id).map((field, index) => `${field.label || field.id} = ${index + 1}`).concat(
+        options.fields.filter((field) => field.type === "repeater" && field.id !== options.field.id).map((field) => `${field.label || field.id} = 2 sample rows`)
+      ).join(", ");
       result.textContent = `With sample answers (${sampled}): ${computed}`;
       result.classList.remove("is-error");
     };
@@ -2792,9 +2987,13 @@ var allTerrainFormsBuilder = function(exports) {
       }
     });
     const targets = formulaTargets(options.fields, options.field.id);
+    const repeaters = repeaterReferences(options.fields);
     const questions = el("div", {
       class: "atfb-formula__chips",
-      children: targets.length ? targets.map((field) => chip(field.label || field.id, `{${field.id}}`)) : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
+      children: targets.length || repeaters.length ? [
+        ...targets.map((field) => chip(field.label || field.id, `{${field.id}}`)),
+        ...repeaters.map((reference) => chip(reference.label, reference.insert))
+      ] : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
     });
     const functions = el("div", {
       class: "atfb-formula__chips",
@@ -3697,6 +3896,12 @@ var allTerrainFormsBuilder = function(exports) {
       control: "number",
       also: { key: "maxRows", label: "Most rows" }
     },
+    itemlabel: {
+      key: "itemLabel",
+      label: "What is one row called?",
+      control: "text",
+      hint: "Names each card — “Attendee 1”, “Attendee 2” — and the Remove button. Also editable on the card itself."
+    },
     endlabels: {
       key: "minLabel",
       label: "Label at the low end",
@@ -3848,7 +4053,9 @@ var allTerrainFormsBuilder = function(exports) {
         if (this.tab !== "build") {
           return;
         }
-        const field = this.schema.fields.find((candidate) => candidate.id === this.selected);
+        const located = this.selected ? this.locateField(this.selected) : void 0;
+        const field = located?.field;
+        const parent = located?.parent ?? null;
         this.root.classList.toggle("atfb--has-selection", !!field);
         if (!field) {
           this.inspector.append(
@@ -3876,10 +4083,23 @@ var allTerrainFormsBuilder = function(exports) {
           this.markDirty();
           this.renderCanvas();
         };
-        this.inspector.append(
-          el("h3", { class: "atfb-inspector__title", text: definition?.label ?? field.type }),
-          el("p", { class: "atfb-hint", text: `Reference this field as {field:${field.id}}` })
-        );
+        this.inspector.append(el("h3", { class: "atfb-inspector__title", text: definition?.label ?? field.type }));
+        if (parent) {
+          this.inspector.append(
+            el("p", {
+              class: "atfb-hint atfb-inspector__crumb",
+              text: `Inside ${parent.label || "a repeater"} — the visitor answers this once per ${String(parent.itemLabel ?? "") || "row"}.`
+            }),
+            el("p", {
+              class: "atfb-hint",
+              text: `Formulas aggregate it as {${parent.id}.${field.id}} — e.g. sum( {${parent.id}.${field.id}} ).`
+            })
+          );
+        } else {
+          this.inspector.append(
+            el("p", { class: "atfb-hint", text: `Reference this field as {field:${field.id}}` })
+          );
+        }
         if (supports.includes("label")) {
           this.inspector.append(
             row(
@@ -4001,9 +4221,11 @@ var allTerrainFormsBuilder = function(exports) {
           );
         }
         this.inspector.append(this.renderValidationSection(field, supports, update));
-        this.inspector.append(this.renderLogicSection(field));
-        if (supports.includes("prefill")) {
-          this.inspector.append(this.prefillControl(field, update));
+        if (!parent) {
+          this.inspector.append(this.renderLogicSection(field));
+          if (supports.includes("prefill")) {
+            this.inspector.append(this.prefillControl(field, update));
+          }
         }
         if (supports.includes("css")) {
           this.inspector.append(
@@ -4195,7 +4417,30 @@ var allTerrainFormsBuilder = function(exports) {
      * @return The live field, if it is still there.
      */
     liveField(fieldId) {
-      return this.schema?.fields.find((candidate) => candidate.id === fieldId);
+      return this.locateField(fieldId)?.field;
+    }
+    /**
+     * A field found wherever it lives — the top level, or inside a repeater —
+     * along with the list holding it, so a caller can move or remove it.
+     *
+     * @param fieldId The field's id.
+     * @return The field, the list it sits in, its index there, and the repeater
+     *         containing it (null at the top level).
+     */
+    locateField(fieldId) {
+      const fields = this.schema?.fields ?? [];
+      for (let index = 0; index < fields.length; index++) {
+        if (fields[index].id === fieldId) {
+          return { field: fields[index], list: fields, index, parent: null };
+        }
+        const subs = fields[index].fields ?? [];
+        for (let at = 0; at < subs.length; at++) {
+          if (subs[at].id === fieldId) {
+            return { field: subs[at], list: subs, index: at, parent: fields[index] };
+          }
+        }
+      }
+      return void 0;
     }
     /**
      * Writes a field's current values into its card on the canvas.
@@ -4219,9 +4464,7 @@ var allTerrainFormsBuilder = function(exports) {
      * @param field The field that was edited in the inspector.
      */
     syncCanvas(field) {
-      const card = this.canvas.querySelector(
-        `[data-atfb-card="${CSS.escape(field.id)}"]`
-      );
+      const card = this.canvas.querySelector(`[data-atfb-card="${CSS.escape(field.id)}"]`) ?? this.canvas.querySelector(`[data-atfb-subfield="${CSS.escape(field.id)}"]`);
       if (!card) {
         return;
       }
@@ -5322,6 +5565,10 @@ var allTerrainFormsBuilder = function(exports) {
                   apply(live);
                   this.markDirty();
                   this.syncInspector(live);
+                  const selected2 = this.selected ? this.locateField(this.selected) : void 0;
+                  if (selected2?.parent && selected2.parent.id === live.id) {
+                    this.syncInspector(selected2.field);
+                  }
                 },
                 restructure: (apply) => {
                   const live = this.liveField(field.id);
@@ -5333,7 +5580,12 @@ var allTerrainFormsBuilder = function(exports) {
                   this.markDirty();
                   this.renderCanvas();
                   this.renderInspector();
-                }
+                },
+                // A repeater draws each sub-field through the same
+                // preview machinery, and needs to know their types
+                // and which of them is selected.
+                types: (name) => this.config?.fieldTypes.find((candidate) => candidate.type === name),
+                selectedId: this.selected
               }),
               condition.length ? this.renderCondition(field, condition) : null
             ]
@@ -5461,8 +5713,8 @@ var allTerrainFormsBuilder = function(exports) {
             this.addField(data.fieldType, index);
             return;
           }
-          if (data.fieldId && this.schema?.fields.some((field) => field.id === data.fieldId)) {
-            this.moveField(data.fieldId, index);
+          if (data.fieldId && this.locateField(data.fieldId)) {
+            this.relocateField(data.fieldId, null, index);
             return;
           }
           if (data.field) {
@@ -5470,6 +5722,7 @@ var allTerrainFormsBuilder = function(exports) {
           }
         }
       });
+      const zoneTeardowns = this.wireRepeaterZones(list);
       const onMove = (event) => {
         const detail = event.detail;
         if (detail?.payload?.type !== FIELD_PAYLOAD_TYPE || !list.classList.contains("is-dropping")) {
@@ -5492,15 +5745,140 @@ var allTerrainFormsBuilder = function(exports) {
       document.addEventListener("os.drag.move", onMove);
       this.canvasTarget = () => {
         teardown();
+        zoneTeardowns.forEach((zoneTeardown) => zoneTeardown());
         document.removeEventListener("os.drag.move", onMove);
       };
+    }
+    /**
+     * Makes every repeater on the canvas a drop target of its own, and its
+     * sub-field cards draggable, selectable and keyboard-operable.
+     *
+     * The zone elements are drawn by the preview (`field-preview.ts`), which
+     * cannot reach the drag manager; this is where they come alive. Zones are
+     * nested inside the canvas target, and the manager resolves hits depth
+     * first, so a drop lands in the repeater when it is over one and on the
+     * canvas when it is not.
+     *
+     * @param list The canvas list, freshly rendered.
+     * @return One teardown per registered zone.
+     */
+    wireRepeaterZones(list) {
+      const teardowns = [];
+      list.querySelectorAll("[data-atfb-repeater-zone]").forEach((zone) => {
+        const repeaterId = zone.dataset.atfbRepeaterZone ?? "";
+        teardowns.push(
+          getDragManager().registerDropTarget({
+            id: `atfb-repzone-${this.form?.id ?? 0}-${repeaterId}`,
+            element: zone,
+            accept: (payload) => {
+              if (payload.type !== FIELD_PAYLOAD_TYPE) {
+                return false;
+              }
+              const data = payload.data;
+              if (data.fieldId === repeaterId) {
+                return false;
+              }
+              const type = data.isNew ? data.fieldType : this.locateField(data.fieldId ?? "")?.field.type ?? data.field?.type;
+              return !!type && this.allowedInRepeater(type);
+            },
+            onEnter: () => zone.classList.add("is-dropping"),
+            onLeave: () => zone.classList.remove("is-dropping"),
+            onDrop: (session, position) => {
+              zone.classList.remove("is-dropping");
+              const data = session.payload.data;
+              const source = data.fieldId ? list.querySelector(
+                `[data-atfb-subfield="${CSS.escape(data.fieldId)}"]`
+              ) : null;
+              const index = insertionIndex(zone, ".atfb-subcard", position.clientY, source ?? void 0);
+              if (data.isNew && data.fieldType) {
+                this.addFieldToRepeater(data.fieldType, repeaterId, index);
+                return;
+              }
+              if (data.fieldId && this.locateField(data.fieldId)) {
+                this.relocateField(data.fieldId, repeaterId, index);
+                return;
+              }
+              if (data.field) {
+                this.insertFieldIntoRepeater({ ...data.field, id: "" }, repeaterId, index);
+              }
+            }
+          })
+        );
+        zone.querySelectorAll(".atfb-subcard").forEach((card) => {
+          const subId = card.dataset.atfbSubfield ?? "";
+          card.addEventListener("click", (event) => {
+            if (event.target.closest(".atfb-preview__remove")) {
+              return;
+            }
+            event.stopPropagation();
+            if (getDragManager().recentlyEndedDrag()) {
+              return;
+            }
+            this.selectField(subId);
+          });
+          card.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              this.selectField(subId);
+              return;
+            }
+            if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+              event.preventDefault();
+              const now = this.locateField(subId);
+              if (now) {
+                this.relocateField(
+                  subId,
+                  repeaterId,
+                  event.key === "ArrowUp" ? now.index - 1 : now.index + 1
+                );
+                window.requestAnimationFrame(() => {
+                  this.canvas.querySelector(`[data-atfb-subfield="${CSS.escape(subId)}"]`)?.focus();
+                });
+              }
+              return;
+            }
+            if (event.key === "Delete" || event.key === "Backspace") {
+              event.preventDefault();
+              void this.deleteField(subId);
+            }
+          });
+          card.addEventListener("pointerdown", (event) => {
+            event.stopPropagation();
+            if (event.target.closest(".atfb-preview__remove")) {
+              return;
+            }
+            const found = this.locateField(subId);
+            if (!found) {
+              return;
+            }
+            getDragManager().start({
+              payload: buildPayload(
+                FIELD_PAYLOAD_TYPE,
+                card,
+                { fieldId: subId, parentId: repeaterId, field: found.field, isNew: false },
+                event
+              ),
+              origin: event
+            });
+          });
+        });
+      });
+      return teardowns;
     }
     /* -------------------------------------------------------- Field editing */
     /** Adds a field of a type, at an index or at the end. */
     addField(type, index) {
+      const field = this.buildField(type);
+      if (field) {
+        this.insertField(field, index);
+      }
+    }
+    /** A brand-new field of a type, with the type's defaults and a fresh id. */
+    buildField(type) {
       const definition = this.config?.fieldTypes.find((candidate) => candidate.type === type);
       if (!definition || !this.schema) {
-        return;
+        return void 0;
       }
       const field = {
         id: this.nextFieldId(),
@@ -5521,7 +5899,94 @@ var allTerrainFormsBuilder = function(exports) {
         prefill: "",
         ...definition.settings
       };
-      this.insertField(field, index);
+      return field;
+    }
+    /**
+     * Whether a field type may live inside a repeater.
+     *
+     * The exclusions are each a real constraint, not taste: a repeater inside
+     * a repeater has no addressable rows; a page break splits a *form*, not a
+     * row; file uploads and signatures are wired to top-level names in the
+     * submission pipeline; and a total is computed once per form, so a copy
+     * per row would be a number that lies. Layout blocks are out because a
+     * repeater's rows are answers, and analytics reads them as answers.
+     */
+    allowedInRepeater(type) {
+      const definition = this.config?.fieldTypes.find((candidate) => candidate.type === type);
+      if (!definition || !definition.input) {
+        return false;
+      }
+      return !["repeater", "page_break", "file", "signature", "total"].includes(type);
+    }
+    /** Adds a brand-new field of a type inside a repeater. */
+    addFieldToRepeater(type, repeaterId, index) {
+      if (!this.allowedInRepeater(type)) {
+        return;
+      }
+      const field = this.buildField(type);
+      if (field) {
+        this.insertFieldIntoRepeater(field, repeaterId, index);
+      }
+    }
+    /** Puts a field into a repeater's sub-field list. */
+    insertFieldIntoRepeater(field, repeaterId, index) {
+      const repeater = this.liveField(repeaterId);
+      if (!this.schema || !repeater || repeater.type !== "repeater") {
+        return;
+      }
+      if (!field.id) {
+        field.id = this.nextFieldId();
+      }
+      this.snapshot();
+      if (!Array.isArray(repeater.fields)) {
+        repeater.fields = [];
+      }
+      const list = repeater.fields;
+      const at = index === void 0 ? list.length : Math.max(0, Math.min(index, list.length));
+      list.splice(at, 0, field);
+      this.selected = field.id;
+      this.markDirty();
+      this.renderCanvas();
+      this.renderInspector();
+      window.requestAnimationFrame(() => {
+        this.canvas.querySelector(`[data-atfb-subfield="${CSS.escape(field.id)}"]`)?.focus();
+      });
+    }
+    /**
+     * Moves a field to wherever it was dropped — the top level, or inside a
+     * repeater — from wherever it was.
+     *
+     * `index` counts the destination list *without* the moved field, exactly
+     * as `insertionIndex()` computes it with the dragged card excluded.
+     */
+    relocateField(fieldId, repeaterId, index) {
+      if (!this.schema) {
+        return;
+      }
+      const found = this.locateField(fieldId);
+      if (!found) {
+        return;
+      }
+      if (!found.parent && !repeaterId) {
+        this.moveField(fieldId, index);
+        return;
+      }
+      const repeater = repeaterId ? this.liveField(repeaterId) : null;
+      if (repeaterId && (!repeater || repeater.type !== "repeater" || fieldId === repeaterId)) {
+        return;
+      }
+      if (repeater && !Array.isArray(repeater.fields)) {
+        repeater.fields = [];
+      }
+      const targetList = repeater ? repeater.fields : this.schema.fields;
+      this.snapshot();
+      found.list.splice(found.index, 1);
+      const at = Math.max(0, Math.min(index, targetList.length));
+      targetList.splice(at, 0, found.field);
+      this.selected = found.field.id;
+      this.markDirty();
+      this.renderCanvas();
+      this.renderInspector();
     }
     /** Puts a field into the schema. */
     insertField(field, index) {
@@ -5567,17 +6032,43 @@ var allTerrainFormsBuilder = function(exports) {
       if (!this.schema) {
         return;
       }
-      const index = this.schema.fields.findIndex((field) => field.id === fieldId);
-      if (index < 0) {
+      const found = this.locateField(fieldId);
+      if (!found) {
         return;
       }
-      const copy = JSON.parse(JSON.stringify(this.schema.fields[index]));
-      copy.id = this.nextFieldId();
-      this.insertField(copy, index + 1);
+      const copy = JSON.parse(JSON.stringify(found.field));
+      const used = this.usedFieldIds();
+      const mint = () => {
+        let index = used.size + 1;
+        while (used.has(`f${index}`)) {
+          index++;
+        }
+        const id = `f${index}`;
+        used.add(id);
+        return id;
+      };
+      copy.id = mint();
+      for (const sub of copy.fields ?? []) {
+        sub.id = mint();
+      }
+      if (found.parent) {
+        this.snapshot();
+        found.list.splice(found.index + 1, 0, copy);
+        this.selected = copy.id;
+        this.markDirty();
+        this.renderCanvas();
+        this.renderInspector();
+        return;
+      }
+      this.insertField(copy, found.index + 1);
     }
-    /** Removes a field. */
+    /** Removes a field, wherever it lives. */
     async deleteField(fieldId) {
       if (!this.schema) {
+        return;
+      }
+      const found = this.locateField(fieldId);
+      if (!found) {
         return;
       }
       const dependents = this.schema.fields.filter(
@@ -5588,7 +6079,7 @@ var allTerrainFormsBuilder = function(exports) {
         return;
       }
       this.snapshot();
-      this.schema.fields = this.schema.fields.filter((field) => field.id !== fieldId);
+      found.list.splice(found.index, 1);
       if (this.selected === fieldId) {
         this.selected = null;
       }
@@ -5604,17 +6095,38 @@ var allTerrainFormsBuilder = function(exports) {
         card.classList.toggle("is-selected", isSelected);
         card.setAttribute("aria-pressed", isSelected ? "true" : "false");
       }
+      for (const card of this.canvas.querySelectorAll("[data-atfb-subfield]")) {
+        card.classList.toggle("is-selected", card.dataset.atfbSubfield === fieldId);
+      }
       this.logicMap?.highlight(fieldId);
       this.renderInspector();
     }
-    /** A field id not already in use. */
+    /**
+     * A field id not already in use — anywhere, repeater sub-fields included.
+     *
+     * Sub-fields draw from the same pool as top-level fields because a formula
+     * names them as `{repeater.sub}` and a field can be dragged out of a
+     * repeater onto the canvas: an id that collided the moment it surfaced
+     * would make both of those ambiguous.
+     */
     nextFieldId() {
-      const used = new Set((this.schema?.fields ?? []).map((field) => field.id));
+      const used = this.usedFieldIds();
       let index = used.size + 1;
       while (used.has(`f${index}`)) {
         index++;
       }
       return `f${index}`;
+    }
+    /** Every field id in the schema, repeater sub-fields included. */
+    usedFieldIds() {
+      const used = /* @__PURE__ */ new Set();
+      for (const field of this.schema?.fields ?? []) {
+        used.add(field.id);
+        for (const sub of field.fields ?? []) {
+          used.add(sub.id);
+        }
+      }
+      return used;
     }
     /**
      * An id for a new notification or confirmation, not already in use.

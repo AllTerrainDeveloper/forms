@@ -54,6 +54,52 @@ export function formulaTargets( fields: Field[], except: string ): Field[] {
 	return fields.filter( ( field ) => field.id !== except && NUMERIC_FRIENDLY.includes( field.type ) );
 }
 
+/** What one repeater reference chip offers. */
+export interface RepeaterReference {
+	/** Shown on the chip: "Attendees · Age", or "Attendees (how many)". */
+	label: string;
+	/** What clicking it types: `{att.age}`, or `{att}`. */
+	insert: string;
+}
+
+/**
+ * The references a form's repeaters offer a formula.
+ *
+ * Each repeater contributes its row count — `{attendees}`, which is what
+ * "15 per attendee" needs — and every number-shaped sub-field, referenced as
+ * `{attendees.age}`, which aggregates across however many rows the visitor
+ * adds: `sum( {attendees.age} )` sums every age.
+ *
+ * @param fields The form's fields.
+ * @return Chips worth offering.
+ */
+export function repeaterReferences( fields: Field[] ): RepeaterReference[] {
+	const references: RepeaterReference[] = [];
+
+	for ( const field of fields ) {
+		if ( field.type !== 'repeater' ) {
+			continue;
+		}
+
+		const name = field.label || field.id;
+
+		references.push( { label: `${ name } (how many)`, insert: `{${ field.id }}` } );
+
+		for ( const sub of ( field.fields ?? [] ) as Field[] ) {
+			if ( ! NUMERIC_FRIENDLY.includes( sub.type ) ) {
+				continue;
+			}
+
+			references.push( {
+				label: `${ name } · ${ sub.label || sub.id }`,
+				insert: `{${ field.id }.${ sub.id }}`,
+			} );
+		}
+	}
+
+	return references;
+}
+
 /**
  * Deterministic sample answers, for previewing a formula before anyone submits.
  *
@@ -71,6 +117,21 @@ export function formulaSampleValues( fields: Field[], except: string ): Values {
 	formulaTargets( fields, except ).forEach( ( field, index ) => {
 		values[ field.id ] = index + 1;
 	} );
+
+	// Every repeater gets two sample rows, because one row cannot tell
+	// `sum()` apart from a plain reference and zero rows previews everything
+	// as 0. Sub-field k holds k+1 in the first row and k+2 in the second.
+	for ( const field of fields ) {
+		if ( field.type !== 'repeater' || field.id === except ) {
+			continue;
+		}
+
+		const subs = ( field.fields ?? [] ) as Field[];
+		const row = ( bump: number ) =>
+			Object.fromEntries( subs.map( ( sub, index ) => [ sub.id, index + 1 + bump ] ) );
+
+		values[ field.id ] = [ row( 0 ), row( 1 ) ] as unknown as Values[ string ];
+	}
 
 	return values;
 }
@@ -139,6 +200,11 @@ export function openFormulaEditor( options: FormulaEditorOptions ): void {
 
 		const sampled = formulaTargets( options.fields, options.field.id )
 			.map( ( field, index ) => `${ field.label || field.id } = ${ index + 1 }` )
+			.concat(
+				options.fields
+					.filter( ( field ) => field.type === 'repeater' && field.id !== options.field.id )
+					.map( ( field ) => `${ field.label || field.id } = 2 sample rows` )
+			)
 			.join( ', ' );
 
 		result.textContent = `With sample answers (${ sampled }): ${ computed }`;
@@ -166,12 +232,17 @@ export function openFormulaEditor( options: FormulaEditorOptions ): void {
 		} );
 
 	const targets = formulaTargets( options.fields, options.field.id );
+	const repeaters = repeaterReferences( options.fields );
 
 	const questions = el( 'div', {
 		class: 'atfb-formula__chips',
-		children: targets.length
-			? targets.map( ( field ) => chip( field.label || field.id, `{${ field.id }}` ) )
-			: [ el( 'p', { class: 'atfb-hint', text: 'No number-shaped questions yet — add a number, scale or priced choice field and it appears here.' } ) ],
+		children:
+			targets.length || repeaters.length
+				? [
+						...targets.map( ( field ) => chip( field.label || field.id, `{${ field.id }}` ) ),
+						...repeaters.map( ( reference ) => chip( reference.label, reference.insert ) ),
+				  ]
+				: [ el( 'p', { class: 'atfb-hint', text: 'No number-shaped questions yet — add a number, scale or priced choice field and it appears here.' } ) ],
 	} );
 
 	const functions = el( 'div', {

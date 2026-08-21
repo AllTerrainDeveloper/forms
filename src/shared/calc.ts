@@ -74,27 +74,166 @@ export function calculate( formula: string, values: Values, fields: Field[] = []
 }
 
 /**
- * Replaces `{field}` references with their numeric values.
+ * Replaces `{field}` and `{repeater.sub}` references with numeric literals.
  *
  * A field that was not answered, or whose answer is not a number, contributes
  * zero. That is the only reading that lets a running total work: a quantity box
  * nobody has typed in yet must not make the whole total collapse to nothing.
+ *
+ * A repeater is a *list* of answers, and the grammar reads it three ways:
+ *
+ * - `{attendees}` is the number of rows — "charge 15 per attendee" is
+ *   `{attendees} * 15`.
+ * - `sum( {attendees.age} )` spreads into one argument per row, so `sum`,
+ *   `avg`, `min` and `max` see every row's answer individually. The spread
+ *   happens only when the reference is the sole argument of one of those
+ *   four — spreading into `pow( {a.b}, 2 )` would silently push the `2` out
+ *   of its parameter slot.
+ * - `{attendees.age}` anywhere else is the total across rows, which is what
+ *   an aggregate reference standing alone in arithmetic can only mean.
  */
 function resolveRefs( formula: string, values: Values, fields: Field[] ): string {
-	return formula.replace( /\{([a-zA-Z0-9_]+)\}/g, ( _match, fieldId: string ) => {
-		const value = Object.prototype.hasOwnProperty.call( values, fieldId ) ? values[ fieldId ] : null;
-		const field = fields.find( ( candidate ) => candidate.id === fieldId ) ?? null;
+	return formula.replace(
+		/\{([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?\}/g,
+		( match, fieldId: string, subId: string | undefined, offset: number ) =>
+			refLiteral( formula, offset, match.length, fieldId, subId ?? '', values, fields )
+	);
+}
 
-		// String() can produce scientific notation ("1e-7"), which the
-		// tokenizer reads as an unknown symbol and the whole formula dies.
-		// Substitute plain decimals at every magnitude, as the PHP twin does.
-		const literal = numericValue( value, field )
-			.toFixed( 10 )
-			.replace( /0+$/, '' )
-			.replace( /\.$/, '' );
+/** The literal one reference resolves to. Mirrors `atf_calc_ref_literal()`. */
+function refLiteral(
+	formula: string,
+	offset: number,
+	length: number,
+	fieldId: string,
+	subId: string,
+	values: Values,
+	fields: Field[]
+): string {
+	const field = findField( fields, fieldId );
+	const value = Object.prototype.hasOwnProperty.call( values, fieldId ) ? values[ fieldId ] : null;
 
-		return literal === '' || literal === '-' ? '0' : literal;
-	} );
+	if ( subId === '' ) {
+		// A repeater referenced whole is its row count; anything else is its
+		// numeric value as before.
+		const number = field?.type === 'repeater' ? repeaterRows( value ).length : numericValue( value, field );
+
+		return numberLiteral( number );
+	}
+
+	const subs = ( field?.fields ?? [] ) as Field[];
+	const sub = subs.find( ( candidate ) => candidate.id === subId ) ?? null;
+
+	const numbers = repeaterRows( value ).map( ( row ) =>
+		numericValue( ( row[ subId ] ?? '' ) as FieldValue, sub )
+	);
+
+	if ( ! numbers.length ) {
+		return '0';
+	}
+
+	const literals = numbers.map( numberLiteral );
+
+	if ( refSpreads( formula, offset, length ) ) {
+		return literals.join( ', ' );
+	}
+
+	return literals.length === 1 ? literals[ 0 ] : `( ${ literals.join( ' + ' ) } )`;
+}
+
+/**
+ * A field found the way the PHP twin finds one: top level first, then each
+ * field's repeater sub-fields, in schema order.
+ */
+function findField( fields: Field[], fieldId: string ): Field | null {
+	for ( const field of fields ) {
+		if ( field.id === fieldId ) {
+			return field;
+		}
+
+		for ( const sub of ( field.fields ?? [] ) as Field[] ) {
+			if ( sub.id === fieldId ) {
+				return sub;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Whether a reference at this position spreads into one argument per row.
+ *
+ * True only when it is the sole argument of a variadic aggregate —
+ * `sum( {a.b} )` — where "one argument per row" is unambiguously what was
+ * meant. Everywhere else the reference collapses to its sum, because spreading
+ * into a fixed-arity call like `pow( {a.b}, 2 )` would silently shift every
+ * later argument out of its slot. Mirrors `atf_calc_ref_spreads()`.
+ */
+function refSpreads( formula: string, offset: number, length: number ): boolean {
+	const after = formula.slice( offset + length ).replace( /^\s+/, '' );
+
+	if ( after === '' || after[ 0 ] !== ')' ) {
+		return false;
+	}
+
+	const before = formula.slice( 0, offset ).replace( /\s+$/, '' );
+	const match = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\($/.exec( before );
+
+	return !! match && [ 'sum', 'avg', 'min', 'max' ].includes( match[ 1 ].toLowerCase() );
+}
+
+/**
+ * A repeater value's rows that were actually filled in.
+ *
+ * A row where every answer is empty is a row the visitor added and abandoned;
+ * counting it would make `{attendees}` disagree with what the entry stores,
+ * because the server's sanitiser drops exactly the same rows. Mirrors
+ * `atf_calc_repeater_rows()`.
+ */
+export function repeaterRows( value: FieldValue ): Array< Record< string, unknown > > {
+	if ( ! Array.isArray( value ) ) {
+		return [];
+	}
+
+	const rows: Array< Record< string, unknown > > = [];
+
+	for ( const row of value as unknown[] ) {
+		if ( ! row || typeof row !== 'object' || Array.isArray( row ) ) {
+			continue;
+		}
+
+		const filled = Object.values( row ).some(
+			( item ) =>
+				item !== '' &&
+				item !== null &&
+				item !== undefined &&
+				item !== false &&
+				! ( Array.isArray( item ) && ! item.length )
+		);
+
+		if ( filled ) {
+			rows.push( row as Record< string, unknown > );
+		}
+	}
+
+	return rows;
+}
+
+/**
+ * A number as a formula literal the tokenizer can read back.
+ *
+ * String() can produce scientific notation ("1e-7"), which the tokenizer reads
+ * as an unknown symbol and the whole formula dies. This prints plain decimals
+ * at every magnitude, as the PHP twin does.
+ */
+function numberLiteral( number: number ): string {
+	const literal = number
+		.toFixed( 10 )
+		.replace( /0+$/, '' )
+		.replace( /\.$/, '' );
+
+	return literal === '' || literal === '-' ? '0' : literal;
 }
 
 /**

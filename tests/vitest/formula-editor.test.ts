@@ -3,7 +3,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { formulaSampleValues, formulaTargets, openFormulaEditor } from '../../src/formula-editor';
+import { formulaSampleValues, formulaTargets, openFormulaEditor, repeaterReferences } from '../../src/formula-editor';
+import { calculate } from '../../src/shared/calc';
 import type { Field } from '../../src/types';
 
 const field = ( id: string, type: string, label = '' ): Field =>
@@ -31,6 +32,32 @@ describe( 'formulaTargets', () => {
 describe( 'formulaSampleValues', () => {
 	it( 'counts up from one so a sum is visibly not zero', () => {
 		expect( formulaSampleValues( FIELDS, 'f4' ) ).toEqual( { f1: 1, f3: 2 } );
+	} );
+} );
+
+describe( 'repeaterReferences', () => {
+	const attendees = {
+		...field( 'att', 'repeater', 'Attendees' ),
+		fields: [ field( 'age', 'number', 'Age' ), field( 'notes', 'textarea', 'Notes' ) ],
+	} as unknown as Field;
+
+	it( 'offers the row count and every number-shaped sub-field, never prose', () => {
+		const refs = repeaterReferences( [ ...FIELDS, attendees ] );
+
+		expect( refs ).toEqual( [
+			{ label: 'Attendees (how many)', insert: '{att}' },
+			{ label: 'Attendees · Age', insert: '{att.age}' },
+		] );
+	} );
+
+	it( 'previews against two sample rows, so an aggregate is visibly an aggregate', () => {
+		const fields = [ ...FIELDS, attendees ];
+		const samples = formulaSampleValues( fields, 'f4' );
+
+		// Two rows of Age = 1 and Age = 2: the sum is 3 and the count is 2,
+		// which no single-row sample could tell apart from a plain reference.
+		expect( calculate( 'sum( {att.age} )', samples, fields ) ).toBe( 3 );
+		expect( calculate( '{att}', samples, fields ) ).toBe( 2 );
 	} );
 } );
 
