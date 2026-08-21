@@ -368,6 +368,22 @@
 	color: var( --atfb-faint );
 }
 
+/* --- Wide content scrolls in place ----------------------------------------
+
+   A table and a histogram both have a real minimum width — a table never
+   shrinks below its content, and a histogram column never shrinks below its
+   count label. In a narrow window that minimum exceeds the panel, and without
+   this the bars paint straight through the panel border and off the window.
+   The wrapper is the whole fix: the panel keeps its edge, the content keeps
+   its size, and the strip between them scrolls. */
+
+.atfa-scroll {
+	overflow-x: auto;
+	/* The mean bucket wears an outline just outside its own box; without this
+	   the scroller clips it flat along the bottom. */
+	padding-block-end: 3px;
+}
+
 /* --- The cross-tab -------------------------------------------------------- */
 
 .atfa-table {
@@ -387,7 +403,14 @@
 .atfa-table thead th {
 	color: var( --atfb-muted );
 	font-weight: 500;
-	white-space: nowrap;
+}
+
+/* The metric columns are headed by whole questions. Nowrap headers gave the
+   table a minimum width of every question laid end to end; letting them wrap
+   over a fixed column width keeps six metrics readable before the scroll has
+   to take over. */
+.atfa-table thead th:nth-child( n + 3 ) {
+	min-inline-size: 140px;
 }
 
 .atfa-table__label {
