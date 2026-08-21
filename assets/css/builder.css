@@ -482,14 +482,21 @@
 	background: var( --atfb-accent-soft );
 }
 
+/* A field card is a miniature of the window that contains it: the shell's own
+   window chrome — radius, border, shadow, title bar — at card scale. Selecting
+   a card focuses it the way clicking a window focuses one: its title bar takes
+   the focused titlebar surface and ink, the rest stay back. Every value reads
+   the same `--os-window-*` / `--os-titlebar-*` tokens the real chrome reads,
+   with the old flat-card values as the no-shell fallbacks. */
 .atfb-card {
+	--atfb-card-r: var( --os-window-radius, var( --atfb-radius ) );
+
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 10px 12px;
-	border: 1px solid var( --atfb-card-border );
-	border-radius: var( --atfb-radius );
-	background: var( --atfb-bg );
+	flex-direction: column;
+	border: 1px solid var( --os-window-border, var( --atfb-card-border ) );
+	border-radius: var( --atfb-card-r );
+	background: var( --os-window-bg, var( --atfb-bg ) );
+	box-shadow: var( --os-window-shadow, none );
 	cursor: grab;
 	touch-action: none;
 	transition: border-color 120ms ease, box-shadow 120ms ease;
@@ -497,15 +504,11 @@
 
 .atfb-card:hover {
 	border-color: var( --atfb-accent );
-
-	/* The shell's own card lift, so a card rising under the pointer here rises
-	   exactly as far as a card anywhere else on the desktop. */
-	box-shadow: var( --os-ui-card-shadow-hover, 0 4px 16px rgba( 0, 0, 0, 0.08 ) );
 }
 
 .atfb-card.is-selected {
 	border-color: var( --atfb-accent );
-	box-shadow: 0 0 0 2px var( --atfb-accent-soft );
+	box-shadow: var( --os-window-shadow-focused, 0 0 0 2px var( --atfb-accent-soft ) );
 }
 
 .atfb-card:focus-visible {
@@ -513,14 +516,41 @@
 	outline-offset: 2px;
 }
 
+/* The card's title bar. Unselected cards wear the unfocused titlebar surface,
+   the selected one wears the focused surface — the same reading the desktop
+   gives a stack of windows. Corners are rounded to sit inside the card's own
+   border rather than clipping the whole card with `overflow`, which would
+   shave the preview's halo below. */
+.atfb-card__bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px 5px 10px;
+	min-block-size: 30px;
+	border-start-start-radius: calc( var( --atfb-card-r ) - 1px );
+	border-start-end-radius: calc( var( --atfb-card-r ) - 1px );
+	border-block-end: 1px solid var( --os-window-border, var( --atfb-border ) );
+	background: var( --os-titlebar-bg, var( --atfb-raised ) );
+	color: var( --os-titlebar-color, var( --atfb-muted ) );
+}
+
+.atfb-card.is-selected .atfb-card__bar {
+	background: var( --os-titlebar-bg-focused, var( --atfb-accent ) );
+	color: var( --os-titlebar-color-focused, var( --atfb-accent-ink ) );
+	border-block-end-color: transparent;
+}
+
 .atfb-card__grip {
-	color: var( --atfb-muted );
+	color: inherit;
+	opacity: 0.75;
 	flex: 0 0 auto;
+	display: inline-flex;
 }
 
 .atfb-card__body {
 	flex: 1 1 auto;
 	min-inline-size: 0;
+	padding: 2px 12px 8px;
 }
 
 .atfb-card__head {
@@ -528,6 +558,7 @@
 	align-items: center;
 	gap: 6px;
 	min-inline-size: 0;
+	flex: 1 1 auto;
 }
 
 .atfb-card__head strong {
@@ -539,12 +570,44 @@
 .atfb-card__type {
 	display: block;
 	font-size: 11px;
-	color: var( --atfb-muted );
+	color: inherit;
+}
+
+/* On the bar, the switch and the badge draw with the bar's own ink — a
+   translucent wash of whatever colour the titlebar text is — because the
+   accent washes they normally wear vanish against the focused titlebar,
+   which may itself be the accent. */
+.atfb-card__bar .atfb-req {
+	border-color: color-mix( in srgb, currentColor 35%, transparent );
+	color: inherit;
+}
+
+.atfb-card__bar .atfb-req:hover {
+	border-color: currentColor;
+	color: inherit;
+}
+
+.atfb-card__bar .atfb-req.is-on {
+	background: color-mix( in srgb, currentColor 18%, transparent );
+	border-color: transparent;
+	color: inherit;
+	font-weight: 700;
+}
+
+.atfb-card__bar .atfb-req:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 1px;
+}
+
+.atfb-card__bar .atfb-badge {
+	background: color-mix( in srgb, currentColor 14%, transparent );
+	color: inherit;
 }
 
 .atfb-card__actions {
 	display: flex;
 	gap: 2px;
+	flex: 0 0 auto;
 	opacity: 0;
 	transition: opacity 120ms ease;
 }
@@ -555,30 +618,42 @@
 }
 
 /* Never hidden from the keyboard. `opacity: 0` keeps the buttons focusable,
-   where `display: none` would make them unreachable without a pointer. */
+   where `display: none` would make them unreachable without a pointer.
+
+   Colour and hover are the titlebar-button tokens, because these sit where a
+   window's controls sit and should press like them. */
 .atfb-card__action {
 	border: 0;
 	background: transparent;
-	color: var( --atfb-muted );
+	color: var( --os-titlebar-btn-color, currentColor );
 	padding: 4px;
 	border-radius: 4px;
 	cursor: pointer;
 	line-height: 1;
 }
 
+.atfb-card.is-selected .atfb-card__action {
+	color: var( --os-titlebar-btn-focused-color, currentColor );
+}
+
 .atfb-card__action:hover {
-	background: var( --atfb-accent-soft );
-	color: var( --atfb-fg );
+	background: var( --os-titlebar-btn-bg-hover, var( --atfb-accent-soft ) );
+	color: var( --os-titlebar-btn-color-hover, var( --atfb-fg ) );
+}
+
+.atfb-card.is-selected .atfb-card__action:hover {
+	background: var( --os-titlebar-btn-focused-bg-hover, color-mix( in srgb, currentColor 18%, transparent ) );
+	color: var( --os-titlebar-btn-focused-color-hover, inherit );
 }
 
 /* Deleting is the one card action that should look like what it does. */
 .atfb-card__action[ aria-label="Delete" ]:hover {
-	background: var( --atfb-danger-soft );
-	color: var( --atfb-danger );
+	background: var( --atfb-danger );
+	color: #fff;
 }
 
 .atfb-card__action:focus-visible {
-	outline: 2px solid var( --atfb-accent );
+	outline: 2px solid currentColor;
 	opacity: 1;
 }
 
@@ -2698,21 +2773,8 @@ os-checkbox-label.atfb-check {
 	}
 }
 
-/* The card is now as tall as the field it draws, so its furniture aligns to the
-   top rather than floating at the middle of a five-option list. */
-.atfb-card {
-	align-items: flex-start;
-}
-
-.atfb-card__grip,
-.atfb-card__actions {
-	margin-block-start: 2px;
-}
-
-.atfb-card__body {
-	min-inline-size: 0;
-	flex: 1 1 auto;
-}
+/* The furniture that used to float beside the field lives in the card's title
+   bar now — the bar handles its own alignment, so nothing to correct here. */
 
 /* -------------------------------------------------------------------------- */
 /* The window body never scrolls                                              */

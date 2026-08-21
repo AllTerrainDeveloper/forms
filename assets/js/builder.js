@@ -5955,14 +5955,19 @@ var allTerrainFormsBuilder = function(exports) {
           "aria-label": `${field.label || type?.label || field.type}, ${index + 1} of ${this.schema?.fields.length ?? 0}`
         },
         children: [
+          // The card is a miniature of the window that contains it: a title
+          // bar carrying the grip, the field's identity and the actions,
+          // with the field itself as the window body below. The bar is one
+          // element rather than three floated ones so the shell's titlebar
+          // surface can paint across it edge to edge.
           el("div", {
-            class: "atfb-card__grip",
-            attrs: { "aria-hidden": "true" },
-            children: [icon("menu")]
-          }),
-          el("div", {
-            class: "atfb-card__body",
+            class: "atfb-card__bar",
             children: [
+              el("div", {
+                class: "atfb-card__grip",
+                attrs: { "aria-hidden": "true" },
+                children: [icon("menu")]
+              }),
               el("div", {
                 class: "atfb-card__head",
                 children: [
@@ -5976,6 +5981,18 @@ var allTerrainFormsBuilder = function(exports) {
                   }) : null
                 ]
               }),
+              el("div", {
+                class: "atfb-card__actions",
+                children: [
+                  this.cardAction("admin-page", "Duplicate", () => this.duplicateField(field.id)),
+                  this.cardAction("trash", "Delete", () => void this.deleteField(field.id))
+                ]
+              })
+            ]
+          }),
+          el("div", {
+            class: "atfb-card__body",
+            children: [
               // The field itself, drawn with the real front-end classes and the
               // form's own theme, with its text editable where it sits.
               renderFieldPreview(field, type, {
@@ -6014,13 +6031,6 @@ var allTerrainFormsBuilder = function(exports) {
                 selectedId: this.selected
               }),
               condition.length ? this.renderCondition(field, condition) : null
-            ]
-          }),
-          el("div", {
-            class: "atfb-card__actions",
-            children: [
-              this.cardAction("admin-page", "Duplicate", () => this.duplicateField(field.id)),
-              this.cardAction("trash", "Delete", () => void this.deleteField(field.id))
             ]
           })
         ]
