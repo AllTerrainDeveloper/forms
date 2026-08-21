@@ -269,8 +269,8 @@ describe( 'ruleTokens', () => {
 		// content.
 		expect( ruleTokens( { field: 'f3', operator: 'is', value: 'yes' }, rsvp() ) ).toEqual( [
 			{ kind: 'field', text: 'Can you make it?', fieldId: 'f3', missing: false },
-			{ kind: 'operator', text: 'is' },
-			{ kind: 'value', text: 'Yes, I will be there' },
+			{ kind: 'operator', text: 'is', operator: 'is', ruleIndex: 0 },
+			{ kind: 'value', text: 'Yes, I will be there', raw: 'yes', sourceId: 'f3', ruleIndex: 0 },
 		] );
 	} );
 

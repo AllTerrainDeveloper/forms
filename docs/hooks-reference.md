@@ -267,6 +267,35 @@ If you add a scheme, add one people can safely follow. `javascript:` and `data:`
 both parse as valid URLs, and the value ends up in an `href` in a notification
 email and on the entries screen.
 
+### `atf_validation_presets` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_validation_presets', array $presets );
+```
+
+The named answer shapes a field's `validation` setting can point at — `email`,
+`phone`, `zip_us`, `iban`, `credit_card` and the rest. Each entry is keyed by
+slug and carries an anchored, undelimited pattern compiled with `/u`, a default
+`message`, and an optional `luhn` flag for checksum-checked digits:
+
+```php
+add_filter( 'atf_validation_presets', function ( $presets ) {
+	$presets['booking_code'] = array(
+		'pattern' => '^BK-[0-9]{6}$',
+		'message' => __( 'Booking codes look like BK-123456.', 'my-plugin' ),
+	);
+
+	return $presets;
+} );
+```
+
+Adding an entry makes it enforceable server side. The builder's picker and the
+browser-side check read the bundled table
+(`src/shared/validation.ts`), so a filtered-in preset is enforced on submission
+but not offered in the builder UI or pre-checked as the visitor types — set
+`field.validation` to your slug programmatically, or ask us for a registration
+API if you need the full round trip.
+
 ### `atf_validation_errors` — Filter — *Stable*
 
 ```php

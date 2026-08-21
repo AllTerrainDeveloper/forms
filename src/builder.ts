@@ -42,12 +42,14 @@ import {
 	writeSetting,
 } from './ui';
 import { handOffToWindow, watchHandoffButton, takeFormFor } from './handoff';
-import { LogicMap, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
+import { LogicMap, OPERATOR_LABELS, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
 import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
 import { openFormulaEditor } from './formula-editor';
+import { compileRecipe, describeRecipe, openValidationEditor, parseRecipe } from './validation-editor';
+import { VALIDATION_GROUPS, VALIDATION_PRESETS, validationPreset } from './shared/validation';
 import { openPreview, refreshPreview, registerPreviewButton } from './preview-button';
 import { formIdentity, setIdentity } from './relations';
 
@@ -445,6 +447,7 @@ import type {
 	Form,
 	FormSchema,
 	FormSummary,
+	Logic,
 	Notification,
 	Theme,
 } from './types';
@@ -1817,21 +1820,76 @@ export class Builder {
 	 * The question chip is a button that selects that field — the reference is
 	 * the useful kind, the kind you can follow.
 	 */
-	private renderCondition( tokens: LogicToken[] ): HTMLElement {
+	private renderCondition( owner: Field, tokens: LogicToken[] ): HTMLElement {
 		const broken = tokens.some( ( token ) => 'field' === token.kind && token.missing );
 
-		return el( 'span', {
+		const wrap = el( 'span', {
 			class: `atfb-cond${ broken ? ' is-broken' : '' }`,
 			attrs: { 'aria-label': tokensToText( tokens ) },
 			children: [
 				icon( 'randomize' ),
-				...tokens.map( ( token ) => this.renderConditionToken( token ) ),
+				...tokens.map( ( token ) => this.renderConditionToken( owner, token ) ),
 			],
 		} );
+
+		// The row is a live editor inside a card that is itself a draggable
+		// button. None of the card's gestures may leak in: a pointerdown would
+		// start a drag, a click would select the card, and the card's Backspace
+		// shortcut would delete the field somebody is merely correcting a value
+		// in.
+		wrap.addEventListener( 'pointerdown', ( event ) => event.stopPropagation() );
+		wrap.addEventListener( 'click', ( event ) => event.stopPropagation() );
+		wrap.addEventListener( 'keydown', ( event ) => event.stopPropagation() );
+
+		return wrap;
 	}
 
-	/** One tagged part of a condition. */
-	private renderConditionToken( token: LogicToken ): HTMLElement {
+	/**
+	 * Writes to a field's live logic block and repaints what shows it.
+	 *
+	 * With `rebuild` false the cards are left alone and only the curve labels
+	 * refresh — the mode for every keystroke in the value box, where a rebuild
+	 * would destroy the input mid-word. The commit (change/blur) passes true and
+	 * everything redraws, with focus put back on the control named by `refocus`
+	 * so keyboard editing survives the rebuild.
+	 */
+	private editCondition( fieldId: string, mutate: ( logic: Logic ) => void, rebuild = true, refocus = '' ): void {
+		const live = this.liveField( fieldId )?.logic;
+
+		if ( ! live ) {
+			return;
+		}
+
+		mutate( live );
+		this.markDirty();
+
+		if ( ! rebuild ) {
+			this.logicMap?.setEdges( logicEdges( this.schema?.fields ?? [] ) );
+
+			return;
+		}
+
+		this.renderCanvas();
+		this.renderInspector();
+
+		if ( refocus ) {
+			window.requestAnimationFrame( () => {
+				this.canvas.querySelector< HTMLElement >( `[data-cond="${ CSS.escape( refocus ) }"]` )?.focus();
+			} );
+		}
+	}
+
+	/**
+	 * One tagged part of a condition — as the control that edits it.
+	 *
+	 * The row used to *describe* the rule and send you to the inspector to
+	 * change it, which is the opposite of direct manipulation: the words were
+	 * right there and none of them answered to a click. Now each part is the
+	 * editor for what it shows — the verb flips show/hide, the comparison is a
+	 * small select, the answer is an input (or a select of the source field's
+	 * choices), and "and"/"or" toggles how rules combine.
+	 */
+	private renderConditionToken( owner: Field, token: LogicToken ): HTMLElement {
 		if ( 'field' === token.kind && ! token.missing ) {
 			const chip = el( 'button', {
 				class: 'atfb-cond__chip atfb-cond__chip--field',
@@ -1856,15 +1914,170 @@ export class Builder {
 			return chip;
 		}
 
-		const classes: Record< LogicToken[ 'kind' ], string > = {
-			verb: 'atfb-cond__verb',
-			field: 'atfb-cond__chip atfb-cond__chip--missing',
-			operator: 'atfb-cond__op',
-			value: 'atfb-cond__chip atfb-cond__chip--value',
-			join: 'atfb-cond__join',
-		};
+		if ( 'verb' === token.kind ) {
+			return el( 'button', {
+				class: 'atfb-cond__verb',
+				type: 'button',
+				text: token.text,
+				title: 'Switch between showing and hiding this field when the condition matches.',
+				attrs: { 'data-cond': `${ owner.id }:verb` },
+				on: {
+					click: () =>
+						this.editCondition(
+							owner.id,
+							( logic ) => {
+								logic.action = 'hide' === logic.action ? 'show' : 'hide';
+							},
+							true,
+							`${ owner.id }:verb`
+						),
+				},
+			} );
+		}
 
-		return el( 'span', { class: classes[ token.kind ], text: token.text } );
+		if ( 'join' === token.kind ) {
+			return el( 'button', {
+				class: 'atfb-cond__join',
+				type: 'button',
+				text: token.text,
+				title: 'Switch between needing every rule (and) or any one of them (or).',
+				attrs: { 'data-cond': `${ owner.id }:join` },
+				on: {
+					click: () =>
+						this.editCondition(
+							owner.id,
+							( logic ) => {
+								logic.match = 'all' === logic.match ? 'any' : 'all';
+							},
+							true,
+							`${ owner.id }:join`
+						),
+				},
+			} );
+		}
+
+		if ( 'operator' === token.kind ) {
+			const key = `${ owner.id }:op:${ token.ruleIndex }`;
+
+			return el( 'select', {
+				class: 'atfb-cond__op',
+				title: 'How the answer is compared.',
+				attrs: { 'aria-label': 'How the answer is compared', 'data-cond': key },
+				on: {
+					change: ( event: Event ) => {
+						const operator = ( event.target as HTMLSelectElement ).value as keyof typeof OPERATOR_LABELS;
+
+						this.editCondition(
+							owner.id,
+							( logic ) => {
+								const rule = logic.rules[ token.ruleIndex ];
+
+								if ( rule ) {
+									rule.operator = operator;
+								}
+							},
+							true,
+							key
+						);
+					},
+				},
+				children: Object.entries( OPERATOR_LABELS ).map( ( [ value, label ] ) =>
+					el( 'option', { value, text: label, attrs: { selected: value === token.operator } } )
+				),
+			} );
+		}
+
+		if ( 'value' === token.kind ) {
+			return this.renderConditionValue( owner, token );
+		}
+
+		// Only the missing-field chip is left, and it is the one part with
+		// nothing to edit: the rule points at a question that is gone.
+		return el( 'span', { class: 'atfb-cond__chip atfb-cond__chip--missing', text: token.text } );
+	}
+
+	/**
+	 * The answer half of a condition, as the control it deserves.
+	 *
+	 * When the question being consulted has choices, the honest editor is a
+	 * select of those choices — typing free text against a radio group can only
+	 * produce a rule that never matches. Anything else gets a text box, sized to
+	 * its content so it reads as part of the sentence rather than as a form.
+	 */
+	private renderConditionValue(
+		owner: Field,
+		token: Extract< LogicToken, { kind: 'value' } >
+	): HTMLElement {
+		const key = `${ owner.id }:value:${ token.ruleIndex }`;
+		const source = this.schema?.fields.find( ( candidate ) => candidate.id === token.sourceId );
+
+		const write = ( value: string, rebuild: boolean ) =>
+			this.editCondition(
+				owner.id,
+				( logic ) => {
+					const rule = logic.rules[ token.ruleIndex ];
+
+					if ( rule ) {
+						rule.value = value;
+					}
+				},
+				rebuild,
+				key
+			);
+
+		if ( source?.choices?.length ) {
+			const options = source.choices.map( ( choice ) =>
+				el( 'option', { value: choice.value, text: choice.label || choice.value, attrs: { selected: choice.value === token.raw } } )
+			);
+
+			// A stored value no choice carries any more — the option was renamed
+			// or deleted — is kept visible rather than silently swapped for the
+			// first choice, so what the select shows is always what the rule says.
+			if ( token.raw !== '' && ! source.choices.some( ( choice ) => choice.value === token.raw ) ) {
+				options.unshift( el( 'option', { value: token.raw, text: token.text, attrs: { selected: true } } ) );
+			}
+
+			return el( 'select', {
+				class: 'atfb-cond__chip atfb-cond__chip--value atfb-cond__value',
+				title: 'The answer that triggers this.',
+				attrs: { 'aria-label': 'The answer that triggers this', 'data-cond': key },
+				on: {
+					change: ( event: Event ) => write( ( event.target as HTMLSelectElement ).value, true ),
+				},
+				children: options,
+			} );
+		}
+
+		const numeric = [ 'number', 'range', 'scale', 'rating', 'total' ].includes( source?.type ?? '' );
+
+		const input = el( 'input', {
+			class: 'atfb-cond__chip atfb-cond__chip--value atfb-cond__value',
+			value: token.raw,
+			title: 'The answer that triggers this. Edit it here.',
+			attrs: {
+				type: 'text',
+				'aria-label': 'The answer that triggers this',
+				'data-cond': key,
+				inputmode: numeric ? 'decimal' : undefined,
+				size: String( Math.max( 2, Math.min( 24, token.raw.length || 2 ) ) ),
+			},
+		} ) as HTMLInputElement;
+
+		// Keystrokes write through to the live rule and refresh the curve
+		// labels; the rebuild waits for the commit so the box survives typing.
+		input.addEventListener( 'input', () => {
+			input.size = Math.max( 2, Math.min( 24, input.value.length || 2 ) );
+			write( input.value, false );
+		} );
+		input.addEventListener( 'change', () => write( input.value, true ) );
+		input.addEventListener( 'keydown', ( event ) => {
+			if ( 'Enter' === event.key ) {
+				event.preventDefault();
+				write( input.value, true );
+			}
+		} );
+
+		return input;
 	}
 
 	/**
@@ -2061,7 +2274,7 @@ export class Builder {
 								this.renderInspector();
 							},
 						} ),
-						condition.length ? this.renderCondition( condition ) : null,
+						condition.length ? this.renderCondition( field, condition ) : null,
 					],
 				} ),
 				el( 'div', {
@@ -3191,13 +3404,7 @@ export class Builder {
 		}
 
 		if ( supports.includes( 'pattern' ) ) {
-			rows.push(
-				row(
-					'Pattern',
-					textInput( String( field.pattern ?? '' ), ( value ) => update( 'pattern', value ) ),
-					'A regular expression, without slashes.'
-				)
-			);
+			rows.push( ...this.renderAnswerShapeRows( field, update ) );
 		}
 
 		if ( supports.includes( 'unique' ) ) {
@@ -3232,6 +3439,133 @@ export class Builder {
 		}
 
 		return this.section( `validation:${ field.id }`, 'Validation', rows );
+	}
+
+	/**
+	 * "The answer should look like…" — the validation picker.
+	 *
+	 * The pattern box asked for a regular expression, which is asking the
+	 * wrong person the wrong question. The picker asks the one they can
+	 * answer: an email address, a phone number, a ZIP code — each preset
+	 * enforced identically by the browser and the server. When nothing fits,
+	 * "A custom rule…" opens the rule builder, where the blocks are plain
+	 * questions and a playground judges sample answers live.
+	 *
+	 * @param field  The field being inspected.
+	 * @param update The inspector's writer.
+	 * @return The rows for the validation section.
+	 */
+	private renderAnswerShapeRows( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement[] {
+		const stored = 'string' === typeof field.validation ? field.validation : '';
+
+		// A pattern with no slug predates the picker: it behaves exactly as a
+		// custom rule, so it is shown as one rather than as "Anything".
+		const current = stored || ( field.pattern ? 'custom' : '' );
+
+		const openEditor = () =>
+			openValidationEditor( {
+				root: this.root,
+				field: this.liveField( field.id ) ?? field,
+				onSave: ( result ) => {
+					update( 'validation', 'custom' );
+					update( 'pattern', result.pattern );
+					update( 'validationRecipe', JSON.stringify( result.recipe ) );
+
+					const messages = { ...( ( this.liveField( field.id )?.messages ?? {} ) as Record< string, string > ) };
+
+					messages.invalid = result.message;
+					update( 'messages', messages );
+					this.renderInspector();
+				},
+				onCancel: () => this.renderInspector(),
+			} );
+
+		const picker = el( 'select', {
+			class: 'atfb-input atfb-select',
+			attrs: { 'aria-label': 'What the answer should look like' },
+			on: {
+				change: ( event: Event ) => {
+					const value = ( event.target as HTMLSelectElement ).value;
+
+					if ( 'custom' === value ) {
+						// The rule builder writes everything on save; until
+						// then nothing changes, and cancelling restores the
+						// picker to what the field really has.
+						openEditor();
+
+						return;
+					}
+
+					update( 'validation', value );
+
+					// A preset replaces whatever custom rule there was; keeping
+					// the old pattern alongside it would enforce both at once.
+					update( 'pattern', '' );
+					update( 'validationRecipe', '' );
+					this.renderInspector();
+				},
+			},
+		} );
+
+		picker.append( el( 'option', { value: '', text: 'Anything at all', attrs: { selected: '' === current } } ) );
+
+		for ( const group of VALIDATION_GROUPS ) {
+			const optgroup = document.createElement( 'optgroup' );
+
+			optgroup.label = group;
+
+			for ( const preset of VALIDATION_PRESETS.filter( ( candidate ) => candidate.group === group ) ) {
+				optgroup.append(
+					el( 'option', {
+						value: preset.slug,
+						text: preset.label,
+						attrs: { selected: preset.slug === current },
+					} )
+				);
+			}
+
+			picker.append( optgroup );
+		}
+
+		const yours = document.createElement( 'optgroup' );
+
+		yours.label = 'Your own';
+		yours.append( el( 'option', { value: 'custom', text: 'A custom rule…', attrs: { selected: 'custom' === current } } ) );
+		picker.append( yours );
+
+		const preset = validationPreset( current );
+		const rows = [
+			row(
+				'The answer should be',
+				picker,
+				preset ? `e.g. ${ preset.example }` : 'Checked as they type, and again on the server.'
+			),
+		];
+
+		if ( 'custom' === current ) {
+			const recipe = parseRecipe( String( field.validationRecipe ?? '' ) );
+			const described =
+				describeRecipe( recipe ) ||
+				( field.pattern ? `Matches the expression ${ String( field.pattern ) }` : 'No rule yet — open the builder.' );
+
+			rows.push(
+				row(
+					'Your rule',
+					el( 'div', {
+						class: 'atfb-valrule',
+						children: [
+							el( 'p', { class: 'atfb-valrule__words', text: described } ),
+							button( 'Edit the rule…', openEditor, 'secondary', 'edit' ),
+						],
+					} ),
+					compileRecipe( recipe ) || field.pattern
+						? 'Built in the rule builder, with a playground to test it.'
+						: undefined
+				)
+			);
+		}
+
+		return rows;
 	}
 
 	/** The conditional-logic editor. */

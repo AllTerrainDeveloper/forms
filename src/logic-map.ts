@@ -57,7 +57,7 @@ export interface LogicEdge {
  * rather than as the enum they are. `greater_equal` is "is at least" and not
  * "≥": the audience for this line is somebody building a contact form.
  */
-const OPERATORS: Record< LogicOperator, string > = {
+export const OPERATOR_LABELS: Record< LogicOperator, string > = {
 	is: 'is',
 	is_not: 'is not',
 	contains: 'contains',
@@ -73,7 +73,7 @@ const OPERATORS: Record< LogicOperator, string > = {
 };
 
 /** The operators that are a complete statement on their own. */
-const VALUELESS: LogicOperator[] = [ 'empty', 'not_empty' ];
+export const VALUELESS_OPERATORS: LogicOperator[] = [ 'empty', 'not_empty' ];
 
 /** A field's label, or something honest when it has none. */
 function labelOf( fields: Field[], id: string ): string | null {
@@ -107,9 +107,9 @@ function valueOf( fields: Field[], id: string, value: string ): string {
  * Used to label a curve, which already says which field by pointing at it.
  */
 export function describeTrigger( rule: LogicRule, fields: Field[] ): string {
-	const operator = OPERATORS[ rule.operator ] ?? String( rule.operator );
+	const operator = OPERATOR_LABELS[ rule.operator ] ?? String( rule.operator );
 
-	if ( VALUELESS.includes( rule.operator ) ) {
+	if ( VALUELESS_OPERATORS.includes( rule.operator ) ) {
 		return operator;
 	}
 
@@ -141,10 +141,23 @@ export type LogicToken =
 	| { kind: 'verb'; text: string }
 	/** The question being consulted. Carries its id so the chip can select it. */
 	| { kind: 'field'; text: string; fieldId: string; missing: boolean }
-	/** The comparison: "is", "is at least", "has any answer". */
-	| { kind: 'operator'; text: string }
-	/** The answer being compared against. */
-	| { kind: 'value'; text: string }
+	/**
+	 * The comparison: "is", "is at least", "has any answer".
+	 *
+	 * Carries the operator itself and which rule it belongs to, so the builder
+	 * can draw it as a live control — a small select that rewrites the rule in
+	 * place — rather than as words about a rule that lives elsewhere.
+	 */
+	| { kind: 'operator'; text: string; operator: LogicOperator; ruleIndex: number }
+	/**
+	 * The answer being compared against.
+	 *
+	 * `text` is the display label (a choice's label when the source field has
+	 * choices); `raw` is the stored value the rule actually compares with. The
+	 * builder needs both to draw an editable control: choices are offered by
+	 * label but written by value.
+	 */
+	| { kind: 'value'; text: string; raw: string; sourceId: string; ruleIndex: number }
 	/** "and" / "or" between rules. */
 	| { kind: 'join'; text: string };
 
@@ -156,9 +169,9 @@ export type LogicToken =
  * `field` token marked `missing`, which the builder paints as the error it is
  * rather than as a blank space in a sentence.
  */
-export function ruleTokens( rule: LogicRule, fields: Field[] ): LogicToken[] {
+export function ruleTokens( rule: LogicRule, fields: Field[], ruleIndex = 0 ): LogicToken[] {
 	const subject = labelOf( fields, rule.field );
-	const operator = OPERATORS[ rule.operator ] ?? String( rule.operator );
+	const operator = OPERATOR_LABELS[ rule.operator ] ?? String( rule.operator );
 
 	if ( subject === null ) {
 		return [ { kind: 'field', text: 'a question that no longer exists', fieldId: rule.field, missing: true } ];
@@ -166,16 +179,22 @@ export function ruleTokens( rule: LogicRule, fields: Field[] ): LogicToken[] {
 
 	const tokens: LogicToken[] = [
 		{ kind: 'field', text: subject, fieldId: rule.field, missing: false },
-		{ kind: 'operator', text: operator },
+		{ kind: 'operator', text: operator, operator: rule.operator, ruleIndex },
 	];
 
-	if ( VALUELESS.includes( rule.operator ) ) {
+	if ( VALUELESS_OPERATORS.includes( rule.operator ) ) {
 		return tokens;
 	}
 
 	const value = valueOf( fields, rule.field, rule.value );
 
-	tokens.push( { kind: 'value', text: value !== '' ? value : '(nothing)' } );
+	tokens.push( {
+		kind: 'value',
+		text: value !== '' ? value : '(nothing)',
+		raw: rule.value,
+		sourceId: rule.field,
+		ruleIndex,
+	} );
 
 	return tokens;
 }
@@ -202,7 +221,7 @@ export function logicTokens( field: Field, fields: Field[] ): LogicToken[] {
 			tokens.push( { kind: 'join', text: logic.match === 'all' ? 'and' : 'or' } );
 		}
 
-		tokens.push( ...ruleTokens( rule, fields ) );
+		tokens.push( ...ruleTokens( rule, fields, index ) );
 	} );
 
 	return tokens;

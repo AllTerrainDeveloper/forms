@@ -1867,7 +1867,9 @@
 }
 
 /* "Shown when" / "Hidden when". Small caps rather than a chip: it is the frame
-   the rest hangs in, not one of the things being compared. */
+   the rest hangs in, not one of the things being compared. It is also a button
+   now — clicking flips show/hide — so it carries the quietest possible
+   affordance: a dotted underline that firms up on hover. */
 .atfb-cond__verb {
 	font-size: 9px;
 	font-weight: 700;
@@ -1876,9 +1878,104 @@
 	color: var( --atfb-muted );
 }
 
+/* The comparison is a real select and the answer is a real input, drawn to sit
+   inside the sentence rather than to look like a settings form. Everything the
+   row shows can be edited where it stands — that is the whole point of showing
+   it on the card. */
+button.atfb-cond__verb,
+button.atfb-cond__join {
+	border: 0;
+	background: none;
+	padding: 0;
+	font-family: inherit;
+	line-height: inherit;
+	cursor: pointer;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+}
+
+button.atfb-cond__verb:hover,
+button.atfb-cond__verb:focus-visible,
+button.atfb-cond__join:hover,
+button.atfb-cond__join:focus-visible {
+	color: var( --atfb-accent );
+	text-decoration-style: solid;
+}
+
+button.atfb-cond__verb:focus-visible,
+button.atfb-cond__join:focus-visible,
+select.atfb-cond__op:focus-visible,
+.atfb-cond__value:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
+	border-radius: 3px;
+}
+
 .atfb-cond__op {
 	font-style: italic;
 	opacity: 0.9;
+}
+
+/* The operator as a borderless select: reads as the words it shows until
+   pointed at, then admits it is a control. The browser's own chrome is turned
+   off so the row keeps reading as a sentence. */
+select.atfb-cond__op {
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: none;
+	padding: 0 2px;
+	margin: 0;
+	font: inherit;
+	font-size: 11px;
+	font-style: italic;
+	line-height: 1.5;
+	color: inherit;
+	cursor: pointer;
+	max-inline-size: 16ch;
+}
+
+select.atfb-cond__op:hover {
+	border-color: var( --atfb-border );
+	background: var( --atfb-surface );
+}
+
+/* The answer as an editable chip. Same outline as the read-only chip it
+   replaced, so nothing about the card's look changes until it is touched. */
+input.atfb-cond__value {
+	min-inline-size: 3ch;
+	field-sizing: content;
+}
+
+input.atfb-cond__value,
+select.atfb-cond__value {
+	appearance: none;
+	-webkit-appearance: none;
+	margin: 0;
+	padding: 1px 6px;
+	background: var( --atfb-surface );
+	border: 1px solid var( --atfb-border );
+	border-radius: 4px;
+	font: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.5;
+	color: var( --atfb-fg );
+	max-inline-size: 24ch;
+	cursor: text;
+	min-block-size: 0;
+	block-size: auto;
+}
+
+select.atfb-cond__value {
+	cursor: pointer;
+}
+
+input.atfb-cond__value:hover,
+input.atfb-cond__value:focus,
+select.atfb-cond__value:hover {
+	border-color: var( --atfb-accent );
 }
 
 .atfb-cond__join {
@@ -2549,4 +2646,157 @@ os-checkbox-label.atfb-check {
 .atfb-formula__chip:focus-visible {
 	outline: 2px solid var( --atfb-accent );
 	outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------------- *
+ * The custom-rule builder — a child window over the builder.
+ *
+ * The blocks are plain questions, the compiled expression never appears in
+ * the friendly tab, and the playground judges sample answers live. The rule
+ * is legible twice: once as the blocks, once as the plain-words sentence
+ * above the samples — and the samples are the proof.
+ * ------------------------------------------------------------------------- */
+
+.atfb-valwin {
+	inline-size: min( 560px, 92vw );
+	max-block-size: 86vh;
+	overflow-y: auto;
+}
+
+.atfb-valwin__tabs {
+	display: flex;
+	gap: 4px;
+	margin-block: 10px 12px;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+.atfb-valwin__tab {
+	border: 0;
+	background: none;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	color: var( --atfb-muted );
+	cursor: pointer;
+	border-block-end: 2px solid transparent;
+	margin-block-end: -1px;
+}
+
+.atfb-valwin__tab.is-active {
+	color: var( --atfb-accent );
+	font-weight: 600;
+	border-block-end-color: var( --atfb-accent );
+}
+
+.atfb-valwin__tab:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: -2px;
+	border-radius: 4px;
+}
+
+.atfb-valwin__chars {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+}
+
+.atfb-valwin__char {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.atfb-valwin__lengths {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfb-valwin__len {
+	inline-size: 64px;
+}
+
+.atfb-valwin__regex {
+	font-family: Consolas, Monaco, monospace;
+}
+
+/* The playground. A tinted well, so trying things reads as a sandbox rather
+   than as more settings. */
+.atfb-valwin__try {
+	margin-block: 14px;
+	padding: 10px 12px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+	background: var( --atfb-well );
+}
+
+.atfb-valwin__try h3 {
+	margin: 0 0 2px;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --atfb-muted );
+}
+
+/* The rule in plain words — the sentence is the contract. */
+.atfb-valwin__summary {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --atfb-muted );
+}
+
+.atfb-valwin__samples {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block-end: 8px;
+}
+
+.atfb-valwin__sample {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.atfb-valwin__sample .atfb-input {
+	flex: 1;
+}
+
+/* The verdict. Reserved width so ✓ and ✗ swap without the row breathing. */
+.atfb-valwin__verdict {
+	flex: 0 0 auto;
+	min-inline-size: 64px;
+	font-size: 11px;
+	font-weight: 700;
+	color: var( --atfb-muted );
+	text-align: start;
+}
+
+.atfb-valwin__verdict.is-pass {
+	color: var( --atfb-success, #1a7f37 );
+}
+
+.atfb-valwin__verdict.is-fail {
+	color: var( --atfb-danger );
+}
+
+/* The inspector's summary of a custom rule: the sentence, then the door back
+   into the builder. */
+.atfb-valrule {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: flex-start;
+}
+
+.atfb-valrule__words {
+	margin: 0;
+	font-size: 12px;
+	font-style: italic;
+	color: var( --atfb-muted );
 }

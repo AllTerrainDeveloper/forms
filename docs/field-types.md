@@ -114,7 +114,7 @@ reach, and `tests/vitest/field-settings.test.ts` fails if one appears.
 | `minrows` / `maxrows` | `minRows`, `maxRows` | How many repeater rows |
 | `maxsize` / `maxfiles` | `maxsize`, `maxfiles` | Largest file, and how many |
 | `filetypes` | `filetypes` | Accepted extensions, typed with commas |
-| `pattern` | `pattern` | A regular expression |
+| `pattern` | `validation`, `pattern`, `validationRecipe` | "The answer should be" — a preset shape (email, phone, ZIP code, IBAN, card number, …) or a custom rule built in the rule builder. The preset slug lives in `validation`; a custom rule compiles into `pattern`, with the builder's blocks kept in `validationRecipe` |
 | `unique` | `unique` | No two submissions may share the value |
 | `formula` / `currency` | `formula`, `currency` | A calculation and its symbol |
 | `points` | `points` | What a quiz answer is worth |
