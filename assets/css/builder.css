@@ -655,8 +655,7 @@
 	margin-block-end: 8px;
 }
 
-.atfb-choice-row,
-.atfb-rule {
+.atfb-choice-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr 70px 32px;
 	gap: 6px;
@@ -664,8 +663,72 @@
 	margin-block-end: 6px;
 }
 
+/* One rule as a card: the question, the comparison and the answer stacked at
+   full width. Three dropdowns sharing one 250px line truncated every label to
+   its first two letters — "Op…", "is l…" — which turned the sentence the rule
+   is into a ransom note. Stacked, each part gets the whole column and reads
+   as itself. */
+.atfb-rules {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-block-end: 8px;
+}
+
 .atfb-rule {
-	grid-template-columns: 1fr 1fr 1fr 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px;
+	background: var( --atfb-well );
+	border: 1px solid var( --atfb-border );
+	border-radius: 8px;
+}
+
+/* The question line carries the card's remove button, so the card needs no
+   extra row for its own furniture. */
+.atfb-rule__top {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.atfb-rule__top > .atfb-field {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+}
+
+/* "and" / "or" between two cards — the same flippable fact the canvas row
+   shows, drawn as a small chip on the seam. One setting governs every joint,
+   so clicking any of them switches all. */
+.atfb-rule-join {
+	display: flex;
+	justify-content: center;
+}
+
+.atfb-rule-join__chip {
+	padding: 1px 10px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 999px;
+	background: var( --atfb-surface );
+	font: inherit;
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
+	cursor: pointer;
+}
+
+.atfb-rule-join__chip:hover,
+.atfb-rule-join__chip:focus-visible {
+	border-color: var( --atfb-accent );
+	color: var( --atfb-accent );
+}
+
+.atfb-rule-join__chip:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 1px;
 }
 
 .atfb-rule-head {

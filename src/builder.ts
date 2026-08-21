@@ -43,7 +43,7 @@ import {
 	writeSetting,
 } from './ui';
 import { handOffToWindow, watchHandoffButton, takeFormFor } from './handoff';
-import { LogicMap, OPERATOR_LABELS, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
+import { LogicMap, OPERATOR_LABELS, VALUELESS_OPERATORS, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
 import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
@@ -449,6 +449,7 @@ import type {
 	FormSchema,
 	FormSummary,
 	Logic,
+	LogicRule,
 	Notification,
 	Theme,
 } from './types';
@@ -2956,7 +2957,7 @@ export class Builder {
 		}
 
 		this.inspector.append( this.renderValidationSection( field, supports, update ) );
-		this.inspector.append( this.renderLogicSection( field, update ) );
+		this.inspector.append( this.renderLogicSection( field ) );
 
 		if ( supports.includes( 'prefill' ) ) {
 			this.inspector.append( this.prefillControl( field, update ) );
@@ -3680,7 +3681,7 @@ export class Builder {
 	}
 
 	/** The conditional-logic editor. */
-	private renderLogicSection( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
+	private renderLogicSection( field: Field ): HTMLElement {
 		const logic = field.logic;
 
 		// Handlers below write to the logic block of the field as it exists in
@@ -3689,16 +3690,83 @@ export class Builder {
 		// field it belongs to. The same trap `update()` avoids.
 		const liveLogic = () => this.liveField( field.id )?.logic;
 
+		/**
+		 * Writes to the live logic and repaints both views of it.
+		 *
+		 * The canvas card carries the same condition as this panel, so every
+		 * write repaints the canvas too — before this, a rule edited here went
+		 * stale on the card until something else happened to redraw it. The
+		 * inspector itself is rebuilt only when asked: a keystroke in the
+		 * value box must not destroy the box mid-word.
+		 */
+		const write = ( mutate: ( live: NonNullable< ReturnType< typeof liveLogic > > ) => void, rebuild = false ) => {
+			const live = liveLogic();
+
+			if ( ! live ) {
+				return;
+			}
+
+			mutate( live );
+			this.markDirty();
+			this.renderCanvas();
+
+			if ( rebuild ) {
+				this.renderInspector();
+			}
+		};
+
 		const others = ( this.schema?.fields ?? [] ).filter(
 			( candidate ) => candidate.id !== field.id && candidate.type !== 'page_break'
 		);
 
-		const rules = el( 'div', { class: 'atfb-rules' } );
+		/**
+		 * The "and" / "or" between two rule cards — a button, because it is
+		 * the same fact the canvas row lets you flip in place. One setting
+		 * governs every joint, so clicking any of them switches all.
+		 */
+		const joiner = () =>
+			el( 'div', {
+				class: 'atfb-rule-join',
+				children: [
+					el( 'button', {
+						class: 'atfb-rule-join__chip',
+						type: 'button',
+						text: 'all' === logic.match ? 'and' : 'or',
+						title: 'Switch between needing every rule (and) or any one of them (or).',
+						on: {
+							click: () =>
+								write( ( live ) => {
+									live.match = 'all' === live.match ? 'any' : 'all';
+								}, true ),
+						},
+					} ),
+				],
+			} );
 
-		logic.rules.forEach( ( rule, index ) => {
-			rules.append(
+		/**
+		 * One rule as a small card: the question, the comparison and the
+		 * answer stacked full width, so nothing has to truncate to share a
+		 * 250px column with two siblings — which is exactly what the old
+		 * one-line grid made them do.
+		 */
+		const ruleCard = ( rule: LogicRule, index: number ): HTMLElement => {
+			const remove = el( 'button', {
+				class: 'atfb-card__action',
+				type: 'button',
+				attrs: { 'aria-label': 'Remove this rule' },
+				title: 'Remove this rule',
+				on: {
+					click: () =>
+						write( ( live ) => {
+							live.rules.splice( index, 1 );
+						}, true ),
+				},
+				children: [ icon( 'trash' ) ],
+			} );
+
+			const children: HTMLElement[] = [
 				el( 'div', {
-					class: 'atfb-rule',
+					class: 'atfb-rule__top',
 					children: [
 						select(
 							rule.field,
@@ -3706,57 +3774,98 @@ export class Builder {
 								value: candidate.id,
 								label: candidate.label || candidate.id,
 							} ) ),
-							( value ) => {
-								const live = liveLogic()?.rules[ index ];
+							( value ) =>
+								// A new source question invalidates the old
+								// answer — a value picked from one field's
+								// choices means nothing against another's.
+								write( ( live ) => {
+									const liveRule = live.rules[ index ];
 
-								if ( live ) {
-									live.field = value;
-									this.markDirty();
-								}
-							}
-						),
-						select(
-							rule.operator,
-							Object.entries( this.config?.operators ?? {} ).map( ( [ value, label ] ) => ( { value, label } ) ),
-							( value ) => {
-								const live = liveLogic()?.rules[ index ];
-
-								if ( live ) {
-									live.operator = value as typeof rule.operator;
-									this.markDirty();
-								}
-							}
-						),
-						textInput( rule.value, ( value ) => {
-							const live = liveLogic()?.rules[ index ];
-
-							if ( live ) {
-								live.value = value;
-								this.markDirty();
-							}
-						} ),
-						el( 'button', {
-							class: 'atfb-card__action',
-							type: 'button',
-							attrs: { 'aria-label': 'Remove this rule' },
-							on: {
-								click: () => {
-									const live = liveLogic();
-
-									if ( ! live ) {
-										return;
+									if ( liveRule ) {
+										liveRule.field = value;
+										liveRule.value = '';
 									}
-
-									live.rules.splice( index, 1 );
-									update( 'logic', live );
-									this.renderInspector();
-								},
-							},
-							children: [ icon( 'trash' ) ],
-						} ),
+								}, true )
+						),
+						remove,
 					],
-				} )
-			);
+				} ),
+				select(
+					rule.operator,
+					Object.entries( this.config?.operators ?? {} ).map( ( [ value, label ] ) => ( { value, label } ) ),
+					( value ) =>
+						// "is empty" needs no answer and "is" does, so the
+						// card's own shape depends on this — rebuild.
+						write( ( live ) => {
+							const liveRule = live.rules[ index ];
+
+							if ( liveRule ) {
+								liveRule.operator = value as LogicRule[ 'operator' ];
+							}
+						}, true )
+				),
+			];
+
+			// The answer control earns its shape from the rule: none at all
+			// for an operator that is a complete statement on its own, the
+			// source question's own choices where it has them, free text
+			// otherwise. It was a bare text box in every case, which let you
+			// type an answer a radio group can never produce.
+			if ( ! VALUELESS_OPERATORS.includes( rule.operator ) ) {
+				const source = this.schema?.fields.find( ( candidate ) => candidate.id === rule.field );
+
+				if ( source?.choices?.length ) {
+					const options = source.choices.map( ( choice ) => ( {
+						value: choice.value,
+						label: choice.label || choice.value,
+					} ) );
+
+					// A stored value no choice carries any more stays visible
+					// rather than being silently swapped for the first choice.
+					if ( '' !== rule.value && ! source.choices.some( ( choice ) => choice.value === rule.value ) ) {
+						options.unshift( { value: rule.value, label: rule.value } );
+					}
+
+					children.push(
+						select( rule.value, options, ( value ) =>
+							write( ( live ) => {
+								const liveRule = live.rules[ index ];
+
+								if ( liveRule ) {
+									liveRule.value = value;
+								}
+							} )
+						)
+					);
+				} else {
+					children.push(
+						textInput(
+							rule.value,
+							( value ) =>
+								write( ( live ) => {
+									const liveRule = live.rules[ index ];
+
+									if ( liveRule ) {
+										liveRule.value = value;
+									}
+								} ),
+							'The answer to compare against'
+						)
+					);
+				}
+			}
+
+			return el( 'div', { class: 'atfb-rule', children } );
+		};
+
+		const rules = el( 'div', { class: 'atfb-rules' } );
+
+		logic.rules.forEach( ( rule, index ) => {
+			if ( index > 0 ) {
+				rules.append( joiner() );
+			}
+
+			rules.append( ruleCard( rule, index ) );
 		} );
 
 		return this.section(
@@ -3764,15 +3873,9 @@ export class Builder {
 			'Conditional logic',
 			[
 				checkbox( 'Only show this field sometimes', logic.enabled, ( value ) => {
-					const live = liveLogic();
-
-					if ( ! live ) {
-						return;
-					}
-
-					live.enabled = value;
-					update( 'logic', live );
-					this.renderInspector();
+					write( ( live ) => {
+						live.enabled = value;
+					}, true );
 				} ),
 				logic.enabled
 					? el( 'div', {
@@ -3786,14 +3889,10 @@ export class Builder {
 												{ value: 'show', label: 'Show' },
 												{ value: 'hide', label: 'Hide' },
 											],
-											( value ) => {
-												const live = liveLogic();
-
-												if ( live ) {
+											( value ) =>
+												write( ( live ) => {
 													live.action = value as 'show' | 'hide';
-													update( 'logic', live );
-												}
-											}
+												}, true )
 										),
 										el( 'span', { text: 'this field when' } ),
 										select(
@@ -3802,14 +3901,10 @@ export class Builder {
 												{ value: 'all', label: 'all' },
 												{ value: 'any', label: 'any' },
 											],
-											( value ) => {
-												const live = liveLogic();
-
-												if ( live ) {
+											( value ) =>
+												write( ( live ) => {
 													live.match = value as 'all' | 'any';
-													update( 'logic', live );
-												}
-											}
+												}, true )
 										),
 										el( 'span', { text: 'of these match:' } ),
 									],
@@ -3818,19 +3913,13 @@ export class Builder {
 								button(
 									'Add rule',
 									() => {
-										const live = liveLogic();
-
-										if ( ! live ) {
-											return;
-										}
-
-										live.rules.push( {
-											field: others[ 0 ]?.id ?? '',
-											operator: 'is',
-											value: '',
-										} );
-										update( 'logic', live );
-										this.renderInspector();
+										write( ( live ) => {
+											live.rules.push( {
+												field: others[ 0 ]?.id ?? '',
+												operator: 'is',
+												value: '',
+											} );
+										}, true );
 									},
 									'ghost',
 									'plus-alt2'

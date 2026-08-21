@@ -4001,7 +4001,7 @@ var allTerrainFormsBuilder = function(exports) {
           );
         }
         this.inspector.append(this.renderValidationSection(field, supports, update));
-        this.inspector.append(this.renderLogicSection(field, update));
+        this.inspector.append(this.renderLogicSection(field));
         if (supports.includes("prefill")) {
           this.inspector.append(this.prefillControl(field, update));
         }
@@ -6178,17 +6178,56 @@ var allTerrainFormsBuilder = function(exports) {
       return rows;
     }
     /** The conditional-logic editor. */
-    renderLogicSection(field, update) {
+    renderLogicSection(field) {
       const logic = field.logic;
       const liveLogic = () => this.liveField(field.id)?.logic;
+      const write = (mutate, rebuild = false) => {
+        const live = liveLogic();
+        if (!live) {
+          return;
+        }
+        mutate(live);
+        this.markDirty();
+        this.renderCanvas();
+        if (rebuild) {
+          this.renderInspector();
+        }
+      };
       const others = (this.schema?.fields ?? []).filter(
         (candidate) => candidate.id !== field.id && candidate.type !== "page_break"
       );
-      const rules = el("div", { class: "atfb-rules" });
-      logic.rules.forEach((rule, index) => {
-        rules.append(
+      const joiner = () => el("div", {
+        class: "atfb-rule-join",
+        children: [
+          el("button", {
+            class: "atfb-rule-join__chip",
+            type: "button",
+            text: "all" === logic.match ? "and" : "or",
+            title: "Switch between needing every rule (and) or any one of them (or).",
+            on: {
+              click: () => write((live) => {
+                live.match = "all" === live.match ? "any" : "all";
+              }, true)
+            }
+          })
+        ]
+      });
+      const ruleCard = (rule, index) => {
+        const remove = el("button", {
+          class: "atfb-card__action",
+          type: "button",
+          attrs: { "aria-label": "Remove this rule" },
+          title: "Remove this rule",
+          on: {
+            click: () => write((live) => {
+              live.rules.splice(index, 1);
+            }, true)
+          },
+          children: [icon("trash")]
+        });
+        const children = [
           el("div", {
-            class: "atfb-rule",
+            class: "atfb-rule__top",
             children: [
               select(
                 rule.field,
@@ -6196,65 +6235,91 @@ var allTerrainFormsBuilder = function(exports) {
                   value: candidate.id,
                   label: candidate.label || candidate.id
                 })),
-                (value) => {
-                  const live = liveLogic()?.rules[index];
-                  if (live) {
-                    live.field = value;
-                    this.markDirty();
-                  }
-                }
-              ),
-              select(
-                rule.operator,
-                Object.entries(this.config?.operators ?? {}).map(([value, label]) => ({ value, label })),
-                (value) => {
-                  const live = liveLogic()?.rules[index];
-                  if (live) {
-                    live.operator = value;
-                    this.markDirty();
-                  }
-                }
-              ),
-              textInput(rule.value, (value) => {
-                const live = liveLogic()?.rules[index];
-                if (live) {
-                  live.value = value;
-                  this.markDirty();
-                }
-              }),
-              el("button", {
-                class: "atfb-card__action",
-                type: "button",
-                attrs: { "aria-label": "Remove this rule" },
-                on: {
-                  click: () => {
-                    const live = liveLogic();
-                    if (!live) {
-                      return;
+                (value) => (
+                  // A new source question invalidates the old
+                  // answer — a value picked from one field's
+                  // choices means nothing against another's.
+                  write((live) => {
+                    const liveRule = live.rules[index];
+                    if (liveRule) {
+                      liveRule.field = value;
+                      liveRule.value = "";
                     }
-                    live.rules.splice(index, 1);
-                    update("logic", live);
-                    this.renderInspector();
-                  }
-                },
-                children: [icon("trash")]
-              })
+                  }, true)
+                )
+              ),
+              remove
             ]
-          })
-        );
+          }),
+          select(
+            rule.operator,
+            Object.entries(this.config?.operators ?? {}).map(([value, label]) => ({ value, label })),
+            (value) => (
+              // "is empty" needs no answer and "is" does, so the
+              // card's own shape depends on this — rebuild.
+              write((live) => {
+                const liveRule = live.rules[index];
+                if (liveRule) {
+                  liveRule.operator = value;
+                }
+              }, true)
+            )
+          )
+        ];
+        if (!VALUELESS_OPERATORS.includes(rule.operator)) {
+          const source = this.schema?.fields.find((candidate) => candidate.id === rule.field);
+          if (source?.choices?.length) {
+            const options = source.choices.map((choice) => ({
+              value: choice.value,
+              label: choice.label || choice.value
+            }));
+            if ("" !== rule.value && !source.choices.some((choice) => choice.value === rule.value)) {
+              options.unshift({ value: rule.value, label: rule.value });
+            }
+            children.push(
+              select(
+                rule.value,
+                options,
+                (value) => write((live) => {
+                  const liveRule = live.rules[index];
+                  if (liveRule) {
+                    liveRule.value = value;
+                  }
+                })
+              )
+            );
+          } else {
+            children.push(
+              textInput(
+                rule.value,
+                (value) => write((live) => {
+                  const liveRule = live.rules[index];
+                  if (liveRule) {
+                    liveRule.value = value;
+                  }
+                }),
+                "The answer to compare against"
+              )
+            );
+          }
+        }
+        return el("div", { class: "atfb-rule", children });
+      };
+      const rules = el("div", { class: "atfb-rules" });
+      logic.rules.forEach((rule, index) => {
+        if (index > 0) {
+          rules.append(joiner());
+        }
+        rules.append(ruleCard(rule, index));
       });
       return this.section(
         `logic:${field.id}`,
         "Conditional logic",
         [
           checkbox("Only show this field sometimes", logic.enabled, (value) => {
-            const live = liveLogic();
-            if (!live) {
-              return;
-            }
-            live.enabled = value;
-            update("logic", live);
-            this.renderInspector();
+            write((live) => {
+              live.enabled = value;
+            }, true);
           }),
           logic.enabled ? el("div", {
             children: [
@@ -6267,13 +6332,9 @@ var allTerrainFormsBuilder = function(exports) {
                       { value: "show", label: "Show" },
                       { value: "hide", label: "Hide" }
                     ],
-                    (value) => {
-                      const live = liveLogic();
-                      if (live) {
-                        live.action = value;
-                        update("logic", live);
-                      }
-                    }
+                    (value) => write((live) => {
+                      live.action = value;
+                    }, true)
                   ),
                   el("span", { text: "this field when" }),
                   select(
@@ -6282,13 +6343,9 @@ var allTerrainFormsBuilder = function(exports) {
                       { value: "all", label: "all" },
                       { value: "any", label: "any" }
                     ],
-                    (value) => {
-                      const live = liveLogic();
-                      if (live) {
-                        live.match = value;
-                        update("logic", live);
-                      }
-                    }
+                    (value) => write((live) => {
+                      live.match = value;
+                    }, true)
                   ),
                   el("span", { text: "of these match:" })
                 ]
@@ -6297,17 +6354,13 @@ var allTerrainFormsBuilder = function(exports) {
               button(
                 "Add rule",
                 () => {
-                  const live = liveLogic();
-                  if (!live) {
-                    return;
-                  }
-                  live.rules.push({
-                    field: others[0]?.id ?? "",
-                    operator: "is",
-                    value: ""
-                  });
-                  update("logic", live);
-                  this.renderInspector();
+                  write((live) => {
+                    live.rules.push({
+                      field: others[0]?.id ?? "",
+                      operator: "is",
+                      value: ""
+                    });
+                  }, true);
                 },
                 "ghost",
                 "plus-alt2"
