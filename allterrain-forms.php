@@ -163,6 +163,15 @@ define( 'ATF_STATUS_READ', 'atf-read' );
 define( 'ATF_STATUS_SPAM', 'atf-spam' );
 define( 'ATF_STATUS_PARTIAL', 'atf-partial' );
 
+/**
+ * The status an archived *form* holds.
+ *
+ * A real post status for the same reasons the entry statuses are: the post
+ * keeps its meta, its revisions and its trash behaviour, and nothing about it
+ * is copied anywhere to make it disappear from the pickers.
+ */
+define( 'ATF_STATUS_ARCHIVED', 'atf-archived' );
+
 require_once ATF_DIR . 'includes/shell-api.php';
 require_once ATF_DIR . 'includes/post-types.php';
 require_once ATF_DIR . 'includes/fields.php';
@@ -184,6 +193,7 @@ require_once ATF_DIR . 'includes/notifications.php';
 require_once ATF_DIR . 'includes/confirmations.php';
 require_once ATF_DIR . 'includes/actions.php';
 require_once ATF_DIR . 'includes/entries.php';
+require_once ATF_DIR . 'includes/archive.php';
 require_once ATF_DIR . 'includes/analytics.php';
 require_once ATF_DIR . 'includes/dev-mode.php';
 require_once ATF_DIR . 'includes/demo-data.php';

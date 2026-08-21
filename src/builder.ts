@@ -1441,6 +1441,7 @@ export class Builder {
 				children: [
 					el( 'h2', { text: 'Start a new form' } ),
 					grid,
+					this.archivedFormsSection( close ),
 					el( 'div', { class: 'atfb-modal__actions', children: [ button( 'Cancel', close ) ] } ),
 				],
 			} )
@@ -1456,6 +1457,80 @@ export class Builder {
 
 		this.root.append( overlay );
 		grid.querySelector< HTMLElement >( 'button' )?.focus();
+	}
+
+	/**
+	 * The archive's door, inside the "Start a new form" dialog.
+	 *
+	 * Restoring a retired form is a way of getting a form, so it lives where
+	 * getting a form lives — not behind a settings tab on a form you would
+	 * have to already have open. The list arrives asynchronously and the
+	 * section simply is not there when the archive is empty, so the dialog
+	 * costs nothing on the sites that never archive anything.
+	 *
+	 * @param close Closes the dialog this section sits in.
+	 * @return The section, filled in when the archive answers.
+	 */
+	private archivedFormsSection( close: () => void ): HTMLElement {
+		const section = el( 'div', { class: 'atfb-archived' } );
+
+		void api
+			.listArchivedForms()
+			.then( ( archived ) => {
+				if ( ! archived.length ) {
+					return;
+				}
+
+				section.append(
+					el( 'h3', { class: 'atfb-archived__title', text: 'Or bring one back from the archive' } ),
+					...archived.map( ( form ) =>
+						el( 'div', {
+							class: 'atfb-archived__row',
+							children: [
+								el( 'div', {
+									class: 'atfb-archived__meta',
+									children: [
+										el( 'strong', { text: form.title || '(untitled)' } ),
+										el( 'span', {
+											class: 'atfb-hint',
+											text: `${ form.entries } ${ form.entries === 1 ? 'entry' : 'entries' } · ${
+												form.submissions
+											} submissions · ${ form.views } views`,
+										} ),
+									],
+								} ),
+								button(
+									'Restore',
+									async () => {
+										try {
+											const restored = await api.unarchiveForm( form.id );
+
+											close();
+											this.forms.unshift( restored );
+											notify( 'Form restored', `${ restored.title || '(untitled)' } is back, with its entries and stats.` );
+											await this.open( restored.id );
+										} catch ( error ) {
+											notify(
+												'Could not restore the form',
+												error instanceof Error ? error.message : '',
+												'error'
+											);
+										}
+									},
+									'secondary',
+									'undo'
+								),
+							],
+						} )
+					)
+				);
+			} )
+			.catch( () => {
+				// The dialog's job is starting a form; a failed archive lookup
+				// must not break that, and an empty section says everything.
+			} );
+
+		return section;
 	}
 
 	/** Shown when the site has no forms at all. */
@@ -4699,8 +4774,78 @@ export class Builder {
 						} ),
 					],
 				} ),
+
+				el( 'section', {
+					children: [
+						el( 'h3', { text: 'Archive' } ),
+						el( 'p', {
+							class: 'atfb-hint',
+							text:
+								'Retire the form when its moment has passed. It stops accepting responses and leaves '
+								+ 'every list, and its entries and stats go with it — nothing is deleted, and restoring '
+								+ 'it brings all of it back exactly as it was.',
+						} ),
+						button( 'Archive this form', () => void this.archiveCurrentForm(), 'secondary', 'archive' ),
+					],
+				} ),
 			],
 		} );
+	}
+
+	/**
+	 * Archives the open form, entries and stats included.
+	 *
+	 * Unsaved edits are saved first: the archive keeps whatever the form is at
+	 * the moment it goes in, and losing the last half hour of edits because
+	 * archiving skipped the save would be a quiet little disaster.
+	 */
+	private async archiveCurrentForm(): Promise< void > {
+		if ( ! this.form ) {
+			return;
+		}
+
+		const title = this.form.title || '(untitled)';
+		const entries = this.forms.find( ( form ) => form.id === this.form!.id )?.entries ?? 0;
+
+		const confirmed = await confirmAction(
+			`Archive “${ title }”? It stops accepting responses and leaves every list — its ${ entries } ${
+				entries === 1 ? 'entry' : 'entries'
+			} and its stats go with it. Nothing is deleted: restore it any time from “Start a new form”.`,
+			'Archive form'
+		);
+
+		if ( ! confirmed ) {
+			return;
+		}
+
+		try {
+			if ( this.dirty ) {
+				await this.save( true );
+			}
+
+			await api.archiveForm( this.form.id );
+			notify( 'Form archived', `${ title } — restore it any time from the New form dialog.` );
+
+			this.forms = this.forms.filter( ( form ) => form.id !== this.form!.id );
+			this.form = null;
+			this.schema = null;
+			this.selected = null;
+			this.dirty = false;
+			this.history = [];
+			this.historyAt = -1;
+
+			if ( this.forms.length ) {
+				await this.open( this.forms[ 0 ].id );
+
+				return;
+			}
+
+			this.renderBar();
+			this.renderCanvas();
+			this.renderInspector();
+		} catch ( error ) {
+			notify( 'Could not archive the form', error instanceof Error ? error.message : '', 'error' );
+		}
 	}
 
 	/** A one-line input that understands merge tags. */

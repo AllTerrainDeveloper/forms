@@ -206,6 +206,15 @@ export const api = {
 
 	listForms: () => get< FormSummary[] >( '/forms' ),
 
+	/** The other side of the archive: the retired forms, same shape. */
+	listArchivedForms: () => get< FormSummary[] >( '/forms?archived=1' ),
+
+	/** Retires a form — it leaves every picker, its entries leave every list, its stats go with it. */
+	archiveForm: ( id: number ) => post< FormSummary >( `/forms/${ id }/archive`, {} ),
+
+	/** Brings an archived form back, entries and stats included, in its pre-archive status. */
+	unarchiveForm: ( id: number ) => post< FormSummary >( `/forms/${ id }/unarchive`, {} ),
+
 	getForm: ( id: number ) => get< Form >( `/forms/${ id }` ).then( withObjectOverrides ),
 
 	createForm: ( body: { template?: string; title?: string; schema?: unknown } ) =>

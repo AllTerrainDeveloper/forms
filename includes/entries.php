@@ -74,6 +74,14 @@ function atf_query_entries( $args = array() ) {
 			'key'   => ATF_META_FORM,
 			'value' => absint( $args['form_id'] ),
 		);
+	} else {
+		// The all-forms list and the all-forms export are the two surfaces
+		// that reach entries without going through a form picker — so they are
+		// the two places an archived form's entries would leak back out.
+		$query_args['meta_query'][] = array(
+			'key'     => ATF_META_ARCHIVED,
+			'compare' => 'NOT EXISTS',
+		);
 	}
 
 	if ( $args['starred'] ) {

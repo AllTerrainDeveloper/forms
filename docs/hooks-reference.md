@@ -147,6 +147,23 @@ do_action( 'atf_form_created', int $form_id, string $template_slug );
 do_action( 'atf_form_deleted', int $form_id );
 ```
 
+### `atf_form_archived` / `atf_form_unarchived` — Actions — *Stable*
+
+```php
+do_action( 'atf_form_archived', int $form_id );
+do_action( 'atf_form_unarchived', int $form_id );
+```
+
+Archiving retires a form and everything that belongs to it in one move: the
+form's post status becomes `atf-archived` (its previous status is kept, so a
+draft comes back a draft), each of its entries is marked with `_atf_archived`
+so the all-forms entry list and export skip them, and its stats — post meta on
+the form — go wherever the form goes. `atf_form_availability()` reports an
+archived form as closed with reason `archived`, for editors too, so it neither
+renders nor accepts submissions until it is restored. Fired after the move
+completes in each direction; the helpers are `atf_archive_form()`,
+`atf_unarchive_form()` and `atf_form_is_archived()`.
+
 ### `atf_form_templates` — Filter — *Stable*
 
 ```php

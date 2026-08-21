@@ -3069,3 +3069,48 @@ os-checkbox-label.atfb-check {
 	border-radius: 4px;
 	background: var( --atfb-well );
 }
+
+/* -------------------------------------------------------------------------- */
+/* The archive's door in the New form dialog                                  */
+/* -------------------------------------------------------------------------- */
+
+.atfb-archived {
+	margin-block-start: 4px;
+}
+
+.atfb-archived__title {
+	margin: 14px 0 8px;
+	padding-block-start: 14px;
+	border-block-start: 1px solid var( --atfb-border );
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --atfb-muted );
+}
+
+.atfb-archived__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-well );
+}
+
+.atfb-archived__row + .atfb-archived__row {
+	margin-block-start: 8px;
+}
+
+.atfb-archived__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.atfb-archived__meta strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
