@@ -482,3 +482,30 @@
 		transition: none;
 	}
 }
+
+/* --- Devices and browsers -------------------------------------------------- */
+
+.atfa-tech {
+	display: grid;
+	/* auto-fit rather than a fixed three: the window this lives in can be
+	   narrow, and columns that stack beat columns that crush. */
+	grid-template-columns: repeat( auto-fit, minmax( 210px, 1fr ) );
+	gap: 20px;
+}
+
+.atfa-tech__col {
+	min-inline-size: 0;
+}
+
+.atfa-tech__title {
+	margin: 0 0 8px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --atfb-muted );
+}
+
+.atfa-tech .atfa-bars__row {
+	grid-template-columns: minmax( 64px, 110px ) 1fr auto;
+}

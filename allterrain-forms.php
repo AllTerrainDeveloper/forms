@@ -143,6 +143,15 @@ define( 'ATF_META_TOKENS', '_atf_tokens' );
 define( 'ATF_META_STATS', '_atf_stats' );
 
 /**
+ * Rolling per-form device / browser / OS tallies.
+ *
+ * Aggregate counters keyed by coarse class ("mobile", "chrome"), one set for
+ * views and one for submissions -- never a per-visitor row, and never the
+ * user-agent string itself.
+ */
+define( 'ATF_META_TECH', '_atf_tech' );
+
+/**
  * A partially completed submission, kept so the user can resume it.
  *
  * Holds a token, the values so far, and an expiry. Stored on its own entry post

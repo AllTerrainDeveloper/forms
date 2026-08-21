@@ -37,7 +37,7 @@
 import { api, runtime } from './api';
 import { takeFormFor } from './handoff';
 import { button, clear, confirmAction, el, notify, pinWindowBodyScroll, select, whenComponents } from './ui';
-import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary, NumberSummary } from './types';
+import type { AnalyticsReport, Breakdown, DemoStatus, FieldReport, FormSummary, NumberSummary, TechReport } from './types';
 
 /** How the NPS bands are coloured, and what they are called. */
 const NPS_BANDS = [
@@ -285,6 +285,10 @@ class AnalyticsWindow {
 		} else {
 			this.body.append( this.timeline( report ) );
 
+			if ( report.tech ) {
+				this.body.append( this.techPanel( report.tech ) );
+			}
+
 			for ( const field of report.fields ) {
 				if ( field.nps ) {
 					this.body.append( this.npsPanel( field ) );
@@ -439,6 +443,79 @@ class AnalyticsWindow {
 			} ),
 		] );
 	}
+
+	/**
+	 * Where submissions come from: device, browser, operating system.
+	 *
+	 * Three columns of the same shape so the eye can rake across them. The
+	 * numbers are aggregate tallies kept by the server — no visitor rows exist
+	 * to sample — and the device column carries the one derived figure worth a
+	 * highlight: per-device conversion, which is where "the phone layout is
+	 * losing people" first becomes visible.
+	 */
+	private techPanel( tech: TechReport ): HTMLElement {
+		const facets: Array< { key: keyof TechReport; label: string } > = [
+			{ key: 'device', label: 'Device' },
+			{ key: 'browser', label: 'Browser' },
+			{ key: 'os', label: 'System' },
+		];
+
+		const column = ( facet: { key: keyof TechReport; label: string } ): HTMLElement => {
+			const rows = tech[ facet.key ];
+			const ceiling = rows.reduce( ( most, row ) => Math.max( most, row.share ), 0 );
+
+			return el( 'div', {
+				class: 'atfa-tech__col',
+				children: [
+					el( 'h4', { class: 'atfa-tech__title', text: facet.label } ),
+					el( 'ul', {
+						class: 'atfa-bars',
+						children: rows.map( ( row ) =>
+							el( 'li', {
+								class: 'atfa-bars__row',
+								children: [
+									el( 'span', { class: 'atfa-bars__label', text: row.label } ),
+									el( 'div', {
+										class: 'atfa-meter',
+										children: [
+											el( 'div', {
+												class: 'atfa-meter__fill',
+												attrs: { style: `width:${ ceiling ? ( row.share / ceiling ) * 100 : 0 }%` },
+											} ),
+										],
+									} ),
+									el( 'span', {
+										class: 'atfa-bars__value',
+										text:
+											null === row.conversion
+												? `${ row.share }%`
+												: `${ row.share }%  → ${ row.conversion }%`,
+										attrs:
+											null === row.conversion
+												? { title: `${ row.submissions } submissions` }
+												: {
+														title: `${ row.submissions } submissions from ${ row.views } views — ${ row.conversion }% converted`,
+												  },
+									} ),
+								],
+							} )
+						),
+					} ),
+				],
+			} );
+		};
+
+		const hasConversion = facets.some( ( facet ) => tech[ facet.key ].some( ( row ) => null !== row.conversion ) );
+
+		return this.panel(
+			'Devices and browsers',
+			hasConversion
+				? 'Share of submissions, and → the conversion rate for that class. Aggregate tallies — nothing is stored per visitor.'
+				: 'Share of submissions. Aggregate tallies — nothing is stored per visitor.',
+			[ el( 'div', { class: 'atfa-tech', children: facets.map( column ) } ) ]
+		);
+	}
+
 
 	/**
 	 * The cross-tab.

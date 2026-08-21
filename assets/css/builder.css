@@ -3114,3 +3114,144 @@ os-checkbox-label.atfb-check {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+/* -------------------------------------------------------------------------- */
+/* The success screen designer                                                 */
+/* -------------------------------------------------------------------------- */
+
+.atfb-success {
+	margin-block-start: 18px;
+	padding-block-start: 14px;
+	border-block-start: 1px solid var( --atfb-border );
+}
+
+.atfb-success__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-block-end: 10px;
+}
+
+.atfb-success__head h4 {
+	margin: 0;
+	font-size: 13px;
+}
+
+/* The gallery: every style is a little stage with its glyph on it. A grid of
+   cards, not a dropdown — a look has to be seen to be chosen. */
+.atfb-success__styles {
+	display: grid;
+	grid-template-columns: repeat( 3, 1fr );
+	gap: 8px;
+	margin-block-end: 14px;
+}
+
+.atfb-success__style {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 6px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	cursor: pointer;
+	transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.atfb-success__style:hover {
+	border-color: var( --atfb-accent );
+	transform: translateY( -1px );
+}
+
+.atfb-success__style.is-selected {
+	border-color: var( --atfb-accent );
+	box-shadow: 0 0 0 2px var( --atfb-accent-soft );
+	background: var( --atfb-well );
+}
+
+.atfb-success__style-glyph {
+	font-size: 20px;
+	line-height: 1.2;
+}
+
+.atfb-success__style-label {
+	font-size: 11px;
+	color: var( --atfb-muted );
+}
+
+.atfb-success__style.is-selected .atfb-success__style-label {
+	color: inherit;
+	font-weight: 600;
+}
+
+.atfb-success__accent-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.atfb-success__accent {
+	inline-size: 44px;
+	block-size: 30px;
+	padding: 2px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	cursor: pointer;
+}
+
+/* The preview: a dark stage over the whole builder with the real screen on
+   it, so confetti has a page to fall over and fireworks have a sky. */
+.atfb-success-preview {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 18px;
+	padding: 24px;
+	background: rgba( 12, 16, 26, 0.72 );
+	backdrop-filter: blur( 3px );
+	animation: atfb-success-preview-in 0.2s ease-out;
+}
+
+.atfb-success-preview__stage {
+	inline-size: min( 620px, 100% );
+	max-block-size: 80vh;
+	overflow: auto;
+}
+
+.atfb-success-preview__bar {
+	display: flex;
+	gap: 8px;
+	/* A solid chip under the controls. The secondary button variant is drawn
+	   for a light UI surface; floated straight over the dark backdrop it
+	   turned half-transparent and unreadable. */
+	padding: 8px 10px;
+	border-radius: 12px;
+	background: var( --atfb-bg );
+	border: 1px solid var( --atfb-border );
+	box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.35 );
+}
+
+@keyframes atfb-success-preview-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfb-success__style,
+	.atfb-success-preview {
+		transition: none;
+		animation: none;
+	}
+}

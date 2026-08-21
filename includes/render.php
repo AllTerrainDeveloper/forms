@@ -70,6 +70,7 @@ function atf_render_form( $form_id, $args = array() ) {
 			'values'  => array(),
 			'errors'  => array(),
 			'message' => '',
+			'success' => array(),
 			'title'   => 'hide',
 			'preview' => false,
 		)
@@ -145,9 +146,9 @@ function atf_render_form( $form_id, $args = array() ) {
 	// settled rather than interrupting.
 	if ( '' !== $args['message'] ) {
 		$out .= sprintf(
-			'<div class="%s"><div class="atf-confirmation" role="status" tabindex="-1">%s</div></div></div>',
+			'<div class="%s">%s</div></div>',
 			esc_attr( implode( ' ', $classes ) ),
-			wp_kses_post( $args['message'] )
+			atf_success_screen_html( $args['message'], isset( $args['success'] ) ? $args['success'] : array() )
 		);
 
 		return $out;
@@ -500,11 +501,77 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
 		);
 	}
 
-	$items = '';
+	// A repeater's per-control errors travel under dotted keys (`att.1.age`);
+	// they are gathered here so the list can nest them, indented, under the
+	// repeater they belong to rather than strewn among the top-level fields.
+	$top    = array();
+	$nested = array();
 
 	foreach ( $errors as $field_id => $message ) {
+		$parts = explode( '.', (string) $field_id );
+
+		if ( 3 === count( $parts ) && atf_find_field( $schema, $parts[0] ) ) {
+			$nested[ $parts[0] ][] = array(
+				'row' => (int) $parts[1],
+				'sub' => $parts[2],
+				'msg' => $message,
+			);
+
+			continue;
+		}
+
+		$top[ $field_id ] = $message;
+	}
+
+	$items = '';
+
+	foreach ( $top as $field_id => $message ) {
 		$field = atf_find_field( $schema, $field_id );
 		$label = $field && '' !== $field['label'] ? $field['label'] : '';
+
+		// A repeater with named boxes heads its own indented group: the
+		// question alone on the parent line — its summary would only repeat
+		// what the nested lines say — then one line per failing box, named by
+		// its row.
+		if ( ! empty( $nested[ $field_id ] ) ) {
+			$subs = '';
+
+			foreach ( $nested[ $field_id ] as $entry ) {
+				$sub_field = null;
+
+				foreach ( isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array() as $candidate ) {
+					if ( isset( $candidate['id'] ) && $candidate['id'] === $entry['sub'] ) {
+						$sub_field = $candidate;
+						break;
+					}
+				}
+
+				$sub_label = $sub_field && '' !== $sub_field['label'] ? $sub_field['label'] : '';
+				$row_name  = sprintf(
+					/* translators: 1: what one row is called, e.g. "Attendee", 2: row number. */
+					__( '%1$s %2$d', 'allterrain-forms' ),
+					atf_repeater_item_label( $field ),
+					$entry['row'] + 1
+				);
+
+				$subs .= sprintf(
+					'<li><a href="#%s">%s</a></li>',
+					esc_attr( $instance . '-' . $field_id . '-' . $entry['row'] . '-' . $entry['sub'] ),
+					esc_html(
+						$row_name . ' — ' . ( '' !== $sub_label ? $sub_label . ': ' . $entry['msg'] : $entry['msg'] )
+					)
+				);
+			}
+
+			$items .= sprintf(
+				'<li><a href="#%s">%s</a><ul class="atf-errors__sub">%s</ul></li>',
+				esc_attr( $instance . '-' . $field_id . '-' . $nested[ $field_id ][0]['row'] . '-' . $nested[ $field_id ][0]['sub'] ),
+				esc_html( '' !== $label ? $label : $message ),
+				$subs
+			);
+
+			continue;
+		}
 
 		$items .= sprintf(
 			'<li><a href="#%s">%s</a></li>',
@@ -519,8 +586,8 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
 		esc_html(
 			sprintf(
 				/* translators: %d: number of problems found. */
-				_n( 'There is %d thing to fix:', 'There are %d things to fix:', count( $errors ), 'allterrain-forms' ),
-				count( $errors )
+				_n( 'There is %d thing to fix:', 'There are %d things to fix:', count( $top ), 'allterrain-forms' ),
+				count( $top )
 			)
 		),
 		$items
@@ -780,6 +847,9 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
 		'schema'      => $schema,
 		'values'      => $values,
 		'error'       => $error,
+		// The whole map, not just this field's entry: a repeater's rows carry
+		// per-control errors under dotted keys only the row renderer can match.
+		'errors'      => is_array( $errors ) ? $errors : array(),
 		'describedby' => implode( ' ', $described ),
 	);
 

@@ -2520,6 +2520,363 @@ var allTerrainFormsBuilder = function(exports) {
     }
     return "#888888";
   }
+  const SUCCESS_STYLE_ICONS = {
+    plain: "",
+    simple: "✓",
+    minimal: "",
+    card: "🎉",
+    check: "",
+    confetti: "🎉",
+    fireworks: "🎆",
+    sparkles: "✨",
+    typewriter: ""
+  };
+  function defaultSuccessScreen() {
+    return {
+      style: "simple",
+      title: "",
+      icon: "",
+      accent: "",
+      intensity: "medium",
+      showButton: false,
+      buttonLabel: ""
+    };
+  }
+  function normalizeSuccessScreen(raw) {
+    const success = { ...defaultSuccessScreen(), ...raw ?? {} };
+    if (!(success.style in SUCCESS_STYLE_ICONS)) {
+      success.style = "simple";
+    }
+    return success;
+  }
+  function reducedMotion() {
+    return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+  function renderSuccessScreen(message, raw, onAgain) {
+    const success = normalizeSuccessScreen(raw);
+    const root = document.createElement("div");
+    root.className = `atf-confirmation atf-success atf-success--${success.style}`;
+    root.setAttribute("role", "status");
+    root.setAttribute("tabindex", "-1");
+    if (success.style === "plain") {
+      root.className = "atf-confirmation";
+      root.innerHTML = message;
+      return root;
+    }
+    if (success.accent) {
+      root.style.setProperty("--atf-accent", success.accent);
+    }
+    const inner = document.createElement("div");
+    inner.className = "atf-success__inner";
+    root.append(inner);
+    const icon2 = success.icon || SUCCESS_STYLE_ICONS[success.style];
+    if (success.style === "check") {
+      inner.insertAdjacentHTML(
+        "beforeend",
+        '<svg class="atf-success__check" viewBox="0 0 52 52" aria-hidden="true"><circle class="atf-success__check-ring" cx="26" cy="26" r="24" fill="none" /><path class="atf-success__check-mark" fill="none" d="M14 27l8 8 16-17" /></svg>'
+      );
+    } else if (icon2) {
+      const glyph = document.createElement("span");
+      glyph.className = "atf-success__icon";
+      glyph.setAttribute("aria-hidden", "true");
+      glyph.textContent = icon2;
+      inner.append(glyph);
+    }
+    if (success.title) {
+      const title = document.createElement("h2");
+      title.className = "atf-success__title";
+      title.textContent = success.title;
+      inner.append(title);
+    }
+    const body = document.createElement("div");
+    body.className = "atf-success__message";
+    body.innerHTML = message;
+    inner.append(body);
+    if (success.style === "typewriter") {
+      root.setAttribute("aria-label", body.textContent ?? "");
+    }
+    if (success.showButton) {
+      const again = document.createElement("button");
+      again.type = "button";
+      again.className = "atf-button atf-button--ghost atf-success__again";
+      again.textContent = success.buttonLabel || "Fill it in again";
+      again.addEventListener("click", () => onAgain ? onAgain() : window.location.reload());
+      inner.append(again);
+    }
+    return root;
+  }
+  function playSuccessEffects(root, raw) {
+    const success = normalizeSuccessScreen(raw);
+    if (reducedMotion()) {
+      return () => {
+      };
+    }
+    switch (success.style) {
+      case "confetti":
+        return confetti(root, success);
+      case "fireworks":
+        return fireworks(success);
+      case "sparkles":
+        return sparkles(root, success);
+      case "typewriter":
+        return typewriter(root);
+      default:
+        return () => {
+        };
+    }
+  }
+  function scale(success) {
+    return { low: 0.5, medium: 1, high: 1.8 }[success.intensity];
+  }
+  function makeCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.className = "atf-success-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    document.body.append(canvas);
+    const ctx = canvas.getContext("2d");
+    ctx?.scale(dpr, dpr);
+    return { canvas, ctx, stop: () => canvas.remove() };
+  }
+  const CONFETTI_COLORS = ["#f43f5e", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#eab308"];
+  function confetti(root, success) {
+    const { ctx, stop } = makeCanvas();
+    if (!ctx) {
+      stop();
+      return () => {
+      };
+    }
+    const colors = success.accent ? [success.accent, ...CONFETTI_COLORS] : CONFETTI_COLORS;
+    const pieces = [];
+    const rect = root.getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = Math.min(rect.top + 40, window.innerHeight - 20);
+    const make = (x, y, burst) => {
+      const angle = burst ? Math.PI * (1.15 + 0.7 * Math.random()) : 0;
+      const speed = burst ? 9 + Math.random() * 8 : 0;
+      return {
+        x,
+        y,
+        vx: burst ? Math.cos(angle) * speed * (Math.random() < 0.5 ? 1 : -1) : (Math.random() - 0.5) * 1.5,
+        vy: burst ? Math.sin(angle) * speed : 1 + Math.random() * 2,
+        w: 6 + Math.random() * 5,
+        h: 8 + Math.random() * 7,
+        angle: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        wobble: Math.random() * Math.PI * 2
+      };
+    };
+    const burstCount = Math.round(90 * scale(success));
+    for (let i = 0; i < burstCount; i++) {
+      pieces.push(make(originX, originY, true));
+    }
+    const rainCount = Math.round(70 * scale(success));
+    let rained = 0;
+    const rain = window.setInterval(() => {
+      if (rained >= rainCount) {
+        window.clearInterval(rain);
+        return;
+      }
+      pieces.push(make(Math.random() * window.innerWidth, -20, false));
+      rained++;
+    }, 2e3 / rainCount);
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now) => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      let alive = false;
+      for (const piece of pieces) {
+        piece.vy += 0.16;
+        piece.vx *= 0.99;
+        piece.vy *= 0.985;
+        piece.wobble += 0.1;
+        piece.x += piece.vx + Math.sin(piece.wobble) * 0.8;
+        piece.y += piece.vy;
+        piece.angle += piece.spin;
+        if (piece.y < window.innerHeight + 30) {
+          alive = true;
+        }
+        ctx.save();
+        ctx.translate(piece.x, piece.y);
+        ctx.rotate(piece.angle);
+        ctx.scale(1, 0.4 + 0.6 * Math.abs(Math.cos(piece.wobble)));
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(-piece.w / 2, -piece.h / 2, piece.w, piece.h);
+        ctx.restore();
+      }
+      if (alive && now - started < 7e3) {
+        frame = window.requestAnimationFrame(tick);
+      } else {
+        stop();
+      }
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      window.clearInterval(rain);
+      window.cancelAnimationFrame(frame);
+      stop();
+    };
+  }
+  function fireworks(success) {
+    const { ctx, stop } = makeCanvas();
+    if (!ctx) {
+      stop();
+      return () => {
+      };
+    }
+    const rockets = [];
+    const sparks = [];
+    const total = Math.round(6 * scale(success)) + 2;
+    let launched = 0;
+    const launch = () => {
+      rockets.push({
+        x: window.innerWidth * (0.15 + 0.7 * Math.random()),
+        y: window.innerHeight,
+        vy: -(9 + Math.random() * 4),
+        targetY: window.innerHeight * (0.15 + 0.3 * Math.random()),
+        hue: Math.floor(Math.random() * 360)
+      });
+      launched++;
+    };
+    launch();
+    const launcher = window.setInterval(() => {
+      if (launched >= total) {
+        window.clearInterval(launcher);
+        return;
+      }
+      launch();
+    }, 3500 / total);
+    const explode = (rocket) => {
+      const count = Math.round(70 * scale(success));
+      for (let i = 0; i < count; i++) {
+        const angle = Math.PI * 2 * i / count + Math.random() * 0.1;
+        const speed = 2 + Math.random() * 4.5;
+        sparks.push({
+          x: rocket.x,
+          y: rocket.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          decay: 0.012 + Math.random() * 0.014,
+          hue: rocket.hue + Math.floor(Math.random() * 40) - 20
+        });
+      }
+    };
+    let frame = 0;
+    const started = performance.now();
+    const tick = (now) => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const rocket = rockets[i];
+        rocket.y += rocket.vy;
+        rocket.vy += 0.08;
+        ctx.fillStyle = `hsl(${rocket.hue} 90% 65%)`;
+        ctx.fillRect(rocket.x - 1.5, rocket.y, 3, 10);
+        if (rocket.y <= rocket.targetY || rocket.vy >= -1) {
+          explode(rocket);
+          rockets.splice(i, 1);
+        }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const spark = sparks[i];
+        spark.x += spark.vx;
+        spark.y += spark.vy;
+        spark.vy += 0.045;
+        spark.vx *= 0.985;
+        spark.vy *= 0.985;
+        spark.life -= spark.decay;
+        if (spark.life <= 0) {
+          sparks.splice(i, 1);
+          continue;
+        }
+        const flicker = spark.life * (0.7 + 0.3 * Math.random());
+        ctx.globalAlpha = Math.max(0, flicker);
+        ctx.fillStyle = `hsl(${spark.hue} 95% ${55 + 25 * spark.life}%)`;
+        ctx.beginPath();
+        ctx.arc(spark.x, spark.y, 1.1 + 1.6 * spark.life, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const done = launched >= total && rockets.length === 0 && sparks.length === 0;
+      if (!done && now - started < 9e3) {
+        frame = window.requestAnimationFrame(tick);
+      } else {
+        stop();
+      }
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      window.clearInterval(launcher);
+      window.cancelAnimationFrame(frame);
+      stop();
+    };
+  }
+  function sparkles(root, success) {
+    const glyph = success.icon || SUCCESS_STYLE_ICONS.sparkles;
+    const count = Math.round(22 * scale(success));
+    const spawned = [];
+    let made = 0;
+    const spawn = () => {
+      const spark = document.createElement("span");
+      spark.className = "atf-success__spark";
+      spark.setAttribute("aria-hidden", "true");
+      spark.textContent = glyph;
+      spark.style.insetInlineStart = `${4 + Math.random() * 92}%`;
+      spark.style.animationDuration = `${2.6 + Math.random() * 1.8}s`;
+      spark.style.animationDelay = `${Math.random() * 0.3}s`;
+      spark.style.fontSize = `${14 + Math.random() * 14}px`;
+      spark.addEventListener("animationend", () => spark.remove());
+      root.append(spark);
+      spawned.push(spark);
+      made++;
+    };
+    spawn();
+    const spawner = window.setInterval(() => {
+      if (made >= count) {
+        window.clearInterval(spawner);
+        return;
+      }
+      spawn();
+    }, 2800 / count);
+    return () => {
+      window.clearInterval(spawner);
+      spawned.forEach((spark) => spark.remove());
+    };
+  }
+  function typewriter(root) {
+    const body = root.querySelector(".atf-success__message");
+    if (!body) {
+      return () => {
+      };
+    }
+    const html = body.innerHTML;
+    const text = body.textContent ?? "";
+    if (!text) {
+      return () => {
+      };
+    }
+    body.textContent = "";
+    body.classList.add("is-typing");
+    const step = Math.min(45, 3800 / text.length);
+    let at = 0;
+    const typer = window.setInterval(() => {
+      at++;
+      body.textContent = text.slice(0, at);
+      if (at >= text.length) {
+        window.clearInterval(typer);
+        body.classList.remove("is-typing");
+        body.innerHTML = html;
+      }
+    }, step);
+    return () => {
+      window.clearInterval(typer);
+      body.classList.remove("is-typing");
+      body.innerHTML = html;
+    };
+  }
   const FUNCTIONS = {
     min: -1,
     max: -1,
@@ -7210,6 +7567,25 @@ var allTerrainFormsBuilder = function(exports) {
           }),
           el("section", {
             children: [
+              el("h3", { text: "Analytics" }),
+              checkbox(
+                "Count views and starts",
+                settings.analytics.enabled,
+                (value) => set("analytics.enabled", value)
+              ),
+              checkbox(
+                "Tally device, browser and system",
+                settings.analytics.tech,
+                (value) => set("analytics.tech", value)
+              ),
+              el("p", {
+                class: "atfb-hint",
+                text: "Counters, never people: no cookie, no fingerprint, no per-visitor record — the tallies keep coarse classes like “phone” and “Chrome”, not the visitor’s user-agent string. Nothing here needs a consent banner. Turning the first switch off stops view and start counting entirely."
+              })
+            ]
+          }),
+          el("section", {
+            children: [
               el("h3", { text: "Save and continue later" }),
               checkbox(
                 "Let people save a half-finished form",
@@ -7509,18 +7885,23 @@ var allTerrainFormsBuilder = function(exports) {
      */
     confirmationDetail(confirmation) {
       if ("message" === confirmation.type) {
-        return row(
-          "Message",
-          this.taggableArea(
-            confirmation.message,
-            (value) => {
-              confirmation.message = value;
-              this.markDirty();
-            },
-            5
-          ),
-          "Insert an answer to greet them by name, or show back what they sent."
-        );
+        return el("div", {
+          children: [
+            row(
+              "Message",
+              this.taggableArea(
+                confirmation.message,
+                (value) => {
+                  confirmation.message = value;
+                  this.markDirty();
+                },
+                5
+              ),
+              "Insert an answer to greet them by name, or show back what they sent."
+            ),
+            this.successDesigner(confirmation)
+          ]
+        });
       }
       const query2 = row(
         "Extra query parameters",
@@ -7576,6 +7957,218 @@ var allTerrainFormsBuilder = function(exports) {
         holder,
         "They are sent to this page after submitting. Its own content is shown, not the form’s message."
       );
+    }
+    /**
+     * The success screen designer: what the thank-you moment looks like.
+     *
+     * A gallery of styles rather than a dropdown, because the styles are
+     * *looks* and a look chosen from a list of words is a look chosen blind.
+     * Picking one plays the real screen immediately — the renderer previewing
+     * here is the same code the visitor's browser runs, so what the author
+     * sees is what ships.
+     */
+    successDesigner(confirmation) {
+      confirmation.success = normalizeSuccessScreen(confirmation.success);
+      const success = confirmation.success;
+      const holder = el("div", { class: "atfb-success" });
+      const styles = [
+        { key: "plain", label: "Plain", glyph: "¶", blurb: "Just the message." },
+        { key: "simple", label: "Simple", glyph: "✓", blurb: "Check mark and a gentle fade." },
+        { key: "minimal", label: "Minimalistic", glyph: "—", blurb: "Quiet type, generous space." },
+        { key: "card", label: "Card", glyph: "🎫", blurb: "An elevated card that pops in." },
+        { key: "check", label: "Check mark", glyph: "✔", blurb: "A big check draws itself." },
+        { key: "confetti", label: "Confetti", glyph: "🎉", blurb: "Paper rains over the page." },
+        { key: "fireworks", label: "Fireworks", glyph: "🎆", blurb: "The full night-sky show." },
+        { key: "sparkles", label: "Sparkles", glyph: "✨", blurb: "Your emoji floats up around it." },
+        { key: "typewriter", label: "Typewriter", glyph: "⌨", blurb: "Types itself out, letter by letter." }
+      ];
+      const paint = () => {
+        const gallery = el("div", {
+          class: "atfb-success__styles",
+          attrs: { role: "radiogroup", "aria-label": "Success screen style" },
+          children: styles.map(
+            (style) => el("button", {
+              class: `atfb-success__style${success.style === style.key ? " is-selected" : ""}`,
+              type: "button",
+              attrs: {
+                role: "radio",
+                "aria-checked": success.style === style.key ? "true" : "false",
+                title: style.blurb
+              },
+              children: [
+                el("span", { class: "atfb-success__style-glyph", text: style.glyph }),
+                el("span", { class: "atfb-success__style-label", text: style.label })
+              ],
+              on: {
+                click: () => {
+                  success.style = style.key;
+                  this.markDirty();
+                  paint();
+                  if ("plain" !== style.key) {
+                    this.previewSuccessScreen(confirmation);
+                  }
+                }
+              }
+            })
+          )
+        });
+        const controls = [];
+        if ("plain" !== success.style) {
+          controls.push(
+            row(
+              "Heading",
+              this.taggableInput(
+                success.title,
+                (value) => {
+                  success.title = value;
+                  this.markDirty();
+                },
+                "Thank you, {field:name}!"
+              ),
+              "Shown above the message. Leave empty for none."
+            )
+          );
+          if (["simple", "card", "confetti", "fireworks", "sparkles"].includes(success.style)) {
+            controls.push(
+              row(
+                "Emoji",
+                textInput(success.icon, (value) => {
+                  success.icon = value;
+                  this.markDirty();
+                }, SUCCESS_STYLE_ICONS[success.style] || "🎉"),
+                "sparkles" === success.style ? "Also the particle that floats up — try 🎈 or ❤️." : "The badge above the heading."
+              )
+            );
+          }
+          controls.push(this.successAccentRow(success));
+          if (["confetti", "fireworks", "sparkles"].includes(success.style)) {
+            controls.push(
+              row(
+                "Intensity",
+                select(
+                  success.intensity,
+                  [
+                    { value: "low", label: "Calm" },
+                    { value: "medium", label: "Festive" },
+                    { value: "high", label: "Over the top" }
+                  ],
+                  (value) => {
+                    success.intensity = value;
+                    this.markDirty();
+                  }
+                )
+              )
+            );
+          }
+          controls.push(
+            checkbox("Offer to fill it in again", success.showButton, (value) => {
+              success.showButton = value;
+              this.markDirty();
+              paint();
+            })
+          );
+          if (success.showButton) {
+            controls.push(
+              row(
+                "Button label",
+                textInput(success.buttonLabel, (value) => {
+                  success.buttonLabel = value;
+                  this.markDirty();
+                }, "Fill it in again")
+              )
+            );
+          }
+        }
+        holder.replaceChildren(
+          el("div", {
+            class: "atfb-success__head",
+            children: [
+              el("h4", { text: "Success screen" }),
+              button("Preview", () => this.previewSuccessScreen(confirmation), "ghost", "controls-play")
+            ]
+          }),
+          gallery,
+          ...controls
+        );
+      };
+      paint();
+      return holder;
+    }
+    /** The accent picker: a colour, or the theme's own accent by default. */
+    successAccentRow(success) {
+      const input = el("input", {
+        class: "atfb-success__accent",
+        attrs: { type: "color", "aria-label": "Accent colour" }
+      });
+      input.value = success.accent || "#3858e9";
+      const reset = button("Use the theme accent", () => {
+        success.accent = "";
+        input.value = "#3858e9";
+        reset.style.display = "none";
+        this.markDirty();
+      }, "ghost");
+      reset.style.display = success.accent ? "" : "none";
+      input.addEventListener("input", () => {
+        success.accent = input.value;
+        reset.style.display = "";
+        this.markDirty();
+      });
+      return row(
+        "Accent",
+        el("div", { class: "atfb-success__accent-row", children: [input, reset] }),
+        "Recolours the screen; the theme decides when left alone."
+      );
+    }
+    /**
+     * Plays the success screen over the builder, exactly as it will ship.
+     *
+     * The stage wears the canvas's own preview classes so the form's real theme
+     * tokens reach it, and the screen inside is built by the front-end renderer
+     * itself. Escape, the backdrop or the close button put the builder back.
+     */
+    previewSuccessScreen(confirmation) {
+      const message = confirmation.message || "Thank you. Your submission has been received.";
+      let cleanup = () => {
+      };
+      const overlay = el("div", {
+        class: "atfb-success-preview",
+        attrs: { role: "dialog", "aria-label": "Success screen preview", "aria-modal": "true" }
+      });
+      const dismiss = () => {
+        cleanup();
+        overlay.remove();
+        document.removeEventListener("keydown", onKey);
+      };
+      const onKey = (event) => {
+        if ("Escape" === event.key) {
+          event.stopPropagation();
+          dismiss();
+        }
+      };
+      const screen = renderSuccessScreen(message, confirmation.success, dismiss);
+      const stage = el("div", { class: "atfb-success-preview__stage atfb-preview atf-form", children: [screen] });
+      const play = () => {
+        cleanup();
+        cleanup = playSuccessEffects(screen, confirmation.success);
+      };
+      overlay.append(
+        stage,
+        el("div", {
+          class: "atfb-success-preview__bar",
+          children: [
+            button("Replay", play, "secondary", "controls-repeat"),
+            button("Close", dismiss, "primary")
+          ]
+        })
+      );
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          dismiss();
+        }
+      });
+      document.addEventListener("keydown", onKey);
+      this.root.append(overlay);
+      window.requestAnimationFrame(play);
     }
     /** The confirmation editor. */
     renderConfirmationsPane() {
@@ -7655,6 +8248,7 @@ var allTerrainFormsBuilder = function(exports) {
                 url: "",
                 pageId: 0,
                 query: "",
+                success: defaultSuccessScreen(),
                 logic: { enabled: false, action: "show", match: "all", rules: [] }
               });
               this.markDirty();

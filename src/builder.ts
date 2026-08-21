@@ -48,6 +48,7 @@ import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
+import { SUCCESS_STYLE_ICONS, defaultSuccessScreen, normalizeSuccessScreen, playSuccessEffects, renderSuccessScreen } from './success';
 import { openFormulaEditor } from './formula-editor';
 import { compileRecipe, describeRecipe, openValidationEditor, parseRecipe } from './validation-editor';
 import { VALIDATION_GROUPS, VALIDATION_PRESETS, validationPreset } from './shared/validation';
@@ -4756,6 +4757,26 @@ export class Builder {
 
 				el( 'section', {
 					children: [
+						el( 'h3', { text: 'Analytics' } ),
+						checkbox( 'Count views and starts', settings.analytics.enabled, ( value ) =>
+							set( 'analytics.enabled', value )
+						),
+						checkbox( 'Tally device, browser and system', settings.analytics.tech, ( value ) =>
+							set( 'analytics.tech', value )
+						),
+						el( 'p', {
+							class: 'atfb-hint',
+							text:
+								'Counters, never people: no cookie, no fingerprint, no per-visitor record — the '
+								+ 'tallies keep coarse classes like “phone” and “Chrome”, not the visitor’s '
+								+ 'user-agent string. Nothing here needs a consent banner. Turning the first '
+								+ 'switch off stops view and start counting entirely.',
+						} ),
+					],
+				} ),
+
+				el( 'section', {
+					children: [
 						el( 'h3', { text: 'Save and continue later' } ),
 						checkbox( 'Let people save a half-finished form', settings.resume.enabled, ( value ) =>
 							set( 'resume.enabled', value )
@@ -5104,18 +5125,23 @@ export class Builder {
 	 */
 	private confirmationDetail( confirmation: Confirmation ): HTMLElement {
 		if ( 'message' === confirmation.type ) {
-			return row(
-				'Message',
-				this.taggableArea(
-					confirmation.message,
-					( value ) => {
-						confirmation.message = value;
-						this.markDirty();
-					},
-					5
-				),
-				'Insert an answer to greet them by name, or show back what they sent.'
-			);
+			return el( 'div', {
+				children: [
+					row(
+						'Message',
+						this.taggableArea(
+							confirmation.message,
+							( value ) => {
+								confirmation.message = value;
+								this.markDirty();
+							},
+							5
+						),
+						'Insert an answer to greet them by name, or show back what they sent.'
+					),
+					this.successDesigner( confirmation ),
+				],
+			} );
 		}
 
 		// Both of the "send them somewhere" kinds can carry query parameters, so
@@ -5194,6 +5220,254 @@ export class Builder {
 			holder,
 			'They are sent to this page after submitting. Its own content is shown, not the form’s message.'
 		);
+	}
+
+	/**
+	 * The success screen designer: what the thank-you moment looks like.
+	 *
+	 * A gallery of styles rather than a dropdown, because the styles are
+	 * *looks* and a look chosen from a list of words is a look chosen blind.
+	 * Picking one plays the real screen immediately — the renderer previewing
+	 * here is the same code the visitor's browser runs, so what the author
+	 * sees is what ships.
+	 */
+	private successDesigner( confirmation: Confirmation ): HTMLElement {
+		// Older drafts predate the screen; they behave as the default.
+		confirmation.success = normalizeSuccessScreen( confirmation.success );
+
+		const success = confirmation.success;
+		const holder = el( 'div', { class: 'atfb-success' } );
+
+		const styles: Array< { key: typeof success.style; label: string; glyph: string; blurb: string } > = [
+			{ key: 'plain', label: 'Plain', glyph: '¶', blurb: 'Just the message.' },
+			{ key: 'simple', label: 'Simple', glyph: '✓', blurb: 'Check mark and a gentle fade.' },
+			{ key: 'minimal', label: 'Minimalistic', glyph: '—', blurb: 'Quiet type, generous space.' },
+			{ key: 'card', label: 'Card', glyph: '🎫', blurb: 'An elevated card that pops in.' },
+			{ key: 'check', label: 'Check mark', glyph: '✔', blurb: 'A big check draws itself.' },
+			{ key: 'confetti', label: 'Confetti', glyph: '🎉', blurb: 'Paper rains over the page.' },
+			{ key: 'fireworks', label: 'Fireworks', glyph: '🎆', blurb: 'The full night-sky show.' },
+			{ key: 'sparkles', label: 'Sparkles', glyph: '✨', blurb: 'Your emoji floats up around it.' },
+			{ key: 'typewriter', label: 'Typewriter', glyph: '⌨', blurb: 'Types itself out, letter by letter.' },
+		];
+
+		const paint = () => {
+			const gallery = el( 'div', {
+				class: 'atfb-success__styles',
+				attrs: { role: 'radiogroup', 'aria-label': 'Success screen style' },
+				children: styles.map( ( style ) =>
+					el( 'button', {
+						class: `atfb-success__style${ success.style === style.key ? ' is-selected' : '' }`,
+						type: 'button',
+						attrs: {
+							role: 'radio',
+							'aria-checked': success.style === style.key ? 'true' : 'false',
+							title: style.blurb,
+						},
+						children: [
+							el( 'span', { class: 'atfb-success__style-glyph', text: style.glyph } ),
+							el( 'span', { class: 'atfb-success__style-label', text: style.label } ),
+						],
+						on: {
+							click: () => {
+								success.style = style.key;
+								this.markDirty();
+								paint();
+
+								// Seeing beats reading: picking a look plays it.
+								if ( 'plain' !== style.key ) {
+									this.previewSuccessScreen( confirmation );
+								}
+							},
+						},
+					} )
+				),
+			} );
+
+			const controls: HTMLElement[] = [];
+
+			if ( 'plain' !== success.style ) {
+				controls.push(
+					row(
+						'Heading',
+						this.taggableInput(
+							success.title,
+							( value ) => {
+								success.title = value;
+								this.markDirty();
+							},
+							'Thank you, {field:name}!'
+						),
+						'Shown above the message. Leave empty for none.'
+					)
+				);
+
+				if ( [ 'simple', 'card', 'confetti', 'fireworks', 'sparkles' ].includes( success.style ) ) {
+					controls.push(
+						row(
+							'Emoji',
+							textInput( success.icon, ( value ) => {
+								success.icon = value;
+								this.markDirty();
+							}, SUCCESS_STYLE_ICONS[ success.style ] || '🎉' ),
+							'sparkles' === success.style
+								? 'Also the particle that floats up — try 🎈 or ❤️.'
+								: 'The badge above the heading.'
+						)
+					);
+				}
+
+				controls.push( this.successAccentRow( success ) );
+
+				if ( [ 'confetti', 'fireworks', 'sparkles' ].includes( success.style ) ) {
+					controls.push(
+						row(
+							'Intensity',
+							select(
+								success.intensity,
+								[
+									{ value: 'low', label: 'Calm' },
+									{ value: 'medium', label: 'Festive' },
+									{ value: 'high', label: 'Over the top' },
+								],
+								( value ) => {
+									success.intensity = value as typeof success.intensity;
+									this.markDirty();
+								}
+							)
+						)
+					);
+				}
+
+				controls.push(
+					checkbox( 'Offer to fill it in again', success.showButton, ( value ) => {
+						success.showButton = value;
+						this.markDirty();
+						paint();
+					} )
+				);
+
+				if ( success.showButton ) {
+					controls.push(
+						row(
+							'Button label',
+							textInput( success.buttonLabel, ( value ) => {
+								success.buttonLabel = value;
+								this.markDirty();
+							}, 'Fill it in again' )
+						)
+					);
+				}
+			}
+
+			holder.replaceChildren(
+				el( 'div', {
+					class: 'atfb-success__head',
+					children: [
+						el( 'h4', { text: 'Success screen' } ),
+						button( 'Preview', () => this.previewSuccessScreen( confirmation ), 'ghost', 'controls-play' ),
+					],
+				} ),
+				gallery,
+				...controls
+			);
+		};
+
+		paint();
+
+		return holder;
+	}
+
+	/** The accent picker: a colour, or the theme's own accent by default. */
+	private successAccentRow( success: Confirmation[ 'success' ] ): HTMLElement {
+		const input = el( 'input', {
+			class: 'atfb-success__accent',
+			attrs: { type: 'color', 'aria-label': 'Accent colour' },
+		} ) as HTMLInputElement;
+
+		input.value = success.accent || '#3858e9';
+
+		const reset = button( 'Use the theme accent', () => {
+			success.accent = '';
+			input.value = '#3858e9';
+			reset.style.display = 'none';
+			this.markDirty();
+		}, 'ghost' );
+
+		reset.style.display = success.accent ? '' : 'none';
+
+		input.addEventListener( 'input', () => {
+			success.accent = input.value;
+			reset.style.display = '';
+			this.markDirty();
+		} );
+
+		return row(
+			'Accent',
+			el( 'div', { class: 'atfb-success__accent-row', children: [ input, reset ] } ),
+			'Recolours the screen; the theme decides when left alone.'
+		);
+	}
+
+	/**
+	 * Plays the success screen over the builder, exactly as it will ship.
+	 *
+	 * The stage wears the canvas's own preview classes so the form's real theme
+	 * tokens reach it, and the screen inside is built by the front-end renderer
+	 * itself. Escape, the backdrop or the close button put the builder back.
+	 */
+	private previewSuccessScreen( confirmation: Confirmation ): void {
+		const message = confirmation.message || 'Thank you. Your submission has been received.';
+
+		let cleanup: () => void = () => {};
+
+		const overlay = el( 'div', {
+			class: 'atfb-success-preview',
+			attrs: { role: 'dialog', 'aria-label': 'Success screen preview', 'aria-modal': 'true' },
+		} );
+
+		const dismiss = () => {
+			cleanup();
+			overlay.remove();
+			document.removeEventListener( 'keydown', onKey );
+		};
+
+		const onKey = ( event: KeyboardEvent ) => {
+			if ( 'Escape' === event.key ) {
+				event.stopPropagation();
+				dismiss();
+			}
+		};
+
+		const screen = renderSuccessScreen( message, confirmation.success, dismiss );
+		const stage = el( 'div', { class: 'atfb-success-preview__stage atfb-preview atf-form', children: [ screen ] } );
+
+		const play = () => {
+			cleanup();
+			cleanup = playSuccessEffects( screen, confirmation.success );
+		};
+
+		overlay.append(
+			stage,
+			el( 'div', {
+				class: 'atfb-success-preview__bar',
+				children: [
+					button( 'Replay', play, 'secondary', 'controls-repeat' ),
+					button( 'Close', dismiss, 'primary' ),
+				],
+			} )
+		);
+
+		overlay.addEventListener( 'click', ( event ) => {
+			if ( event.target === overlay ) {
+				dismiss();
+			}
+		} );
+
+		document.addEventListener( 'keydown', onKey );
+		this.root.append( overlay );
+
+		// After layout, so the burst can aim at where the screen actually is.
+		window.requestAnimationFrame( play );
 	}
 
 	/** The confirmation editor. */
@@ -5290,6 +5564,7 @@ export class Builder {
 							url: '',
 							pageId: 0,
 							query: '',
+							success: defaultSuccessScreen(),
 							logic: { enabled: false, action: 'show', match: 'all', rules: [] },
 						} );
 

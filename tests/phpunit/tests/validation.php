@@ -720,6 +720,110 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Alongside the summary, the failure names the exact control.
+	 *
+	 * `att.1.age` is what lets the client mark the one box that failed rather
+	 * than every box in every row — the bug this pins was a repeater error
+	 * painting the whole card red with no way to see which answer it meant.
+	 *
+	 * @covers ::atf_validate_repeater_sub_errors
+	 */
+	public function test_repeater_failure_names_the_exact_control() {
+		$schema = atf_normalize_schema(
+			array(
+				'fields' => array(
+					array(
+						'id'        => 'att',
+						'type'      => 'repeater',
+						'label'     => 'Attendees',
+						'itemLabel' => 'Attendee',
+						'fields'    => array(
+							array(
+								'id'    => 'name',
+								'type'  => 'text',
+								'label' => 'Name',
+							),
+							array(
+								'id'       => 'age',
+								'type'     => 'number',
+								'label'    => 'Age',
+								'required' => true,
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$errors = atf_validate_submission(
+			$schema,
+			array(
+				'att' => array(
+					array(
+						'name' => 'Ana',
+						'age'  => '30',
+					),
+					array(
+						'name' => 'Luz',
+						'age'  => '',
+					),
+				),
+			)
+		);
+
+		$this->assertArrayHasKey( 'att.1.age', $errors );
+		$this->assertSame( 'Age is required.', $errors['att.1.age'] );
+		$this->assertArrayNotHasKey( 'att.0.age', $errors, 'The row that passed is not marked.' );
+		$this->assertArrayNotHasKey( 'att.1.name', $errors, 'The control that passed is not marked.' );
+
+		// The subs arrive before the summary, so a client walking the map in
+		// order reaches the exact box first.
+		$this->assertSame( 'att.1.age', array_keys( $errors )[0] );
+	}
+
+	/**
+	 * Two failing controls are both named, each under its own key.
+	 *
+	 * @covers ::atf_validate_repeater_sub_errors
+	 */
+	public function test_repeater_marks_every_failing_control() {
+		$field = array(
+			'id'     => 'att',
+			'type'   => 'repeater',
+			'fields' => array(
+				array(
+					'id'       => 'name',
+					'type'     => 'text',
+					'label'    => 'Name',
+					'required' => true,
+				),
+				array(
+					'id'       => 'age',
+					'type'     => 'number',
+					'label'    => 'Age',
+					'required' => true,
+				),
+			),
+		);
+
+		$schema = atf_normalize_schema( array( 'fields' => array( $field ) ) );
+
+		$errors = atf_validate_repeater_sub_errors(
+			$schema['fields'][0],
+			array(
+				array(
+					'name' => '',
+					'age'  => '',
+				),
+			),
+			$schema,
+			array()
+		);
+
+		$this->assertSame( array( 'att.0.name', 'att.0.age' ), array_keys( $errors ) );
+	}
+
+	/**
 	 * A row that passes its sub-fields' bounds passes, and one that does not
 	 * fails with the bound's own message.
 	 *

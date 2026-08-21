@@ -167,7 +167,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 		$this->assertSame( 2, array_sum( wp_list_pluck( $timeline, 'count' ) ) );
 
 		// Oldest first, so a chart drawn left to right reads forwards in time.
-		$dates = wp_list_pluck( $timeline, 'date' );
+		$dates  = wp_list_pluck( $timeline, 'date' );
 		$sorted = $dates;
 		sort( $sorted );
 
@@ -576,5 +576,193 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 		$this->assertSame( 1, $rows[0]['answered'] );
 		$this->assertSame( 2, $rows[0]['of'] );
 		$this->assertSame( 50, $rows[0]['rate'] );
+	}
+	/**
+	 * The user-agent classifier sorts real strings into the right boxes.
+	 *
+	 * The strings here are the awkward ones: every Chromium browser says
+	 * "Chrome", every WebKit browser says "Safari", an iPad says "like Mac OS
+	 * X", and Android puts "Mobile" on phones but not tablets.
+	 *
+	 * @covers ::atf_classify_user_agent
+	 */
+	public function test_user_agents_classify_coarsely() {
+		$cases = array(
+			'Chrome on Windows is not Safari'    => array(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+				array( 'desktop', 'chrome', 'windows' ),
+			),
+			'Edge is not Chrome'                 => array(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+				array( 'desktop', 'edge', 'windows' ),
+			),
+			'An iPhone is a phone on iOS'        => array(
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+				array( 'mobile', 'safari', 'ios' ),
+			),
+			'An iPad is a tablet, not a Mac'     => array(
+				'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+				array( 'tablet', 'safari', 'ios' ),
+			),
+			'Android with Mobile is a phone'     => array(
+				'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+				array( 'mobile', 'chrome', 'android' ),
+			),
+			'Android without Mobile is a tablet' => array(
+				'Mozilla/5.0 (Linux; Android 14; SM-X910) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+				array( 'tablet', 'chrome', 'android' ),
+			),
+			'Samsung Internet is not Chrome'     => array(
+				'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36',
+				array( 'mobile', 'samsung', 'android' ),
+			),
+			'Firefox on Linux'                   => array(
+				'Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0',
+				array( 'desktop', 'firefox', 'linux' ),
+			),
+			'Safari on a Mac is macOS'           => array(
+				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+				array( 'desktop', 'safari', 'macos' ),
+			),
+			'Nothing classifies as unknown'      => array(
+				'',
+				array( 'unknown', 'unknown', 'unknown' ),
+			),
+		);
+
+		foreach ( $cases as $label => $case ) {
+			$this->assertSame(
+				array(
+					'device'  => $case[1][0],
+					'browser' => $case[1][1],
+					'os'      => $case[1][2],
+				),
+				atf_classify_user_agent( $case[0] ),
+				$label
+			);
+		}
+	}
+
+	/**
+	 * Tech tallies accumulate and come back out as ranked report rows.
+	 *
+	 * @covers ::atf_bump_tech
+	 * @covers ::atf_get_tech_stats
+	 * @covers ::atf_analytics_tech
+	 */
+	public function test_tech_tallies_become_report_rows() {
+		$form_id = atf_test_form();
+
+		$iphone  = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+		$windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+		atf_bump_tech( $form_id, 'views', $iphone, 10 );
+		atf_bump_tech( $form_id, 'views', $windows, 10 );
+		atf_bump_tech( $form_id, 'submissions', $iphone, 2 );
+		atf_bump_tech( $form_id, 'submissions', $windows, 8 );
+
+		$tech = atf_analytics_tech( $form_id );
+
+		$this->assertNotNull( $tech );
+
+		$device = $tech['device'];
+
+		$this->assertSame( 'desktop', $device[0]['id'], 'Ranked by submissions: desktop first.' );
+		$this->assertSame( 80, $device[0]['share'] );
+		$this->assertSame( 80, $device[0]['conversion'] );
+		$this->assertSame( 'mobile', $device[1]['id'] );
+		$this->assertSame( 20, $device[1]['conversion'], 'Phones viewed as much and converted a quarter as well.' );
+
+		$browsers = wp_list_pluck( $tech['browser'], 'id' );
+
+		$this->assertSame( array( 'chrome', 'safari' ), $browsers );
+	}
+
+	/**
+	 * A form that has tallied nothing reports no tech section at all.
+	 *
+	 * @covers ::atf_analytics_tech
+	 */
+	public function test_no_tallies_is_null_not_zeroes() {
+		$this->assertNull( atf_analytics_tech( atf_test_form() ) );
+	}
+
+	/**
+	 * Switching analytics off stops the counting.
+	 *
+	 * The visitor-facing behaviour of the privacy switches: `enabled` off
+	 * means no views, no starts and no tech; `tech` off alone keeps the
+	 * counters and drops only the technology tally.
+	 *
+	 * @covers ::atf_record_view
+	 * @covers ::atf_record_start
+	 * @covers ::atf_should_record_tech
+	 */
+	public function test_analytics_switches_gate_the_recording() {
+		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+		$off = atf_test_form(
+			array(
+				'settings' => array(
+					'analytics' => array(
+						'enabled' => false,
+						'tech'    => true,
+					),
+				),
+			)
+		);
+
+		atf_record_view( $off );
+		atf_record_start( $off );
+
+		$stats = atf_get_stats( $off );
+
+		$this->assertSame( 0, $stats['views'] );
+		$this->assertSame( 0, $stats['starts'] );
+		$this->assertNull( atf_analytics_tech( $off ) );
+
+		$no_tech = atf_test_form(
+			array(
+				'settings' => array(
+					'analytics' => array(
+						'enabled' => true,
+						'tech'    => false,
+					),
+				),
+			)
+		);
+
+		atf_record_view( $no_tech );
+
+		$this->assertSame( 1, atf_get_stats( $no_tech )['views'] );
+		$this->assertNull( atf_analytics_tech( $no_tech ), 'Views counted, technology not tallied.' );
+
+		$on = atf_test_form();
+
+		atf_record_view( $on );
+
+		$tech = atf_analytics_tech( $on );
+
+		$this->assertNotNull( $tech );
+		$this->assertSame( 'desktop', $tech['device'][0]['id'] );
+
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+	}
+
+	/**
+	 * The tally filter is the per-request veto a consent plugin needs.
+	 *
+	 * @covers ::atf_should_record_tech
+	 */
+	public function test_the_tech_filter_can_veto() {
+		$form_id = atf_test_form();
+
+		add_filter( 'atf_record_tech', '__return_false' );
+
+		$this->assertFalse( atf_should_record_tech( $form_id ) );
+
+		remove_filter( 'atf_record_tech', '__return_false' );
+
+		$this->assertTrue( atf_should_record_tech( $form_id ) );
 	}
 }

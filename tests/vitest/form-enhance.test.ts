@@ -21,6 +21,12 @@ beforeAll( () => {
 	// jsdom draws nothing, so it does not implement scrolling; the step
 	// navigation scrolls the new page into view and would throw without this.
 	Element.prototype.scrollIntoView = () => {};
+
+	// jsdom has no CSS object either, and `fieldElement()` escapes field ids
+	// through it. The ids in these tests are plain words; identity will do.
+	( globalThis as { CSS?: { escape: ( value: string ) => string } } ).CSS ??= {
+		escape: ( value: string ) => value,
+	};
 } );
 
 /** Prints a form plus the schema blob the renderer would put beside it. */
@@ -210,5 +216,151 @@ describe( 'nextRepeaterIndex', () => {
 
 	it( 'ignores names that are not repeater slots', () => {
 		expect( nextRepeaterIndex( rowsWith( [ 'atf[notes]', 'unrelated[3]' ] ) ) ).toBe( 0 );
+	} );
+} );
+describe( 'repeater validation marks the exact control', () => {
+	/** A repeater of two rows: name (optional) and age (required). */
+	function mountRepeater( rows: Array< { name: string; age: string } > ): HTMLFormElement {
+		const schema = {
+			fields: [
+				{
+					id: 'att',
+					type: 'repeater',
+					label: 'Attendees',
+					fields: [
+						{ id: 'name', type: 'text', label: 'Name' },
+						{ id: 'age', type: 'number', label: 'Age', required: true },
+					],
+				},
+			],
+			settings: { ajax: false, progressBar: 'none' },
+		};
+
+		const rowHtml = rows
+			.map(
+				( row, index ) => `
+				<div class="atf-repeater__row" data-atf-repeater-row>
+					<div class="atf-field atf-repeater__field" data-atf-sub="name">
+						<input class="atf-input" type="text" name="atf[att][${ index }][name]" value="${ row.name }" />
+						<p class="atf-error" hidden></p>
+					</div>
+					<div class="atf-field atf-repeater__field" data-atf-sub="age">
+						<input class="atf-input" type="number" name="atf[att][${ index }][age]" value="${ row.age }" />
+						<p class="atf-error" hidden></p>
+					</div>
+				</div>`
+			)
+			.join( '' );
+
+		document.body.innerHTML = `
+			<form data-atf-form="9" data-atf-instance="atf-9" method="post" action="#">
+				<div class="atf-errors" id="atf-9-errors" role="alert" tabindex="-1" hidden></div>
+				<div data-atf-page>
+					<div class="atf-field atf-field--repeater" data-atf-field="att" data-atf-type="repeater">
+						<span class="atf-label">Attendees</span>
+						<div class="atf-repeater" data-atf-repeater="att" data-atf-min="1" data-atf-max="10" data-atf-item-label="Attendee">
+							<div class="atf-repeater__rows">${ rowHtml }</div>
+						</div>
+						<p class="atf-error" hidden></p>
+					</div>
+					<button type="submit" data-atf-submit>Send</button>
+				</div>
+			</form>
+			<script type="application/json" id="atf-9-schema">${ JSON.stringify( schema ) }</script>
+		`;
+
+		boot();
+
+		return document.querySelector< HTMLFormElement >( 'form' )!;
+	}
+
+	it( 'marks the failing box and its row, and no one else', () => {
+		const form = mountRepeater( [
+			{ name: 'Ana', age: '30' },
+			{ name: 'Luz', age: '' },
+		] );
+
+		expect( pressEnter( form ) ).toBe( true );
+
+		const field = form.querySelector< HTMLElement >( '[data-atf-field="att"]' )!;
+		const rows = Array.from( form.querySelectorAll< HTMLElement >( '[data-atf-repeater-row]' ) );
+
+		// The container wears the summary, named the way the server names it.
+		expect( field.classList.contains( 'has-error' ) ).toBe( true );
+		expect( field.querySelector< HTMLElement >( ':scope > .atf-error' )!.textContent ).toBe(
+			'Attendee 2: This is required.'
+		);
+
+		// The failing row and the failing box — and only those.
+		expect( rows[ 0 ].classList.contains( 'has-error' ) ).toBe( false );
+		expect( rows[ 1 ].classList.contains( 'has-error' ) ).toBe( true );
+
+		const badBox = rows[ 1 ].querySelector< HTMLElement >( '[data-atf-sub="age"]' )!;
+		const goodBox = rows[ 1 ].querySelector< HTMLElement >( '[data-atf-sub="name"]' )!;
+
+		expect( badBox.classList.contains( 'has-error' ) ).toBe( true );
+		expect( badBox.querySelector( 'input' )!.getAttribute( 'aria-invalid' ) ).toBe( 'true' );
+		expect( goodBox.classList.contains( 'has-error' ) ).toBe( false );
+		expect( rows[ 0 ].querySelector( '[data-atf-sub="age"] input' )!.hasAttribute( 'aria-invalid' ) ).toBe(
+			false
+		);
+	} );
+
+	it( 'indents the failing boxes under the repeater in the summary', () => {
+		const form = mountRepeater( [
+			{ name: 'Ana', age: '30' },
+			{ name: 'Luz', age: '' },
+		] );
+
+		pressEnter( form );
+
+		const summary = form.querySelector< HTMLElement >( '.atf-errors' )!;
+
+		expect( summary.hidden ).toBe( false );
+
+		// One top-level entry — the repeater's failing box is nested under it,
+		// not listed beside it.
+		const topLevel = summary.querySelectorAll( ':scope > ul > li' );
+
+		expect( topLevel.length ).toBe( 1 );
+		expect( topLevel[ 0 ].querySelector( ':scope > a' )!.textContent ).toBe( 'Attendees' );
+
+		const nested = topLevel[ 0 ].querySelectorAll( '.atf-errors__sub > li' );
+
+		expect( nested.length ).toBe( 1 );
+		expect( nested[ 0 ].textContent ).toContain( 'This is required.' );
+	} );
+
+	it( 'lets an all-empty row pass, exactly as the server drops it', () => {
+		const form = mountRepeater( [
+			{ name: 'Ana', age: '30' },
+			{ name: '', age: '' },
+		] );
+
+		expect( pressEnter( form ) ).toBe( false );
+
+		const field = form.querySelector< HTMLElement >( '[data-atf-field="att"]' )!;
+
+		expect( field.classList.contains( 'has-error' ) ).toBe( false );
+	} );
+
+	it( 'clears the marks once the answer arrives', () => {
+		const form = mountRepeater( [ { name: 'Luz', age: '' } ] );
+
+		pressEnter( form );
+
+		const rows = form.querySelector< HTMLElement >( '[data-atf-repeater-row]' )!;
+		const age = rows.querySelector< HTMLInputElement >( '[data-atf-sub="age"] input' )!;
+
+		expect( rows.classList.contains( 'has-error' ) ).toBe( true );
+
+		age.value = '41';
+		age.dispatchEvent( new FocusEvent( 'blur', { bubbles: true } ) );
+
+		expect( rows.classList.contains( 'has-error' ) ).toBe( false );
+		expect( age.hasAttribute( 'aria-invalid' ) ).toBe( false );
+		expect(
+			form.querySelector< HTMLElement >( '[data-atf-field="att"]' )!.classList.contains( 'has-error' )
+		).toBe( false );
 	} );
 } );

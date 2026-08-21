@@ -323,6 +323,12 @@ Field id => message. Where a site adds a cross-field rule — "the end date must
 after the start date", "at least one contact method" — that no single field can
 express on its own.
 
+A failing repeater contributes two kinds of entry: one per failing control,
+keyed `repeater.row.sub` (`att.1.age`, row indexes counted after the sanitiser
+drops all-empty rows), followed by a row-level summary under the repeater's own
+id ("Attendee 2: Age is required."). The dotted keys are what let the front end
+mark the exact box; ids cannot contain dots, so the shape parses unambiguously.
+
 ### `atf_validate_field` — Filter — *Stable*
 
 ```php
@@ -629,6 +635,22 @@ apply_filters( 'atf_confirmation', array $resolved, array $schema, array $values
 apply_filters( 'atf_default_confirmation', array $confirmation );
 ```
 
+`$resolved` is `{ type, message, url, success }`. `success` is the resolved
+success screen — `{ style, title, icon, accent, intensity, showButton,
+buttonLabel }` — with merge tags already replaced in `title` and `buttonLabel`.
+
+### `atf_success_styles` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_success_styles', array $styles );
+```
+
+The success screen styles a message confirmation can wear, keyed by slug —
+`plain`, `simple`, `minimal`, `card`, `check`, `confetti`, `fireworks`,
+`sparkles`, `typewriter` ship. Each is `{ label, description, icon }`. A style
+added here passes normalisation and is stored, but needs a client-side
+renderer to animate; without one the front end shows it as `simple`.
+
 ---
 
 ## Post-submit actions
@@ -755,6 +777,7 @@ The whole report. Alongside the headline counts and `fields`, it carries:
 | `timeline` | `{ date, count }` per day, oldest first, **including the empty days**. |
 | `dimensions` | `{ id, label }` for each field the report can be grouped by. |
 | `breakdown` | Every numeric answer grouped by one of them, or `null`. |
+| `tech` | Aggregate device / browser / OS tallies, or `null` when nothing has been tallied. Each facet is a ranked list of `{ id, label, views, submissions, share, conversion }`; `conversion` is `null` where no views were tallied. |
 
 Each numeric field in `fields` also gains `numbers` (count, mean, median, min,
 max and the full distribution) and, for a 0–10 scale, `nps`.
@@ -777,7 +800,22 @@ apply_filters( 'atf_record_view', bool $record, int $form_id );
 ```
 
 Views by anyone who can edit forms are never counted, so building and previewing
-does not inflate a form's own conversion rate.
+does not inflate a form's own conversion rate. Independently of this filter, a
+form whose **Settings → Analytics → Count views and starts** switch is off
+records no views and no starts at all.
+
+### `atf_record_tech` — Filter — *Experimental*
+
+```php
+apply_filters( 'atf_record_tech', bool $record, int $form_id );
+```
+
+Whether the current request's device, browser and operating system are added to
+the form's aggregate technology tallies (`_atf_tech` form meta). The tallies
+are counters over coarse classes — "mobile", "chrome", "ios" — never the
+user-agent string and never a per-visitor row, and they already sit behind the
+form's own **Settings → Analytics** switches; this filter is the per-request
+veto for a consent plugin or a geography rule.
 
 ### `atf_analytics_sample_size` — Filter — *Stable*
 

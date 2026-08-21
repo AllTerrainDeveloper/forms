@@ -55,6 +55,13 @@ function atf_validate_submission( $schema, $values, $context = array() ) {
 		$error = atf_validate_field( $field, $value, $schema, $context );
 
 		if ( '' !== $error ) {
+			// A repeater's failure also ships control by control -- the subs
+			// first, so a client walking the list in order arrives at the
+			// exact box before it reaches the row-level summary.
+			if ( 'repeater' === $field['type'] && is_array( $value ) ) {
+				$errors = array_merge( $errors, atf_validate_repeater_sub_errors( $field, $value, $schema, $context ) );
+			}
+
 			$errors[ $field['id'] ] = $error;
 		}
 	}
@@ -203,9 +210,49 @@ function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
 		);
 	}
 
-	$subs = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
+	$sub_errors = atf_validate_repeater_sub_errors( $field, $rows, $schema, $context );
 
-	foreach ( array_values( $rows ) as $index => $row ) {
+	if ( ! $sub_errors ) {
+		return '';
+	}
+
+	// The summary names the first failing row the way the visitor sees it
+	// numbered; the per-control detail travels separately, keyed for the
+	// client to mark the exact box.
+	reset( $sub_errors );
+
+	$parts = explode( '.', (string) key( $sub_errors ) );
+
+	return sprintf(
+		/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's error. */
+		__( '%1$s %2$d: %3$s', 'allterrain-forms' ),
+		atf_repeater_item_label( $field ),
+		(int) $parts[1] + 1,
+		current( $sub_errors )
+	);
+}
+
+/**
+ * Validates a repeater's rows control by control.
+ *
+ * Returns one entry per failing control, keyed `repeater.row.sub` -- ids may
+ * not contain dots, so the key parses unambiguously. The row index is the
+ * position in the *sanitised* rows, which the client maps back to its own row
+ * cards after dropping the all-empty ones, exactly as the sanitiser did.
+ *
+ * @since 0.2.0
+ *
+ * @param array $field   The repeater field.
+ * @param array $rows    Its sanitised rows.
+ * @param array $schema  The form schema.
+ * @param array $context Submission context.
+ * @return array<string, string> `"rep.0.age" => message`, in row order.
+ */
+function atf_validate_repeater_sub_errors( $field, $rows, $schema, $context ) {
+	$subs   = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
+	$errors = array();
+
+	foreach ( array_values( is_array( $rows ) ? $rows : array() ) as $index => $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
@@ -223,18 +270,12 @@ function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
 			);
 
 			if ( '' !== $error ) {
-				return sprintf(
-					/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's error. */
-					__( '%1$s %2$d: %3$s', 'allterrain-forms' ),
-					atf_repeater_item_label( $field ),
-					$index + 1,
-					$error
-				);
+				$errors[ $field['id'] . '.' . $index . '.' . $sub['id'] ] = $error;
 			}
 		}
 	}
 
-	return '';
+	return $errors;
 }
 
 /**
