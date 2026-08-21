@@ -670,10 +670,15 @@ var allTerrainFormsAnalytics = function(exports) {
         })
       );
       return this.panel(`Broken down by ${breakdown.label.toLowerCase()}`, "", [
-        el("table", {
-          class: "atfa-table",
-          children: [el("thead", { children: [head] }), el("tbody", { children: rows })]
-        })
+        // Six question columns do not fit a narrow window, and a table never
+        // shrinks below its content — it overflows. Wide content scrolls
+        // inside its own container; it must never bleed past the panel.
+        this.scrollable(
+          el("table", {
+            class: "atfa-table",
+            children: [el("thead", { children: [head] }), el("tbody", { children: rows })]
+          })
+        )
       ]);
     }
     /** One panel per question. */
@@ -753,7 +758,7 @@ var allTerrainFormsAnalytics = function(exports) {
       }
       const buckets = histogramBuckets(numbers);
       const peak = buckets.reduce((most, bucket) => Math.max(most, bucket.count), 0);
-      return el("div", {
+      return this.scrollable(el("div", {
         class: "atfa-hist",
         children: buckets.map(
           (bucket) => el("div", {
@@ -769,7 +774,18 @@ var allTerrainFormsAnalytics = function(exports) {
             ]
           })
         )
-      });
+      }));
+    }
+    /**
+     * Wraps something wider than the window in a sideways-scrolling strip.
+     *
+     * The one honest answer to content with a real minimum width: a table or a
+     * histogram that cannot shrink must scroll within its own panel, because
+     * the alternative — seen in the wild — is bars painting straight through
+     * the panel border and off the edge of the window.
+     */
+    scrollable(child) {
+      return el("div", { class: "atfa-scroll", children: [child] });
     }
     /**
      * The developer panel.

@@ -513,10 +513,15 @@ class AnalyticsWindow {
 		);
 
 		return this.panel( `Broken down by ${ breakdown.label.toLowerCase() }`, '', [
-			el( 'table', {
-				class: 'atfa-table',
-				children: [ el( 'thead', { children: [ head ] } ), el( 'tbody', { children: rows } ) ],
-			} ),
+			// Six question columns do not fit a narrow window, and a table never
+			// shrinks below its content — it overflows. Wide content scrolls
+			// inside its own container; it must never bleed past the panel.
+			this.scrollable(
+				el( 'table', {
+					class: 'atfa-table',
+					children: [ el( 'thead', { children: [ head ] } ), el( 'tbody', { children: rows } ) ],
+				} )
+			),
 		] );
 	}
 
@@ -617,7 +622,11 @@ class AnalyticsWindow {
 		const buckets = histogramBuckets( numbers );
 		const peak = buckets.reduce( ( most, bucket ) => Math.max( most, bucket.count ), 0 );
 
-		return el( 'div', {
+		// A wide-ranging answer — forty hour buckets — has more columns than a
+		// narrow window has pixels, and each column's count label sets a width
+		// it cannot shrink below. The histogram scrolls sideways rather than
+		// painting past the panel.
+		return this.scrollable( el( 'div', {
 			class: 'atfa-hist',
 			children: buckets.map( ( bucket ) =>
 				el( 'div', {
@@ -633,7 +642,19 @@ class AnalyticsWindow {
 					],
 				} )
 			),
-		} );
+		} ) );
+	}
+
+	/**
+	 * Wraps something wider than the window in a sideways-scrolling strip.
+	 *
+	 * The one honest answer to content with a real minimum width: a table or a
+	 * histogram that cannot shrink must scroll within its own panel, because
+	 * the alternative — seen in the wild — is bars painting straight through
+	 * the panel border and off the edge of the window.
+	 */
+	private scrollable( child: HTMLElement ): HTMLElement {
+		return el( 'div', { class: 'atfa-scroll', children: [ child ] } );
 	}
 
 	/**
