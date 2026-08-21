@@ -518,9 +518,8 @@
 
 /* The card's title bar. Unselected cards wear the unfocused titlebar surface,
    the selected one wears the focused surface — the same reading the desktop
-   gives a stack of windows. Corners are rounded to sit inside the card's own
-   border rather than clipping the whole card with `overflow`, which would
-   shave the preview's halo below. */
+   gives a stack of windows. The bar rounds its own top corners and the body
+   its bottom ones, keeping the card itself free of `overflow` clipping. */
 .atfb-card__bar {
 	display: flex;
 	align-items: center;
@@ -547,10 +546,25 @@
 	display: inline-flex;
 }
 
+/* No padding of its own: the preview inside is the window's content and runs
+   edge to edge. The body clips the bottom corners, which is safe now that the
+   preview carries no halo to shave, and it means whatever ground the preview
+   paints — light, or the dark-form flip — meets the card's border exactly. */
 .atfb-card__body {
 	flex: 1 1 auto;
 	min-inline-size: 0;
-	padding: 2px 12px 8px;
+	padding: 0;
+	border-end-start-radius: calc( var( --atfb-card-r ) - 1px );
+	border-end-end-radius: calc( var( --atfb-card-r ) - 1px );
+	overflow: hidden;
+}
+
+/* The condition row is builder furniture, not form content, so it sits below
+   the preview on the window's own surface — and carries the inset the body no
+   longer provides. */
+.atfb-card__body > .atfb-cond {
+	padding-inline: 14px;
+	padding-block-end: 10px;
 }
 
 .atfb-card__head {
@@ -2514,20 +2528,21 @@ os-checkbox-label.atfb-check {
  * preview and starts being an impression of one. */
 
 .atfb-preview {
-	/* Its own ground, always. `background: none` let the shell's card surface
-	   show through, which was faithful while that surface was white and a lie
-	   under any other OpenStation theme. The ground is the fixed neutral from
-	   the preview-backdrop block; the halo's ring mixes that ground out into
-	   the card's own token — a gradient to the base colour — so the preview
-	   sits on the card rather than through it, light or dark, whatever the
-	   shell wears. */
+	/* The field IS the window body — full bleed under the card's title bar,
+	   no inner box. The floating tile this used to be (its own margins, a
+	   ring, a halo shadow) read as a box inside a box once the card grew
+	   real window chrome; a window's content does not float inside the
+	   window, it fills it. The preview still paints its own ground — the
+	   fixed neutral from the preview-backdrop block, not the shell's
+	   surface — so on a dark desktop theme the card is simply a window
+	   with light content, the way the published form will actually look.
+	   The card body clips the corners. */
 	border: 0;
+	max-inline-size: none;
 	padding: 16px 18px;
-	margin: 10px 4px 6px;
-	border-radius: calc( var( --atfb-radius ) - 2px );
-	box-shadow:
-		0 0 0 1px color-mix( in srgb, var( --atfb-preview-ground ) 45%, var( --atfb-bg ) ),
-		0 0 14px 4px color-mix( in srgb, #05070a 16%, transparent );
+	margin: 0;
+	border-radius: 0;
+	box-shadow: none;
 }
 
 /* Anything editable in place. Invisible until pointed at, because a canvas of
