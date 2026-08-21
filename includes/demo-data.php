@@ -107,6 +107,14 @@ const ATF_DEMO_CHUNK = 25;
  * - **A multi-select**, where the percentages deliberately sum past 100 and a
  *   report that divides by the number of answers instead of the number of people
  *   is wrong in a way nobody notices.
+ * - **A repeater** (the quarter's projects: name, weekly hours, outcome), so the
+ *   report has rows-per-entry to histogram, a numeric sub-field pooled across
+ *   rows, a choice sub-field tallied per row, and a text sub-field whose per-row
+ *   response rate is visibly under 100.
+ * - **A calculated total** — `sum( {projects.hours} )` — recomputed by the
+ *   pipeline on every submission, so the aggregate grammar is exercised five
+ *   hundred times and its histogram is a distribution the generator never wrote
+ *   directly.
  * - **An optional free-text box**, answered by well under half — so response rate
  *   is a number that varies per field instead of always being 100.
  *
@@ -116,7 +124,7 @@ const ATF_DEMO_CHUNK = 25;
  */
 function atf_demo_survey_schema() {
 	return array(
-		'fields'   => array(
+		'fields'        => array(
 			array(
 				'id'    => 'intro',
 				'type'  => 'heading',
@@ -191,6 +199,50 @@ function atf_demo_survey_schema() {
 					__( 'A quieter place to work', 'allterrain-forms' ),
 					__( 'More time off', 'allterrain-forms' ),
 				),
+			),
+			array(
+				'id'        => 'projects',
+				'type'      => 'repeater',
+				'label'     => __( 'What did you spend the quarter on?', 'allterrain-forms' ),
+				'hint'      => __( 'One card per project — add as many as you carried.', 'allterrain-forms' ),
+				'required'  => true,
+				'itemLabel' => __( 'Project', 'allterrain-forms' ),
+				'addLabel'  => __( 'Add another project', 'allterrain-forms' ),
+				'minRows'   => 1,
+				'maxRows'   => 4,
+				'fields'    => array(
+					array(
+						'id'    => 'project_name',
+						'type'  => 'text',
+						'label' => __( 'What was it called?', 'allterrain-forms' ),
+					),
+					array(
+						'id'       => 'hours',
+						'type'     => 'number',
+						'label'    => __( 'Hours a week it took', 'allterrain-forms' ),
+						'required' => true,
+						'min'      => 1,
+						'max'      => 40,
+					),
+					array(
+						'id'      => 'outcome',
+						'type'    => 'select',
+						'label'   => __( 'Where did it land?', 'allterrain-forms' ),
+						'choices' => array(
+							__( 'Shipped', 'allterrain-forms' ),
+							__( 'Still in flight', 'allterrain-forms' ),
+							__( 'Quietly shelved', 'allterrain-forms' ),
+						),
+					),
+				),
+			),
+			array(
+				'id'       => 'project_hours',
+				'type'     => 'total',
+				'label'    => __( 'Weekly hours across your projects', 'allterrain-forms' ),
+				'hint'     => __( 'Adds itself up as you fill the cards in.', 'allterrain-forms' ),
+				'formula'  => 'sum( {projects.hours} )',
+				'decimals' => 0,
 			),
 			array(
 				'id'          => 'comment',
@@ -428,9 +480,9 @@ function atf_demo_respondent( &$state ) {
 	// unhappy ones left, which is the survivorship the chart should show.
 	$tenure = atf_demo_weighted(
 		array(
-			'Less than a year' => 26,
-			'1 to 2 years'     => 32,
-			'3 to 5 years'     => 27,
+			'Less than a year'  => 26,
+			'1 to 2 years'      => 32,
+			'3 to 5 years'      => 27,
 			'More than 5 years' => 15,
 		),
 		$state
@@ -530,7 +582,102 @@ function atf_demo_respondent( &$state ) {
 		'recommend'    => (string) $recommend,
 		'satisfaction' => (string) $satisfaction,
 		'improve'      => $improve,
+		'projects'     => atf_demo_projects( $morale, $state ),
 		'comment'      => $comment,
+	);
+}
+
+/**
+ * The quarter's projects, as repeater rows.
+ *
+ * The shape is deliberate on every axis the report reads:
+ *
+ * - **How many** varies from one to four, and unhappier people carry more at
+ *   once — which is one of the reasons they are unhappier, and gives the
+ *   rows-per-entry histogram a slope instead of a spike.
+ * - **Hours** split a believable working week across the projects, so the
+ *   computed total lands mostly in the twenties and thirties whatever the
+ *   count — the pipeline recomputes `sum( {projects.hours} )` per entry, and
+ *   its distribution has to look like a week, not like noise.
+ * - **The outcome** tracks morale: happy people shipped, unhappy people
+ *   watched things get quietly shelved. That is a real correlation for the
+ *   per-row choice tally to find.
+ * - **The name** is blank in about one row in eight, so the sub-field's
+ *   per-row response rate is visibly not 100.
+ *
+ * @since 0.1.0
+ *
+ * @param float $morale The respondent's latent morale, 0 to 1.
+ * @param int   $state  The generator state.
+ * @return array[] Rows, keyed by sub-field id.
+ */
+function atf_demo_projects( $morale, &$state ) {
+	$count = (int) atf_demo_weighted(
+		array(
+			'1' => 24 + $morale * 18,
+			'2' => 40,
+			'3' => 22 + ( 1 - $morale ) * 12,
+			'4' => 6 + ( 1 - $morale ) * 9,
+		),
+		$state
+	);
+
+	$names    = atf_demo_project_names();
+	$projects = array();
+
+	for ( $i = 0; $i < $count; $i++ ) {
+		$hours = (int) max( 1, min( 40, round( ( 30 / $count ) * ( 0.6 + atf_demo_random( $state ) * 0.8 ) ) ) );
+
+		$outcome = atf_demo_weighted(
+			array(
+				'Shipped'         => 28 + $morale * 36,
+				'Still in flight' => 45,
+				'Quietly shelved' => 30 - $morale * 19,
+			),
+			$state
+		);
+
+		$name = atf_demo_random( $state ) < 0.125
+			? ''
+			: $names[ (int) floor( atf_demo_random( $state ) * count( $names ) ) ];
+
+		$projects[] = array(
+			'project_name' => $name,
+			'hours'        => (string) $hours,
+			'outcome'      => (string) $outcome,
+		);
+	}
+
+	return $projects;
+}
+
+/**
+ * Names projects get, at the kind of company that runs pulse surveys.
+ *
+ * @since 0.1.0
+ *
+ * @return string[]
+ */
+function atf_demo_project_names() {
+	return array(
+		'Checkout rewrite',
+		'Project Lighthouse',
+		'The Big Migration',
+		'Onboarding v2',
+		'Search that works',
+		'Billing cleanup',
+		'Mobile parity',
+		'Design system',
+		'The dashboard',
+		'API versioning',
+		'Dark mode',
+		'Notifications overhaul',
+		'Data warehouse',
+		'Accessibility pass',
+		'Performance sprint',
+		'Customer portal',
+		'Internal tools',
+		'The great renaming',
 	);
 }
 

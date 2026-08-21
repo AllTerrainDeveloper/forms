@@ -112,6 +112,24 @@ class ATF_Test_Demo_Data extends WP_UnitTestCase {
 		$nps = array_filter( $schema['fields'], 'atf_analytics_is_nps_field' );
 
 		$this->assertNotEmpty( $nps, 'No 0-10 question, so the NPS panel has nothing to draw.' );
+
+		// The repeater, with enough inside it to exercise every per-row report:
+		// a numeric sub-field to pool, a choice sub-field to tally, and a text
+		// sub-field whose response rate is under 100.
+		$this->assertContains( 'repeater', $types, 'Nothing repeats, so the per-row panels have nothing to draw.' );
+
+		$repeater  = $schema['fields'][ array_search( 'repeater', $types, true ) ];
+		$sub_types = wp_list_pluck( $repeater['fields'], 'type' );
+
+		$this->assertContains( 'number', $sub_types );
+		$this->assertContains( 'select', $sub_types );
+		$this->assertContains( 'text', $sub_types );
+
+		// And a total that aggregates the repeater, so the pipeline recomputes
+		// the new grammar on every one of five hundred submissions.
+		$total = $schema['fields'][ array_search( 'total', $types, true ) ];
+
+		$this->assertStringContainsString( '{projects.hours}', $total['formula'] );
 	}
 
 	/**
@@ -165,6 +183,56 @@ class ATF_Test_Demo_Data extends WP_UnitTestCase {
 		$this->assertIsArray( $values );
 		$this->assertArrayHasKey( 'team', $values, 'An entry with no answers means the pipeline rejected them all.' );
 		$this->assertArrayHasKey( 'recommend', $values );
+	}
+
+	/**
+	 * The repeater's rows survive the pipeline, and the total is the pipeline's.
+	 *
+	 * The generator never posts `project_hours` — the stored number can only
+	 * have come from the server evaluating `sum( {projects.hours} )` against
+	 * the sanitised rows. This is the aggregate grammar proven end to end, on
+	 * every entry, not on a fixture.
+	 *
+	 * @covers ::atf_demo_projects
+	 */
+	public function test_projects_are_stored_and_their_total_is_computed() {
+		$status = atf_demo_seed( 10 );
+
+		$this->assertNotWPError( $status );
+
+		$entries = get_posts(
+			array(
+				'post_type'      => ATF_ENTRY_TYPE,
+				'post_status'    => atf_entry_statuses(),
+				'posts_per_page' => -1,
+				'meta_key'       => ATF_META_FORM,
+				'meta_value'     => $status['formId'],
+			)
+		);
+
+		$this->assertNotEmpty( $entries );
+
+		foreach ( $entries as $entry ) {
+			$values = json_decode( (string) get_post_meta( $entry->ID, ATF_META_VALUES, true ), true );
+
+			$this->assertIsArray( $values['projects'] );
+			$this->assertGreaterThanOrEqual( 1, count( $values['projects'] ) );
+			$this->assertLessThanOrEqual( 4, count( $values['projects'] ) );
+
+			$hours = 0;
+
+			foreach ( $values['projects'] as $row ) {
+				$this->assertIsNumeric( $row['hours'], 'A row lost its hours in sanitisation.' );
+
+				$hours += (float) $row['hours'];
+			}
+
+			$this->assertEquals(
+				$hours,
+				(float) $values['project_hours'],
+				'The stored total is not the sum of the rows, so the server never computed it.'
+			);
+		}
 	}
 
 	/**
@@ -275,15 +343,15 @@ class ATF_Test_Demo_Data extends WP_UnitTestCase {
 	 * @covers ::atf_demo_respondent
 	 */
 	public function test_the_population_is_varied() {
-		$state = 12345;
-		$teams = array();
+		$state  = 12345;
+		$teams  = array();
 		$scores = array();
 
 		for ( $i = 0; $i < 200; $i++ ) {
 			$person = atf_demo_respondent( $state );
 
 			$teams[ $person['team'] ] = true;
-			$scores[] = (int) $person['recommend'];
+			$scores[]                 = (int) $person['recommend'];
 		}
 
 		$this->assertGreaterThan( 4, count( $teams ), 'Almost everybody is on one team.' );
@@ -299,6 +367,42 @@ class ATF_Test_Demo_Data extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $nps['promoters'] );
 		$this->assertGreaterThan( 0, $nps['passives'] );
 		$this->assertGreaterThan( 0, $nps['detractors'] );
+	}
+
+	/**
+	 * The project rows vary on every axis the per-row report reads.
+	 *
+	 * @covers ::atf_demo_projects
+	 */
+	public function test_the_projects_are_varied() {
+		$state    = 4242;
+		$counts   = array();
+		$outcomes = array();
+		$blank    = 0;
+		$rows     = 0;
+
+		for ( $i = 0; $i < 200; $i++ ) {
+			$projects = atf_demo_respondent( $state )['projects'];
+
+			$counts[ count( $projects ) ] = true;
+
+			foreach ( $projects as $row ) {
+				++$rows;
+				$outcomes[ $row['outcome'] ] = true;
+
+				if ( '' === $row['project_name'] ) {
+					++$blank;
+				}
+			}
+		}
+
+		$this->assertGreaterThan( 2, count( $counts ), 'Everybody carries the same number of projects, so the rows-per-entry histogram is a spike.' );
+		$this->assertCount( 3, $outcomes, 'An outcome nobody ever reaches renders as a permanent zero.' );
+
+		// Some names blank, most not — that is what makes the sub-field's
+		// per-row response rate a number worth drawing.
+		$this->assertGreaterThan( 0, $blank );
+		$this->assertLessThan( $rows / 2, $blank );
 	}
 
 	/**
