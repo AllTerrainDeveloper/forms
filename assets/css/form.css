@@ -990,7 +990,7 @@
    glued to them, and never stretches to the form's full width — themes whose
    `--atf-button-width` is 100% mean the submit button, not this one. */
 .atf-repeater__add {
-	margin-block-start: 12px;
+	margin-block-start: 18px;
 	inline-size: auto;
 }
 
