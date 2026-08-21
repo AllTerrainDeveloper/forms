@@ -132,6 +132,26 @@ function atf_register_rest_routes() {
 
 	register_rest_route(
 		$ns,
+		'/forms/(?P<id>\d+)/archive',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => 'atf_rest_archive_form',
+			'permission_callback' => 'atf_rest_can_edit',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/forms/(?P<id>\d+)/unarchive',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => 'atf_rest_unarchive_form',
+			'permission_callback' => 'atf_rest_can_edit',
+		)
+	);
+
+	register_rest_route(
+		$ns,
 		'/forms/(?P<id>\d+)/preview',
 		array(
 			// POST, not GET: the preview's whole purpose is to render a schema
@@ -449,17 +469,24 @@ function atf_rest_track( $request ) {
 }
 
 /**
- * Lists forms.
+ * Lists forms — the working set by default, the archive when asked.
+ *
+ * One route for both rather than a second endpoint, because the two lists are
+ * the same shape and the same permission; the only difference is which side
+ * of the archive they read.
  *
  * @since 0.1.0
  *
+ * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_list_forms() {
+function atf_rest_list_forms( $request ) {
+	$archived = rest_sanitize_boolean( $request->get_param( 'archived' ) );
+
 	$posts = get_posts(
 		array(
 			'post_type'        => ATF_FORM_TYPE,
-			'post_status'      => array( 'publish', 'draft' ),
+			'post_status'      => $archived ? ATF_STATUS_ARCHIVED : array( 'publish', 'draft' ),
 			'numberposts'      => 200,
 			'orderby'          => 'modified',
 			'order'            => 'DESC',
@@ -467,28 +494,72 @@ function atf_rest_list_forms() {
 		)
 	);
 
-	$forms = array();
+	return rest_ensure_response( array_map( 'atf_form_summary', $posts ) );
+}
 
-	foreach ( $posts as $post ) {
-		$schema = atf_get_form_schema( $post->ID );
-		$stats  = atf_get_stats( $post->ID );
+/**
+ * One form, as the pickers and lists see it.
+ *
+ * @since 0.1.0
+ *
+ * @param WP_Post $post The form.
+ * @return array The summary row.
+ */
+function atf_form_summary( $post ) {
+	$schema = atf_get_form_schema( $post->ID );
+	$stats  = atf_get_stats( $post->ID );
 
-		$forms[] = array(
-			'id'          => $post->ID,
-			'title'       => $post->post_title,
-			'status'      => $post->post_status,
-			'modified'    => $post->post_modified_gmt,
-			'fields'      => count( atf_input_fields( $schema ) ),
-			'theme'       => $schema['settings']['theme'],
-			'entries'     => atf_count_entries( $post->ID ),
-			'unread'      => atf_count_entries_by_status( $post->ID, ATF_STATUS_UNREAD ),
-			'views'       => $stats['views'],
-			'submissions' => $stats['submissions'],
-			'shortcode'   => sprintf( '[allterrain_form id="%d"]', $post->ID ),
-		);
+	return array(
+		'id'          => $post->ID,
+		'title'       => $post->post_title,
+		'status'      => $post->post_status,
+		'modified'    => $post->post_modified_gmt,
+		'fields'      => count( atf_input_fields( $schema ) ),
+		'theme'       => $schema['settings']['theme'],
+		'entries'     => atf_count_entries( $post->ID ),
+		'unread'      => atf_count_entries_by_status( $post->ID, ATF_STATUS_UNREAD ),
+		'views'       => $stats['views'],
+		'submissions' => $stats['submissions'],
+		'shortcode'   => sprintf( '[allterrain_form id="%d"]', $post->ID ),
+	);
+}
+
+/**
+ * Archives a form, with its entries and stats.
+ *
+ * @since 0.1.0
+ *
+ * @param WP_REST_Request $request The request.
+ * @return WP_REST_Response|WP_Error
+ */
+function atf_rest_archive_form( $request ) {
+	$form_id = absint( $request->get_param( 'id' ) );
+	$result  = atf_archive_form( $form_id );
+
+	if ( is_wp_error( $result ) ) {
+		return $result;
 	}
 
-	return rest_ensure_response( $forms );
+	return rest_ensure_response( atf_form_summary( get_post( $form_id ) ) );
+}
+
+/**
+ * Unarchives a form, bringing its entries and stats back with it.
+ *
+ * @since 0.1.0
+ *
+ * @param WP_REST_Request $request The request.
+ * @return WP_REST_Response|WP_Error
+ */
+function atf_rest_unarchive_form( $request ) {
+	$form_id = absint( $request->get_param( 'id' ) );
+	$result  = atf_unarchive_form( $form_id );
+
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+	return rest_ensure_response( atf_form_summary( get_post( $form_id ) ) );
 }
 
 /**

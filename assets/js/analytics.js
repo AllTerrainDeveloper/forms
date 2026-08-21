@@ -96,6 +96,12 @@ var allTerrainFormsAnalytics = function(exports) {
   const api = {
     config: () => get("/config"),
     listForms: () => get("/forms"),
+    /** The other side of the archive: the retired forms, same shape. */
+    listArchivedForms: () => get("/forms?archived=1"),
+    /** Retires a form — it leaves every picker, its entries leave every list, its stats go with it. */
+    archiveForm: (id) => post(`/forms/${id}/archive`, {}),
+    /** Brings an archived form back, entries and stats included, in its pre-archive status. */
+    unarchiveForm: (id) => post(`/forms/${id}/unarchive`, {}),
     getForm: (id) => get(`/forms/${id}`).then(withObjectOverrides),
     createForm: (body) => post("/forms", body).then(withObjectOverrides),
     updateForm: (id, body) => post(`/forms/${id}`, body).then(withObjectOverrides),

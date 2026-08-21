@@ -35,6 +35,17 @@ function atf_form_availability( $form_id, $schema = null ) {
 		'message' => '',
 	);
 
+	// Before the editor bypass below, on purpose: an archived form is retired,
+	// not scheduled or full, and "closed for everyone" is the whole meaning of
+	// the archive. The editor's way past it is unarchiving.
+	if ( atf_form_is_archived( $form_id ) ) {
+		return array(
+			'open'    => false,
+			'reason'  => 'archived',
+			'message' => __( 'This form has been archived.', 'allterrain-forms' ),
+		);
+	}
+
 	// Someone who can edit forms is never locked out by a schedule or a limit.
 	// They are the person who needs to test the form, and a closed notice with
 	// no way past it is how a scheduling bug survives to launch day.

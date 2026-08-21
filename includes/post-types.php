@@ -169,6 +169,23 @@ function atf_register_post_statuses() {
 			)
 		);
 	}
+
+	// The form's own retirement home. Not in the admin "All" list, because the
+	// point of archiving is that the form leaves every everyday list; it keeps
+	// its own row in the status list so nothing archived is unfindable.
+	register_post_status(
+		ATF_STATUS_ARCHIVED,
+		array(
+			'label'                     => _x( 'Archived', 'form status', 'allterrain-forms' ),
+			/* translators: %s: number of forms. */
+			'label_count'               => _n_noop( 'Archived <span class="count">(%s)</span>', 'Archived <span class="count">(%s)</span>', 'allterrain-forms' ),
+			'public'                    => false,
+			'internal'                  => true,
+			'exclude_from_search'       => true,
+			'show_in_admin_all_list'    => false,
+			'show_in_admin_status_list' => true,
+		)
+	);
 }
 
 /**
