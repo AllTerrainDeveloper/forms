@@ -260,6 +260,25 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		}
 	}
 
+	// A named answer shape -- "an email address", "a ZIP code" -- enforced by
+	// `atf_validate_preset()`. The sentinel `custom` means "use `pattern`",
+	// which the custom-rule builder writes alongside this flag.
+	if ( isset( $raw['validation'] ) && is_scalar( $raw['validation'] ) && '' !== $raw['validation'] ) {
+		$field['validation'] = sanitize_key( (string) $raw['validation'] );
+	}
+
+	// The custom-rule builder's own notes: the blocks that compiled into
+	// `pattern`, kept only so reopening the editor can restore them. Decoded
+	// and re-encoded through a whitelist, so an imported schema cannot smuggle
+	// arbitrary structure through what is otherwise an opaque blob.
+	if ( isset( $raw['validationRecipe'] ) && is_string( $raw['validationRecipe'] ) && '' !== $raw['validationRecipe'] ) {
+		$recipe = atf_normalize_validation_recipe( $raw['validationRecipe'] );
+
+		if ( '' !== $recipe ) {
+			$field['validationRecipe'] = $recipe;
+		}
+	}
+
 	foreach ( array( 'unique', 'confirm', 'other', 'inline', 'multiple', 'searchable', 'counter' ) as $flag ) {
 		if ( ! empty( $raw[ $flag ] ) ) {
 			$field[ $flag ] = true;
@@ -983,4 +1002,45 @@ function atf_schema_pages( $schema ) {
  */
 function atf_is_multi_page( $schema ) {
 	return count( atf_schema_pages( $schema ) ) > 1;
+}
+
+/**
+ * Normalises the custom-rule builder's recipe blob.
+ *
+ * The recipe is builder state, not an enforced rule -- enforcement happens
+ * through the `pattern` it compiled into -- but it is still stored input, so
+ * it is rebuilt from a whitelist of known keys rather than stored as
+ * received.
+ *
+ * @since 0.2.0
+ *
+ * @param string $json The raw recipe JSON.
+ * @return string The normalised JSON, or an empty string when unusable.
+ */
+function atf_normalize_validation_recipe( $json ) {
+	$raw = json_decode( $json, true );
+
+	if ( ! is_array( $raw ) ) {
+		return '';
+	}
+
+	$recipe = array(
+		'mode' => isset( $raw['mode'] ) && 'regex' === $raw['mode'] ? 'regex' : 'blocks',
+	);
+
+	foreach ( array( 'starts', 'ends', 'contains', 'notContains', 'minLen', 'maxLen', 'regex', 'message' ) as $key ) {
+		$recipe[ $key ] = isset( $raw[ $key ] ) && is_scalar( $raw[ $key ] ) ? sanitize_text_field( (string) $raw[ $key ] ) : '';
+	}
+
+	$allowed_chars   = array( 'letters', 'numbers', 'spaces', 'punctuation', 'symbols' );
+	$recipe['chars'] = array_values( array_intersect( $allowed_chars, array_map( 'strval', isset( $raw['chars'] ) && is_array( $raw['chars'] ) ? $raw['chars'] : array() ) ) );
+	$recipe['tests'] = array();
+
+	if ( isset( $raw['tests'] ) && is_array( $raw['tests'] ) ) {
+		foreach ( array_slice( array_values( $raw['tests'] ), 0, 10 ) as $test ) {
+			$recipe['tests'][] = is_scalar( $test ) ? sanitize_text_field( (string) $test ) : '';
+		}
+	}
+
+	return (string) wp_json_encode( $recipe );
 }

@@ -768,7 +768,7 @@ var allTerrainFormsBuilder = function(exports) {
       return 0;
     }
   }
-  const OPERATORS = {
+  const OPERATOR_LABELS = {
     is: "is",
     is_not: "is not",
     contains: "contains",
@@ -782,7 +782,7 @@ var allTerrainFormsBuilder = function(exports) {
     empty: "is empty",
     not_empty: "has any answer"
   };
-  const VALUELESS = ["empty", "not_empty"];
+  const VALUELESS_OPERATORS = ["empty", "not_empty"];
   function labelOf(fields, id) {
     const field = fields.find((candidate) => candidate.id === id);
     if (!field) {
@@ -796,29 +796,35 @@ var allTerrainFormsBuilder = function(exports) {
     return choice?.label || value;
   }
   function describeTrigger(rule, fields) {
-    const operator = OPERATORS[rule.operator] ?? String(rule.operator);
-    if (VALUELESS.includes(rule.operator)) {
+    const operator = OPERATOR_LABELS[rule.operator] ?? String(rule.operator);
+    if (VALUELESS_OPERATORS.includes(rule.operator)) {
       return operator;
     }
     const value = valueOf(fields, rule.field, rule.value);
     const prefix = "is" === rule.operator ? "" : `${operator} `;
     return `${prefix}${value !== "" ? value : "(nothing)"}`;
   }
-  function ruleTokens(rule, fields) {
+  function ruleTokens(rule, fields, ruleIndex = 0) {
     const subject = labelOf(fields, rule.field);
-    const operator = OPERATORS[rule.operator] ?? String(rule.operator);
+    const operator = OPERATOR_LABELS[rule.operator] ?? String(rule.operator);
     if (subject === null) {
       return [{ kind: "field", text: "a question that no longer exists", fieldId: rule.field, missing: true }];
     }
     const tokens = [
       { kind: "field", text: subject, fieldId: rule.field, missing: false },
-      { kind: "operator", text: operator }
+      { kind: "operator", text: operator, operator: rule.operator, ruleIndex }
     ];
-    if (VALUELESS.includes(rule.operator)) {
+    if (VALUELESS_OPERATORS.includes(rule.operator)) {
       return tokens;
     }
     const value = valueOf(fields, rule.field, rule.value);
-    tokens.push({ kind: "value", text: value !== "" ? value : "(nothing)" });
+    tokens.push({
+      kind: "value",
+      text: value !== "" ? value : "(nothing)",
+      raw: rule.value,
+      sourceId: rule.field,
+      ruleIndex
+    });
     return tokens;
   }
   function logicTokens(field, fields) {
@@ -833,7 +839,7 @@ var allTerrainFormsBuilder = function(exports) {
       if (index > 0) {
         tokens.push({ kind: "join", text: logic.match === "all" ? "and" : "or" });
       }
-      tokens.push(...ruleTokens(rule, fields));
+      tokens.push(...ruleTokens(rule, fields, index));
     });
     return tokens;
   }
@@ -2832,6 +2838,517 @@ var allTerrainFormsBuilder = function(exports) {
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
+  const CHAR_GROUPS = {
+    letters: { label: "Letters", chars: "A-Za-zÀ-ÖØ-öø-ÿ" },
+    numbers: { label: "Numbers", chars: "0-9" },
+    spaces: { label: "Spaces", chars: " " },
+    punctuation: { label: `Punctuation ( . , ! ? ' " - )`, chars: `.,!?'"()\\-:;` },
+    symbols: { label: "Symbols ( @ # & _ / + )", chars: "@#&_/+*%=" }
+  };
+  function emptyRecipe() {
+    return {
+      mode: "blocks",
+      starts: "",
+      ends: "",
+      contains: "",
+      notContains: "",
+      chars: [],
+      minLen: "",
+      maxLen: "",
+      regex: "",
+      message: "",
+      tests: []
+    };
+  }
+  function parseRecipe(json) {
+    const recipe = emptyRecipe();
+    let raw;
+    try {
+      raw = JSON.parse(json);
+    } catch {
+      return recipe;
+    }
+    if (!raw || "object" !== typeof raw) {
+      return recipe;
+    }
+    const source = raw;
+    recipe.mode = "regex" === source.mode ? "regex" : "blocks";
+    for (const key of ["starts", "ends", "contains", "notContains", "minLen", "maxLen", "regex", "message"]) {
+      if ("string" === typeof source[key]) {
+        recipe[key] = source[key];
+      }
+    }
+    if (Array.isArray(source.chars)) {
+      recipe.chars = source.chars.filter((item) => "string" === typeof item && item in CHAR_GROUPS);
+    }
+    if (Array.isArray(source.tests)) {
+      recipe.tests = source.tests.filter((item) => "string" === typeof item).slice(0, 10);
+    }
+    return recipe;
+  }
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  }
+  function compileRecipe(recipe) {
+    if ("regex" === recipe.mode) {
+      return recipe.regex.trim();
+    }
+    const parts = [];
+    const min = recipe.minLen.trim();
+    const max = recipe.maxLen.trim();
+    if ("" !== min || "" !== max) {
+      parts.push(`(?=.{${"" === min ? "0" : parseInt(min, 10) || 0},${"" === max ? "" : parseInt(max, 10) || ""}}$)`);
+    }
+    if ("" !== recipe.contains) {
+      parts.push(`(?=.*${escapeRegex(recipe.contains)})`);
+    }
+    if ("" !== recipe.notContains) {
+      parts.push(`(?!.*${escapeRegex(recipe.notContains)})`);
+    }
+    if ("" !== recipe.starts) {
+      parts.push(`(?=${escapeRegex(recipe.starts)})`);
+    }
+    if ("" !== recipe.ends) {
+      parts.push(`(?=.*${escapeRegex(recipe.ends)}$)`);
+    }
+    const charClass = recipe.chars.map((key) => CHAR_GROUPS[key]?.chars ?? "").join("");
+    const body = charClass ? `[${charClass}]*$` : ".*$";
+    if (!parts.length && !charClass) {
+      return "";
+    }
+    return `^${parts.join("")}${body}`;
+  }
+  function describeRecipe(recipe) {
+    if ("regex" === recipe.mode) {
+      return recipe.regex.trim() ? `Matches the expression ${recipe.regex.trim()}` : "";
+    }
+    const phrases = [];
+    if (recipe.starts) {
+      phrases.push(`starts with “${recipe.starts}”`);
+    }
+    if (recipe.ends) {
+      phrases.push(`ends with “${recipe.ends}”`);
+    }
+    if (recipe.contains) {
+      phrases.push(`contains “${recipe.contains}”`);
+    }
+    if (recipe.notContains) {
+      phrases.push(`never contains “${recipe.notContains}”`);
+    }
+    if (recipe.chars.length) {
+      const names = recipe.chars.map(
+        (key) => (CHAR_GROUPS[key]?.label ?? key).split(" (")[0].toLowerCase()
+      );
+      phrases.push(`uses only ${names.join(" and ")}`);
+    }
+    const min = recipe.minLen.trim();
+    const max = recipe.maxLen.trim();
+    if (min && max) {
+      phrases.push(`is ${min}–${max} characters long`);
+    } else if (min) {
+      phrases.push(`is at least ${min} characters long`);
+    } else if (max) {
+      phrases.push(`is at most ${max} characters long`);
+    }
+    if (!phrases.length) {
+      return "";
+    }
+    const sentence = phrases.length > 1 ? `${phrases.slice(0, -1).join(", ")}, and ${phrases[phrases.length - 1]}` : phrases[0];
+    return `The answer ${sentence}.`;
+  }
+  function recipePasses(recipe, value) {
+    const pattern = compileRecipe(recipe);
+    if ("" === pattern) {
+      return null;
+    }
+    try {
+      return new RegExp(pattern).test(value);
+    } catch {
+      return null;
+    }
+  }
+  function openValidationEditor(options) {
+    const recipe = parseRecipe(String(options.field.validationRecipe ?? ""));
+    if ("blocks" === recipe.mode && "" === compileRecipe(recipe) && options.field.pattern) {
+      recipe.mode = "regex";
+      recipe.regex = String(options.field.pattern);
+    }
+    if (!recipe.message) {
+      recipe.message = String(options.field.messages?.invalid ?? "");
+    }
+    const overlay = el("div", { class: "atfb-overlay" });
+    let saved = false;
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKeydown);
+      if (!saved) {
+        options.onCancel?.();
+      }
+    };
+    const onKeydown = (event) => {
+      if ("Escape" === event.key) {
+        close();
+      }
+    };
+    const blockInput = (key, placeholder) => {
+      const input = el("input", {
+        class: "atfb-input",
+        value: recipe[key],
+        placeholder,
+        attrs: { type: "text" }
+      });
+      input.addEventListener("input", () => {
+        recipe[key] = input.value;
+        refresh();
+      });
+      return input;
+    };
+    const lengthInput = (key, label) => {
+      const input = el("input", {
+        class: "atfb-input atfb-valwin__len",
+        value: recipe[key],
+        attrs: { type: "number", min: "0", "aria-label": label }
+      });
+      input.addEventListener("input", () => {
+        recipe[key] = input.value;
+        refresh();
+      });
+      return input;
+    };
+    const charBoxes = el("div", {
+      class: "atfb-valwin__chars",
+      children: Object.entries(CHAR_GROUPS).map(([key, group]) => {
+        const box = el("input", {
+          attrs: { type: "checkbox", checked: recipe.chars.includes(key) }
+        });
+        box.addEventListener("change", () => {
+          recipe.chars = box.checked ? [...recipe.chars, key] : recipe.chars.filter((item) => item !== key);
+          refresh();
+        });
+        return el("label", { class: "atfb-valwin__char", children: [box, el("span", { text: group.label })] });
+      })
+    });
+    const blocksPane = el("div", {
+      class: "atfb-valwin__pane",
+      children: [
+        row("Starts with", blockInput("starts", "e.g. AT-")),
+        row("Ends with", blockInput("ends", "e.g. -2026")),
+        row("Must contain", blockInput("contains", "e.g. @")),
+        row("Must not contain", blockInput("notContains", "e.g. spaces? type one")),
+        row("Only these characters", charBoxes, "Leave every box unticked to allow anything."),
+        row(
+          "Length",
+          el("div", {
+            class: "atfb-valwin__lengths",
+            children: [
+              el("span", { text: "between" }),
+              lengthInput("minLen", "Minimum length"),
+              el("span", { text: "and" }),
+              lengthInput("maxLen", "Maximum length"),
+              el("span", { text: "characters" })
+            ]
+          }),
+          "Leave a box empty for no limit."
+        )
+      ]
+    });
+    const regexInput = el("textarea", {
+      class: "atfb-input atfb-valwin__regex",
+      attrs: { rows: "2", "aria-label": "Regular expression", placeholder: "^AT-[0-9]{4}$" }
+    });
+    regexInput.value = recipe.regex;
+    regexInput.addEventListener("input", () => {
+      recipe.regex = regexInput.value;
+      refresh();
+    });
+    const regexPane = el("div", {
+      class: "atfb-valwin__pane",
+      children: [
+        row(
+          "Expression",
+          regexInput,
+          "A regular expression, without slashes. Checked against the whole answer only if you anchor it with ^ and $."
+        )
+      ]
+    });
+    const tabs = el("div", { class: "atfb-valwin__tabs", attrs: { role: "tablist" } });
+    const paintTabs = () => {
+      tabs.replaceChildren(
+        ...[
+          ["blocks", "Easy blocks"],
+          ["regex", "Expression (advanced)"]
+        ].map(([mode, label]) => {
+          const active = recipe.mode === mode;
+          return el("button", {
+            class: `atfb-valwin__tab${active ? " is-active" : ""}`,
+            type: "button",
+            text: label,
+            attrs: { role: "tab", "aria-selected": active ? "true" : "false" },
+            on: {
+              click: () => {
+                recipe.mode = mode;
+                blocksPane.hidden = "blocks" !== mode;
+                regexPane.hidden = "regex" !== mode;
+                paintTabs();
+                refresh();
+              }
+            }
+          });
+        })
+      );
+    };
+    paintTabs();
+    blocksPane.hidden = "blocks" !== recipe.mode;
+    regexPane.hidden = "regex" !== recipe.mode;
+    const messageInput = el("input", {
+      class: "atfb-input",
+      value: recipe.message,
+      placeholder: "That is not in the expected format.",
+      attrs: { type: "text" }
+    });
+    messageInput.addEventListener("input", () => {
+      recipe.message = messageInput.value;
+    });
+    const summary = el("p", { class: "atfb-valwin__summary", attrs: { "aria-live": "polite" } });
+    const samples = el("div", { class: "atfb-valwin__samples" });
+    const sampleRow = (initial) => {
+      const verdict = el("span", { class: "atfb-valwin__verdict", attrs: { "aria-live": "polite" } });
+      const input = el("input", {
+        class: "atfb-input",
+        value: initial,
+        placeholder: "Type a sample answer…",
+        attrs: { type: "text" }
+      });
+      input.addEventListener("input", () => refresh());
+      samples.append(el("div", { class: "atfb-valwin__sample", children: [input, verdict] }));
+    };
+    for (const test of recipe.tests.length ? recipe.tests : ["", "", ""]) {
+      sampleRow(test);
+    }
+    const readSamples = () => Array.from(samples.querySelectorAll("input")).map((input) => input.value);
+    const refresh = () => {
+      const description = describeRecipe(recipe);
+      summary.textContent = description || "Nothing yet — fill in a block above and the rule appears here in plain words.";
+      for (const sample of Array.from(samples.querySelectorAll(".atfb-valwin__sample"))) {
+        const input = sample.querySelector("input");
+        const verdict = sample.querySelector(".atfb-valwin__verdict");
+        if (!input || !verdict) {
+          continue;
+        }
+        const result = "" === input.value ? null : recipePasses(recipe, input.value);
+        verdict.textContent = null === result ? "·" : result ? "✓ passes" : "✗ fails";
+        verdict.classList.toggle("is-pass", true === result);
+        verdict.classList.toggle("is-fail", false === result);
+      }
+    };
+    overlay.append(
+      el("div", {
+        class: "atfb-modal atfb-valwin",
+        attrs: { role: "dialog", "aria-label": "Custom validation rule" },
+        children: [
+          el("h2", { text: "Custom rule" }),
+          el("p", {
+            class: "atfb-hint",
+            text: `Describe what a good answer to “${options.field.label || "this question"}” looks like — no code needed.`
+          }),
+          tabs,
+          blocksPane,
+          regexPane,
+          el("div", {
+            class: "atfb-valwin__try",
+            children: [
+              el("h3", { text: "Try it out" }),
+              summary,
+              samples,
+              button(
+                "Add another sample",
+                () => {
+                  sampleRow("");
+                  refresh();
+                },
+                "ghost",
+                "plus-alt2"
+              )
+            ]
+          }),
+          row(
+            "When it fails, say",
+            messageInput,
+            "Shown to the visitor when their answer breaks the rule. Leave empty for the default wording."
+          ),
+          el("div", {
+            class: "atfb-modal__actions",
+            children: [
+              button("Cancel", close),
+              button(
+                "Save rule",
+                () => {
+                  const pattern = compileRecipe(recipe);
+                  recipe.tests = readSamples().filter((value) => "" !== value).slice(0, 10);
+                  saved = true;
+                  options.onSave({ pattern, recipe, message: recipe.message.trim() });
+                  close();
+                },
+                "primary"
+              )
+            ]
+          })
+        ]
+      })
+    );
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        close();
+      }
+    });
+    document.addEventListener("keydown", onKeydown);
+    options.root.append(overlay);
+    refresh();
+    overlay.querySelector(".atfb-valwin__pane:not([hidden]) input, .atfb-valwin__pane:not([hidden]) textarea")?.focus();
+  }
+  const VALIDATION_GROUPS = ["Contact", "Numbers & codes", "Text shape", "Web"];
+  const VALIDATION_PRESETS = [
+    {
+      slug: "email",
+      label: "An email address",
+      group: "Contact",
+      example: "jane@example.com",
+      pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+      message: "That does not look like an email address."
+    },
+    {
+      slug: "phone",
+      label: "A phone number",
+      group: "Contact",
+      example: "+34 612 345 678",
+      pattern: "^(?=(?:[^0-9]*[0-9]){5,})\\+?[0-9 ().-]{5,24}$",
+      message: "That does not look like a phone number."
+    },
+    {
+      slug: "handle",
+      label: "A username or @handle",
+      group: "Contact",
+      example: "@yourname",
+      pattern: "^@?[A-Za-z0-9_]{2,30}$",
+      message: "That does not look like a username."
+    },
+    {
+      slug: "digits",
+      label: "Numbers only",
+      group: "Numbers & codes",
+      example: "12345",
+      pattern: "^[0-9]+$",
+      message: "Numbers only, please."
+    },
+    {
+      slug: "decimal",
+      label: "A number, decimals allowed",
+      group: "Numbers & codes",
+      example: "3.14",
+      pattern: "^-?[0-9]+([.,][0-9]+)?$",
+      message: "That does not look like a number."
+    },
+    {
+      slug: "price",
+      label: "A price",
+      group: "Numbers & codes",
+      example: "19.99",
+      pattern: "^[0-9]+([.,][0-9]{1,2})?$",
+      message: "That does not look like a price."
+    },
+    {
+      slug: "zip_us",
+      label: "A ZIP code (US)",
+      group: "Numbers & codes",
+      example: "90210",
+      pattern: "^[0-9]{5}(-[0-9]{4})?$",
+      message: "That does not look like a ZIP code."
+    },
+    {
+      slug: "postcode_uk",
+      label: "A postcode (UK)",
+      group: "Numbers & codes",
+      example: "SW1A 1AA",
+      pattern: "^[A-Za-z]{1,2}[0-9][A-Za-z0-9]? ?[0-9][A-Za-z]{2}$",
+      message: "That does not look like a postcode."
+    },
+    {
+      slug: "iban",
+      label: "An IBAN",
+      group: "Numbers & codes",
+      example: "DE89 3704 0044 0532 0130 00",
+      pattern: "^[A-Za-z]{2}[0-9]{2}(?: ?[A-Za-z0-9]){10,32}$",
+      message: "That does not look like an IBAN."
+    },
+    {
+      slug: "credit_card",
+      label: "A card number",
+      group: "Numbers & codes",
+      example: "4242 4242 4242 4242",
+      pattern: "^[0-9](?:[0-9 -]{9,21})?[0-9]$",
+      message: "That does not look like a card number.",
+      luhn: true
+    },
+    {
+      slug: "letters",
+      label: "Letters only",
+      group: "Text shape",
+      example: "María López",
+      pattern: "^[\\p{L}\\p{M} .'’-]+$",
+      message: "Letters only, please."
+    },
+    {
+      slug: "alphanumeric",
+      label: "Letters and numbers only",
+      group: "Text shape",
+      example: "abc123",
+      pattern: "^[A-Za-z0-9]+$",
+      message: "Letters and numbers only, please."
+    },
+    {
+      slug: "no_spaces",
+      label: "One word, no spaces",
+      group: "Text shape",
+      example: "one-word",
+      pattern: "^\\S+$",
+      message: "No spaces allowed."
+    },
+    {
+      slug: "url",
+      label: "A web address",
+      group: "Web",
+      example: "https://example.com",
+      pattern: "^(https?://)?([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}([/?#]\\S*)?$",
+      message: "That does not look like a web address."
+    },
+    {
+      slug: "ip",
+      label: "An IP address",
+      group: "Web",
+      example: "192.168.0.1",
+      pattern: "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$",
+      message: "That does not look like an IP address."
+    },
+    {
+      slug: "slug",
+      label: "A URL slug",
+      group: "Web",
+      example: "my-page-title",
+      pattern: "^[a-z0-9]+(-[a-z0-9]+)*$",
+      message: "Lowercase letters, numbers and dashes only."
+    },
+    {
+      slug: "hex_color",
+      label: "A hex colour",
+      group: "Web",
+      example: "#3366ff",
+      pattern: "^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$",
+      message: "That does not look like a colour code."
+    }
+  ];
+  function validationPreset(slug) {
+    return VALIDATION_PRESETS.find((preset) => preset.slug === slug) ?? null;
+  }
   function shell() {
     return window.wp?.os ?? null;
   }
@@ -4331,19 +4848,60 @@ var allTerrainFormsBuilder = function(exports) {
      * The question chip is a button that selects that field — the reference is
      * the useful kind, the kind you can follow.
      */
-    renderCondition(tokens) {
+    renderCondition(owner, tokens) {
       const broken = tokens.some((token) => "field" === token.kind && token.missing);
-      return el("span", {
+      const wrap = el("span", {
         class: `atfb-cond${broken ? " is-broken" : ""}`,
         attrs: { "aria-label": tokensToText(tokens) },
         children: [
           icon("randomize"),
-          ...tokens.map((token) => this.renderConditionToken(token))
+          ...tokens.map((token) => this.renderConditionToken(owner, token))
         ]
       });
+      wrap.addEventListener("pointerdown", (event) => event.stopPropagation());
+      wrap.addEventListener("click", (event) => event.stopPropagation());
+      wrap.addEventListener("keydown", (event) => event.stopPropagation());
+      return wrap;
     }
-    /** One tagged part of a condition. */
-    renderConditionToken(token) {
+    /**
+     * Writes to a field's live logic block and repaints what shows it.
+     *
+     * With `rebuild` false the cards are left alone and only the curve labels
+     * refresh — the mode for every keystroke in the value box, where a rebuild
+     * would destroy the input mid-word. The commit (change/blur) passes true and
+     * everything redraws, with focus put back on the control named by `refocus`
+     * so keyboard editing survives the rebuild.
+     */
+    editCondition(fieldId, mutate, rebuild = true, refocus = "") {
+      const live = this.liveField(fieldId)?.logic;
+      if (!live) {
+        return;
+      }
+      mutate(live);
+      this.markDirty();
+      if (!rebuild) {
+        this.logicMap?.setEdges(logicEdges(this.schema?.fields ?? []));
+        return;
+      }
+      this.renderCanvas();
+      this.renderInspector();
+      if (refocus) {
+        window.requestAnimationFrame(() => {
+          this.canvas.querySelector(`[data-cond="${CSS.escape(refocus)}"]`)?.focus();
+        });
+      }
+    }
+    /**
+     * One tagged part of a condition — as the control that edits it.
+     *
+     * The row used to *describe* the rule and send you to the inspector to
+     * change it, which is the opposite of direct manipulation: the words were
+     * right there and none of them answered to a click. Now each part is the
+     * editor for what it shows — the verb flips show/hide, the comparison is a
+     * small select, the answer is an input (or a select of the source field's
+     * choices), and "and"/"or" toggles how rules combine.
+     */
+    renderConditionToken(owner, token) {
       if ("field" === token.kind && !token.missing) {
         const chip = el("button", {
           class: "atfb-cond__chip atfb-cond__chip--field",
@@ -4363,14 +4921,140 @@ var allTerrainFormsBuilder = function(exports) {
         });
         return chip;
       }
-      const classes = {
-        verb: "atfb-cond__verb",
-        field: "atfb-cond__chip atfb-cond__chip--missing",
-        operator: "atfb-cond__op",
-        value: "atfb-cond__chip atfb-cond__chip--value",
-        join: "atfb-cond__join"
-      };
-      return el("span", { class: classes[token.kind], text: token.text });
+      if ("verb" === token.kind) {
+        return el("button", {
+          class: "atfb-cond__verb",
+          type: "button",
+          text: token.text,
+          title: "Switch between showing and hiding this field when the condition matches.",
+          attrs: { "data-cond": `${owner.id}:verb` },
+          on: {
+            click: () => this.editCondition(
+              owner.id,
+              (logic) => {
+                logic.action = "hide" === logic.action ? "show" : "hide";
+              },
+              true,
+              `${owner.id}:verb`
+            )
+          }
+        });
+      }
+      if ("join" === token.kind) {
+        return el("button", {
+          class: "atfb-cond__join",
+          type: "button",
+          text: token.text,
+          title: "Switch between needing every rule (and) or any one of them (or).",
+          attrs: { "data-cond": `${owner.id}:join` },
+          on: {
+            click: () => this.editCondition(
+              owner.id,
+              (logic) => {
+                logic.match = "all" === logic.match ? "any" : "all";
+              },
+              true,
+              `${owner.id}:join`
+            )
+          }
+        });
+      }
+      if ("operator" === token.kind) {
+        const key = `${owner.id}:op:${token.ruleIndex}`;
+        return el("select", {
+          class: "atfb-cond__op",
+          title: "How the answer is compared.",
+          attrs: { "aria-label": "How the answer is compared", "data-cond": key },
+          on: {
+            change: (event) => {
+              const operator = event.target.value;
+              this.editCondition(
+                owner.id,
+                (logic) => {
+                  const rule = logic.rules[token.ruleIndex];
+                  if (rule) {
+                    rule.operator = operator;
+                  }
+                },
+                true,
+                key
+              );
+            }
+          },
+          children: Object.entries(OPERATOR_LABELS).map(
+            ([value, label]) => el("option", { value, text: label, attrs: { selected: value === token.operator } })
+          )
+        });
+      }
+      if ("value" === token.kind) {
+        return this.renderConditionValue(owner, token);
+      }
+      return el("span", { class: "atfb-cond__chip atfb-cond__chip--missing", text: token.text });
+    }
+    /**
+     * The answer half of a condition, as the control it deserves.
+     *
+     * When the question being consulted has choices, the honest editor is a
+     * select of those choices — typing free text against a radio group can only
+     * produce a rule that never matches. Anything else gets a text box, sized to
+     * its content so it reads as part of the sentence rather than as a form.
+     */
+    renderConditionValue(owner, token) {
+      const key = `${owner.id}:value:${token.ruleIndex}`;
+      const source = this.schema?.fields.find((candidate) => candidate.id === token.sourceId);
+      const write = (value, rebuild) => this.editCondition(
+        owner.id,
+        (logic) => {
+          const rule = logic.rules[token.ruleIndex];
+          if (rule) {
+            rule.value = value;
+          }
+        },
+        rebuild,
+        key
+      );
+      if (source?.choices?.length) {
+        const options = source.choices.map(
+          (choice) => el("option", { value: choice.value, text: choice.label || choice.value, attrs: { selected: choice.value === token.raw } })
+        );
+        if (token.raw !== "" && !source.choices.some((choice) => choice.value === token.raw)) {
+          options.unshift(el("option", { value: token.raw, text: token.text, attrs: { selected: true } }));
+        }
+        return el("select", {
+          class: "atfb-cond__chip atfb-cond__chip--value atfb-cond__value",
+          title: "The answer that triggers this.",
+          attrs: { "aria-label": "The answer that triggers this", "data-cond": key },
+          on: {
+            change: (event) => write(event.target.value, true)
+          },
+          children: options
+        });
+      }
+      const numeric = ["number", "range", "scale", "rating", "total"].includes(source?.type ?? "");
+      const input = el("input", {
+        class: "atfb-cond__chip atfb-cond__chip--value atfb-cond__value",
+        value: token.raw,
+        title: "The answer that triggers this. Edit it here.",
+        attrs: {
+          type: "text",
+          "aria-label": "The answer that triggers this",
+          "data-cond": key,
+          inputmode: numeric ? "decimal" : void 0,
+          size: String(Math.max(2, Math.min(24, token.raw.length || 2)))
+        }
+      });
+      input.addEventListener("input", () => {
+        input.size = Math.max(2, Math.min(24, input.value.length || 2));
+        write(input.value, false);
+      });
+      input.addEventListener("change", () => write(input.value, true));
+      input.addEventListener("keydown", (event) => {
+        if ("Enter" === event.key) {
+          event.preventDefault();
+          write(input.value, true);
+        }
+      });
+      return input;
     }
     /**
      * A disclosure panel that remembers whether it was open.
@@ -4522,7 +5206,7 @@ var allTerrainFormsBuilder = function(exports) {
                   this.renderInspector();
                 }
               }),
-              condition.length ? this.renderCondition(condition) : null
+              condition.length ? this.renderCondition(field, condition) : null
             ]
           }),
           el("div", {
@@ -5189,13 +5873,7 @@ var allTerrainFormsBuilder = function(exports) {
         );
       }
       if (supports.includes("pattern")) {
-        rows.push(
-          row(
-            "Pattern",
-            textInput(String(field.pattern ?? ""), (value) => update("pattern", value)),
-            "A regular expression, without slashes."
-          )
-        );
+        rows.push(...this.renderAnswerShapeRows(field, update));
       }
       if (supports.includes("unique")) {
         rows.push(
@@ -5223,6 +5901,100 @@ var allTerrainFormsBuilder = function(exports) {
         return el("div", { class: "atfb-section is-empty" });
       }
       return this.section(`validation:${field.id}`, "Validation", rows);
+    }
+    /**
+     * "The answer should look like…" — the validation picker.
+     *
+     * The pattern box asked for a regular expression, which is asking the
+     * wrong person the wrong question. The picker asks the one they can
+     * answer: an email address, a phone number, a ZIP code — each preset
+     * enforced identically by the browser and the server. When nothing fits,
+     * "A custom rule…" opens the rule builder, where the blocks are plain
+     * questions and a playground judges sample answers live.
+     *
+     * @param field  The field being inspected.
+     * @param update The inspector's writer.
+     * @return The rows for the validation section.
+     */
+    renderAnswerShapeRows(field, update) {
+      const stored = "string" === typeof field.validation ? field.validation : "";
+      const current = stored || (field.pattern ? "custom" : "");
+      const openEditor = () => openValidationEditor({
+        root: this.root,
+        field: this.liveField(field.id) ?? field,
+        onSave: (result) => {
+          update("validation", "custom");
+          update("pattern", result.pattern);
+          update("validationRecipe", JSON.stringify(result.recipe));
+          const messages = { ...this.liveField(field.id)?.messages ?? {} };
+          messages.invalid = result.message;
+          update("messages", messages);
+          this.renderInspector();
+        },
+        onCancel: () => this.renderInspector()
+      });
+      const picker = el("select", {
+        class: "atfb-input atfb-select",
+        attrs: { "aria-label": "What the answer should look like" },
+        on: {
+          change: (event) => {
+            const value = event.target.value;
+            if ("custom" === value) {
+              openEditor();
+              return;
+            }
+            update("validation", value);
+            update("pattern", "");
+            update("validationRecipe", "");
+            this.renderInspector();
+          }
+        }
+      });
+      picker.append(el("option", { value: "", text: "Anything at all", attrs: { selected: "" === current } }));
+      for (const group of VALIDATION_GROUPS) {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = group;
+        for (const preset2 of VALIDATION_PRESETS.filter((candidate) => candidate.group === group)) {
+          optgroup.append(
+            el("option", {
+              value: preset2.slug,
+              text: preset2.label,
+              attrs: { selected: preset2.slug === current }
+            })
+          );
+        }
+        picker.append(optgroup);
+      }
+      const yours = document.createElement("optgroup");
+      yours.label = "Your own";
+      yours.append(el("option", { value: "custom", text: "A custom rule…", attrs: { selected: "custom" === current } }));
+      picker.append(yours);
+      const preset = validationPreset(current);
+      const rows = [
+        row(
+          "The answer should be",
+          picker,
+          preset ? `e.g. ${preset.example}` : "Checked as they type, and again on the server."
+        )
+      ];
+      if ("custom" === current) {
+        const recipe = parseRecipe(String(field.validationRecipe ?? ""));
+        const described = describeRecipe(recipe) || (field.pattern ? `Matches the expression ${String(field.pattern)}` : "No rule yet — open the builder.");
+        rows.push(
+          row(
+            "Your rule",
+            el("div", {
+              class: "atfb-valrule",
+              children: [
+                el("p", { class: "atfb-valrule__words", text: described }),
+                button("Edit the rule…", openEditor, "secondary", "edit")
+              ]
+            }),
+            compileRecipe(recipe) || field.pattern ? "Built in the rule builder, with a playground to test it." : void 0
+          )
+        );
+      }
+      return rows;
     }
     /** The conditional-logic editor. */
     renderLogicSection(field, update) {

@@ -17,6 +17,7 @@
 
 import { applyCalculations } from './shared/calc';
 import { isEmptyValue, visibleFields } from './shared/logic';
+import { presetPasses, validationPreset } from './shared/validation';
 import type { Field, FieldValue, RuntimeConfig, SubmissionResult, Values } from './types';
 
 /** The reduced schema the renderer prints beside each form. */
@@ -478,6 +479,23 @@ class AllTerrainForm {
 
 			if ( field.maxlength && value.length > max ) {
 				return messages.max || i18n( 'tooLong', 'That is too long.' );
+			}
+
+			// A named answer shape — "an email address", "a ZIP code" — checked
+			// against the same preset table the server enforces. An unknown
+			// slug returns null and is left to the server, which knows its own
+			// presets.
+			const presetSlug =
+				'string' === typeof field.validation && '' !== field.validation && 'custom' !== field.validation
+					? field.validation
+					: '';
+
+			if ( presetSlug && false === presetPasses( presetSlug, value ) ) {
+				return (
+					messages.invalid ||
+					validationPreset( presetSlug )?.message ||
+					i18n( 'badFormat', 'That is not in the expected format.' )
+				);
 			}
 
 			if ( field.pattern ) {
