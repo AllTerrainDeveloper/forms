@@ -3491,6 +3491,100 @@ export class Builder {
 	}
 
 	/**
+	 * The answer-shape dropdown itself.
+	 *
+	 * The shell's `<os-select>` when its components are loaded — the same
+	 * control as every other inspector dropdown. It has no notion of
+	 * `optgroup`, so the group headings ride along as disabled options, which
+	 * its listbox paints muted and unpickable: the same reading an optgroup
+	 * heading gives. The plain admin page gets a native select with real
+	 * optgroups.
+	 *
+	 * @param current The selected value.
+	 * @param onPick  Called with the newly picked value.
+	 * @return The control.
+	 */
+	private buildShapePicker( current: string, onPick: ( value: string ) => void ): HTMLElement {
+		const groups: Array< { heading: string | null; options: Array< { value: string; label: string } > } > = [
+			{ heading: null, options: [ { value: '', label: 'Anything at all' } ] },
+			...VALIDATION_GROUPS.map( ( group ) => ( {
+				heading: group,
+				options: VALIDATION_PRESETS.filter( ( preset ) => preset.group === group ).map( ( preset ) => ( {
+					value: preset.slug,
+					label: preset.label,
+				} ) ),
+			} ) ),
+			{ heading: 'Your own', options: [ { value: 'custom', label: 'A custom rule…' } ] },
+		];
+
+		if ( hasComponent( 'os-select' ) && hasComponent( 'os-option' ) ) {
+			const host = document.createElement( 'os-select' );
+
+			host.setAttribute( 'value', current );
+			host.setAttribute( 'aria-label', 'What the answer should look like' );
+			host.classList.add( 'atfb-field' );
+
+			for ( const group of groups ) {
+				if ( group.heading ) {
+					const heading = document.createElement( 'os-option' );
+
+					heading.setAttribute( 'value', `__heading:${ group.heading }` );
+					heading.setAttribute( 'disabled', '' );
+					heading.textContent = group.heading;
+					host.append( heading );
+				}
+
+				for ( const option of group.options ) {
+					const item = document.createElement( 'os-option' );
+
+					item.setAttribute( 'value', option.value );
+					item.textContent = option.label;
+					host.append( item );
+				}
+			}
+
+			host.addEventListener( 'os-pick', ( event: Event ) => {
+				onPick( String( ( event as CustomEvent< { value?: string } > ).detail?.value ?? '' ) );
+			} );
+
+			return host;
+		}
+
+		const picker = el( 'select', {
+			class: 'atfb-input atfb-select',
+			attrs: { 'aria-label': 'What the answer should look like' },
+			on: {
+				change: ( event: Event ) => onPick( ( event.target as HTMLSelectElement ).value ),
+			},
+		} );
+
+		for ( const group of groups ) {
+			const parent = group.heading
+				? ( () => {
+						const optgroup = document.createElement( 'optgroup' );
+
+						optgroup.label = group.heading;
+						picker.append( optgroup );
+
+						return optgroup;
+				  } )()
+				: picker;
+
+			for ( const option of group.options ) {
+				parent.append(
+					el( 'option', {
+						value: option.value,
+						text: option.label,
+						attrs: { selected: option.value === current },
+					} )
+				);
+			}
+		}
+
+		return picker;
+	}
+
+	/**
 	 * "The answer should look like…" — the validation picker.
 	 *
 	 * The pattern box asked for a regular expression, which is asking the
@@ -3529,58 +3623,26 @@ export class Builder {
 				onCancel: () => this.renderInspector(),
 			} );
 
-		const picker = el( 'select', {
-			class: 'atfb-input atfb-select',
-			attrs: { 'aria-label': 'What the answer should look like' },
-			on: {
-				change: ( event: Event ) => {
-					const value = ( event.target as HTMLSelectElement ).value;
+		const onPick = ( value: string ) => {
+			if ( 'custom' === value ) {
+				// The rule builder writes everything on save; until then
+				// nothing changes, and cancelling restores the picker to what
+				// the field really has.
+				openEditor();
 
-					if ( 'custom' === value ) {
-						// The rule builder writes everything on save; until
-						// then nothing changes, and cancelling restores the
-						// picker to what the field really has.
-						openEditor();
-
-						return;
-					}
-
-					update( 'validation', value );
-
-					// A preset replaces whatever custom rule there was; keeping
-					// the old pattern alongside it would enforce both at once.
-					update( 'pattern', '' );
-					update( 'validationRecipe', '' );
-					this.renderInspector();
-				},
-			},
-		} );
-
-		picker.append( el( 'option', { value: '', text: 'Anything at all', attrs: { selected: '' === current } } ) );
-
-		for ( const group of VALIDATION_GROUPS ) {
-			const optgroup = document.createElement( 'optgroup' );
-
-			optgroup.label = group;
-
-			for ( const preset of VALIDATION_PRESETS.filter( ( candidate ) => candidate.group === group ) ) {
-				optgroup.append(
-					el( 'option', {
-						value: preset.slug,
-						text: preset.label,
-						attrs: { selected: preset.slug === current },
-					} )
-				);
+				return;
 			}
 
-			picker.append( optgroup );
-		}
+			update( 'validation', value );
 
-		const yours = document.createElement( 'optgroup' );
+			// A preset replaces whatever custom rule there was; keeping the
+			// old pattern alongside it would enforce both at once.
+			update( 'pattern', '' );
+			update( 'validationRecipe', '' );
+			this.renderInspector();
+		};
 
-		yours.label = 'Your own';
-		yours.append( el( 'option', { value: 'custom', text: 'A custom rule…', attrs: { selected: 'custom' === current } } ) );
-		picker.append( yours );
+		const picker = this.buildShapePicker( current, onPick );
 
 		const preset = validationPreset( current );
 		const rows = [

@@ -3183,16 +3183,12 @@ var allTerrainFormsBuilder = function(exports) {
     };
     const charBoxes = el("div", {
       class: "atfb-valwin__chars",
-      children: Object.entries(CHAR_GROUPS).map(([key, group]) => {
-        const box = el("input", {
-          attrs: { type: "checkbox", checked: recipe.chars.includes(key) }
-        });
-        box.addEventListener("change", () => {
-          recipe.chars = box.checked ? [...recipe.chars, key] : recipe.chars.filter((item) => item !== key);
+      children: Object.entries(CHAR_GROUPS).map(
+        ([key, group]) => checkbox(group.label, recipe.chars.includes(key), (checked) => {
+          recipe.chars = checked ? [...recipe.chars, key] : recipe.chars.filter((item) => item !== key);
           refresh();
-        });
-        return el("label", { class: "atfb-valwin__char", children: [box, el("span", { text: group.label })] });
-      })
+        })
+      )
     });
     const blocksPane = el("div", {
       class: "atfb-valwin__pane",
@@ -3237,33 +3233,61 @@ var allTerrainFormsBuilder = function(exports) {
         )
       ]
     });
-    const tabs = el("div", { class: "atfb-valwin__tabs", attrs: { role: "tablist" } });
-    const paintTabs = () => {
-      tabs.replaceChildren(
-        ...[
-          ["blocks", "Easy blocks"],
-          ["regex", "Expression (advanced)"]
-        ].map(([mode, label]) => {
-          const active = recipe.mode === mode;
-          return el("button", {
-            class: `atfb-valwin__tab${active ? " is-active" : ""}`,
-            type: "button",
-            text: label,
-            attrs: { role: "tab", "aria-selected": active ? "true" : "false" },
-            on: {
-              click: () => {
-                recipe.mode = mode;
-                blocksPane.hidden = "blocks" !== mode;
-                regexPane.hidden = "regex" !== mode;
-                paintTabs();
-                refresh();
-              }
-            }
-          });
-        })
-      );
+    const MODES = [
+      ["blocks", "Easy blocks"],
+      ["regex", "Expression (advanced)"]
+    ];
+    const setMode = (mode) => {
+      recipe.mode = mode;
+      blocksPane.hidden = "blocks" !== mode;
+      regexPane.hidden = "regex" !== mode;
+      refresh();
     };
-    paintTabs();
+    const buildTabs = () => {
+      if (hasComponent("os-segmented") && hasComponent("os-segment")) {
+        const host2 = document.createElement("os-segmented");
+        host2.setAttribute("value", recipe.mode);
+        host2.setAttribute("label", "How to write the rule");
+        host2.classList.add("atfb-valwin__tabs");
+        for (const [mode, label] of MODES) {
+          const segment = document.createElement("os-segment");
+          segment.setAttribute("value", mode);
+          segment.textContent = label;
+          host2.append(segment);
+        }
+        host2.addEventListener("os-pick", (event) => {
+          const mode = event.detail?.value;
+          if ("blocks" === mode || "regex" === mode) {
+            host2.setAttribute("value", mode);
+            setMode(mode);
+          }
+        });
+        return host2;
+      }
+      const list = el("div", { class: "atfb-valwin__tabs", attrs: { role: "tablist" } });
+      const paint = () => {
+        list.replaceChildren(
+          ...MODES.map(([mode, label]) => {
+            const active = recipe.mode === mode;
+            return el("button", {
+              class: `atfb-valwin__tab${active ? " is-active" : ""}`,
+              type: "button",
+              text: label,
+              attrs: { role: "tab", "aria-selected": active ? "true" : "false" },
+              on: {
+                click: () => {
+                  setMode(mode);
+                  paint();
+                }
+              }
+            });
+          })
+        );
+      };
+      paint();
+      return list;
+    };
+    const tabs = buildTabs();
     blocksPane.hidden = "blocks" !== recipe.mode;
     regexPane.hidden = "regex" !== recipe.mode;
     const messageInput = el("input", {
@@ -6002,6 +6026,83 @@ var allTerrainFormsBuilder = function(exports) {
       return this.section(`validation:${field.id}`, "Validation", rows);
     }
     /**
+     * The answer-shape dropdown itself.
+     *
+     * The shell's `<os-select>` when its components are loaded — the same
+     * control as every other inspector dropdown. It has no notion of
+     * `optgroup`, so the group headings ride along as disabled options, which
+     * its listbox paints muted and unpickable: the same reading an optgroup
+     * heading gives. The plain admin page gets a native select with real
+     * optgroups.
+     *
+     * @param current The selected value.
+     * @param onPick  Called with the newly picked value.
+     * @return The control.
+     */
+    buildShapePicker(current, onPick) {
+      const groups = [
+        { heading: null, options: [{ value: "", label: "Anything at all" }] },
+        ...VALIDATION_GROUPS.map((group) => ({
+          heading: group,
+          options: VALIDATION_PRESETS.filter((preset) => preset.group === group).map((preset) => ({
+            value: preset.slug,
+            label: preset.label
+          }))
+        })),
+        { heading: "Your own", options: [{ value: "custom", label: "A custom rule…" }] }
+      ];
+      if (hasComponent("os-select") && hasComponent("os-option")) {
+        const host = document.createElement("os-select");
+        host.setAttribute("value", current);
+        host.setAttribute("aria-label", "What the answer should look like");
+        host.classList.add("atfb-field");
+        for (const group of groups) {
+          if (group.heading) {
+            const heading = document.createElement("os-option");
+            heading.setAttribute("value", `__heading:${group.heading}`);
+            heading.setAttribute("disabled", "");
+            heading.textContent = group.heading;
+            host.append(heading);
+          }
+          for (const option of group.options) {
+            const item = document.createElement("os-option");
+            item.setAttribute("value", option.value);
+            item.textContent = option.label;
+            host.append(item);
+          }
+        }
+        host.addEventListener("os-pick", (event) => {
+          onPick(String(event.detail?.value ?? ""));
+        });
+        return host;
+      }
+      const picker = el("select", {
+        class: "atfb-input atfb-select",
+        attrs: { "aria-label": "What the answer should look like" },
+        on: {
+          change: (event) => onPick(event.target.value)
+        }
+      });
+      for (const group of groups) {
+        const parent = group.heading ? (() => {
+          const optgroup = document.createElement("optgroup");
+          optgroup.label = group.heading;
+          picker.append(optgroup);
+          return optgroup;
+        })() : picker;
+        for (const option of group.options) {
+          parent.append(
+            el("option", {
+              value: option.value,
+              text: option.label,
+              attrs: { selected: option.value === current }
+            })
+          );
+        }
+      }
+      return picker;
+    }
+    /**
      * "The answer should look like…" — the validation picker.
      *
      * The pattern box asked for a regular expression, which is asking the
@@ -6032,42 +6133,17 @@ var allTerrainFormsBuilder = function(exports) {
         },
         onCancel: () => this.renderInspector()
       });
-      const picker = el("select", {
-        class: "atfb-input atfb-select",
-        attrs: { "aria-label": "What the answer should look like" },
-        on: {
-          change: (event) => {
-            const value = event.target.value;
-            if ("custom" === value) {
-              openEditor();
-              return;
-            }
-            update("validation", value);
-            update("pattern", "");
-            update("validationRecipe", "");
-            this.renderInspector();
-          }
+      const onPick = (value) => {
+        if ("custom" === value) {
+          openEditor();
+          return;
         }
-      });
-      picker.append(el("option", { value: "", text: "Anything at all", attrs: { selected: "" === current } }));
-      for (const group of VALIDATION_GROUPS) {
-        const optgroup = document.createElement("optgroup");
-        optgroup.label = group;
-        for (const preset2 of VALIDATION_PRESETS.filter((candidate) => candidate.group === group)) {
-          optgroup.append(
-            el("option", {
-              value: preset2.slug,
-              text: preset2.label,
-              attrs: { selected: preset2.slug === current }
-            })
-          );
-        }
-        picker.append(optgroup);
-      }
-      const yours = document.createElement("optgroup");
-      yours.label = "Your own";
-      yours.append(el("option", { value: "custom", text: "A custom rule…", attrs: { selected: "custom" === current } }));
-      picker.append(yours);
+        update("validation", value);
+        update("pattern", "");
+        update("validationRecipe", "");
+        this.renderInspector();
+      };
+      const picker = this.buildShapePicker(current, onPick);
       const preset = validationPreset(current);
       const rows = [
         row(
