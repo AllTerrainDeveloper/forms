@@ -2663,6 +2663,20 @@ os-checkbox-label.atfb-check {
 	overflow-y: auto;
 }
 
+/* The editor as a real shell child window. The window's own chrome carries the
+   title and the close button, and the body is ours to fill — so the modal's
+   self-imposed footprint goes, and the content takes the window at whatever
+   size the person drags it to. `.atfa` on the same element brings the token
+   palette a child window's body does not inherit from the builder's root. */
+.atfb-valwin--window {
+	inline-size: auto;
+	max-block-size: none;
+	block-size: 100%;
+	padding: 14px 16px;
+	overflow-y: auto;
+	display: block;
+}
+
 .atfb-valwin__tabs {
 	display: flex;
 	gap: 4px;
