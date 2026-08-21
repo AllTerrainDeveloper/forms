@@ -221,6 +221,12 @@ export const SETTING_CONTROLS: Record< string, SettingControl > = {
 		control: 'number',
 		also: { key: 'maxRows', label: 'Most rows' },
 	},
+	itemlabel: {
+		key: 'itemLabel',
+		label: 'What is one row called?',
+		control: 'text',
+		hint: 'Names each card — “Attendee 1”, “Attendee 2” — and the Remove button. Also editable on the card itself.',
+	},
 	endlabels: {
 		key: 'minLabel',
 		label: 'Label at the low end',
@@ -803,7 +809,37 @@ export class Builder {
 	 * @return The live field, if it is still there.
 	 */
 	private liveField( fieldId: string ): Field | undefined {
-		return this.schema?.fields.find( ( candidate ) => candidate.id === fieldId );
+		return this.locateField( fieldId )?.field;
+	}
+
+	/**
+	 * A field found wherever it lives — the top level, or inside a repeater —
+	 * along with the list holding it, so a caller can move or remove it.
+	 *
+	 * @param fieldId The field's id.
+	 * @return The field, the list it sits in, its index there, and the repeater
+	 *         containing it (null at the top level).
+	 */
+	private locateField(
+		fieldId: string
+	): { field: Field; list: Field[]; index: number; parent: Field | null } | undefined {
+		const fields = this.schema?.fields ?? [];
+
+		for ( let index = 0; index < fields.length; index++ ) {
+			if ( fields[ index ].id === fieldId ) {
+				return { field: fields[ index ], list: fields, index, parent: null };
+			}
+
+			const subs = ( fields[ index ].fields ?? [] ) as Field[];
+
+			for ( let at = 0; at < subs.length; at++ ) {
+				if ( subs[ at ].id === fieldId ) {
+					return { field: subs[ at ], list: subs, index: at, parent: fields[ index ] };
+				}
+			}
+		}
+
+		return undefined;
 	}
 
 	/**
@@ -828,9 +864,10 @@ export class Builder {
 	 * @param field The field that was edited in the inspector.
 	 */
 	private syncCanvas( field: Field ): void {
-		const card = this.canvas.querySelector< HTMLElement >(
-			`[data-atfb-card="${ CSS.escape( field.id ) }"]`
-		);
+		// A repeater sub-field's editables live on its smaller card.
+		const card =
+			this.canvas.querySelector< HTMLElement >( `[data-atfb-card="${ CSS.escape( field.id ) }"]` ) ??
+			this.canvas.querySelector< HTMLElement >( `[data-atfb-subfield="${ CSS.escape( field.id ) }"]` );
 
 		if ( ! card ) {
 			return;
@@ -2309,6 +2346,16 @@ export class Builder {
 								apply( live );
 								this.markDirty();
 								this.syncInspector( live );
+
+								// The edit may have landed on a sub-field of
+								// this card's repeater — if that sub-field is
+								// what the inspector is showing, it is the one
+								// to mirror.
+								const selected = this.selected ? this.locateField( this.selected ) : undefined;
+
+								if ( selected?.parent && selected.parent.id === live.id ) {
+									this.syncInspector( selected.field );
+								}
 							},
 							restructure: ( apply ) => {
 								const live = this.liveField( field.id );
@@ -2323,6 +2370,11 @@ export class Builder {
 								this.renderCanvas();
 								this.renderInspector();
 							},
+							// A repeater draws each sub-field through the same
+							// preview machinery, and needs to know their types
+							// and which of them is selected.
+							types: ( name ) => this.config?.fieldTypes.find( ( candidate ) => candidate.type === name ),
+							selectedId: this.selected,
 						} ),
 						condition.length ? this.renderCondition( field, condition ) : null,
 					],
@@ -2491,8 +2543,11 @@ export class Builder {
 					return;
 				}
 
-				if ( data.fieldId && this.schema?.fields.some( ( field ) => field.id === data.fieldId ) ) {
-					this.moveField( data.fieldId, index );
+				// Wherever the field currently lives — the top level, or
+				// inside a repeater it is being pulled out of — this drop
+				// makes it a top-level field at the marked spot.
+				if ( data.fieldId && this.locateField( data.fieldId ) ) {
+					this.relocateField( data.fieldId, null, index );
 
 					return;
 				}
@@ -2505,6 +2560,8 @@ export class Builder {
 				}
 			},
 		} );
+
+		const zoneTeardowns = this.wireRepeaterZones( list );
 
 		// The insertion marker follows the pointer while a field is over the
 		// canvas. Driven from the shell's own move event so it works with either
@@ -2545,18 +2602,204 @@ export class Builder {
 
 		this.canvasTarget = () => {
 			teardown();
+			zoneTeardowns.forEach( ( zoneTeardown ) => zoneTeardown() );
 			document.removeEventListener( 'os.drag.move', onMove );
 		};
+	}
+
+	/**
+	 * Makes every repeater on the canvas a drop target of its own, and its
+	 * sub-field cards draggable, selectable and keyboard-operable.
+	 *
+	 * The zone elements are drawn by the preview (`field-preview.ts`), which
+	 * cannot reach the drag manager; this is where they come alive. Zones are
+	 * nested inside the canvas target, and the manager resolves hits depth
+	 * first, so a drop lands in the repeater when it is over one and on the
+	 * canvas when it is not.
+	 *
+	 * @param list The canvas list, freshly rendered.
+	 * @return One teardown per registered zone.
+	 */
+	private wireRepeaterZones( list: HTMLElement ): Array< () => void > {
+		const teardowns: Array< () => void > = [];
+
+		list.querySelectorAll< HTMLElement >( '[data-atfb-repeater-zone]' ).forEach( ( zone ) => {
+			const repeaterId = zone.dataset.atfbRepeaterZone ?? '';
+
+			teardowns.push(
+				getDragManager().registerDropTarget( {
+					id: `atfb-repzone-${ this.form?.id ?? 0 }-${ repeaterId }`,
+					element: zone,
+					accept: ( payload ) => {
+						if ( payload.type !== FIELD_PAYLOAD_TYPE ) {
+							return false;
+						}
+
+						const data = payload.data as {
+							fieldType?: string;
+							fieldId?: string;
+							field?: Field;
+							isNew?: boolean;
+						};
+
+						// The repeater itself dragged over its own zone must
+						// fall through to the canvas, not swallow the drop.
+						if ( data.fieldId === repeaterId ) {
+							return false;
+						}
+
+						const type = data.isNew
+							? data.fieldType
+							: this.locateField( data.fieldId ?? '' )?.field.type ?? data.field?.type;
+
+						return !! type && this.allowedInRepeater( type );
+					},
+					onEnter: () => zone.classList.add( 'is-dropping' ),
+					onLeave: () => zone.classList.remove( 'is-dropping' ),
+					onDrop: ( session, position ) => {
+						zone.classList.remove( 'is-dropping' );
+
+						const data = session.payload.data as {
+							fieldType?: string;
+							fieldId?: string;
+							field?: Field;
+							isNew?: boolean;
+						};
+
+						const source = data.fieldId
+							? list.querySelector< HTMLElement >(
+									`[data-atfb-subfield="${ CSS.escape( data.fieldId ) }"]`
+							  )
+							: null;
+
+						const index = insertionIndex( zone, '.atfb-subcard', position.clientY, source ?? undefined );
+
+						if ( data.isNew && data.fieldType ) {
+							this.addFieldToRepeater( data.fieldType, repeaterId, index );
+
+							return;
+						}
+
+						if ( data.fieldId && this.locateField( data.fieldId ) ) {
+							this.relocateField( data.fieldId, repeaterId, index );
+
+							return;
+						}
+
+						// From another builder window: a copy, re-identified.
+						if ( data.field ) {
+							this.insertFieldIntoRepeater( { ...data.field, id: '' } as Field, repeaterId, index );
+						}
+					},
+				} )
+			);
+
+			zone.querySelectorAll< HTMLElement >( '.atfb-subcard' ).forEach( ( card ) => {
+				const subId = card.dataset.atfbSubfield ?? '';
+
+				card.addEventListener( 'click', ( event ) => {
+					if ( ( event.target as HTMLElement ).closest( '.atfb-preview__remove' ) ) {
+						return;
+					}
+
+					event.stopPropagation();
+
+					if ( getDragManager().recentlyEndedDrag() ) {
+						return;
+					}
+
+					this.selectField( subId );
+				} );
+
+				card.addEventListener( 'keydown', ( event ) => {
+					// Nothing a sub-field's keyboard does should reach the
+					// repeater's own card — its Delete would take the whole
+					// container.
+					event.stopPropagation();
+
+					if ( event.key === 'Enter' || event.key === ' ' ) {
+						event.preventDefault();
+						this.selectField( subId );
+
+						return;
+					}
+
+					if ( event.altKey && ( event.key === 'ArrowUp' || event.key === 'ArrowDown' ) ) {
+						event.preventDefault();
+
+						const now = this.locateField( subId );
+
+						if ( now ) {
+							this.relocateField(
+								subId,
+								repeaterId,
+								event.key === 'ArrowUp' ? now.index - 1 : now.index + 1
+							);
+
+							window.requestAnimationFrame( () => {
+								this.canvas
+									.querySelector< HTMLElement >( `[data-atfb-subfield="${ CSS.escape( subId ) }"]` )
+									?.focus();
+							} );
+						}
+
+						return;
+					}
+
+					if ( event.key === 'Delete' || event.key === 'Backspace' ) {
+						event.preventDefault();
+						void this.deleteField( subId );
+					}
+				} );
+
+				card.addEventListener( 'pointerdown', ( event ) => {
+					// The repeater card above must not hear this press and
+					// start dragging the whole container.
+					event.stopPropagation();
+
+					if ( ( event.target as HTMLElement ).closest( '.atfb-preview__remove' ) ) {
+						return;
+					}
+
+					const found = this.locateField( subId );
+
+					if ( ! found ) {
+						return;
+					}
+
+					getDragManager().start( {
+						payload: buildPayload(
+							FIELD_PAYLOAD_TYPE,
+							card,
+							{ fieldId: subId, parentId: repeaterId, field: found.field, isNew: false },
+							event
+						),
+						origin: event,
+					} );
+				} );
+			} );
+		} );
+
+		return teardowns;
 	}
 
 	/* -------------------------------------------------------- Field editing */
 
 	/** Adds a field of a type, at an index or at the end. */
 	private addField( type: string, index?: number ): void {
+		const field = this.buildField( type );
+
+		if ( field ) {
+			this.insertField( field, index );
+		}
+	}
+
+	/** A brand-new field of a type, with the type's defaults and a fresh id. */
+	private buildField( type: string ): Field | undefined {
 		const definition = this.config?.fieldTypes.find( ( candidate ) => candidate.type === type );
 
 		if ( ! definition || ! this.schema ) {
-			return;
+			return undefined;
 		}
 
 		const field = {
@@ -2581,7 +2824,127 @@ export class Builder {
 			...definition.settings,
 		} as unknown as Field;
 
-		this.insertField( field, index );
+		return field;
+	}
+
+	/**
+	 * Whether a field type may live inside a repeater.
+	 *
+	 * The exclusions are each a real constraint, not taste: a repeater inside
+	 * a repeater has no addressable rows; a page break splits a *form*, not a
+	 * row; file uploads and signatures are wired to top-level names in the
+	 * submission pipeline; and a total is computed once per form, so a copy
+	 * per row would be a number that lies. Layout blocks are out because a
+	 * repeater's rows are answers, and analytics reads them as answers.
+	 */
+	private allowedInRepeater( type: string ): boolean {
+		const definition = this.config?.fieldTypes.find( ( candidate ) => candidate.type === type );
+
+		if ( ! definition || ! definition.input ) {
+			return false;
+		}
+
+		return ! [ 'repeater', 'page_break', 'file', 'signature', 'total' ].includes( type );
+	}
+
+	/** Adds a brand-new field of a type inside a repeater. */
+	private addFieldToRepeater( type: string, repeaterId: string, index?: number ): void {
+		if ( ! this.allowedInRepeater( type ) ) {
+			return;
+		}
+
+		const field = this.buildField( type );
+
+		if ( field ) {
+			this.insertFieldIntoRepeater( field, repeaterId, index );
+		}
+	}
+
+	/** Puts a field into a repeater's sub-field list. */
+	private insertFieldIntoRepeater( field: Field, repeaterId: string, index?: number ): void {
+		const repeater = this.liveField( repeaterId );
+
+		if ( ! this.schema || ! repeater || repeater.type !== 'repeater' ) {
+			return;
+		}
+
+		if ( ! field.id ) {
+			field.id = this.nextFieldId();
+		}
+
+		this.snapshot();
+
+		if ( ! Array.isArray( repeater.fields ) ) {
+			repeater.fields = [];
+		}
+
+		const list = repeater.fields as Field[];
+		const at = index === undefined ? list.length : Math.max( 0, Math.min( index, list.length ) );
+
+		list.splice( at, 0, field );
+		this.selected = field.id;
+
+		this.markDirty();
+		this.renderCanvas();
+		this.renderInspector();
+
+		window.requestAnimationFrame( () => {
+			this.canvas
+				.querySelector< HTMLElement >( `[data-atfb-subfield="${ CSS.escape( field.id ) }"]` )
+				?.focus();
+		} );
+	}
+
+	/**
+	 * Moves a field to wherever it was dropped — the top level, or inside a
+	 * repeater — from wherever it was.
+	 *
+	 * `index` counts the destination list *without* the moved field, exactly
+	 * as `insertionIndex()` computes it with the dragged card excluded.
+	 */
+	private relocateField( fieldId: string, repeaterId: string | null, index: number ): void {
+		if ( ! this.schema ) {
+			return;
+		}
+
+		const found = this.locateField( fieldId );
+
+		if ( ! found ) {
+			return;
+		}
+
+		// Top level to top level is the move that has always existed, with its
+		// own carefully-tested index arithmetic. Keep using it.
+		if ( ! found.parent && ! repeaterId ) {
+			this.moveField( fieldId, index );
+
+			return;
+		}
+
+		const repeater = repeaterId ? this.liveField( repeaterId ) : null;
+
+		if ( repeaterId && ( ! repeater || repeater.type !== 'repeater' || fieldId === repeaterId ) ) {
+			return;
+		}
+
+		if ( repeater && ! Array.isArray( repeater.fields ) ) {
+			repeater.fields = [];
+		}
+
+		const targetList = repeater ? ( repeater.fields as Field[] ) : this.schema.fields;
+
+		this.snapshot();
+
+		found.list.splice( found.index, 1 );
+
+		const at = Math.max( 0, Math.min( index, targetList.length ) );
+
+		targetList.splice( at, 0, found.field );
+		this.selected = found.field.id;
+
+		this.markDirty();
+		this.renderCanvas();
+		this.renderInspector();
 	}
 
 	/** Puts a field into the schema. */
@@ -2643,25 +3006,64 @@ export class Builder {
 			return;
 		}
 
-		const index = this.schema.fields.findIndex( ( field ) => field.id === fieldId );
+		const found = this.locateField( fieldId );
 
-		if ( index < 0 ) {
+		if ( ! found ) {
 			return;
 		}
 
-		const copy = JSON.parse( JSON.stringify( this.schema.fields[ index ] ) ) as Field;
+		const copy = JSON.parse( JSON.stringify( found.field ) ) as Field;
 
-		copy.id = this.nextFieldId();
+		// Every id in the copy is re-minted against one shared pool —
+		// duplicating a repeater must not produce a second `age` answering to
+		// the first one's `{attendees.age}`.
+		const used = this.usedFieldIds();
+		const mint = () => {
+			let index = used.size + 1;
+
+			while ( used.has( `f${ index }` ) ) {
+				index++;
+			}
+
+			const id = `f${ index }`;
+
+			used.add( id );
+
+			return id;
+		};
+
+		copy.id = mint();
+
+		for ( const sub of ( copy.fields ?? [] ) as Field[] ) {
+			sub.id = mint();
+		}
 
 		// A duplicate keeps its logic rules, which still point at the *original*
 		// fields — that is almost always what somebody duplicating a
 		// conditionally-shown field wants.
-		this.insertField( copy, index + 1 );
+		if ( found.parent ) {
+			this.snapshot();
+			found.list.splice( found.index + 1, 0, copy );
+			this.selected = copy.id;
+			this.markDirty();
+			this.renderCanvas();
+			this.renderInspector();
+
+			return;
+		}
+
+		this.insertField( copy, found.index + 1 );
 	}
 
-	/** Removes a field. */
+	/** Removes a field, wherever it lives. */
 	private async deleteField( fieldId: string ): Promise< void > {
 		if ( ! this.schema ) {
+			return;
+		}
+
+		const found = this.locateField( fieldId );
+
+		if ( ! found ) {
 			return;
 		}
 
@@ -2681,7 +3083,7 @@ export class Builder {
 
 		this.snapshot();
 
-		this.schema.fields = this.schema.fields.filter( ( field ) => field.id !== fieldId );
+		found.list.splice( found.index, 1 );
 
 		if ( this.selected === fieldId ) {
 			this.selected = null;
@@ -2714,13 +3116,26 @@ export class Builder {
 			card.setAttribute( 'aria-pressed', isSelected ? 'true' : 'false' );
 		}
 
+		// A repeater's sub-fields carry their own selected state, on their own
+		// smaller cards.
+		for ( const card of this.canvas.querySelectorAll< HTMLElement >( '[data-atfb-subfield]' ) ) {
+			card.classList.toggle( 'is-selected', card.dataset.atfbSubfield === fieldId );
+		}
+
 		this.logicMap?.highlight( fieldId );
 		this.renderInspector();
 	}
 
-	/** A field id not already in use. */
+	/**
+	 * A field id not already in use — anywhere, repeater sub-fields included.
+	 *
+	 * Sub-fields draw from the same pool as top-level fields because a formula
+	 * names them as `{repeater.sub}` and a field can be dragged out of a
+	 * repeater onto the canvas: an id that collided the moment it surfaced
+	 * would make both of those ambiguous.
+	 */
 	private nextFieldId(): string {
-		const used = new Set( ( this.schema?.fields ?? [] ).map( ( field ) => field.id ) );
+		const used = this.usedFieldIds();
 		let index = used.size + 1;
 
 		while ( used.has( `f${ index }` ) ) {
@@ -2728,6 +3143,21 @@ export class Builder {
 		}
 
 		return `f${ index }`;
+	}
+
+	/** Every field id in the schema, repeater sub-fields included. */
+	private usedFieldIds(): Set< string > {
+		const used = new Set< string >();
+
+		for ( const field of this.schema?.fields ?? [] ) {
+			used.add( field.id );
+
+			for ( const sub of ( field.fields ?? [] ) as Field[] ) {
+				used.add( sub.id );
+			}
+		}
+
+		return used;
 	}
 
 	/**
@@ -2770,7 +3200,9 @@ export class Builder {
 			return;
 		}
 
-		const field = this.schema.fields.find( ( candidate ) => candidate.id === this.selected );
+		const located = this.selected ? this.locateField( this.selected ) : undefined;
+		const field = located?.field;
+		const parent = located?.parent ?? null;
 
 		// In a narrow window there is room for one side rail, and which one is
 		// useful depends on what the user just did: nothing selected means they
@@ -2817,10 +3249,26 @@ export class Builder {
 			this.renderCanvas();
 		};
 
-		this.inspector.append(
-			el( 'h3', { class: 'atfb-inspector__title', text: definition?.label ?? field.type } ),
-			el( 'p', { class: 'atfb-hint', text: `Reference this field as {field:${ field.id }}` } )
-		);
+		this.inspector.append( el( 'h3', { class: 'atfb-inspector__title', text: definition?.label ?? field.type } ) );
+
+		if ( parent ) {
+			this.inspector.append(
+				el( 'p', {
+					class: 'atfb-hint atfb-inspector__crumb',
+					text: `Inside ${ parent.label || 'a repeater' } — the visitor answers this once per ${
+						String( parent.itemLabel ?? '' ) || 'row'
+					}.`,
+				} ),
+				el( 'p', {
+					class: 'atfb-hint',
+					text: `Formulas aggregate it as {${ parent.id }.${ field.id }} — e.g. sum( {${ parent.id }.${ field.id }} ).`,
+				} )
+			);
+		} else {
+			this.inspector.append(
+				el( 'p', { class: 'atfb-hint', text: `Reference this field as {field:${ field.id }}` } )
+			);
+		}
 
 		if ( supports.includes( 'label' ) ) {
 			this.inspector.append(
@@ -2957,10 +3405,17 @@ export class Builder {
 		}
 
 		this.inspector.append( this.renderValidationSection( field, supports, update ) );
-		this.inspector.append( this.renderLogicSection( field ) );
 
-		if ( supports.includes( 'prefill' ) ) {
-			this.inspector.append( this.prefillControl( field, update ) );
+		// Conditional logic and prefill act on top-level answers: the logic
+		// engine shows and hides whole fields, and prefill writes one value —
+		// neither has a meaning "once per row", so offering them on a
+		// sub-field would be a switch wired to nothing.
+		if ( ! parent ) {
+			this.inspector.append( this.renderLogicSection( field ) );
+
+			if ( supports.includes( 'prefill' ) ) {
+				this.inspector.append( this.prefillControl( field, update ) );
+			}
 		}
 
 		if ( supports.includes( 'css' ) ) {

@@ -556,16 +556,17 @@ function atf_register_builtin_field_types() {
 		'repeater',
 		array(
 			'label'       => __( 'Repeater', 'allterrain-forms' ),
-			'description' => __( 'A group of fields the visitor can add more rows of.', 'allterrain-forms' ),
+			'description' => __( 'A group of fields the visitor can answer as many times as they need.', 'allterrain-forms' ),
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-plus-alt',
 			'value'       => 'array',
-			'supports'    => array( 'label', 'hint', 'required', 'width', 'css', 'logic', 'minrows', 'maxrows', 'addlabel' ),
+			'supports'    => array( 'label', 'hint', 'required', 'width', 'css', 'logic', 'minrows', 'maxrows', 'addlabel', 'itemlabel' ),
 			'settings'    => array(
-				'fields'   => array(),
-				'minRows'  => 1,
-				'maxRows'  => 10,
-				'addLabel' => '',
+				'fields'    => array(),
+				'minRows'   => 1,
+				'maxRows'   => 10,
+				'addLabel'  => '',
+				'itemLabel' => '',
 			),
 			'sanitize'    => 'atf_sanitize_repeater_value',
 			'format'      => 'atf_format_repeater_value',
@@ -921,7 +922,14 @@ function atf_format_repeater_value( $value, $field, $context = 'table' ) {
 		return '';
 	}
 
+	$item_label = atf_repeater_item_label( $field );
+
 	if ( 'table' === $context ) {
+		if ( isset( $field['itemLabel'] ) && '' !== $field['itemLabel'] ) {
+			/* translators: 1: number of repeater rows, 2: what one row is called, e.g. "Attendee". */
+			return sprintf( _n( '%1$d %2$s', '%1$d × %2$s', count( $value ), 'allterrain-forms' ), count( $value ), $field['itemLabel'] );
+		}
+
 		/* translators: %d: number of repeater rows. */
 		return sprintf( _n( '%d row', '%d rows', count( $value ), 'allterrain-forms' ), count( $value ) );
 	}
@@ -943,11 +951,28 @@ function atf_format_repeater_value( $value, $field, $context = 'table' ) {
 			$parts[] = $label . ': ' . atf_format_field_value( $row[ $key ], $sub, $context );
 		}
 
-		/* translators: 1: row number, 2: the row's values. */
-		$lines[] = sprintf( __( 'Row %1$d — %2$s', 'allterrain-forms' ), $index + 1, implode( ', ', $parts ) );
+		/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's values. */
+		$lines[] = sprintf( __( '%1$s %2$d — %3$s', 'allterrain-forms' ), $item_label, $index + 1, implode( ', ', $parts ) );
 	}
 
 	return implode( "\n", $lines );
+}
+
+/**
+ * What one of a repeater's rows is called.
+ *
+ * "Attendee", "Guest", "Line item" — whatever the builder set — falling back
+ * to a plain "Row". Numbered by the caller: "Attendee 1", "Attendee 2".
+ *
+ * @since 0.1.0
+ *
+ * @param array $field The repeater field.
+ * @return string
+ */
+function atf_repeater_item_label( $field ) {
+	return isset( $field['itemLabel'] ) && '' !== $field['itemLabel']
+		? (string) $field['itemLabel']
+		: __( 'Row', 'allterrain-forms' );
 }
 
 /**

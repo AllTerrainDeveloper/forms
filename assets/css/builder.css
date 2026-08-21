@@ -2942,3 +2942,130 @@ os-checkbox-label.atfb-check {
 	font-style: italic;
 	color: var( --atfb-muted );
 }
+
+/* -------------------------------------------------------------------------- */
+/* The repeater as a container on the canvas                                   */
+/* -------------------------------------------------------------------------- */
+
+/* The frame borrows the front end's own row-card classes for its border and
+   background, so the builder shows the card the visitor will get; everything
+   prefixed atfb- is builder chrome on top of it. */
+
+.atfb-repeater {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	margin-block-start: 8px;
+}
+
+.atfb-repeater__frame {
+	inline-size: 100%;
+}
+
+.atfb-repeater__title {
+	display: inline-flex;
+	gap: 5px;
+	align-items: baseline;
+}
+
+.atfb-repeater__item-label {
+	min-inline-size: 3ch;
+}
+
+.atfb-repeater__ordinal {
+	opacity: 0.55;
+}
+
+/* The zone is where sub-fields live and where drags land. Padded even when
+   empty so there is always something to aim a drop at. */
+.atfb-repeater__zone {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	min-block-size: 56px;
+	border-radius: 0 0 var( --atf-radius-field, 8px ) var( --atf-radius-field, 8px );
+}
+
+.atfb-repeater__zone.is-dropping {
+	background: var( --atfb-accent-soft );
+	box-shadow: inset 0 0 0 2px var( --atfb-accent-line );
+}
+
+.atfb-repeater__empty {
+	margin: 0;
+	padding: 14px;
+	border: 1px dashed var( --atfb-border-strong );
+	border-radius: var( --atfb-radius );
+	font-size: 12px;
+	color: var( --atfb-muted );
+	text-align: center;
+}
+
+/* One sub-field: a smaller card with its own head, selection ring and grab
+   cursor, holding a full live preview of the control. */
+.atfb-subcard {
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	cursor: grab;
+	touch-action: none;
+}
+
+.atfb-subcard:hover {
+	border-color: var( --atfb-accent );
+}
+
+.atfb-subcard.is-selected {
+	border-color: var( --atfb-accent );
+	box-shadow: 0 0 0 2px var( --atfb-accent-soft );
+}
+
+.atfb-subcard:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 2px;
+}
+
+.atfb-subcard__head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+.atfb-subcard__type {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var( --atfb-muted );
+}
+
+.atfb-subcard__required {
+	font-size: 11px;
+	color: var( --atfb-warning );
+}
+
+.atfb-subcard__head .atfb-preview__remove {
+	margin-inline-start: auto;
+	opacity: 1;
+}
+
+.atfb-subcard .atfb-preview {
+	padding: 10px 12px;
+}
+
+/* The editable Add-another button sits under the frame with the same breathing
+   room the front end gives it. */
+.atfb-repeater > .atfb-repeater__add {
+	margin-block-start: 0;
+}
+
+/* The crumb that says a field lives inside a repeater. */
+.atfb-inspector__crumb {
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: var( --atfb-well );
+}

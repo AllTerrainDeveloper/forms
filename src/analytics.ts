@@ -577,7 +577,9 @@ class AnalyticsWindow {
 			parts.push(
 				el( 'p', {
 					class: 'atfa-question__note',
-					text: `${ field.answered } of ${ sampled } people answered this.`,
+					// A repeater sub-field is answered per row, not per
+					// person, and says so through `of` and `unit`.
+					text: `${ field.answered } of ${ field.of ?? sampled } ${ field.unit ?? 'people' } answered this.`,
 				} )
 			);
 		}
@@ -593,7 +595,7 @@ class AnalyticsWindow {
 			bits.push( `mean ${ field.numbers.mean }`, `median ${ field.numbers.median }` );
 		}
 
-		bits.push( `${ field.answered }/${ sampled }` );
+		bits.push( `${ field.answered }/${ field.of ?? sampled }` );
 
 		return bits.join( ' · ' );
 	}

@@ -458,6 +458,13 @@ export interface FieldReport {
 	answered: number;
 	rate: number;
 	average?: number | null;
+	/**
+	 * What `answered` is measured against, when it is not the sampled entries.
+	 * A repeater sub-field is answered per *row*, and rows outnumber people.
+	 */
+	of?: number;
+	/** What one unit of `of` is called — "rows" — when it is not people. */
+	unit?: string;
 	choices: Array< { label: string; value: string; count: number; percent: number } >;
 	numbers?: NumberSummary | null;
 	nps?: NpsSummary | null;

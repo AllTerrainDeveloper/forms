@@ -148,6 +148,14 @@ class AllTerrainForm {
 			return null;
 		}
 
+		// A repeater reads back as the same shape the server stores: an array
+		// of rows, each keyed by sub-field id. That is what lets the shared
+		// calculation engine resolve `{repeater.sub}` in the browser exactly
+		// as the server will on submit.
+		if ( field.type === 'repeater' ) {
+			return this.readRepeater( field, wrapper );
+		}
+
 		const inputs = Array.from(
 			wrapper.querySelectorAll< HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement >(
 				'input, select, textarea'
@@ -219,6 +227,86 @@ class AllTerrainForm {
 		}
 
 		return first.value;
+	}
+
+	/**
+	 * Reads a repeater's rows out of the DOM.
+	 *
+	 * Every schema sub-field is present in every row, defaulting to '', so a
+	 * formula referencing an untouched box sees zero rather than a hole. The
+	 * sub-field id is parsed back out of the posted name —
+	 * `atf[rep][0][age]` — because that name is the one thing the clone
+	 * machinery is already required to keep correct.
+	 */
+	private readRepeater( field: Field, wrapper: HTMLElement ): FieldValue {
+		const subs = ( field.fields ?? [] ) as Field[];
+		const rows: Array< Record< string, unknown > > = [];
+
+		wrapper.querySelectorAll< HTMLElement >( '[data-atf-repeater-row]' ).forEach( ( rowElement ) => {
+			const row: Record< string, unknown > = {};
+
+			for ( const sub of subs ) {
+				row[ sub.id ] = '';
+			}
+
+			rowElement
+				.querySelectorAll< HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement >(
+					'input, select, textarea'
+				)
+				.forEach( ( input ) => {
+					if ( input.disabled ) {
+						return;
+					}
+
+					const match = input.name.match( /\[\d+\]\[([^\]]+)\]/ );
+
+					if ( ! match ) {
+						return;
+					}
+
+					const subId = match[ 1 ];
+
+					if ( input instanceof HTMLInputElement && input.type === 'checkbox' ) {
+						// A checkbox group collects an array; a lone box — a
+						// switch, a consent tick — is a boolean.
+						if ( input.name.endsWith( '[]' ) ) {
+							const list = Array.isArray( row[ subId ] ) ? ( row[ subId ] as string[] ) : [];
+
+							if ( input.checked ) {
+								list.push( input.value );
+							}
+
+							row[ subId ] = list;
+
+							return;
+						}
+
+						row[ subId ] = input.checked;
+
+						return;
+					}
+
+					if ( input instanceof HTMLInputElement && input.type === 'radio' ) {
+						if ( input.checked ) {
+							row[ subId ] = input.value;
+						}
+
+						return;
+					}
+
+					if ( input instanceof HTMLSelectElement && input.multiple ) {
+						row[ subId ] = Array.from( input.selectedOptions ).map( ( option ) => option.value );
+
+						return;
+					}
+
+					row[ subId ] = input.value;
+				} );
+
+			rows.push( row );
+		} );
+
+		return rows as unknown as FieldValue;
 	}
 
 	/** The wrapper element for a field. */
@@ -974,7 +1062,31 @@ class AllTerrainForm {
 
 		added?.querySelector< HTMLElement >( 'input, select, textarea' )?.focus();
 
+		this.renumberRepeater( repeater );
 		this.update();
+	}
+
+	/**
+	 * Rewrites every row's title — "Attendee 1", "Attendee 2" — after an add
+	 * or a remove.
+	 *
+	 * By position, not by the posted index: removing the middle attendee must
+	 * not leave the survivors reading "1" and "3", even though their *names*
+	 * deliberately keep those indexes so the array slots never collide.
+	 */
+	private renumberRepeater( repeater: HTMLElement ): void {
+		const label = repeater.dataset.atfItemLabel ?? '';
+
+		repeater.querySelectorAll< HTMLElement >( '[data-atf-repeater-row]' ).forEach( ( row, index ) => {
+			const title = `${ label } ${ index + 1 }`.trim();
+			const node = row.querySelector< HTMLElement >( '[data-atf-repeater-title]' );
+
+			if ( node ) {
+				node.textContent = title;
+			}
+
+			row.setAttribute( 'aria-label', title );
+		} );
 	}
 
 	/** Removes a repeater row, unless it is the last one the field allows. */
@@ -996,6 +1108,10 @@ class AllTerrainForm {
 				input.value = '';
 			} );
 
+			// The totals have to hear about the clearing too — a wiped row is
+			// a change to every formula that reads this repeater.
+			this.update();
+
 			return;
 		}
 
@@ -1004,6 +1120,7 @@ class AllTerrainForm {
 		row.remove();
 		focusAfter?.querySelector< HTMLElement >( 'input, select, textarea' )?.focus();
 
+		this.renumberRepeater( repeater );
 		this.update();
 	}
 

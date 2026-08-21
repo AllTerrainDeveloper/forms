@@ -40,12 +40,75 @@ var allTerrainFormsFront = function(exports) {
     return result === null || !Number.isFinite(result) ? null : result;
   }
   function resolveRefs(formula, values, fields) {
-    return formula.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, fieldId) => {
-      const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
-      const field = fields.find((candidate) => candidate.id === fieldId) ?? null;
-      const literal = numericValue(value, field).toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
-      return literal === "" || literal === "-" ? "0" : literal;
-    });
+    return formula.replace(
+      /\{([a-zA-Z0-9_]+)(?:\.([a-zA-Z0-9_]+))?\}/g,
+      (match, fieldId, subId, offset) => refLiteral(formula, offset, match.length, fieldId, subId ?? "", values, fields)
+    );
+  }
+  function refLiteral(formula, offset, length, fieldId, subId, values, fields) {
+    const field = findField(fields, fieldId);
+    const value = Object.prototype.hasOwnProperty.call(values, fieldId) ? values[fieldId] : null;
+    if (subId === "") {
+      const number = field?.type === "repeater" ? repeaterRows(value).length : numericValue(value, field);
+      return numberLiteral(number);
+    }
+    const subs = field?.fields ?? [];
+    const sub = subs.find((candidate) => candidate.id === subId) ?? null;
+    const numbers = repeaterRows(value).map(
+      (row) => numericValue(row[subId] ?? "", sub)
+    );
+    if (!numbers.length) {
+      return "0";
+    }
+    const literals = numbers.map(numberLiteral);
+    if (refSpreads(formula, offset, length)) {
+      return literals.join(", ");
+    }
+    return literals.length === 1 ? literals[0] : `( ${literals.join(" + ")} )`;
+  }
+  function findField(fields, fieldId) {
+    for (const field of fields) {
+      if (field.id === fieldId) {
+        return field;
+      }
+      for (const sub of field.fields ?? []) {
+        if (sub.id === fieldId) {
+          return sub;
+        }
+      }
+    }
+    return null;
+  }
+  function refSpreads(formula, offset, length) {
+    const after = formula.slice(offset + length).replace(/^\s+/, "");
+    if (after === "" || after[0] !== ")") {
+      return false;
+    }
+    const before = formula.slice(0, offset).replace(/\s+$/, "");
+    const match = /([a-zA-Z_][a-zA-Z0-9_]*)\s*\($/.exec(before);
+    return !!match && ["sum", "avg", "min", "max"].includes(match[1].toLowerCase());
+  }
+  function repeaterRows(value) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const rows = [];
+    for (const row of value) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) {
+        continue;
+      }
+      const filled = Object.values(row).some(
+        (item) => item !== "" && item !== null && item !== void 0 && item !== false && !(Array.isArray(item) && !item.length)
+      );
+      if (filled) {
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+  function numberLiteral(number) {
+    const literal = number.toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+    return literal === "" || literal === "-" ? "0" : literal;
   }
   function numericValue(value, field) {
     if (typeof value === "boolean") {
@@ -709,6 +772,9 @@ var allTerrainFormsFront = function(exports) {
       if (!wrapper) {
         return null;
       }
+      if (field.type === "repeater") {
+        return this.readRepeater(field, wrapper);
+      }
       const inputs = Array.from(
         wrapper.querySelectorAll(
           "input, select, textarea"
@@ -757,6 +823,62 @@ var allTerrainFormsFront = function(exports) {
         return first.files && first.files.length ? [String(first.files.length)] : [];
       }
       return first.value;
+    }
+    /**
+     * Reads a repeater's rows out of the DOM.
+     *
+     * Every schema sub-field is present in every row, defaulting to '', so a
+     * formula referencing an untouched box sees zero rather than a hole. The
+     * sub-field id is parsed back out of the posted name —
+     * `atf[rep][0][age]` — because that name is the one thing the clone
+     * machinery is already required to keep correct.
+     */
+    readRepeater(field, wrapper) {
+      const subs = field.fields ?? [];
+      const rows = [];
+      wrapper.querySelectorAll("[data-atf-repeater-row]").forEach((rowElement) => {
+        const row = {};
+        for (const sub of subs) {
+          row[sub.id] = "";
+        }
+        rowElement.querySelectorAll(
+          "input, select, textarea"
+        ).forEach((input) => {
+          if (input.disabled) {
+            return;
+          }
+          const match = input.name.match(/\[\d+\]\[([^\]]+)\]/);
+          if (!match) {
+            return;
+          }
+          const subId = match[1];
+          if (input instanceof HTMLInputElement && input.type === "checkbox") {
+            if (input.name.endsWith("[]")) {
+              const list = Array.isArray(row[subId]) ? row[subId] : [];
+              if (input.checked) {
+                list.push(input.value);
+              }
+              row[subId] = list;
+              return;
+            }
+            row[subId] = input.checked;
+            return;
+          }
+          if (input instanceof HTMLInputElement && input.type === "radio") {
+            if (input.checked) {
+              row[subId] = input.value;
+            }
+            return;
+          }
+          if (input instanceof HTMLSelectElement && input.multiple) {
+            row[subId] = Array.from(input.selectedOptions).map((option) => option.value);
+            return;
+          }
+          row[subId] = input.value;
+        });
+        rows.push(row);
+      });
+      return rows;
     }
     /** The wrapper element for a field. */
     fieldElement(fieldId) {
@@ -1272,7 +1394,27 @@ var allTerrainFormsFront = function(exports) {
       rows.appendChild(clone);
       const added = rows.lastElementChild;
       added?.querySelector("input, select, textarea")?.focus();
+      this.renumberRepeater(repeater);
       this.update();
+    }
+    /**
+     * Rewrites every row's title — "Attendee 1", "Attendee 2" — after an add
+     * or a remove.
+     *
+     * By position, not by the posted index: removing the middle attendee must
+     * not leave the survivors reading "1" and "3", even though their *names*
+     * deliberately keep those indexes so the array slots never collide.
+     */
+    renumberRepeater(repeater) {
+      const label = repeater.dataset.atfItemLabel ?? "";
+      repeater.querySelectorAll("[data-atf-repeater-row]").forEach((row, index) => {
+        const title = `${label} ${index + 1}`.trim();
+        const node = row.querySelector("[data-atf-repeater-title]");
+        if (node) {
+          node.textContent = title;
+        }
+        row.setAttribute("aria-label", title);
+      });
     }
     /** Removes a repeater row, unless it is the last one the field allows. */
     removeRepeaterRow(row) {
@@ -1286,11 +1428,13 @@ var allTerrainFormsFront = function(exports) {
         row.querySelectorAll("input, select, textarea").forEach((input) => {
           input.value = "";
         });
+        this.update();
         return;
       }
       const focusAfter = row.nextElementSibling ?? row.previousElementSibling;
       row.remove();
       focusAfter?.querySelector("input, select, textarea")?.focus();
+      this.renumberRepeater(repeater);
       this.update();
     }
     /* ------------------------------------------------------------ Signature */

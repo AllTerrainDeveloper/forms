@@ -59,9 +59,16 @@ describe( 'shapeFor', () => {
 		// These have no honest one-line approximation. Drawing a Likert matrix as
 		// a text box would be a preview that is confidently wrong, which is worse
 		// than one that says what it is.
-		for ( const type of [ 'likert', 'signature', 'rating', 'scale', 'repeater' ] ) {
+		for ( const type of [ 'likert', 'signature', 'rating', 'scale' ] ) {
 			expect( shapeFor( type ) ).toBe( 'summary' );
 		}
+	} );
+
+	it( 'draws a repeater as a real container, not a summary', () => {
+		// The repeater is the one type whose *content* is other fields, and the
+		// builder's job is to let you put them there — a summary card would hide
+		// the entire feature.
+		expect( shapeFor( 'repeater' ) ).toBe( 'repeater' );
 	} );
 
 	it( 'draws a dropdown as a dropdown and a radio as a list', () => {

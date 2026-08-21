@@ -370,10 +370,135 @@ function atf_field_response_rates( $form_id, $schema ) {
 			$row['average'] = $total > 0 ? round( $sum / $total, 2 ) : null;
 		}
 
+		// A repeater's own panel answers "how many rows do people add" — the
+		// histogram of 2 attendees, 3 attendees — and then every sub-field
+		// reports as a question of its own, aggregated across all rows.
+		if ( 'repeater' === $field['type'] ) {
+			$counts = array();
+
+			foreach ( $sample['rows'] as $entry ) {
+				$value = isset( $entry['values'][ $field['id'] ] ) ? $entry['values'][ $field['id'] ] : null;
+
+				if ( is_array( $value ) && $value ) {
+					$counts[] = count( $value );
+				}
+			}
+
+			$row['numbers'] = atf_analytics_numbers( $counts );
+
+			$rows[] = $row;
+			$rows   = array_merge( $rows, atf_repeater_report_rows( $field, $sample ) );
+
+			continue;
+		}
+
 		$rows[] = $row;
 	}
 
 	return $rows;
+}
+
+/**
+ * One report row per repeater sub-field.
+ *
+ * A sub-field's answers live nested inside its repeater's rows, so the main
+ * tally pass never sees them — and a form collecting five facts per attendee
+ * would report nothing at all about any of them. Each sub-field aggregates
+ * across every row of every sampled entry: choice tallies count picks per
+ * *row*, numeric summaries pool every row's number, and the response rate is
+ * measured in rows, which is why these rows carry `of` (the denominator) and
+ * `unit` for the client to phrase it honestly.
+ *
+ * @since 0.1.0
+ *
+ * @param array $field  The repeater field.
+ * @param array $sample The sampled entries, from `atf_analytics_sample()`.
+ * @return array[] Report rows shaped like `atf_field_response_rates()` rows.
+ */
+function atf_repeater_report_rows( $field, $sample ) {
+	$subs         = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
+	$parent_label = '' !== $field['label'] ? $field['label'] : $field['id'];
+	$out          = array();
+
+	foreach ( $subs as $sub ) {
+		if ( empty( $sub['id'] ) ) {
+			continue;
+		}
+
+		$answered = 0;
+		$rows     = 0;
+		$tally    = array();
+		$numbers  = array();
+
+		foreach ( $sample['rows'] as $entry ) {
+			$value = isset( $entry['values'][ $field['id'] ] ) ? $entry['values'][ $field['id'] ] : null;
+
+			if ( ! is_array( $value ) ) {
+				continue;
+			}
+
+			foreach ( $value as $entry_row ) {
+				if ( ! is_array( $entry_row ) ) {
+					continue;
+				}
+
+				++$rows;
+
+				$answer = isset( $entry_row[ $sub['id'] ] ) ? $entry_row[ $sub['id'] ] : null;
+
+				if ( atf_value_is_empty( $answer ) ) {
+					continue;
+				}
+
+				++$answered;
+
+				foreach ( (array) $answer as $item ) {
+					if ( ! is_scalar( $item ) || '' === $item ) {
+						continue;
+					}
+
+					$key           = (string) $item;
+					$tally[ $key ] = isset( $tally[ $key ] ) ? $tally[ $key ] + 1 : 1;
+
+					if ( is_numeric( $item ) ) {
+						$numbers[] = (float) $item;
+					}
+				}
+			}
+		}
+
+		$sub_row = array(
+			'id'       => $field['id'] . '.' . $sub['id'],
+			'label'    => $parent_label . ' · ' . ( isset( $sub['label'] ) && '' !== $sub['label'] ? $sub['label'] : $sub['id'] ),
+			'type'     => $sub['type'],
+			'answered' => $answered,
+			'rate'     => $rows > 0 ? (int) floor( ( $answered / $rows ) * 100 ) : 0,
+			'of'       => $rows,
+			'unit'     => __( 'rows', 'allterrain-forms' ),
+			'choices'  => array(),
+		);
+
+		if ( ! empty( $sub['choices'] ) && is_array( $sub['choices'] ) ) {
+			foreach ( $sub['choices'] as $choice ) {
+				$count = isset( $tally[ (string) $choice['value'] ] ) ? $tally[ (string) $choice['value'] ] : 0;
+
+				$sub_row['choices'][] = array(
+					'label'   => $choice['label'],
+					'value'   => $choice['value'],
+					'count'   => $count,
+					'percent' => $answered > 0 ? (int) floor( ( $count / $answered ) * 100 ) : 0,
+				);
+			}
+		}
+
+		if ( atf_analytics_is_numeric_field( $sub ) ) {
+			$sub_row['numbers'] = atf_analytics_numbers( $numbers );
+		}
+
+		$out[] = $sub_row;
+	}
+
+	return $out;
 }
 
 /**

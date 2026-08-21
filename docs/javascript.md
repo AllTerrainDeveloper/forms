@@ -256,6 +256,13 @@ Functions are a whitelist — `min`, `max`, `sum`, `avg`, `round`, `ceil`, `floo
 `abs`, `sqrt`, `pow` — and that whitelist is the security boundary. Anything
 added through `atf_calc_functions` must be pure and numeric.
 
+References resolve before tokenising: `{field}` becomes a numeric literal,
+`{repeater}` becomes its row count, and `{repeater.sub}` becomes either one
+literal per row (as the sole argument of `sum`/`avg`/`min`/`max`) or the
+parenthesised total across rows (anywhere else). See "Repeaters in formulas"
+in field-types.md for the grammar; the shared fixture table holds both engines
+to it.
+
 ---
 
 ## Using the drag fallback

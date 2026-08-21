@@ -912,20 +912,39 @@
 
 .atf-repeater__rows {
 	display: grid;
-	gap: 12px;
+	gap: 14px;
 	margin-block-start: var( --atf-gap-label );
 }
 
+/* Each row is a card: a named thing — "Attendee 1" — rather than an anonymous
+   stripe of boxes, because the whole point of a repeater is that one row is one
+   *thing* the visitor is describing. */
 .atf-repeater__row {
-	position: relative;
-	display: grid;
-	grid-template-columns: repeat( 12, 1fr );
-	gap: 12px;
-	padding: 14px;
-	padding-inline-end: 44px;
 	border: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
 	border-radius: var( --atf-radius-field );
 	background: var( --atf-surface-alt );
+}
+
+.atf-repeater__row-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 16px;
+	border-block-end: var( --atf-border-width ) var( --atf-border-style ) var( --atf-border );
+}
+
+.atf-repeater__title {
+	font-size: var( --atf-size-label );
+	font-weight: var( --atf-weight-label );
+	color: var( --atf-heading );
+}
+
+.atf-repeater__row-grid {
+	display: grid;
+	grid-template-columns: repeat( 12, 1fr );
+	gap: 14px;
+	padding: 16px;
 }
 
 .atf-repeater__field {
@@ -940,12 +959,17 @@
 	grid-column: span 4;
 }
 
+@container atf-form ( max-width: 480px ) {
+	.atf-repeater__field.atf-field--half,
+	.atf-repeater__field.atf-field--third {
+		grid-column: span 12;
+	}
+}
+
 .atf-repeater__remove {
-	position: absolute;
-	inset-block-start: 8px;
-	inset-inline-end: 8px;
 	inline-size: 28px;
 	block-size: 28px;
+	flex: none;
 	display: grid;
 	place-items: center;
 	border: 0;
@@ -960,6 +984,14 @@
 .atf-repeater__remove:hover {
 	background: var( --atf-error-soft );
 	color: var( --atf-error );
+}
+
+/* Breathing room the button was missing: it sits under the row cards, not
+   glued to them, and never stretches to the form's full width — themes whose
+   `--atf-button-width` is 100% mean the submit button, not this one. */
+.atf-repeater__add {
+	margin-block-start: 12px;
+	inline-size: auto;
 }
 
 /* -------------------------------------------------------------------------- */

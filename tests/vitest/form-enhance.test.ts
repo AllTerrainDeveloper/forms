@@ -141,6 +141,51 @@ describe( 'repeater row numbering', () => {
 
 		expect( form.querySelectorAll( '.atf-repeater__rows [data-atf-repeater-row]' ) ).toHaveLength( 5 );
 	} );
+
+	const titled = `
+		<div data-atf-page>
+			<div class="atf-repeater" data-atf-repeater="people" data-atf-min="1" data-atf-max="5" data-atf-item-label="Attendee">
+				<div class="atf-repeater__rows">
+					<div class="atf-repeater__row" data-atf-repeater-row>
+						<span data-atf-repeater-title>Attendee 1</span>
+						<input name="atf[people][0][first]" />
+						<button type="button" data-atf-repeater-remove>&times;</button>
+					</div>
+				</div>
+				<button type="button" data-atf-repeater-add>Add another</button>
+				<template data-atf-repeater-template>
+					<div class="atf-repeater__row" data-atf-repeater-row>
+						<span data-atf-repeater-title></span>
+						<input name="atf[people][__INDEX__][first]" />
+						<button type="button" data-atf-repeater-remove>&times;</button>
+					</div>
+				</template>
+			</div>
+		</div>
+	`;
+
+	/** The visible card titles, in DOM order. */
+	function titles( form: HTMLFormElement ): string[] {
+		return Array.from( form.querySelectorAll( '.atf-repeater__rows [data-atf-repeater-title]' ) ).map(
+			( node ) => node.textContent ?? ''
+		);
+	}
+
+	it( 'titles every card by position, whatever its posted index', () => {
+		const form = mount( 'atf-10', '10', titled );
+		const add = form.querySelector< HTMLButtonElement >( '[data-atf-repeater-add]' )!;
+
+		add.click();
+		add.click();
+		expect( titles( form ) ).toEqual( [ 'Attendee 1', 'Attendee 2', 'Attendee 3' ] );
+
+		// Remove the middle card: the survivors read 1 and 2 even though the
+		// second one still *posts* as index 2 — the names must never collide,
+		// and the titles must never show the gap.
+		form.querySelectorAll< HTMLButtonElement >( '[data-atf-repeater-remove]' )[ 1 ].click();
+
+		expect( titles( form ) ).toEqual( [ 'Attendee 1', 'Attendee 2' ] );
+	} );
 } );
 
 describe( 'nextRepeaterIndex', () => {
