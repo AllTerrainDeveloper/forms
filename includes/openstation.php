@@ -364,9 +364,11 @@ function atf_render_analytics_template() {
 function atf_render_mailpoet_template() {
 	?>
 	<div class="atfm" data-atfm-root>
-		<div class="atfm__bar" data-atfm-bar>
-			<os-spinner preset="inline"></os-spinner>
-			<span class="atfm__loading"><?php esc_html_e( 'Checking MailPoet…', 'allterrain-forms' ); ?></span>
+		<div class="atfm__boot" data-atfm-bar>
+			<span class="atfm__boot-mark">
+				<img src="<?php echo esc_url( atf_mailpoet_symbol_url() ); ?>" alt="" width="34" height="34" />
+			</span>
+			<span class="atfm__boot-words"><?php esc_html_e( 'Checking MailPoet…', 'allterrain-forms' ); ?></span>
 		</div>
 		<div class="atfm__body" data-atfm-body></div>
 	</div>

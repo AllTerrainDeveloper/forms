@@ -3515,12 +3515,59 @@ os-checkbox-label.atfb-check {
 	--atfm-line: color-mix( in srgb, var( --atfm-brand ) 38%, transparent );
 }
 
-.atfm__bar {
+/* The boot screen: MailPoet's symbol breathing in the middle of the window
+   while the one request runs — a landing, not a corner spinner. It doubles as
+   the error surface: the hub replaces its content with a sentence, and the
+   centering carries that too. */
+.atfm__boot {
+	flex: 1 1 auto;
+	min-block-size: 0;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 8px;
-	padding: 10px 14px;
+	justify-content: center;
+	gap: 14px;
+	padding: 24px;
+	text-align: center;
 	color: var( --atfb-muted );
+	font-size: 13px;
+}
+
+.atfm__boot-mark {
+	display: grid;
+	place-items: center;
+	inline-size: 64px;
+	block-size: 64px;
+	border-radius: 18px;
+	background: #fff;
+	border: 1px solid color-mix( in srgb, #fe5301 30%, transparent );
+	box-shadow: 0 8px 26px color-mix( in srgb, #fe5301 25%, transparent );
+	animation: atfm-boot-breathe 1.6s ease-in-out infinite;
+}
+
+.atfm__boot-mark img {
+	display: block;
+	inline-size: 34px;
+	block-size: 34px;
+}
+
+@keyframes atfm-boot-breathe {
+	0%,
+	100% {
+		transform: scale( 1 );
+		box-shadow: 0 8px 26px color-mix( in srgb, #fe5301 25%, transparent );
+	}
+
+	50% {
+		transform: scale( 1.06 );
+		box-shadow: 0 10px 34px color-mix( in srgb, #fe5301 40%, transparent );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfm__boot-mark {
+		animation: none;
+	}
 }
 
 .atfm__body {
