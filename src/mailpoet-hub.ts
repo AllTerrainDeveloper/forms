@@ -87,6 +87,14 @@ function guessField( fields: Field[], types: string[], namePattern?: RegExp ): s
 function formCard( summary: FormSummary, info: MailPoetInfo, host: HTMLElement ): HTMLElement {
 	const card = el( 'section', { class: 'atfm-form' } );
 
+	// The symbol marks each card — full colour once the form subscribes,
+	// greyed while it does not, so the list reads at a glance.
+	const mark = ( on: boolean ) =>
+		el( 'span', {
+			class: `atfm-form__mark${ on ? '' : ' atfm-form__mark--off' }`,
+			children: [ el( 'img', { attrs: { src: info.symbol, alt: '', width: '20', height: '20' } } ) ],
+		} );
+
 	const paintClosed = ( subscribed: string[] ) => {
 		clear( card );
 		card.classList.remove( 'is-open' );
@@ -95,6 +103,7 @@ function formCard( summary: FormSummary, info: MailPoetInfo, host: HTMLElement )
 			el( 'div', {
 				class: 'atfm-form__head',
 				children: [
+					mark( subscribed.length > 0 ),
 					el( 'div', {
 						class: 'atfm-form__title',
 						children: [
@@ -246,10 +255,15 @@ function formCard( summary: FormSummary, info: MailPoetInfo, host: HTMLElement )
 		};
 
 		clear( card );
+		// A tiny caption over each group of controls, so the editor reads as
+		// three questions — where, who, when — rather than five bare rows.
+		const caption = ( text: string ) => el( 'span', { class: 'atfm-form__section', text } );
+
 		card.append(
 			el( 'div', {
 				class: 'atfm-form__head',
 				children: [
+					mark( Boolean( action ) ),
 					el( 'div', {
 						class: 'atfm-form__title',
 						children: [ el( 'strong', { text: summary.title || `Form ${ summary.id }` } ) ],
@@ -260,7 +274,9 @@ function formCard( summary: FormSummary, info: MailPoetInfo, host: HTMLElement )
 			el( 'div', {
 				class: 'atfm-form__body',
 				children: [
-					row( 'Lists', listsBox, 'Where the subscriber lands. MailPoet sends its own confirmation email first.' ),
+					caption( 'Where they land' ),
+					row( 'Lists', listsBox, 'MailPoet sends its own confirmation email before anyone is truly on a list.' ),
+					caption( 'Who they are' ),
 					row(
 						'Email address',
 						select( email, fieldOptions( fields, '— pick a field —' ), ( value ) => {
@@ -280,6 +296,7 @@ function formCard( summary: FormSummary, info: MailPoetInfo, host: HTMLElement )
 							lastName = value;
 						} )
 					),
+					caption( 'When to subscribe' ),
 					row(
 						'Subscribe',
 						select(
@@ -348,7 +365,7 @@ function hero( info: MailPoetInfo ): HTMLElement {
 				class: 'atfm-hero__logo',
 				children: [
 					el( 'img', {
-						attrs: { src: info.logo, alt: 'MailPoet', width: '108', height: '65' },
+						attrs: { src: info.logo, alt: 'MailPoet', width: '210', height: '105' },
 					} ),
 				],
 		  } )
@@ -361,7 +378,7 @@ function hero( info: MailPoetInfo ): HTMLElement {
 			el( 'div', {
 				class: 'atfm-hero__words',
 				children: [
-					el( 'h1', { text: 'Grow your audience where it begins' } ),
+					el( 'h1', { text: 'Turn submissions into subscribers' } ),
 					el( 'p', {
 						text:
 							'Every submission is someone choosing to talk to you. Connect a form to MailPoet and the ones who opt in land on your lists by themselves — named, consented, and confirmed by MailPoet’s own double opt-in.',
@@ -371,15 +388,80 @@ function hero( info: MailPoetInfo ): HTMLElement {
 								class: 'atfm-hero__status is-on',
 								text:
 									1 === info.lists.length
-										? 'Connected — 1 list available'
-										: `Connected — ${ info.lists.length } lists available`,
+										? 'Connected — 1 list ready for subscribers'
+										: `Connected — ${ info.lists.length } lists ready for subscribers`,
 						  } )
 						: el( 'p', {
 								class: 'atfm-hero__status',
-								text: 'MailPoet is not installed on this site yet.',
+								text: 'MailPoet is not installed on this site yet',
 						  } ),
 				],
 			} ),
+		],
+	} );
+}
+
+/** Three reasons MailPoet is worth meeting, and the doors into their world. */
+function whyMailPoet(): HTMLElement[] {
+	const card = ( icon: string, title: string, words: string ) =>
+		el( 'div', {
+			class: 'atfm-why__card',
+			children: [
+				el( 'span', { class: 'atfm-why__icon', text: icon } ),
+				el( 'strong', { text: title } ),
+				el( 'p', { text: words } ),
+			],
+		} );
+
+	const link = ( href: string, text: string ) =>
+		el( 'a', { text, attrs: { href, target: '_blank', rel: 'noreferrer' } } );
+
+	return [
+		el( 'div', {
+			class: 'atfm-why',
+			children: [
+				card(
+					'✉️',
+					'Beautiful emails, made in WordPress',
+					'Design newsletters and welcome emails in a drag-and-drop editor that lives in your own admin — no external account to juggle.'
+				),
+				card(
+					'🤝',
+					'Consent you can stand behind',
+					'Double opt-in out of the box: every address your forms send over is confirmed by the visitor before a single campaign reaches it.'
+				),
+				card(
+					'🚀',
+					'Free to grow with',
+					'Free up to 500 subscribers, welcome automations, WooCommerce emails and open-rate stats included — a paid addon anywhere else.'
+				),
+			],
+		} ),
+		el( 'p', {
+			class: 'atfm-links',
+			children: [
+				link( 'https://www.mailpoet.com/features/', 'Explore MailPoet’s features ↗' ),
+				link( 'https://kb.mailpoet.com/', 'Guides & docs ↗' ),
+				link( 'https://www.mailpoet.com/pricing/', 'Plans & the free tier ↗' ),
+			],
+		} ),
+	];
+}
+
+/** The three-step strip: what connecting actually involves. */
+function steps(): HTMLElement {
+	const step = ( n: string, words: string ) =>
+		el( 'div', {
+			class: 'atfm-step',
+			children: [ el( 'span', { class: 'atfm-step__n', text: n } ), el( 'span', { text: words } ) ],
+		} );
+
+	return el( 'div', {
+		class: 'atfm-steps',
+		children: [
+			step( '1', 'Pick a form below' ),
+			step( '2', 'Choose the lists it feeds' ),
+			step( '3', 'Bind it to an opt-in — MailPoet confirms the rest' ),
 		],
 	} );
 }
@@ -403,7 +485,7 @@ export async function mountMailPoetHub(): Promise< void > {
 
 		bar?.remove();
 		clear( body );
-		body.append( hero( info ) );
+		body.append( hero( info ), ...whyMailPoet() );
 
 		if ( ! info.active ) {
 			// The pitch, not a dead end: what the bridge does, and the one
@@ -419,7 +501,7 @@ export async function mountMailPoetHub(): Promise< void > {
 						} ),
 						el( 'a', {
 							class: 'atfm-pitch__cta',
-							text: 'Install MailPoet',
+							text: 'Install MailPoet — it’s free',
 							attrs: { href: info.adminUrl, target: '_blank', rel: 'noreferrer' },
 						} ),
 					],
@@ -449,13 +531,20 @@ export async function mountMailPoetHub(): Promise< void > {
 			return;
 		}
 
+		body.append( steps() );
+
 		const section = el( 'section', {
 			class: 'atfm-forms',
 			children: [
-				el( 'h2', { text: 'Your forms' } ),
-				el( 'p', {
-					class: 'atfm-hint',
-					text: 'Pick a form, choose its lists, and bind the subscription to an opt-in the visitor actually ticks.',
+				el( 'div', {
+					class: 'atfm-forms__head',
+					children: [
+						el( 'h2', { text: 'Your forms' } ),
+						el( 'p', {
+							class: 'atfm-hint',
+							text: 'Connected forms wear the MailPoet mark in colour.',
+						} ),
+					],
 				} ),
 			],
 		} );

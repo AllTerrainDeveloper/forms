@@ -1739,9 +1739,9 @@ var allTerrainFormsBuilder = function(exports) {
     const parsed = parseFloat(String(value ?? ""));
     return Number.isFinite(parsed) ? parsed : fallback2;
   }
-  function nearest(value, steps) {
-    let best = steps[0];
-    for (const step of steps) {
+  function nearest(value, steps2) {
+    let best = steps2[0];
+    for (const step of steps2) {
       if (Math.abs(step.at - value) < Math.abs(best.at - value)) {
         best = step;
       }
@@ -2570,6 +2570,10 @@ var allTerrainFormsBuilder = function(exports) {
   }
   function formCard(summary, info, host) {
     const card = el("section", { class: "atfm-form" });
+    const mark = (on) => el("span", {
+      class: `atfm-form__mark${on ? "" : " atfm-form__mark--off"}`,
+      children: [el("img", { attrs: { src: info.symbol, alt: "", width: "20", height: "20" } })]
+    });
     const paintClosed = (subscribed) => {
       clear(card);
       card.classList.remove("is-open");
@@ -2577,6 +2581,7 @@ var allTerrainFormsBuilder = function(exports) {
         el("div", {
           class: "atfm-form__head",
           children: [
+            mark(subscribed.length > 0),
             el("div", {
               class: "atfm-form__title",
               children: [
@@ -2690,10 +2695,12 @@ var allTerrainFormsBuilder = function(exports) {
         paintClosed(remove ? [] : info.lists.filter((list) => chosen.has(list.id)).map((list) => list.name));
       };
       clear(card);
+      const caption = (text) => el("span", { class: "atfm-form__section", text });
       card.append(
         el("div", {
           class: "atfm-form__head",
           children: [
+            mark(Boolean(action)),
             el("div", {
               class: "atfm-form__title",
               children: [el("strong", { text: summary.title || `Form ${summary.id}` })]
@@ -2704,7 +2711,9 @@ var allTerrainFormsBuilder = function(exports) {
         el("div", {
           class: "atfm-form__body",
           children: [
-            row("Lists", listsBox, "Where the subscriber lands. MailPoet sends its own confirmation email first."),
+            caption("Where they land"),
+            row("Lists", listsBox, "MailPoet sends its own confirmation email before anyone is truly on a list."),
+            caption("Who they are"),
             row(
               "Email address",
               select(email, fieldOptions(fields, "— pick a field —"), (value) => {
@@ -2724,6 +2733,7 @@ var allTerrainFormsBuilder = function(exports) {
                 lastName = value;
               })
             ),
+            caption("When to subscribe"),
             row(
               "Subscribe",
               select(
@@ -2765,7 +2775,7 @@ var allTerrainFormsBuilder = function(exports) {
       class: "atfm-hero__logo",
       children: [
         el("img", {
-          attrs: { src: info.logo, alt: "MailPoet", width: "108", height: "65" }
+          attrs: { src: info.logo, alt: "MailPoet", width: "210", height: "105" }
         })
       ]
     }) : el("span", { class: "atfm-hero__logo atfm-hero__logo--glyph", text: "📬" });
@@ -2776,19 +2786,74 @@ var allTerrainFormsBuilder = function(exports) {
         el("div", {
           class: "atfm-hero__words",
           children: [
-            el("h1", { text: "Grow your audience where it begins" }),
+            el("h1", { text: "Turn submissions into subscribers" }),
             el("p", {
               text: "Every submission is someone choosing to talk to you. Connect a form to MailPoet and the ones who opt in land on your lists by themselves — named, consented, and confirmed by MailPoet’s own double opt-in."
             }),
             info.active ? el("p", {
               class: "atfm-hero__status is-on",
-              text: 1 === info.lists.length ? "Connected — 1 list available" : `Connected — ${info.lists.length} lists available`
+              text: 1 === info.lists.length ? "Connected — 1 list ready for subscribers" : `Connected — ${info.lists.length} lists ready for subscribers`
             }) : el("p", {
               class: "atfm-hero__status",
-              text: "MailPoet is not installed on this site yet."
+              text: "MailPoet is not installed on this site yet"
             })
           ]
         })
+      ]
+    });
+  }
+  function whyMailPoet() {
+    const card = (icon2, title, words) => el("div", {
+      class: "atfm-why__card",
+      children: [
+        el("span", { class: "atfm-why__icon", text: icon2 }),
+        el("strong", { text: title }),
+        el("p", { text: words })
+      ]
+    });
+    const link = (href, text) => el("a", { text, attrs: { href, target: "_blank", rel: "noreferrer" } });
+    return [
+      el("div", {
+        class: "atfm-why",
+        children: [
+          card(
+            "✉️",
+            "Beautiful emails, made in WordPress",
+            "Design newsletters and welcome emails in a drag-and-drop editor that lives in your own admin — no external account to juggle."
+          ),
+          card(
+            "🤝",
+            "Consent you can stand behind",
+            "Double opt-in out of the box: every address your forms send over is confirmed by the visitor before a single campaign reaches it."
+          ),
+          card(
+            "🚀",
+            "Free to grow with",
+            "Free up to 500 subscribers, welcome automations, WooCommerce emails and open-rate stats included — a paid addon anywhere else."
+          )
+        ]
+      }),
+      el("p", {
+        class: "atfm-links",
+        children: [
+          link("https://www.mailpoet.com/features/", "Explore MailPoet’s features ↗"),
+          link("https://kb.mailpoet.com/", "Guides & docs ↗"),
+          link("https://www.mailpoet.com/pricing/", "Plans & the free tier ↗")
+        ]
+      })
+    ];
+  }
+  function steps() {
+    const step = (n, words) => el("div", {
+      class: "atfm-step",
+      children: [el("span", { class: "atfm-step__n", text: n }), el("span", { text: words })]
+    });
+    return el("div", {
+      class: "atfm-steps",
+      children: [
+        step("1", "Pick a form below"),
+        step("2", "Choose the lists it feeds"),
+        step("3", "Bind it to an opt-in — MailPoet confirms the rest")
       ]
     });
   }
@@ -2805,7 +2870,7 @@ var allTerrainFormsBuilder = function(exports) {
       const [info, forms] = await Promise.all([api.mailpoet(), api.listForms()]);
       bar?.remove();
       clear(body);
-      body.append(hero(info));
+      body.append(hero(info), ...whyMailPoet());
       if (!info.active) {
         body.append(
           el("div", {
@@ -2816,7 +2881,7 @@ var allTerrainFormsBuilder = function(exports) {
               }),
               el("a", {
                 class: "atfm-pitch__cta",
-                text: "Install MailPoet",
+                text: "Install MailPoet — it’s free",
                 attrs: { href: info.adminUrl, target: "_blank", rel: "noreferrer" }
               })
             ]
@@ -2842,13 +2907,19 @@ var allTerrainFormsBuilder = function(exports) {
         );
         return;
       }
+      body.append(steps());
       const section = el("section", {
         class: "atfm-forms",
         children: [
-          el("h2", { text: "Your forms" }),
-          el("p", {
-            class: "atfm-hint",
-            text: "Pick a form, choose its lists, and bind the subscription to an opt-in the visitor actually ticks."
+          el("div", {
+            class: "atfm-forms__head",
+            children: [
+              el("h2", { text: "Your forms" }),
+              el("p", {
+                class: "atfm-hint",
+                text: "Connected forms wear the MailPoet mark in colour."
+              })
+            ]
           })
         ]
       });

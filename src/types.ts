@@ -289,8 +289,10 @@ export interface MailPoetList {
 export interface MailPoetInfo {
 	active: boolean;
 	lists: MailPoetList[];
-	/** MailPoet's own logo, served from its install; empty when absent. */
+	/** The bundled MailPoet wordmark. */
 	logo: string;
+	/** The bundled MailPoet symbol, for compact badges. */
+	symbol: string;
 	/** MailPoet's lists admin when installed, the plugin installer when not. */
 	adminUrl: string;
 }
