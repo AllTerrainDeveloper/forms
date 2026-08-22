@@ -4893,7 +4893,7 @@ var allTerrainFormsBuilder = function(exports) {
      * happen before the *next* edit.
      */
     rebindCanvas() {
-      if (this.tab !== "build") {
+      if ("build" !== this.tab && "confirm" !== this.tab && "notify" !== this.tab) {
         return;
       }
       const focused = document.activeElement;
@@ -7139,24 +7139,21 @@ var allTerrainFormsBuilder = function(exports) {
       }
       return rows;
     }
-    /** The conditional-logic editor. */
-    renderLogicSection(field) {
-      const logic = field.logic;
-      const liveLogic = () => this.liveField(field.id)?.logic;
-      const write = (mutate, rebuild = false) => {
-        const live = liveLogic();
-        if (!live) {
-          return;
-        }
-        mutate(live);
-        this.markDirty();
-        this.renderCanvas();
-        if (rebuild) {
-          this.renderInspector();
-        }
-      };
+    /**
+     * The rule cards, joiners and Add-rule button shared by every logic editor.
+     *
+     * Fields, confirmations and notifications all carry the same `Logic`
+     * block. What differs is where the live copy lives and what a write must
+     * repaint, so the write arrives as a callback; `exclude` keeps a field
+     * from offering itself as its own condition.
+     *
+     * Returns the rule stack and the Add-rule button as separate elements so
+     * each caller can place its own sentence between the enable switch and
+     * the rules.
+     */
+    logicRulesEditor(logic, write, exclude = "") {
       const others = (this.schema?.fields ?? []).filter(
-        (candidate) => candidate.id !== field.id && candidate.type !== "page_break"
+        (candidate) => candidate.id !== exclude && candidate.type !== "page_break"
       );
       const joiner = () => el("div", {
         class: "atfb-rule-join",
@@ -7274,6 +7271,101 @@ var allTerrainFormsBuilder = function(exports) {
         }
         rules.append(ruleCard(rule, index));
       });
+      const add = button(
+        "Add rule",
+        () => {
+          write((live) => {
+            live.rules.push({
+              field: others[0]?.id ?? "",
+              operator: "is",
+              value: ""
+            });
+          }, true);
+        },
+        "ghost",
+        "plus-alt2"
+      );
+      return [rules, add];
+    }
+    /**
+     * The conditions section for a confirmation or a notification.
+     *
+     * Fields decide their own visibility through `renderLogicSection`; these
+     * two decide whether they *fire* — the same `Logic` block without the
+     * show/hide half, evaluated by `atf_logic_conditions_met()` on submit.
+     * The copy above the confirmations list has promised "the first one whose
+     * conditions match" since the list existed; this is the editor that
+     * promise was missing.
+     *
+     * Writes mutate the object in place, the way every other control on
+     * these panes does — the pane is rebuilt from the schema on structural
+     * changes and the `section()` key keeps it open across the rebuild.
+     */
+    conditionsSection(key, noun, logic) {
+      const write = (mutate, rebuild = false) => {
+        mutate(logic);
+        this.markDirty();
+        if (rebuild) {
+          this.renderCanvas();
+        }
+      };
+      const verb = "confirmation" === noun ? "Use" : "Send";
+      return this.section(
+        `conditions:${key}`,
+        "Conditions",
+        [
+          checkbox(
+            `Only ${verb.toLowerCase()} this ${noun} sometimes`,
+            logic.enabled,
+            (value) => write((live) => {
+              live.enabled = value;
+            }, true)
+          ),
+          logic.enabled ? el("div", {
+            children: [
+              el("div", {
+                class: "atfb-rule-head",
+                children: [
+                  el("span", { text: `${verb} it when` }),
+                  select(
+                    logic.match,
+                    [
+                      { value: "all", label: "all" },
+                      { value: "any", label: "any" }
+                    ],
+                    (value) => write((live) => {
+                      live.match = value;
+                    }, true)
+                  ),
+                  el("span", { text: "of these match:" })
+                ]
+              }),
+              ...this.logicRulesEditor(logic, write)
+            ]
+          }) : null
+        ],
+        // One that already has conditions opens showing them, for the same
+        // reason a conditioned field's logic section does.
+        logic.enabled
+      );
+    }
+    /** The conditional-logic editor. */
+    renderLogicSection(field) {
+      const logic = field.logic;
+      const liveLogic = () => this.liveField(field.id)?.logic;
+      const write = (mutate, rebuild = false) => {
+        const live = liveLogic();
+        if (!live) {
+          return;
+        }
+        mutate(live);
+        this.markDirty();
+        this.renderCanvas();
+        if (rebuild) {
+          this.renderInspector();
+        }
+      };
+      const editor = this.logicRulesEditor(logic, write, field.id);
       return this.section(
         `logic:${field.id}`,
         "Conditional logic",
@@ -7312,21 +7404,7 @@ var allTerrainFormsBuilder = function(exports) {
                   el("span", { text: "of these match:" })
                 ]
               }),
-              rules,
-              button(
-                "Add rule",
-                () => {
-                  write((live) => {
-                    live.rules.push({
-                      field: others[0]?.id ?? "",
-                      operator: "is",
-                      value: ""
-                    });
-                  }, true);
-                },
-                "ghost",
-                "plus-alt2"
-              )
+              ...editor
             ]
           }) : null
         ],
@@ -7852,6 +7930,7 @@ var allTerrainFormsBuilder = function(exports) {
                 notification.attachFiles = value;
                 this.markDirty();
               }),
+              this.conditionsSection(notification.id, "notification", notification.logic),
               button(
                 "Delete this notification",
                 () => {
@@ -8238,6 +8317,7 @@ var allTerrainFormsBuilder = function(exports) {
                 )
               ),
               detail,
+              this.conditionsSection(confirmation.id, "confirmation", confirmation.logic),
               button(
                 "Delete this confirmation",
                 () => {
