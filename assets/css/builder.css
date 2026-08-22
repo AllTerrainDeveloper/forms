@@ -22,7 +22,8 @@
 .atfb,
 .atfe,
 .atfs,
-.atfa {
+.atfa,
+.atfm {
 	/* The window's own surface. A window body must not paint a colour of its
 	   own choosing behind the shell's chrome. */
 	--atfb-bg: var( --os-window-bg, #fff );
@@ -132,7 +133,8 @@
 
 .atfb *,
 .atfe *,
-.atfs * {
+.atfs *,
+.atfm * {
 	box-sizing: border-box;
 }
 
@@ -155,7 +157,8 @@
 .atfb > *,
 .atfe > *,
 .atfs > *,
-.atfa > * {
+.atfa > *,
+.atfm > * {
 	--os-ui-accent: var( --atfb-accent );
 	--wp-admin-theme-color: var( --atfb-accent );
 	--os-ui-accent-strong: var( --atfb-accent-strong );
@@ -3493,110 +3496,288 @@ os-checkbox-label.atfb-check {
 /* The MailPoet window                                                         */
 /* -------------------------------------------------------------------------- */
 
-/* The hero wears MailPoet's orange — their brand, on the one surface that is
-   about them — and nothing else does: the working parts below are shell-token
-   furniture like every other window, so the integration reads as native to
-   both sides. The logo is MailPoet's own asset served from MailPoet's own
-   install, on a white chip because their wordmark is drawn for a light
-   ground and must survive every desktop theme. */
+/* The one window allowed a second brand. MailPoet's orange carries the hero,
+   the feature cards' icons and the primary call to action — the surfaces that
+   are *about* MailPoet — and the working furniture below them stays on the
+   shell's tokens, so the window reads as native to both sides at once. The
+   wordmark and symbol are the bundled brand PNGs, drawn for a light ground,
+   so anything that shows them sits on a white chip that survives every
+   desktop theme.
+
+   `.atfm` itself is part of the shared window-root rule at the top of this
+   file — that is what gives it the flex column and the bounded height that
+   let `.atfm__body` own the scrolling. Without it the *window body* scrolled,
+   and the shell-scroll pin snapped it back to the top on every wheel tick. */
 .atfm {
 	--atfm-brand: #fe5301;
+	--atfm-brand-deep: #d94500;
+	--atfm-soft: color-mix( in srgb, var( --atfm-brand ) 12%, transparent );
+	--atfm-line: color-mix( in srgb, var( --atfm-brand ) 38%, transparent );
+}
+
+/* The boot screen: MailPoet's symbol breathing in the middle of the window
+   while the one request runs — a landing, not a corner spinner. It doubles as
+   the error surface: the hub replaces its content with a sentence, and the
+   centering carries that too. */
+.atfm__boot {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 24px;
+	text-align: center;
+	color: var( --atfb-muted );
+	font-size: 13px;
+}
+
+.atfm__boot-mark {
+	display: grid;
+	place-items: center;
+	inline-size: 64px;
+	block-size: 64px;
+	border-radius: 18px;
+	background: #fff;
+	border: 1px solid color-mix( in srgb, #fe5301 30%, transparent );
+	box-shadow: 0 8px 26px color-mix( in srgb, #fe5301 25%, transparent );
+	animation: atfm-boot-breathe 1.6s ease-in-out infinite;
+}
+
+.atfm__boot-mark img {
+	display: block;
+	inline-size: 34px;
+	block-size: 34px;
+}
+
+@keyframes atfm-boot-breathe {
+	0%,
+	100% {
+		transform: scale( 1 );
+		box-shadow: 0 8px 26px color-mix( in srgb, #fe5301 25%, transparent );
+	}
+
+	50% {
+		transform: scale( 1.06 );
+		box-shadow: 0 10px 34px color-mix( in srgb, #fe5301 40%, transparent );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfm__boot-mark {
+		animation: none;
+	}
 }
 
 .atfm__body {
+	flex: 1 1 auto;
+	min-block-size: 0;
 	overflow-y: auto;
-	padding: 20px;
+	padding: 22px;
 	display: grid;
-	gap: 18px;
+	gap: 20px;
 	align-content: start;
 }
 
+/* ---- Hero ---------------------------------------------------------------- */
+
 .atfm-hero {
-	display: flex;
-	align-items: center;
-	gap: 18px;
-	padding: 22px;
-	border: 1px solid color-mix( in srgb, var( --atfm-brand ) 35%, transparent );
+	position: relative;
+	display: grid;
+	justify-items: center;
+	text-align: center;
+	gap: 14px;
+	padding: 34px 28px 30px;
+	border: 1px solid var( --atfm-line );
 	border-radius: var( --atfb-radius );
 	background:
-		radial-gradient( circle at 0% 0%, color-mix( in srgb, var( --atfm-brand ) 14%, transparent ), transparent 55% ),
+		radial-gradient( 110% 90% at 50% -20%, color-mix( in srgb, var( --atfm-brand ) 22%, transparent ), transparent 60% ),
+		radial-gradient( 60% 50% at 12% 110%, color-mix( in srgb, var( --atfm-brand ) 12%, transparent ), transparent 70% ),
+		radial-gradient( 60% 50% at 88% 110%, color-mix( in srgb, var( --atfm-brand ) 12%, transparent ), transparent 70% ),
 		var( --atfb-surface );
 }
 
 .atfm-hero__logo {
-	flex: 0 0 auto;
 	display: grid;
 	place-items: center;
-	padding: 12px 14px;
+	padding: 16px 26px;
 	background: #fff;
 	border-radius: calc( var( --atfb-radius ) - 2px );
-	box-shadow: 0 2px 10px rgba( 0, 0, 0, 0.12 );
+	box-shadow:
+		0 1px 0 rgba( 255, 255, 255, 0.6 ) inset,
+		0 10px 30px color-mix( in srgb, var( --atfm-brand ) 25%, transparent );
 }
 
 .atfm-hero__logo img {
 	display: block;
-	max-inline-size: 108px;
+	inline-size: 210px;
 	block-size: auto;
 }
 
 .atfm-hero__logo--glyph {
-	font-size: 34px;
+	font-size: 40px;
 }
 
-.atfm-hero__words h1 {
-	margin: 0 0 6px;
-	font-size: 18px;
-	line-height: 1.3;
-}
-
-.atfm-hero__words p {
+.atfm-hero h1 {
 	margin: 0;
-	max-inline-size: 52ch;
+	font-size: 22px;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.atfm-hero__words {
+	display: grid;
+	gap: 8px;
+	justify-items: center;
+}
+
+.atfm-hero__words > p {
+	margin: 0;
+	max-inline-size: 58ch;
+	font-size: 13px;
+	line-height: 1.6;
 	color: var( --atfb-muted );
 }
 
+/* The status pill: quiet proof the bridge is up. */
 .atfm-hero__status {
-	margin-block-start: 8px !important;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 5px 14px;
+	border-radius: 999px;
+	border: 1px solid var( --atfb-border );
+	background: var( --atfb-bg );
 	font-size: 12px;
 	font-weight: 600;
+}
+
+.atfm-hero__status::before {
+	content: '';
+	inline-size: 7px;
+	block-size: 7px;
+	border-radius: 50%;
+	background: var( --atfb-faint );
+}
+
+.atfm-hero__status.is-on::before {
+	background: var( --atfb-success );
+	box-shadow: 0 0 8px color-mix( in srgb, var( --atfb-success ) 60%, transparent );
+}
+
+/* ---- Why MailPoet -------------------------------------------------------- */
+
+.atfm-why {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 190px, 1fr ) );
+	gap: 10px;
+}
+
+.atfm-why__card {
+	display: grid;
+	gap: 6px;
+	align-content: start;
+	padding: 16px;
+	border: 1px solid var( --atfb-card-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+	transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.atfm-why__card:hover {
+	border-color: var( --atfm-line );
+	box-shadow: var( --os-ui-card-shadow-hover, 0 4px 16px rgba( 0, 0, 0, 0.08 ) );
+}
+
+.atfm-why__icon {
+	display: grid;
+	place-items: center;
+	inline-size: 34px;
+	block-size: 34px;
+	border-radius: 10px;
+	background: var( --atfm-soft );
+	font-size: 17px;
+}
+
+.atfm-why__card strong {
+	font-size: 13px;
+}
+
+.atfm-why__card p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
 	color: var( --atfb-muted );
 }
 
-.atfm-hero__status.is-on {
-	color: var( --atfb-success );
+/* The row of doors into MailPoet's own world. */
+.atfm-links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 4px 18px;
+	font-size: 12px;
 }
 
-.atfm-pitch {
-	display: grid;
-	gap: 12px;
-	justify-items: start;
-	padding: 4px 2px;
-}
-
-.atfm-pitch p {
-	margin: 0;
-	max-inline-size: 62ch;
-}
-
-/* The one control allowed to wear the brand: the step that brings MailPoet in. */
-.atfm-pitch__cta {
-	display: inline-block;
-	padding: 8px 18px;
-	border-radius: var( --atfb-radius-ctl );
-	background: var( --atfm-brand );
-	color: #fff;
+.atfm-links a {
+	color: var( --atfm-brand );
 	font-weight: 600;
 	text-decoration: none;
 }
 
-.atfm-pitch__cta:hover {
-	filter: brightness( 1.08 );
-	color: #fff;
+.atfm-links a:hover {
+	text-decoration: underline;
 }
+
+/* ---- How it works -------------------------------------------------------- */
+
+.atfm-steps {
+	display: flex;
+	align-items: stretch;
+	justify-content: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.atfm-step {
+	flex: 1 1 0;
+	min-inline-size: 150px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-surface );
+	border: 1px solid var( --atfb-border );
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfm-step__n {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	inline-size: 22px;
+	block-size: 22px;
+	border-radius: 50%;
+	background: var( --atfm-brand );
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+/* ---- Forms --------------------------------------------------------------- */
 
 .atfm-forms {
 	display: grid;
 	gap: 10px;
+}
+
+.atfm-forms__head {
+	display: grid;
+	gap: 2px;
 }
 
 .atfm-forms h2 {
@@ -3614,20 +3795,61 @@ os-checkbox-label.atfb-check {
 	border: 1px solid var( --atfb-card-border );
 	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
+	transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.atfm-form:not( .is-open ):hover {
+	border-color: var( --atfm-line );
+	box-shadow: var( --os-ui-card-shadow-hover, 0 4px 16px rgba( 0, 0, 0, 0.08 ) );
+}
+
+.atfm-form.is-open {
+	border-color: var( --atfm-line );
 }
 
 .atfm-form__head {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
+	gap: 12px;
 	padding: 12px 14px;
 }
 
+/* The symbol marks the connected ones — a badge, not a repetition of the
+   hero. White chip for the same light-ground reason as the wordmark. */
+.atfm-form__mark {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	inline-size: 34px;
+	block-size: 34px;
+	border-radius: 9px;
+	background: #fff;
+	border: 1px solid var( --atfb-border );
+}
+
+.atfm-form__mark img {
+	display: block;
+	inline-size: 20px;
+	block-size: 20px;
+}
+
+.atfm-form__mark--off {
+	background: var( --atfb-well );
+}
+
+.atfm-form__mark--off img {
+	filter: grayscale( 1 ) opacity( 0.45 );
+}
+
 .atfm-form__title {
+	flex: 1 1 auto;
 	display: grid;
 	gap: 2px;
 	min-inline-size: 0;
+}
+
+.atfm-form__title strong {
+	font-size: 13px;
 }
 
 .atfm-form__status {
@@ -3645,10 +3867,19 @@ os-checkbox-label.atfb-check {
 
 .atfm-form__body {
 	display: grid;
-	gap: 12px;
-	padding: 0 14px 14px;
+	gap: 14px;
+	padding: 14px;
 	border-block-start: 1px solid var( --atfb-border );
-	padding-block-start: 12px;
+}
+
+.atfm-form__section {
+	display: grid;
+	gap: 2px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var( --atfb-muted );
 }
 
 .atfm-lists {
@@ -3660,11 +3891,76 @@ os-checkbox-label.atfb-check {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	padding: 8px 10px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
 	font-size: 13px;
+	font-weight: 500;
 	cursor: pointer;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.atfm-list:hover {
+	border-color: var( --atfm-line );
+}
+
+.atfm-list:has( input:checked ) {
+	border-color: var( --atfm-brand );
+	background: var( --atfm-soft );
+}
+
+.atfm-list input {
+	accent-color: var( --atfm-brand );
 }
 
 .atfm-form__actions {
 	display: flex;
 	gap: 8px;
+}
+
+/* ---- The pitch, when MailPoet is absent ---------------------------------- */
+
+.atfm-pitch {
+	display: grid;
+	gap: 12px;
+	justify-items: center;
+	text-align: center;
+	padding: 6px 2px 2px;
+}
+
+.atfm-pitch p {
+	margin: 0;
+	max-inline-size: 62ch;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var( --atfb-muted );
+}
+
+/* The one control that wears the brand outright: the step that brings
+   MailPoet in. */
+.atfm-pitch__cta {
+	display: inline-block;
+	padding: 10px 26px;
+	border-radius: 999px;
+	background: linear-gradient( 180deg, var( --atfm-brand ), var( --atfm-brand-deep ) );
+	color: #fff;
+	font-size: 14px;
+	font-weight: 700;
+	text-decoration: none;
+	box-shadow: 0 6px 18px color-mix( in srgb, var( --atfm-brand ) 40%, transparent );
+	transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.atfm-pitch__cta:hover {
+	color: #fff;
+	transform: translateY( -1px );
+	box-shadow: 0 10px 24px color-mix( in srgb, var( --atfm-brand ) 50%, transparent );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.atfm-pitch__cta,
+	.atfm-form,
+	.atfm-why__card {
+		transition: none;
+	}
 }

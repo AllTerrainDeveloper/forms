@@ -103,28 +103,29 @@ function atf_mailpoet_lists() {
 }
 
 /**
- * MailPoet's own logo, served from MailPoet's own install.
+ * MailPoet's wordmark, shipped with this plugin.
  *
- * Their asset rather than a copy of it: the image only ever renders on a site
- * that has MailPoet installed, stays whatever their current release ships, and
- * nothing of theirs is redistributed by this plugin.
+ * Bundled brand assets rather than a file borrowed from MailPoet's install, so
+ * the window can introduce MailPoet properly *before* it is installed — which
+ * is exactly when the introduction matters most.
  *
  * @since 0.2.0
  *
- * @return string Empty when MailPoet (or the asset) is absent.
+ * @return string
  */
 function atf_mailpoet_logo_url() {
-	if ( ! atf_mailpoet_active() ) {
-		return '';
-	}
+	return ATF_URL . 'assets/img/mailpoet-logo.png';
+}
 
-	$relative = 'mailpoet/assets/img/mailpoet_logo_newsletter.png';
-
-	if ( ! file_exists( WP_PLUGIN_DIR . '/' . $relative ) ) {
-		return '';
-	}
-
-	return plugins_url( $relative );
+/**
+ * MailPoet's symbol — the M over the open envelope — for compact badges.
+ *
+ * @since 0.2.0
+ *
+ * @return string
+ */
+function atf_mailpoet_symbol_url() {
+	return ATF_URL . 'assets/img/mailpoet-symbol.png';
 }
 
 /**
@@ -140,6 +141,7 @@ function atf_rest_mailpoet() {
 			'active'   => atf_mailpoet_active(),
 			'lists'    => atf_mailpoet_lists(),
 			'logo'     => atf_mailpoet_logo_url(),
+			'symbol'   => atf_mailpoet_symbol_url(),
 			// Where "manage your lists" should send people: MailPoet's own
 			// admin when it is installed, the plugin installer when it is not.
 			'adminUrl' => atf_mailpoet_active()
