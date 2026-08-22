@@ -95,6 +95,8 @@ var allTerrainFormsWidget = function(exports) {
   }
   const api = {
     config: () => get("/config"),
+    /** MailPoet's presence, lists and logo — what the MailPoet window boots from. */
+    mailpoet: () => get("/mailpoet"),
     listForms: () => get("/forms"),
     /** The other side of the archive: the retired forms, same shape. */
     listArchivedForms: () => get("/forms?archived=1"),
