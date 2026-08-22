@@ -304,6 +304,18 @@ function atf_register_rest_routes() {
 
 	register_rest_route(
 		$ns,
+		'/mailpoet',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'atf_rest_mailpoet',
+			// Editing forms is the capability that matters: connecting a form
+			// to a list is editing what the form does on submit.
+			'permission_callback' => 'atf_rest_can_edit',
+		)
+	);
+
+	register_rest_route(
+		$ns,
 		'/track',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,

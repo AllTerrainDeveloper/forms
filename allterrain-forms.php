@@ -201,6 +201,7 @@ require_once ATF_DIR . 'includes/resume.php';
 require_once ATF_DIR . 'includes/notifications.php';
 require_once ATF_DIR . 'includes/confirmations.php';
 require_once ATF_DIR . 'includes/actions.php';
+require_once ATF_DIR . 'includes/mailpoet.php';
 require_once ATF_DIR . 'includes/entries.php';
 require_once ATF_DIR . 'includes/archive.php';
 require_once ATF_DIR . 'includes/analytics.php';

@@ -3488,3 +3488,183 @@ os-checkbox-label.atfb-check {
 		animation: none;
 	}
 }
+
+/* -------------------------------------------------------------------------- */
+/* The MailPoet window                                                         */
+/* -------------------------------------------------------------------------- */
+
+/* The hero wears MailPoet's orange — their brand, on the one surface that is
+   about them — and nothing else does: the working parts below are shell-token
+   furniture like every other window, so the integration reads as native to
+   both sides. The logo is MailPoet's own asset served from MailPoet's own
+   install, on a white chip because their wordmark is drawn for a light
+   ground and must survive every desktop theme. */
+.atfm {
+	--atfm-brand: #fe5301;
+}
+
+.atfm__body {
+	overflow-y: auto;
+	padding: 20px;
+	display: grid;
+	gap: 18px;
+	align-content: start;
+}
+
+.atfm-hero {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 22px;
+	border: 1px solid color-mix( in srgb, var( --atfm-brand ) 35%, transparent );
+	border-radius: var( --atfb-radius );
+	background:
+		radial-gradient( circle at 0% 0%, color-mix( in srgb, var( --atfm-brand ) 14%, transparent ), transparent 55% ),
+		var( --atfb-surface );
+}
+
+.atfm-hero__logo {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	padding: 12px 14px;
+	background: #fff;
+	border-radius: calc( var( --atfb-radius ) - 2px );
+	box-shadow: 0 2px 10px rgba( 0, 0, 0, 0.12 );
+}
+
+.atfm-hero__logo img {
+	display: block;
+	max-inline-size: 108px;
+	block-size: auto;
+}
+
+.atfm-hero__logo--glyph {
+	font-size: 34px;
+}
+
+.atfm-hero__words h1 {
+	margin: 0 0 6px;
+	font-size: 18px;
+	line-height: 1.3;
+}
+
+.atfm-hero__words p {
+	margin: 0;
+	max-inline-size: 52ch;
+	color: var( --atfb-muted );
+}
+
+.atfm-hero__status {
+	margin-block-start: 8px !important;
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --atfb-muted );
+}
+
+.atfm-hero__status.is-on {
+	color: var( --atfb-success );
+}
+
+.atfm-pitch {
+	display: grid;
+	gap: 12px;
+	justify-items: start;
+	padding: 4px 2px;
+}
+
+.atfm-pitch p {
+	margin: 0;
+	max-inline-size: 62ch;
+}
+
+/* The one control allowed to wear the brand: the step that brings MailPoet in. */
+.atfm-pitch__cta {
+	display: inline-block;
+	padding: 8px 18px;
+	border-radius: var( --atfb-radius-ctl );
+	background: var( --atfm-brand );
+	color: #fff;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.atfm-pitch__cta:hover {
+	filter: brightness( 1.08 );
+	color: #fff;
+}
+
+.atfm-forms {
+	display: grid;
+	gap: 10px;
+}
+
+.atfm-forms h2 {
+	margin: 0;
+	font-size: 14px;
+}
+
+.atfm-hint {
+	margin: 0;
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfm-form {
+	border: 1px solid var( --atfb-card-border );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-bg );
+}
+
+.atfm-form__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 12px 14px;
+}
+
+.atfm-form__title {
+	display: grid;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.atfm-form__status {
+	font-size: 11px;
+	color: var( --atfb-muted );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.atfm-form__status.is-on {
+	color: var( --atfb-success );
+	font-weight: 600;
+}
+
+.atfm-form__body {
+	display: grid;
+	gap: 12px;
+	padding: 0 14px 14px;
+	border-block-start: 1px solid var( --atfb-border );
+	padding-block-start: 12px;
+}
+
+.atfm-lists {
+	display: grid;
+	gap: 6px;
+}
+
+.atfm-list {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.atfm-form__actions {
+	display: flex;
+	gap: 8px;
+}

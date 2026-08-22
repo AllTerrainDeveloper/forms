@@ -48,6 +48,9 @@ import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
+// For its side effects: the MailPoet window rides this bundle the same way the
+// standalone Theme Studio does, and mounts itself when its root is present.
+import './mailpoet-hub';
 import { SUCCESS_STYLE_ICONS, defaultSuccessScreen, normalizeSuccessScreen, playSuccessEffects, renderSuccessScreen } from './success';
 import { openFormulaEditor } from './formula-editor';
 import { compileRecipe, describeRecipe, openValidationEditor, parseRecipe } from './validation-editor';

@@ -184,6 +184,28 @@ function atf_register_shell_surfaces() {
 		)
 	);
 
+	atf_shell_call(
+		'register_window',
+		'allterrain-forms-mailpoet',
+		array(
+			'title'        => __( 'AllTerrain Forms — MailPoet', 'allterrain-forms' ),
+			'icon'         => 'dashicons-email-alt',
+			'template'     => 'atf_render_mailpoet_template',
+			// Rides the builder bundle for the same reason the Theme Studio
+			// does: it shares the API client and the control helpers, and a
+			// separate bundle for a window opened occasionally would cost more
+			// than it saves.
+			'script'       => 'allterrain-forms-builder',
+			'style'        => 'allterrain-forms-builder',
+			'width'        => 880,
+			'height'       => 760,
+			'min_width'    => 560,
+			'min_height'   => 440,
+			'placement'    => 'none',
+			'capabilities' => array( 'atf_edit_forms' ),
+		)
+	);
+
 	// The eye button in the builder window's title bar, which opens the form's
 	// real front-end preview as a paired window beside it. Registering the
 	// *script* here is what makes the button paint for a session that was
@@ -328,6 +350,25 @@ function atf_render_analytics_template() {
 			<span class="atfa__loading"><?php esc_html_e( 'Loading analytics…', 'allterrain-forms' ); ?></span>
 		</div>
 		<div class="atfa__body" data-atfa-body></div>
+	</div>
+	<?php
+}
+
+/**
+ * The MailPoet window's body markup.
+ *
+ * @since 0.2.0
+ *
+ * @return void
+ */
+function atf_render_mailpoet_template() {
+	?>
+	<div class="atfm" data-atfm-root>
+		<div class="atfm__bar" data-atfm-bar>
+			<os-spinner preset="inline"></os-spinner>
+			<span class="atfm__loading"><?php esc_html_e( 'Checking MailPoet…', 'allterrain-forms' ); ?></span>
+		</div>
+		<div class="atfm__body" data-atfm-body></div>
 	</div>
 	<?php
 }
