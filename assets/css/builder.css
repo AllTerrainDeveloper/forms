@@ -3384,6 +3384,11 @@ os-checkbox-label.atfb-check {
 	border: 1px solid var( --atfb-border );
 	border-radius: var( --atfb-radius );
 	background: var( --atfb-bg );
+	/* A <button> does not inherit ink or type — the UA gives it black and its
+	   own font — so on a dark desktop theme every monochrome glyph (¶, ✓, ⌨)
+	   vanished into the tile. Say inherit, explicitly. */
+	color: inherit;
+	font: inherit;
 	cursor: pointer;
 	transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }

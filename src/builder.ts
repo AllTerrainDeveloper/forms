@@ -935,14 +935,20 @@ export class Builder {
 	 * happen before the *next* edit.
 	 */
 	private rebindCanvas(): void {
-		// Rebinding exists for the Build tab: its field cards close over schema
-		// objects that an adopted save response has just replaced. The other
-		// tabs hold no cards — and the Theme tab in particular holds a mounted
-		// studio with a live preview, a scroll position and half-typed test
-		// answers. Rebuilding that after every autosave threw all of it away to
-		// fix a problem it does not have. The mounted panes keep writing through
-		// `this.schema`, which now points at the adopted copy either way.
-		if ( this.tab !== 'build' ) {
+		// Rebinding exists for every pane whose controls close over schema
+		// objects that an adopted save response has just replaced: the Build
+		// tab's field cards, and the confirmations and notifications lists,
+		// whose Name boxes and condition editors each hold the object they
+		// were rendered from. Typing into any of them after an autosave would
+		// otherwise update an object nothing serialises — which is exactly how
+		// a confirmation's freshly added rule managed to vanish without a
+		// single error.
+		//
+		// The Theme tab stays out: it holds a mounted studio with a live
+		// preview, a scroll position and half-typed test answers, and its
+		// controls write through `this.schema` — rebuilding it after every
+		// autosave threw all of that away to fix a problem it does not have.
+		if ( 'build' !== this.tab && 'confirm' !== this.tab && 'notify' !== this.tab ) {
 			return;
 		}
 
@@ -4221,43 +4227,25 @@ export class Builder {
 		return rows;
 	}
 
-	/** The conditional-logic editor. */
-	private renderLogicSection( field: Field ): HTMLElement {
-		const logic = field.logic;
-
-		// Handlers below write to the logic block of the field as it exists in
-		// the *current* schema, resolved at write time — `logic` above is only
-		// what this render paints from, and a save orphans it along with the
-		// field it belongs to. The same trap `update()` avoids.
-		const liveLogic = () => this.liveField( field.id )?.logic;
-
-		/**
-		 * Writes to the live logic and repaints both views of it.
-		 *
-		 * The canvas card carries the same condition as this panel, so every
-		 * write repaints the canvas too — before this, a rule edited here went
-		 * stale on the card until something else happened to redraw it. The
-		 * inspector itself is rebuilt only when asked: a keystroke in the
-		 * value box must not destroy the box mid-word.
-		 */
-		const write = ( mutate: ( live: NonNullable< ReturnType< typeof liveLogic > > ) => void, rebuild = false ) => {
-			const live = liveLogic();
-
-			if ( ! live ) {
-				return;
-			}
-
-			mutate( live );
-			this.markDirty();
-			this.renderCanvas();
-
-			if ( rebuild ) {
-				this.renderInspector();
-			}
-		};
-
+	/**
+	 * The rule cards, joiners and Add-rule button shared by every logic editor.
+	 *
+	 * Fields, confirmations and notifications all carry the same `Logic`
+	 * block. What differs is where the live copy lives and what a write must
+	 * repaint, so the write arrives as a callback; `exclude` keeps a field
+	 * from offering itself as its own condition.
+	 *
+	 * Returns the rule stack and the Add-rule button as separate elements so
+	 * each caller can place its own sentence between the enable switch and
+	 * the rules.
+	 */
+	private logicRulesEditor(
+		logic: Logic,
+		write: ( mutate: ( live: Logic ) => void, rebuild?: boolean ) => void,
+		exclude = ''
+	): HTMLElement[] {
 		const others = ( this.schema?.fields ?? [] ).filter(
-			( candidate ) => candidate.id !== field.id && candidate.type !== 'page_break'
+			( candidate ) => candidate.id !== exclude && candidate.type !== 'page_break'
 		);
 
 		/**
@@ -4409,6 +4397,131 @@ export class Builder {
 			rules.append( ruleCard( rule, index ) );
 		} );
 
+		const add = button(
+			'Add rule',
+			() => {
+				write( ( live ) => {
+					live.rules.push( {
+						field: others[ 0 ]?.id ?? '',
+						operator: 'is',
+						value: '',
+					} );
+				}, true );
+			},
+			'ghost',
+			'plus-alt2'
+		);
+
+		return [ rules, add ];
+	}
+
+	/**
+	 * The conditions section for a confirmation or a notification.
+	 *
+	 * Fields decide their own visibility through `renderLogicSection`; these
+	 * two decide whether they *fire* — the same `Logic` block without the
+	 * show/hide half, evaluated by `atf_logic_conditions_met()` on submit.
+	 * The copy above the confirmations list has promised "the first one whose
+	 * conditions match" since the list existed; this is the editor that
+	 * promise was missing.
+	 *
+	 * Writes mutate the object in place, the way every other control on
+	 * these panes does — the pane is rebuilt from the schema on structural
+	 * changes and the `section()` key keeps it open across the rebuild.
+	 */
+	private conditionsSection( key: string, noun: 'confirmation' | 'notification', logic: Logic ): HTMLElement {
+		const write = ( mutate: ( live: Logic ) => void, rebuild = false ) => {
+			mutate( logic );
+			this.markDirty();
+
+			if ( rebuild ) {
+				this.renderCanvas();
+			}
+		};
+
+		const verb = 'confirmation' === noun ? 'Use' : 'Send';
+
+		return this.section(
+			`conditions:${ key }`,
+			'Conditions',
+			[
+				checkbox(
+					`Only ${ verb.toLowerCase() } this ${ noun } sometimes`,
+					logic.enabled,
+					( value ) =>
+						write( ( live ) => {
+							live.enabled = value;
+						}, true )
+				),
+				logic.enabled
+					? el( 'div', {
+							children: [
+								el( 'div', {
+									class: 'atfb-rule-head',
+									children: [
+										el( 'span', { text: `${ verb } it when` } ),
+										select(
+											logic.match,
+											[
+												{ value: 'all', label: 'all' },
+												{ value: 'any', label: 'any' },
+											],
+											( value ) =>
+												write( ( live ) => {
+													live.match = value as 'all' | 'any';
+												}, true )
+										),
+										el( 'span', { text: 'of these match:' } ),
+									],
+								} ),
+								...this.logicRulesEditor( logic, write ),
+							],
+					  } )
+					: null,
+			],
+			// One that already has conditions opens showing them, for the same
+			// reason a conditioned field's logic section does.
+			logic.enabled
+		);
+	}
+
+	/** The conditional-logic editor. */
+	private renderLogicSection( field: Field ): HTMLElement {
+		const logic = field.logic;
+
+		// Handlers below write to the logic block of the field as it exists in
+		// the *current* schema, resolved at write time — `logic` above is only
+		// what this render paints from, and a save orphans it along with the
+		// field it belongs to. The same trap `update()` avoids.
+		const liveLogic = () => this.liveField( field.id )?.logic;
+
+		/**
+		 * Writes to the live logic and repaints both views of it.
+		 *
+		 * The canvas card carries the same condition as this panel, so every
+		 * write repaints the canvas too — before this, a rule edited here went
+		 * stale on the card until something else happened to redraw it. The
+		 * inspector itself is rebuilt only when asked: a keystroke in the
+		 * value box must not destroy the box mid-word.
+		 */
+		const write = ( mutate: ( live: Logic ) => void, rebuild = false ) => {
+			const live = liveLogic();
+
+			if ( ! live ) {
+				return;
+			}
+
+			mutate( live );
+			this.markDirty();
+			this.renderCanvas();
+
+			if ( rebuild ) {
+				this.renderInspector();
+			}
+		};
+
+		const editor = this.logicRulesEditor( logic, write, field.id );
+
 		return this.section(
 			`logic:${ field.id }`,
 			'Conditional logic',
@@ -4450,21 +4563,7 @@ export class Builder {
 										el( 'span', { text: 'of these match:' } ),
 									],
 								} ),
-								rules,
-								button(
-									'Add rule',
-									() => {
-										write( ( live ) => {
-											live.rules.push( {
-												field: others[ 0 ]?.id ?? '',
-												operator: 'is',
-												value: '',
-											} );
-										}, true );
-									},
-									'ghost',
-									'plus-alt2'
-								),
+								...editor,
 							],
 					  } )
 					: null,
@@ -5075,6 +5174,7 @@ export class Builder {
 							notification.attachFiles = value;
 							this.markDirty();
 						} ),
+						this.conditionsSection( notification.id, 'notification', notification.logic ),
 						button(
 							'Delete this notification',
 							() => {
@@ -5539,6 +5639,7 @@ export class Builder {
 							)
 						),
 						detail,
+						this.conditionsSection( confirmation.id, 'confirmation', confirmation.logic ),
 						button(
 							'Delete this confirmation',
 							() => {
