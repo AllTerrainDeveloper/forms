@@ -99,6 +99,28 @@ describe( 'the rest of the menu', () => {
 	} );
 } );
 
+describe( 'the MailPoet row', () => {
+	it( 'is offered to somebody who may edit forms', () => {
+		// Present whether or not MailPoet is installed: the window it opens
+		// either configures the integration or makes the case for it, and the
+		// row is how anyone discovers either.
+		expect( titles( { canEdit: true, canRead: true } ) ).toContain( 'MailPoet' );
+	} );
+
+	it( 'is absent for somebody who may only read entries', () => {
+		// Connecting a form to a list is editing what the form does on submit.
+		expect( titles( { canEdit: false, canRead: true } ) ).not.toContain( 'MailPoet' );
+	} );
+
+	it( 'opens the MailPoet window', () => {
+		const row = submenuFor( config( { canEdit: true, canRead: true } ) ).find(
+			( candidate ) => candidate.title === 'MailPoet'
+		);
+
+		expect( row?.windowId ).toBe( 'allterrain-forms-mailpoet' );
+	} );
+} );
+
 describe( 'the import row', () => {
 	const admin = { canEdit: true, canRead: true, adminUrl: 'http://example.com/wp-admin/' };
 	const location = window.location;

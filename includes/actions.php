@@ -91,6 +91,9 @@ function atf_run_action( $action, $schema, $values, $entry_id, $form_id, $reques
 
 		case 'webhook':
 			return atf_action_webhook( $action['settings'], $context );
+
+		case 'mailpoet':
+			return atf_action_mailpoet( $action, $values );
 	}
 
 	/**

@@ -14,6 +14,7 @@ import type {
 	Entry,
 	Form,
 	FormSummary,
+	MailPoetInfo,
 	AnalyticsReport,
 	DemoStatus,
 	MergeTagGroup,
@@ -203,6 +204,9 @@ export function withObjectOverrides( form: Form ): Form {
 
 export const api = {
 	config: () => get< BuilderConfig >( '/config' ),
+
+	/** MailPoet's presence, lists and logo — what the MailPoet window boots from. */
+	mailpoet: () => get< MailPoetInfo >( '/mailpoet' ),
 
 	listForms: () => get< FormSummary[] >( '/forms' ),
 

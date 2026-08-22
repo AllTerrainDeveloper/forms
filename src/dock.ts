@@ -60,6 +60,7 @@ const ENTRIES = 'allterrain-forms-entries';
 const THEMES = 'allterrain-forms-themes';
 const ANALYTICS = 'allterrain-forms-analytics';
 const IMPORT = 'allterrain-forms-import';
+const MAILPOET = 'allterrain-forms-mailpoet';
 
 /** Opens a window through the shell. */
 function open( id: string ): void {
@@ -169,6 +170,18 @@ export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 			url: '',
 			onSelect: () => open( THEMES ),
 			windowId: THEMES,
+		} );
+	}
+
+	// Present whether or not MailPoet is: with it installed the window is the
+	// integration hub, without it the window makes the case and points at the
+	// installer. The row is how anyone discovers either.
+	if ( config?.canEdit ) {
+		submenu.push( {
+			title: 'MailPoet',
+			url: '',
+			onSelect: () => open( MAILPOET ),
+			windowId: MAILPOET,
 		} );
 	}
 

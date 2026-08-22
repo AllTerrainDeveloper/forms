@@ -95,6 +95,8 @@ var allTerrainFormsDock = function(exports) {
   }
   const api = {
     config: () => get("/config"),
+    /** MailPoet's presence, lists and logo — what the MailPoet window boots from. */
+    mailpoet: () => get("/mailpoet"),
     listForms: () => get("/forms"),
     /** The other side of the archive: the retired forms, same shape. */
     listArchivedForms: () => get("/forms?archived=1"),
@@ -419,6 +421,7 @@ var allTerrainFormsDock = function(exports) {
   const THEMES = "allterrain-forms-themes";
   const ANALYTICS = "allterrain-forms-analytics";
   const IMPORT = "allterrain-forms-import";
+  const MAILPOET = "allterrain-forms-mailpoet";
   function open(id) {
     shell()?.openWindow?.(id, { source: "dock" });
   }
@@ -468,6 +471,14 @@ var allTerrainFormsDock = function(exports) {
         url: "",
         onSelect: () => open(THEMES),
         windowId: THEMES
+      });
+    }
+    if (config2?.canEdit) {
+      submenu.push({
+        title: "MailPoet",
+        url: "",
+        onSelect: () => open(MAILPOET),
+        windowId: MAILPOET
       });
     }
     if (config2?.canEdit && config2?.adminUrl) {

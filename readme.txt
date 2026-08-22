@@ -81,6 +81,13 @@ Show a message, redirect, or send visitors to a page — conditionally, per
 answer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and hook
 `atf_entry_created` for anything else.
 
+= Grows your MailPoet lists =
+
+With MailPoet installed, any form can subscribe visitors to your lists —
+bound to an opt-in box they actually tick, with MailPoet's own double opt-in
+confirming every address. Map the email and name fields, pick the lists, done.
+The kind of integration that is a paid addon elsewhere, free here.
+
 Every email and confirmation has an **Insert a value** button that lists your
 own questions by the label you wrote — not `{field:f2}` — with a live preview
 of the finished text.

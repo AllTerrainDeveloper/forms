@@ -279,6 +279,22 @@ export interface Template {
 }
 
 /** Everything the builder needs, from `/config`. */
+/** One subscribable MailPoet list. */
+export interface MailPoetList {
+	id: number;
+	name: string;
+}
+
+/** What `/mailpoet` answers: MailPoet's presence and what it offers. */
+export interface MailPoetInfo {
+	active: boolean;
+	lists: MailPoetList[];
+	/** MailPoet's own logo, served from its install; empty when absent. */
+	logo: string;
+	/** MailPoet's lists admin when installed, the plugin installer when not. */
+	adminUrl: string;
+}
+
 export interface BuilderConfig {
 	fieldTypes: FieldType[];
 	groups: Record< string, string >;
