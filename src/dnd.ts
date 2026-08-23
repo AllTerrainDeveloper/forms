@@ -76,6 +76,16 @@ class FallbackDragManager implements DragManagerApi {
 			this.lastEndMs = Date.now();
 		};
 
+		// The same lifecycle events the shell's manager broadcasts, so code
+		// that draws during a drag — the builder's insertion gap — listens to
+		// one event stream and works under either manager, instead of the
+		// fallback silently never showing what the shell shows.
+		const emit = ( name: 'os.drag.start' | 'os.drag.move' | 'os.drag.end', at?: PointerEvent ) => {
+			document.dispatchEvent(
+				new CustomEvent( name, { detail: { payload, clientX: at?.clientX, clientY: at?.clientY } } )
+			);
+		};
+
 		const session: DragSession = {
 			payload,
 			isFinished: () => finished,
@@ -86,6 +96,11 @@ class FallbackDragManager implements DragManagerApi {
 
 				finished = true;
 				cleanup();
+
+				if ( lifted ) {
+					emit( 'os.drag.end' );
+				}
+
 				opts.onCancel?.( reason );
 			},
 		};
@@ -108,6 +123,7 @@ class FallbackDragManager implements DragManagerApi {
 			document.body.appendChild( ghost );
 
 			position( event );
+			emit( 'os.drag.start', event );
 		};
 
 		const position = ( event: PointerEvent ) => {
@@ -138,6 +154,11 @@ class FallbackDragManager implements DragManagerApi {
 				hovered = next;
 				hovered?.onEnter?.( session );
 			}
+
+			// After the enter/leave bookkeeping, so a listener drawing on this
+			// event always sees the target already entered — same order as the
+			// shell.
+			emit( 'os.drag.move', event );
 		};
 
 		const onUp = ( event: PointerEvent ) => {
@@ -164,10 +185,15 @@ class FallbackDragManager implements DragManagerApi {
 			if ( target && target.accept( payload ) ) {
 				opts.onCommit?.( target );
 				void target.onDrop( session, { clientX: event.clientX, clientY: event.clientY } );
+				// End is emitted *after* the drop, so a drop handler can still
+				// read whatever state the move events built up — the builder's
+				// insertion gap depends on this ordering.
+				emit( 'os.drag.end', event );
 
 				return;
 			}
 
+			emit( 'os.drag.end', event );
 			opts.onCancel?.( target ? 'rejected' : 'no-target' );
 		};
 
@@ -325,6 +351,8 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
 		return payload && payloadTypes.includes( payload.type ) ? payload.source : null;
 	};
 
+	const preventSelection = ( event: Event ) => event.preventDefault();
+
 	const onStart = ( event: Event ) => {
 		const source = sourceOf( event );
 
@@ -334,6 +362,15 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
 			// manager sets at lift — the shell moves the ghost but knows
 			// nothing about this plugin's cursors.
 			document.body.classList.add( 'atf-drag-active' );
+			// A drag is not a selection. The press already anchored one during
+			// the pre-lift travel, and every further move would sweep it across
+			// the page behind the ghost — so the anchor goes, and `selectstart`
+			// is refused for the duration in case the browser tries to re-arm
+			// it mid-drag. The `atf-drag-active` CSS turns off `user-select`
+			// too; belt and braces, because a half-page blue smear reads as the
+			// drag having gone wrong.
+			window.getSelection()?.removeAllRanges();
+			document.addEventListener( 'selectstart', preventSelection );
 		}
 	};
 	const onEnd = ( event: Event ) => {
@@ -342,6 +379,7 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
 		if ( source ) {
 			source.classList.remove( 'atf-is-dragging' );
 			document.body.classList.remove( 'atf-drag-active' );
+			document.removeEventListener( 'selectstart', preventSelection );
 		}
 	};
 
@@ -351,6 +389,7 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
 	return () => {
 		document.removeEventListener( 'os.drag.start', onStart );
 		document.removeEventListener( 'os.drag.end', onEnd );
+		document.removeEventListener( 'selectstart', preventSelection );
 	};
 }
 
@@ -366,6 +405,13 @@ export function watchShellDragVisuals( payloadTypes: string[] ): () => void {
  * would snap the element's corner to the cursor at lift time, which reads as the
  * thing jumping out from under the pointer.
  */
+/**
+ * The plugin's style-scope roots. Everything this plugin draws sits under one
+ * of these classes, which carry the custom properties, font size and line
+ * height its CSS assumes.
+ */
+const SCOPE_CLASSES = [ 'atfb', 'atfe', 'atfs', 'atfm' ];
+
 export function buildPayload(
 	type: string,
 	source: HTMLElement,
@@ -374,6 +420,28 @@ export function buildPayload(
 	ghost?: HTMLElement
 ): DragPayload {
 	const rect = source.getBoundingClientRect();
+
+	// With no ghost supplied, the manager clones the source — and appends the
+	// clone to `document.body`, outside the plugin's scope root, where every
+	// custom property and the root's type settings stop applying: the ghost's
+	// fonts and colours visibly shift the moment it is lifted. So the default
+	// ghost is built here instead — the same clone, wrapped in an element
+	// carrying the scope class the source lived under, with the wrapper's own
+	// layout neutralised in CSS (`.atf-ghost-scope`).
+	if ( ! ghost ) {
+		const scope = SCOPE_CLASSES.find( ( cls ) => source.closest( `.${ cls }` ) );
+
+		if ( scope ) {
+			const clone = source.cloneNode( true ) as HTMLElement;
+
+			clone.style.transition = '';
+			clone.style.transform = '';
+
+			ghost = document.createElement( 'div' );
+			ghost.className = `${ scope } atf-ghost-scope`;
+			ghost.appendChild( clone );
+		}
+	}
 
 	// The ghost is sized here rather than in CSS. A `position: fixed` element
 	// with no width resolves against the containing block — the viewport — so a

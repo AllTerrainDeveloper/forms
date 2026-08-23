@@ -36,6 +36,11 @@ var allTerrainFormsBuilder = function(exports) {
         this.active = null;
         this.lastEndMs = Date.now();
       };
+      const emit = (name, at) => {
+        document.dispatchEvent(
+          new CustomEvent(name, { detail: { payload, clientX: at?.clientX, clientY: at?.clientY } })
+        );
+      };
       const session = {
         payload,
         isFinished: () => finished,
@@ -45,6 +50,9 @@ var allTerrainFormsBuilder = function(exports) {
           }
           finished = true;
           cleanup();
+          if (lifted) {
+            emit("os.drag.end");
+          }
           opts.onCancel?.(reason);
         }
       };
@@ -60,6 +68,7 @@ var allTerrainFormsBuilder = function(exports) {
         ghost.style.width = `${rect.width}px`;
         document.body.appendChild(ghost);
         position(event);
+        emit("os.drag.start", event);
       };
       const position = (event) => {
         if (ghost) {
@@ -83,6 +92,7 @@ var allTerrainFormsBuilder = function(exports) {
           hovered = next;
           hovered?.onEnter?.(session);
         }
+        emit("os.drag.move", event);
       };
       const onUp = (event) => {
         if (finished) {
@@ -100,8 +110,10 @@ var allTerrainFormsBuilder = function(exports) {
         if (target && target.accept(payload)) {
           opts.onCommit?.(target);
           void target.onDrop(session, { clientX: event.clientX, clientY: event.clientY });
+          emit("os.drag.end", event);
           return;
         }
+        emit("os.drag.end", event);
         opts.onCancel?.(target ? "rejected" : "no-target");
       };
       const onCancel = () => session.cancel("pointercancel");
@@ -198,11 +210,14 @@ var allTerrainFormsBuilder = function(exports) {
       const payload = event.detail?.payload;
       return payload && payloadTypes.includes(payload.type) ? payload.source : null;
     };
+    const preventSelection = (event) => event.preventDefault();
     const onStart = (event) => {
       const source = sourceOf(event);
       if (source) {
         source.classList.add("atf-is-dragging");
         document.body.classList.add("atf-drag-active");
+        window.getSelection()?.removeAllRanges();
+        document.addEventListener("selectstart", preventSelection);
       }
     };
     const onEnd = (event) => {
@@ -210,6 +225,7 @@ var allTerrainFormsBuilder = function(exports) {
       if (source) {
         source.classList.remove("atf-is-dragging");
         document.body.classList.remove("atf-drag-active");
+        document.removeEventListener("selectstart", preventSelection);
       }
     };
     document.addEventListener("os.drag.start", onStart);
@@ -217,10 +233,23 @@ var allTerrainFormsBuilder = function(exports) {
     return () => {
       document.removeEventListener("os.drag.start", onStart);
       document.removeEventListener("os.drag.end", onEnd);
+      document.removeEventListener("selectstart", preventSelection);
     };
   }
+  const SCOPE_CLASSES = ["atfb", "atfe", "atfs", "atfm"];
   function buildPayload(type, source, data, origin, ghost) {
     const rect = source.getBoundingClientRect();
+    if (!ghost) {
+      const scope = SCOPE_CLASSES.find((cls) => source.closest(`.${cls}`));
+      if (scope) {
+        const clone = source.cloneNode(true);
+        clone.style.transition = "";
+        clone.style.transform = "";
+        ghost = document.createElement("div");
+        ghost.className = `${scope} atf-ghost-scope`;
+        ghost.appendChild(clone);
+      }
+    }
     if (ghost) {
       ghost.style.width = `${Math.round(rect.width)}px`;
       ghost.style.maxWidth = `${Math.round(rect.width)}px`;
@@ -6549,25 +6578,158 @@ var allTerrainFormsBuilder = function(exports) {
      * canvas, or from a *second* builder window, which is what the shell's
      * shared drag manager buys and an iframe could not.
      */
+    /**
+     * The animated insertion gap for one drop container — the canvas list, or
+     * a repeater's zone.
+     *
+     * While a field payload is over the container, a slot the size of the
+     * dragged card follows the pointer, the dragged card leaves the flow, and
+     * the other cards slide out of the way with first/last-position
+     * transforms — so the list previews, in real time, exactly the layout the
+     * drop will produce.
+     *
+     * @param container    The drop target element; the gap shows while it has
+     *                     the `is-dropping` class.
+     * @param itemSelector The cards that reflow, `.atfb-card` or `.atfb-subcard`.
+     * @param findCard     Resolves a dragged field id to its card in this
+     *                     container's world, or null for one it doesn't hold.
+     * @param accepts      Optional payload gate mirroring the drop target's
+     *                     own `accept()`, so a drag the target will refuse
+     *                     never opens a gap it cannot honour.
+     * @return `enter`/`leave`/`drop` to wire into the drop target, and a
+     *         `teardown` for the document-level listeners.
+     */
+    gapAnimator(container, itemSelector, findCard, accepts) {
+      const marker = el("div", { class: "atfb-marker", attrs: { "aria-hidden": "true" } });
+      let shownIndex = null;
+      let liftedCard = null;
+      let slotSize = 0;
+      const restore = () => {
+        marker.remove();
+        liftedCard?.classList.remove("atfb-lifted");
+        liftedCard = null;
+        shownIndex = null;
+      };
+      const moveAnimated = (mutate) => {
+        const cards = Array.from(container.querySelectorAll(itemSelector));
+        const before = new Map(
+          cards.filter((card) => !card.classList.contains("atfb-lifted")).map((card) => [card, card.getBoundingClientRect().top])
+        );
+        mutate();
+        for (const card of cards) {
+          card.style.transition = "none";
+          card.style.transform = "";
+        }
+        const moved = cards.filter((card) => {
+          const from = before.get(card);
+          if (from === void 0 || !card.isConnected || card.classList.contains("atfb-lifted")) {
+            return false;
+          }
+          const delta = from - card.getBoundingClientRect().top;
+          if (Math.abs(delta) < 0.5) {
+            return false;
+          }
+          card.style.transform = `translateY(${delta}px)`;
+          return true;
+        });
+        void container.offsetHeight;
+        for (const card of cards) {
+          if (!moved.includes(card)) {
+            card.style.transition = "";
+            continue;
+          }
+          card.style.transition = "transform 160ms ease";
+          card.style.transform = "";
+          card.addEventListener(
+            "transitionend",
+            () => {
+              card.style.transition = "";
+            },
+            { once: true }
+          );
+        }
+      };
+      const onMove = (event) => {
+        const detail = event.detail;
+        if (detail?.payload?.type !== FIELD_PAYLOAD_TYPE || !container.classList.contains("is-dropping")) {
+          return;
+        }
+        if (accepts && !accepts(detail.payload.data ?? {})) {
+          return;
+        }
+        const fieldId = detail.payload.data?.fieldId;
+        const dragged = typeof fieldId === "string" ? findCard(fieldId) : null;
+        const index = insertionIndex(container, itemSelector, detail.clientY ?? 0, dragged ?? void 0);
+        if (index === shownIndex && marker.isConnected) {
+          return;
+        }
+        shownIndex = index;
+        moveAnimated(() => {
+          if (dragged && dragged !== liftedCard) {
+            liftedCard?.classList.remove("atfb-lifted");
+            dragged.classList.add("atfb-lifted");
+            liftedCard = dragged;
+          }
+          marker.style.blockSize = `${Math.max(8, Math.round(slotSize))}px`;
+          const cards = Array.from(container.querySelectorAll(itemSelector)).filter(
+            (card) => card !== dragged
+          );
+          if (index >= cards.length) {
+            container.append(marker);
+          } else {
+            cards[index].before(marker);
+          }
+        });
+      };
+      const onEnd = () => {
+        container.classList.remove("is-dropping");
+        window.setTimeout(() => moveAnimated(restore), 0);
+      };
+      document.addEventListener("os.drag.move", onMove);
+      document.addEventListener("os.drag.end", onEnd);
+      return {
+        enter: (fieldId) => {
+          const card = fieldId ? findCard(fieldId) : null;
+          slotSize = card && !card.classList.contains("atfb-lifted") ? card.getBoundingClientRect().height : slotSize || 44;
+        },
+        leave: () => moveAnimated(restore),
+        drop: (clientY, source) => {
+          const index = shownIndex ?? insertionIndex(container, itemSelector, clientY, source ?? void 0);
+          restore();
+          return index;
+        },
+        teardown: () => {
+          document.removeEventListener("os.drag.move", onMove);
+          document.removeEventListener("os.drag.end", onEnd);
+          restore();
+        }
+      };
+    }
     registerCanvasTarget(list) {
       this.canvasTarget?.();
       this.canvasTarget = null;
-      const marker = el("div", { class: "atfb-marker", attrs: { "aria-hidden": "true" } });
+      const gap = this.gapAnimator(
+        list,
+        ".atfb-card",
+        (fieldId) => this.canvas.querySelector(`[data-atfb-card="${CSS.escape(fieldId)}"]`)
+      );
       const teardown = getDragManager().registerDropTarget({
         id: `atfb-canvas-${this.form?.id ?? 0}`,
         element: list,
         accept: (payload) => payload.type === FIELD_PAYLOAD_TYPE,
-        onEnter: () => list.classList.add("is-dropping"),
+        onEnter: (session) => {
+          list.classList.add("is-dropping");
+          gap.enter(session.payload.data.fieldId);
+        },
         onLeave: () => {
           list.classList.remove("is-dropping");
-          marker.remove();
+          gap.leave();
         },
         onDrop: (session, position) => {
           list.classList.remove("is-dropping");
-          marker.remove();
           const data = session.payload.data;
           const source = data.fieldId ? this.canvas.querySelector(`[data-atfb-card="${CSS.escape(data.fieldId)}"]`) : null;
-          const index = insertionIndex(list, ".atfb-card", position.clientY, source ?? void 0);
+          const index = gap.drop(position.clientY, source);
           if (data.isNew && data.fieldType) {
             this.addField(data.fieldType, index);
             return;
@@ -6582,30 +6744,10 @@ var allTerrainFormsBuilder = function(exports) {
         }
       });
       const zoneTeardowns = this.wireRepeaterZones(list);
-      const onMove = (event) => {
-        const detail = event.detail;
-        if (detail?.payload?.type !== FIELD_PAYLOAD_TYPE || !list.classList.contains("is-dropping")) {
-          return;
-        }
-        const dragged = detail.payload.data?.fieldId ? this.canvas.querySelector(
-          `[data-atfb-card="${CSS.escape(detail.payload.data.fieldId)}"]`
-        ) : null;
-        const y = detail.clientY ?? 0;
-        const index = insertionIndex(list, ".atfb-card", y, dragged ?? void 0);
-        const cards = Array.from(list.querySelectorAll(".atfb-card")).filter(
-          (card) => card !== dragged
-        );
-        if (index >= cards.length) {
-          list.append(marker);
-        } else {
-          cards[index].before(marker);
-        }
-      };
-      document.addEventListener("os.drag.move", onMove);
       this.canvasTarget = () => {
         teardown();
         zoneTeardowns.forEach((zoneTeardown) => zoneTeardown());
-        document.removeEventListener("os.drag.move", onMove);
+        gap.teardown();
       };
     }
     /**
@@ -6625,30 +6767,41 @@ var allTerrainFormsBuilder = function(exports) {
       const teardowns = [];
       list.querySelectorAll("[data-atfb-repeater-zone]").forEach((zone) => {
         const repeaterId = zone.dataset.atfbRepeaterZone ?? "";
+        const acceptsData = (raw) => {
+          const data = raw;
+          if (data.fieldId === repeaterId) {
+            return false;
+          }
+          const type = data.isNew ? data.fieldType : this.locateField(data.fieldId ?? "")?.field.type ?? data.field?.type;
+          return !!type && this.allowedInRepeater(type);
+        };
+        const gap = this.gapAnimator(
+          zone,
+          ".atfb-subcard",
+          (fieldId) => list.querySelector(`[data-atfb-subfield="${CSS.escape(fieldId)}"]`),
+          acceptsData
+        );
+        teardowns.push(() => gap.teardown());
         teardowns.push(
           getDragManager().registerDropTarget({
             id: `atfb-repzone-${this.form?.id ?? 0}-${repeaterId}`,
             element: zone,
-            accept: (payload) => {
-              if (payload.type !== FIELD_PAYLOAD_TYPE) {
-                return false;
-              }
-              const data = payload.data;
-              if (data.fieldId === repeaterId) {
-                return false;
-              }
-              const type = data.isNew ? data.fieldType : this.locateField(data.fieldId ?? "")?.field.type ?? data.field?.type;
-              return !!type && this.allowedInRepeater(type);
+            accept: (payload) => payload.type === FIELD_PAYLOAD_TYPE && acceptsData(payload.data),
+            onEnter: (session) => {
+              zone.classList.add("is-dropping");
+              gap.enter(session.payload.data.fieldId);
             },
-            onEnter: () => zone.classList.add("is-dropping"),
-            onLeave: () => zone.classList.remove("is-dropping"),
+            onLeave: () => {
+              zone.classList.remove("is-dropping");
+              gap.leave();
+            },
             onDrop: (session, position) => {
               zone.classList.remove("is-dropping");
               const data = session.payload.data;
               const source = data.fieldId ? list.querySelector(
                 `[data-atfb-subfield="${CSS.escape(data.fieldId)}"]`
               ) : null;
-              const index = insertionIndex(zone, ".atfb-subcard", position.clientY, source ?? void 0);
+              const index = gap.drop(position.clientY, source);
               if (data.isNew && data.fieldType) {
                 this.addFieldToRepeater(data.fieldType, repeaterId, index);
                 return;

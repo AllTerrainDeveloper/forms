@@ -2596,6 +2596,232 @@ export class Builder {
 	 * canvas, or from a *second* builder window, which is what the shell's
 	 * shared drag manager buys and an iframe could not.
 	 */
+	/**
+	 * The animated insertion gap for one drop container — the canvas list, or
+	 * a repeater's zone.
+	 *
+	 * While a field payload is over the container, a slot the size of the
+	 * dragged card follows the pointer, the dragged card leaves the flow, and
+	 * the other cards slide out of the way with first/last-position
+	 * transforms — so the list previews, in real time, exactly the layout the
+	 * drop will produce.
+	 *
+	 * @param container    The drop target element; the gap shows while it has
+	 *                     the `is-dropping` class.
+	 * @param itemSelector The cards that reflow, `.atfb-card` or `.atfb-subcard`.
+	 * @param findCard     Resolves a dragged field id to its card in this
+	 *                     container's world, or null for one it doesn't hold.
+	 * @param accepts      Optional payload gate mirroring the drop target's
+	 *                     own `accept()`, so a drag the target will refuse
+	 *                     never opens a gap it cannot honour.
+	 * @return `enter`/`leave`/`drop` to wire into the drop target, and a
+	 *         `teardown` for the document-level listeners.
+	 */
+	private gapAnimator(
+		container: HTMLElement,
+		itemSelector: string,
+		findCard: ( fieldId: string ) => HTMLElement | null,
+		accepts?: ( data: Record< string, unknown > ) => boolean
+	): {
+		enter( fieldId?: string ): void;
+		leave(): void;
+		drop( clientY: number, source?: HTMLElement | null ): number;
+		teardown(): void;
+	} {
+		const marker = el( 'div', { class: 'atfb-marker', attrs: { 'aria-hidden': 'true' } } );
+
+		/**
+		 * The slot the marker currently shows, in the same "list without the
+		 * dragged card" indexing the drop uses. Null while no gap is open.
+		 *
+		 * The drop reads this instead of re-measuring the pointer: with a
+		 * card-sized gap open the cards are nowhere near where a measurement
+		 * of the restored layout would put them, so a recomputed index lands
+		 * the field a slot away from where the gap said it would.
+		 */
+		let shownIndex: number | null = null;
+
+		/** The card lifted out of the flow while its gap is open, if any. */
+		let liftedCard: HTMLElement | null = null;
+
+		/** The gap's height — the dragged card's, measured before it is lifted. */
+		let slotSize = 0;
+
+		const restore = () => {
+			marker.remove();
+			liftedCard?.classList.remove( 'atfb-lifted' );
+			liftedCard = null;
+			shownIndex = null;
+		};
+
+		// First/last-position animation: measure where every card sits, mutate
+		// the DOM, transform each card back to its old spot and release — so
+		// the gap opening, moving and closing reads as cards sliding out of
+		// the way in real time rather than teleporting.
+		const moveAnimated = ( mutate: () => void ) => {
+			const cards = Array.from( container.querySelectorAll< HTMLElement >( itemSelector ) );
+			// A lifted card has no box, and a rect of zeros as a start position
+			// would animate its restore in from the viewport's top corner — so
+			// only cards visible *before* the mutation get one.
+			const before = new Map(
+				cards
+					.filter( ( card ) => ! card.classList.contains( 'atfb-lifted' ) )
+					.map( ( card ) => [ card, card.getBoundingClientRect().top ] )
+			);
+
+			mutate();
+
+			for ( const card of cards ) {
+				card.style.transition = 'none';
+				card.style.transform = '';
+			}
+
+			const moved = cards.filter( ( card ) => {
+				const from = before.get( card );
+
+				if ( from === undefined || ! card.isConnected || card.classList.contains( 'atfb-lifted' ) ) {
+					return false;
+				}
+
+				const delta = from - card.getBoundingClientRect().top;
+
+				if ( Math.abs( delta ) < 0.5 ) {
+					return false;
+				}
+
+				card.style.transform = `translateY(${ delta }px)`;
+
+				return true;
+			} );
+
+			// One reflow commits the start positions, then every moved card
+			// transitions to its natural spot. Cards that didn't move give the
+			// inline `transition: none` straight back — left on, it would keep
+			// eating their hover transitions until the next render.
+			void container.offsetHeight;
+
+			for ( const card of cards ) {
+				if ( ! moved.includes( card ) ) {
+					card.style.transition = '';
+					continue;
+				}
+
+				card.style.transition = 'transform 160ms ease';
+				card.style.transform = '';
+				card.addEventListener(
+					'transitionend',
+					() => {
+						card.style.transition = '';
+					},
+					{ once: true }
+				);
+			}
+		};
+
+		// The gap follows the pointer. Driven from the drag manager's move
+		// event, which both managers emit.
+		const onMove = ( event: Event ) => {
+			const detail = (
+				event as CustomEvent< {
+					payload?: { type: string; data?: Record< string, unknown > };
+					clientY?: number;
+				} >
+			 ).detail;
+
+			if ( detail?.payload?.type !== FIELD_PAYLOAD_TYPE || ! container.classList.contains( 'is-dropping' ) ) {
+				return;
+			}
+
+			if ( accepts && ! accepts( detail.payload.data ?? {} ) ) {
+				return;
+			}
+
+			// The dragged card is left out of the count, exactly as `drop`
+			// leaves it out. Gap and drop must be computed in the same
+			// indexing — counted two different ways, the field lands one slot
+			// away from where the gap said it would.
+			const fieldId = detail.payload.data?.fieldId;
+			const dragged = typeof fieldId === 'string' ? findCard( fieldId ) : null;
+			const index = insertionIndex( container, itemSelector, detail.clientY ?? 0, dragged ?? undefined );
+
+			// Every pointer move lands here; only a move that changes the slot
+			// touches layout.
+			if ( index === shownIndex && marker.isConnected ) {
+				return;
+			}
+
+			shownIndex = index;
+
+			moveAnimated( () => {
+				// The dragged card leaves the flow the moment its gap first
+				// opens: the ghost under the pointer is the card now, and the
+				// gap is where it will land. Both at once would show the field
+				// twice, one of them stale.
+				if ( dragged && dragged !== liftedCard ) {
+					liftedCard?.classList.remove( 'atfb-lifted' );
+					dragged.classList.add( 'atfb-lifted' );
+					liftedCard = dragged;
+				}
+
+				marker.style.blockSize = `${ Math.max( 8, Math.round( slotSize ) ) }px`;
+
+				const cards = Array.from( container.querySelectorAll< HTMLElement >( itemSelector ) ).filter(
+					( card ) => card !== dragged
+				);
+
+				if ( index >= cards.length ) {
+					container.append( marker );
+				} else {
+					cards[ index ].before( marker );
+				}
+			} );
+		};
+
+		// The safety net for a drag that ends anywhere but a clean drop here —
+		// Escape, window blur, a drop swallowed by another target. The restore
+		// is deferred a tick because a manager may emit its end event before
+		// it delivers the drop, and the drop still needs `shownIndex`; after a
+		// clean drop this is a no-op.
+		const onEnd = () => {
+			container.classList.remove( 'is-dropping' );
+			window.setTimeout( () => moveAnimated( restore ), 0 );
+		};
+
+		document.addEventListener( 'os.drag.move', onMove );
+		document.addEventListener( 'os.drag.end', onEnd );
+
+		return {
+			enter: ( fieldId ) => {
+				const card = fieldId ? findCard( fieldId ) : null;
+
+				// Measured now, before the card is lifted out of the flow —
+				// afterwards it has no box left to measure. A palette item has
+				// no card yet, so its gap is a nominal card height.
+				slotSize =
+					card && ! card.classList.contains( 'atfb-lifted' )
+						? card.getBoundingClientRect().height
+						: slotSize || 44;
+			},
+			leave: () => moveAnimated( restore ),
+			drop: ( clientY, source ) => {
+				// The slot the open gap showed, when one is open. Only a drop
+				// that never opened one — possible with a pointer that never
+				// moved after entering — falls back to measuring, against a
+				// layout that in that case was never distorted.
+				const index = shownIndex ?? insertionIndex( container, itemSelector, clientY, source ?? undefined );
+
+				restore();
+
+				return index;
+			},
+			teardown: () => {
+				document.removeEventListener( 'os.drag.move', onMove );
+				document.removeEventListener( 'os.drag.end', onEnd );
+				restore();
+			},
+		};
+	}
+
 	private registerCanvasTarget( list: HTMLElement ): void {
 		// Every canvas render builds a fresh list element, and this runs on every
 		// render — so the previous registration and its document-level move
@@ -2604,20 +2830,24 @@ export class Builder {
 		this.canvasTarget?.();
 		this.canvasTarget = null;
 
-		const marker = el( 'div', { class: 'atfb-marker', attrs: { 'aria-hidden': 'true' } } );
+		const gap = this.gapAnimator( list, '.atfb-card', ( fieldId ) =>
+			this.canvas.querySelector< HTMLElement >( `[data-atfb-card="${ CSS.escape( fieldId ) }"]` )
+		);
 
 		const teardown = getDragManager().registerDropTarget( {
 			id: `atfb-canvas-${ this.form?.id ?? 0 }`,
 			element: list,
 			accept: ( payload ) => payload.type === FIELD_PAYLOAD_TYPE,
-			onEnter: () => list.classList.add( 'is-dropping' ),
+			onEnter: ( session ) => {
+				list.classList.add( 'is-dropping' );
+				gap.enter( ( session.payload.data as { fieldId?: string } ).fieldId );
+			},
 			onLeave: () => {
 				list.classList.remove( 'is-dropping' );
-				marker.remove();
+				gap.leave();
 			},
 			onDrop: ( session, position ) => {
 				list.classList.remove( 'is-dropping' );
-				marker.remove();
 
 				const data = session.payload.data as {
 					fieldType?: string;
@@ -2630,7 +2860,7 @@ export class Builder {
 					? this.canvas.querySelector< HTMLElement >( `[data-atfb-card="${ CSS.escape( data.fieldId ) }"]` )
 					: null;
 
-				const index = insertionIndex( list, '.atfb-card', position.clientY, source ?? undefined );
+				const index = gap.drop( position.clientY, source );
 
 				if ( data.isNew && data.fieldType ) {
 					this.addField( data.fieldType, index );
@@ -2658,47 +2888,10 @@ export class Builder {
 
 		const zoneTeardowns = this.wireRepeaterZones( list );
 
-		// The insertion marker follows the pointer while a field is over the
-		// canvas. Driven from the shell's own move event so it works with either
-		// manager.
-		const onMove = ( event: Event ) => {
-			const detail = (
-				event as CustomEvent< { payload?: { type: string; data?: { fieldId?: string } }; clientY?: number } >
-			 ).detail;
-
-			if ( detail?.payload?.type !== FIELD_PAYLOAD_TYPE || ! list.classList.contains( 'is-dropping' ) ) {
-				return;
-			}
-
-			// The dragged card is left out of the count, exactly as `onDrop`
-			// leaves it out. Marker and drop must be computed in the same
-			// indexing — counted two different ways, the field lands one slot
-			// away from where the marker said it would.
-			const dragged = detail.payload.data?.fieldId
-				? this.canvas.querySelector< HTMLElement >(
-						`[data-atfb-card="${ CSS.escape( detail.payload.data.fieldId ) }"]`
-				  )
-				: null;
-
-			const y = detail.clientY ?? 0;
-			const index = insertionIndex( list, '.atfb-card', y, dragged ?? undefined );
-			const cards = Array.from( list.querySelectorAll< HTMLElement >( '.atfb-card' ) ).filter(
-				( card ) => card !== dragged
-			);
-
-			if ( index >= cards.length ) {
-				list.append( marker );
-			} else {
-				cards[ index ].before( marker );
-			}
-		};
-
-		document.addEventListener( 'os.drag.move', onMove );
-
 		this.canvasTarget = () => {
 			teardown();
 			zoneTeardowns.forEach( ( zoneTeardown ) => zoneTeardown() );
-			document.removeEventListener( 'os.drag.move', onMove );
+			gap.teardown();
 		};
 	}
 
@@ -2721,36 +2914,47 @@ export class Builder {
 		list.querySelectorAll< HTMLElement >( '[data-atfb-repeater-zone]' ).forEach( ( zone ) => {
 			const repeaterId = zone.dataset.atfbRepeaterZone ?? '';
 
+			// The zone's acceptance rule, shared between the drop target's
+			// `accept()` and its gap animator — a drag the zone will refuse
+			// must not open a gap in it either.
+			const acceptsData = ( raw: Record< string, unknown > ) => {
+				const data = raw as { fieldType?: string; fieldId?: string; field?: Field; isNew?: boolean };
+
+				// The repeater itself dragged over its own zone must
+				// fall through to the canvas, not swallow the drop.
+				if ( data.fieldId === repeaterId ) {
+					return false;
+				}
+
+				const type = data.isNew
+					? data.fieldType
+					: this.locateField( data.fieldId ?? '' )?.field.type ?? data.field?.type;
+
+				return !! type && this.allowedInRepeater( type );
+			};
+
+			const gap = this.gapAnimator(
+				zone,
+				'.atfb-subcard',
+				( fieldId ) => list.querySelector< HTMLElement >( `[data-atfb-subfield="${ CSS.escape( fieldId ) }"]` ),
+				acceptsData
+			);
+
+			teardowns.push( () => gap.teardown() );
+
 			teardowns.push(
 				getDragManager().registerDropTarget( {
 					id: `atfb-repzone-${ this.form?.id ?? 0 }-${ repeaterId }`,
 					element: zone,
-					accept: ( payload ) => {
-						if ( payload.type !== FIELD_PAYLOAD_TYPE ) {
-							return false;
-						}
-
-						const data = payload.data as {
-							fieldType?: string;
-							fieldId?: string;
-							field?: Field;
-							isNew?: boolean;
-						};
-
-						// The repeater itself dragged over its own zone must
-						// fall through to the canvas, not swallow the drop.
-						if ( data.fieldId === repeaterId ) {
-							return false;
-						}
-
-						const type = data.isNew
-							? data.fieldType
-							: this.locateField( data.fieldId ?? '' )?.field.type ?? data.field?.type;
-
-						return !! type && this.allowedInRepeater( type );
+					accept: ( payload ) => payload.type === FIELD_PAYLOAD_TYPE && acceptsData( payload.data ),
+					onEnter: ( session ) => {
+						zone.classList.add( 'is-dropping' );
+						gap.enter( ( session.payload.data as { fieldId?: string } ).fieldId );
 					},
-					onEnter: () => zone.classList.add( 'is-dropping' ),
-					onLeave: () => zone.classList.remove( 'is-dropping' ),
+					onLeave: () => {
+						zone.classList.remove( 'is-dropping' );
+						gap.leave();
+					},
 					onDrop: ( session, position ) => {
 						zone.classList.remove( 'is-dropping' );
 
@@ -2767,7 +2971,7 @@ export class Builder {
 							  )
 							: null;
 
-						const index = insertionIndex( zone, '.atfb-subcard', position.clientY, source ?? undefined );
+						const index = gap.drop( position.clientY, source );
 
 						if ( data.isNew && data.fieldType ) {
 							this.addFieldToRepeater( data.fieldType, repeaterId, index );

@@ -729,6 +729,12 @@ body.os-active :is( .atfb-editable, .atfb [contenteditable] ) {
 body.atf-drag-active,
 html body.atf-drag-active.atf-drag-active.atf-drag-active.atf-drag-active * {
 	cursor: grabbing !important;
+	/* Mid-drag nothing is being selected either: without this, every move
+	   paints a selection sweep across the page behind the ghost. The drag
+	   manager clears the anchor the press already planted; this stops a new
+	   one taking. */
+	-webkit-user-select: none !important;
+	user-select: none !important;
 }
 
 /* One survivor outweighs even that: the shell restores the I-beam on text
@@ -742,12 +748,40 @@ html body.atf-drag-active [contenteditable="true"] {
 	cursor: grabbing !important;
 }
 
-/* The insertion line that follows the pointer during a drag. */
+/* The slot that follows the pointer during a drag — sized inline to the card
+   being dragged, so the gap it opens in the list is the gap the card will
+   fill. The cards around it are slid aside with animated transforms by the
+   builder, not by this rule. */
 .atfb-marker {
-	block-size: 3px;
-	border-radius: 2px;
-	background: var( --atfb-accent );
-	margin-block: -1px;
+	box-sizing: border-box;
+	min-block-size: 3px;
+	border: 1.5px dashed var( --atfb-accent );
+	border-radius: var( --atfb-radius );
+	background: var( --atfb-accent-soft );
+}
+
+/* The card a drag lifted out of its list — a canvas card or a repeater
+   sub-card. The ghost under the pointer is the card now and the open slot
+   marks its landing — left in the flow it would appear twice. */
+.atfb-lifted {
+	display: none;
+}
+
+/* The wrapper `buildPayload()` puts around a default ghost. It carries the
+   scope class the source lived under (`.atfb`, `.atfe`, …) so the clone keeps
+   the custom properties and type it inherited there — appended bare to
+   `document.body` its fonts and colours visibly shift mid-drag. The scope
+   root's own layout must not come with it: the class is doubled to outweigh
+   the root's own rules whichever manager's ghost class it ends up wearing —
+   the shell dresses ghosts as `os-drag-ghost`, the fallback as
+   `atf-drag-ghost`. */
+.atf-ghost-scope.atf-ghost-scope {
+	display: block;
+	block-size: auto;
+	min-block-size: 0;
+	background: transparent;
+	padding: 0;
+	margin: 0;
 }
 
 .atf-is-dragging {
