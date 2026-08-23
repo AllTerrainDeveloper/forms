@@ -181,5 +181,5 @@ export function refreshPreview( formId: number, title: string, url: string ): vo
 
 	const separator = url.includes( '?' ) ? '&' : '?';
 
-	openPreviewWindow( formId, title, `${ url }${ separator }atf_r=${ Date.now() }` );
+	openPreviewWindow( formId, title, `${ url }${ separator }alltfo_r=${ Date.now() }` );
 }

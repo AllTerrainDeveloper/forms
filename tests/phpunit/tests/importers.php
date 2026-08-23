@@ -15,7 +15,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers extends WP_UnitTestCase {
+class ALLTFO_Test_Importers extends WP_UnitTestCase {
 
 	/**
 	 * A CF7 form as CF7 itself stores one: the default contact template.
@@ -41,11 +41,11 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * Registered importers pass validation; malformed ones are dropped.
 	 *
-	 * @covers ::atf_importers
+	 * @covers ::alltfo_importers
 	 */
 	public function test_registry_drops_malformed_importers() {
 		add_filter(
-			'atf_importers',
+			'alltfo_importers',
 			static function ( $importers ) {
 				$importers['no-callbacks'] = array( 'label' => 'Broken' );
 
@@ -53,7 +53,7 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 			}
 		);
 
-		$importers = atf_importers();
+		$importers = alltfo_importers();
 
 		$this->assertArrayHasKey( 'contact-form-7', $importers );
 		$this->assertArrayNotHasKey( 'no-callbacks', $importers );
@@ -62,12 +62,12 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * The default CF7 contact template converts field for field.
 	 *
-	 * @covers ::atf_cf7_convert
-	 * @covers ::atf_cf7_parse_template
+	 * @covers ::alltfo_cf7_convert
+	 * @covers ::alltfo_cf7_parse_template
 	 */
 	public function test_cf7_default_template_converts() {
-		$schema = atf_normalize_schema(
-			atf_cf7_convert( self::CF7_TEMPLATE, array(), array(), array() )
+		$schema = alltfo_normalize_schema(
+			alltfo_cf7_convert( self::CF7_TEMPLATE, array(), array(), array() )
 		);
 
 		$types  = wp_list_pluck( $schema['fields'], 'type' );
@@ -90,11 +90,11 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * Choice tags carry their options across, including the pipe syntax.
 	 *
-	 * @covers ::atf_cf7_tag_to_field
-	 * @covers ::atf_cf7_choices
+	 * @covers ::alltfo_cf7_tag_to_field
+	 * @covers ::alltfo_cf7_choices
 	 */
 	public function test_cf7_choice_tags() {
-		$parsed = atf_cf7_parse_template(
+		$parsed = alltfo_cf7_parse_template(
 			'[select* your-topic "Support" "Sales|sales-team"]
 			[checkbox extras "Wrap" "Card"]
 			[checkbox one exclusive "A" "B"]
@@ -122,10 +122,10 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * Placeholders, defaults and bounds survive the trip.
 	 *
-	 * @covers ::atf_cf7_tag_to_field
+	 * @covers ::alltfo_cf7_tag_to_field
 	 */
 	public function test_cf7_options_map_to_settings() {
-		$parsed = atf_cf7_parse_template(
+		$parsed = alltfo_cf7_parse_template(
 			'[text your-town placeholder "Your town"]
 			[text your-ref "ABC-1"]
 			[number your-age min:18 max:99]
@@ -149,10 +149,10 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	 * Anti-spam tags are dropped; unknown add-on tags become visible text
 	 * fields rather than vanishing.
 	 *
-	 * @covers ::atf_cf7_tag_to_field
+	 * @covers ::alltfo_cf7_tag_to_field
 	 */
 	public function test_cf7_unmappable_tags() {
-		$parsed = atf_cf7_parse_template( '[quiz your-quiz "1+1?|2"] [captchar your-captcha] [fancy_addon your-thing]' );
+		$parsed = alltfo_cf7_parse_template( '[quiz your-quiz "1+1?|2"] [captchar your-captcha] [fancy_addon your-thing]' );
 
 		$this->assertCount( 1, $parsed['fields'] );
 		$this->assertSame( 'text', $parsed['fields'][0]['type'] );
@@ -162,12 +162,12 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * The mail block becomes a notification with merge tags for this plugin.
 	 *
-	 * @covers ::atf_cf7_convert_mail
-	 * @covers ::atf_cf7_replace_mail_tags
+	 * @covers ::alltfo_cf7_convert_mail
+	 * @covers ::alltfo_cf7_replace_mail_tags
 	 */
 	public function test_cf7_mail_becomes_a_notification() {
-		$schema = atf_normalize_schema(
-			atf_cf7_convert(
+		$schema = alltfo_normalize_schema(
+			alltfo_cf7_convert(
 				self::CF7_TEMPLATE,
 				array(
 					'recipient'          => 'you@example.com',
@@ -204,7 +204,7 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * Mail (2) is only imported when CF7 had it switched on.
 	 *
-	 * @covers ::atf_cf7_convert
+	 * @covers ::alltfo_cf7_convert
 	 */
 	public function test_cf7_inactive_mail_2_stays_behind() {
 		$mail_2 = array(
@@ -213,12 +213,12 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 			'body'      => 'Thanks!',
 		);
 
-		$schema = atf_cf7_convert( self::CF7_TEMPLATE, array( 'recipient' => 'a@b.c' ), $mail_2, array() );
+		$schema = alltfo_cf7_convert( self::CF7_TEMPLATE, array( 'recipient' => 'a@b.c' ), $mail_2, array() );
 		$this->assertCount( 1, $schema['notifications'] );
 
 		$mail_2['active'] = true;
 
-		$schema = atf_cf7_convert( self::CF7_TEMPLATE, array( 'recipient' => 'a@b.c' ), $mail_2, array() );
+		$schema = alltfo_cf7_convert( self::CF7_TEMPLATE, array( 'recipient' => 'a@b.c' ), $mail_2, array() );
 		$this->assertCount( 2, $schema['notifications'] );
 		$this->assertSame( '{field:f2}', $schema['notifications'][1]['to'] );
 	}
@@ -226,11 +226,11 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * The whole trip: a CF7 post in the database becomes a working form.
 	 *
-	 * @covers ::atf_cf7_import
-	 * @covers ::atf_import_source_form
+	 * @covers ::alltfo_cf7_import
+	 * @covers ::alltfo_import_source_form
 	 */
 	public function test_cf7_import_end_to_end() {
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$source = self::factory()->post->create(
@@ -253,20 +253,20 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 
 		$imported_action = 0;
 		add_action(
-			'atf_form_imported',
+			'alltfo_form_imported',
 			static function () use ( &$imported_action ) {
 				++$imported_action;
 			}
 		);
 
-		$form_id = atf_import_source_form( 'contact-form-7', (string) $source );
+		$form_id = alltfo_import_source_form( 'contact-form-7', (string) $source );
 
 		$this->assertIsInt( $form_id );
 		$this->assertSame( 'Contact page', get_post( $form_id )->post_title );
-		$this->assertSame( ATF_FORM_TYPE, get_post( $form_id )->post_type );
+		$this->assertSame( ALLTFO_FORM_TYPE, get_post( $form_id )->post_type );
 		$this->assertSame( 1, $imported_action );
 
-		$schema = atf_get_form_schema( $form_id );
+		$schema = alltfo_get_form_schema( $form_id );
 
 		$this->assertCount( 5, $schema['fields'] );
 		$this->assertSame( 'owner@example.com', $schema['notifications'][0]['to'] );
@@ -280,15 +280,15 @@ class ATF_Test_Importers extends WP_UnitTestCase {
 	/**
 	 * Importing needs the capability, and a bogus source fails cleanly.
 	 *
-	 * @covers ::atf_import_source_form
+	 * @covers ::alltfo_import_source_form
 	 */
 	public function test_import_is_gated_and_fails_cleanly() {
 		wp_set_current_user( 0 );
-		$this->assertWPError( atf_import_source_form( 'contact-form-7', '1' ) );
+		$this->assertWPError( alltfo_import_source_form( 'contact-form-7', '1' ) );
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		$this->assertWPError( atf_import_source_form( 'no-such-importer', '1' ) );
-		$this->assertWPError( atf_import_source_form( 'contact-form-7', '999999' ) );
+		$this->assertWPError( alltfo_import_source_form( 'no-such-importer', '1' ) );
+		$this->assertWPError( alltfo_import_source_form( 'contact-form-7', '999999' ) );
 	}
 }

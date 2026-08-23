@@ -2,9 +2,9 @@
 /**
  * Reading, filtering and exporting entries.
  *
- * Every read of an entry goes through `atf_prepare_entry()`, which is where the
+ * Every read of an entry goes through `alltfo_prepare_entry()`, which is where the
  * capability check lives and where raw stored values become the shapes the UI
- * and the exporter expect. Nothing else should touch `_atf_values` directly --
+ * and the exporter expect. Nothing else should touch `_alltfo_values` directly --
  * that is what stops a new surface from accidentally shipping somebody's
  * submissions to a user who may not read them.
  *
@@ -34,12 +34,12 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return array { entries: array[], total: int, pages: int }
  */
-function atf_query_entries( $args = array() ) {
+function alltfo_query_entries( $args = array() ) {
 	$args = wp_parse_args(
 		$args,
 		array(
 			'form_id'  => 0,
-			'status'   => array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+			'status'   => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 			'search'   => '',
 			'page'     => 1,
 			'per_page' => 25,
@@ -51,7 +51,7 @@ function atf_query_entries( $args = array() ) {
 		)
 	);
 
-	if ( ! atf_can_read_entries( $args['form_id'] ) ) {
+	if ( ! alltfo_can_read_entries( $args['form_id'] ) ) {
 		return array(
 			'entries' => array(),
 			'total'   => 0,
@@ -60,7 +60,7 @@ function atf_query_entries( $args = array() ) {
 	}
 
 	$query_args = array(
-		'post_type'      => ATF_ENTRY_TYPE,
+		'post_type'      => ALLTFO_ENTRY_TYPE,
 		'post_status'    => (array) $args['status'],
 		'posts_per_page' => min( 200, max( 1, (int) $args['per_page'] ) ),
 		'paged'          => max( 1, (int) $args['page'] ),
@@ -71,7 +71,7 @@ function atf_query_entries( $args = array() ) {
 
 	if ( $args['form_id'] ) {
 		$query_args['meta_query'][] = array(
-			'key'   => ATF_META_FORM,
+			'key'   => ALLTFO_META_FORM,
 			'value' => absint( $args['form_id'] ),
 		);
 	} else {
@@ -79,14 +79,14 @@ function atf_query_entries( $args = array() ) {
 		// that reach entries without going through a form picker — so they are
 		// the two places an archived form's entries would leak back out.
 		$query_args['meta_query'][] = array(
-			'key'     => ATF_META_ARCHIVED,
+			'key'     => ALLTFO_META_ARCHIVED,
 			'compare' => 'NOT EXISTS',
 		);
 	}
 
 	if ( $args['starred'] ) {
 		$query_args['meta_query'][] = array(
-			'key'     => '_atf_starred',
+			'key'     => '_alltfo_starred',
 			'compare' => 'EXISTS',
 		);
 	}
@@ -110,7 +110,7 @@ function atf_query_entries( $args = array() ) {
 	// table, which is why it only runs when somebody actually typed something.
 	if ( '' !== trim( (string) $args['search'] ) ) {
 		$query_args['meta_query'][] = array(
-			'key'     => ATF_META_VALUES,
+			'key'     => ALLTFO_META_VALUES,
 			'value'   => sanitize_text_field( $args['search'] ),
 			'compare' => 'LIKE',
 		);
@@ -124,7 +124,7 @@ function atf_query_entries( $args = array() ) {
 	$entries = array();
 
 	foreach ( $query->posts as $post ) {
-		$entry = atf_prepare_entry( $post );
+		$entry = alltfo_prepare_entry( $post );
 
 		if ( $entry ) {
 			$entries[] = $entry;
@@ -150,30 +150,30 @@ function atf_query_entries( $args = array() ) {
  * @param int|WP_Post $entry The entry.
  * @return array The record, or an empty array.
  */
-function atf_prepare_entry( $entry ) {
+function alltfo_prepare_entry( $entry ) {
 	$post = is_object( $entry ) ? $entry : get_post( absint( $entry ) );
 
-	if ( ! $post || ATF_ENTRY_TYPE !== $post->post_type ) {
+	if ( ! $post || ALLTFO_ENTRY_TYPE !== $post->post_type ) {
 		return array();
 	}
 
-	$form_id = (int) get_post_meta( $post->ID, ATF_META_FORM, true );
+	$form_id = (int) get_post_meta( $post->ID, ALLTFO_META_FORM, true );
 
-	if ( ! atf_can_read_entries( $form_id ) ) {
+	if ( ! alltfo_can_read_entries( $form_id ) ) {
 		return array();
 	}
 
-	$values  = json_decode( (string) get_post_meta( $post->ID, ATF_META_VALUES, true ), true );
-	$context = json_decode( (string) get_post_meta( $post->ID, ATF_META_CONTEXT, true ), true );
+	$values  = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_VALUES, true ), true );
+	$context = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_CONTEXT, true ), true );
 
 	$values  = is_array( $values ) ? $values : array();
 	$context = is_array( $context ) ? $context : array();
 
-	$schema = atf_get_form_schema( $form_id );
+	$schema = alltfo_get_form_schema( $form_id );
 
 	$fields = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$value = array_key_exists( $field['id'], $values ) ? $values[ $field['id'] ] : '';
 
 		$fields[] = array(
@@ -181,7 +181,7 @@ function atf_prepare_entry( $entry ) {
 			'label'     => $field['label'],
 			'type'      => $field['type'],
 			'value'     => $value,
-			'formatted' => atf_format_field_value( $value, $field, 'detail' ),
+			'formatted' => alltfo_format_field_value( $value, $field, 'detail' ),
 		);
 	}
 
@@ -193,7 +193,7 @@ function atf_prepare_entry( $entry ) {
 		'status'    => $post->post_status,
 		'date'      => $post->post_date_gmt,
 		'dateHuman' => get_the_date( '', $post ) . ' ' . get_the_time( '', $post ),
-		'starred'   => (bool) get_post_meta( $post->ID, '_atf_starred', true ),
+		'starred'   => (bool) get_post_meta( $post->ID, '_alltfo_starred', true ),
 		'notes'     => (int) get_comments_number( $post->ID ),
 		'values'    => $values,
 		'fields'    => $fields,
@@ -203,7 +203,7 @@ function atf_prepare_entry( $entry ) {
 		'userId'    => isset( $context['userId'] ) ? (int) $context['userId'] : 0,
 		'spam'      => isset( $context['spam'] ) ? $context['spam'] : '',
 		'quiz'      => isset( $context['quiz'] ) ? $context['quiz'] : null,
-		'canDelete' => current_user_can( 'atf_delete_entries' ),
+		'canDelete' => current_user_can( 'alltfo_delete_entries' ),
 	);
 
 	/**
@@ -215,7 +215,7 @@ function atf_prepare_entry( $entry ) {
 	 * @param WP_Post $post   The entry post.
 	 * @param array   $schema The form schema.
 	 */
-	return apply_filters( 'atf_prepare_entry', $record, $post, $schema );
+	return apply_filters( 'alltfo_prepare_entry', $record, $post, $schema );
 }
 
 /**
@@ -227,30 +227,30 @@ function atf_prepare_entry( $entry ) {
  * @since 0.1.0
  *
  * @param int    $entry_id The entry.
- * @param string $status   One of the `ATF_STATUS_*` constants, or `trash`.
+ * @param string $status   One of the `ALLTFO_STATUS_*` constants, or `trash`.
  * @return true|WP_Error
  */
-function atf_set_entry_status( $entry_id, $status ) {
+function alltfo_set_entry_status( $entry_id, $status ) {
 	$entry_id = absint( $entry_id );
 	$post     = $entry_id ? get_post( $entry_id ) : null;
 
-	if ( ! $post || ATF_ENTRY_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_ENTRY_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	if ( ! atf_can_read_entries( (int) get_post_meta( $entry_id, ATF_META_FORM, true ) ) ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot change that entry.', 'allterrain-forms' ), array( 'status' => 403 ) );
+	if ( ! alltfo_can_read_entries( (int) get_post_meta( $entry_id, ALLTFO_META_FORM, true ) ) ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot change that entry.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
-	$allowed = array( ATF_STATUS_UNREAD, ATF_STATUS_READ, ATF_STATUS_SPAM, 'trash' );
+	$allowed = array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ, ALLTFO_STATUS_SPAM, 'trash' );
 
 	if ( ! in_array( $status, $allowed, true ) ) {
-		return new WP_Error( 'atf_bad_status', __( 'That is not a status an entry can have.', 'allterrain-forms' ), array( 'status' => 400 ) );
+		return new WP_Error( 'alltfo_bad_status', __( 'That is not a status an entry can have.', 'allterrain-forms' ), array( 'status' => 400 ) );
 	}
 
 	if ( 'trash' === $status ) {
-		if ( ! current_user_can( 'atf_delete_entries' ) ) {
-			return new WP_Error( 'atf_forbidden', __( 'You cannot delete entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
+		if ( ! current_user_can( 'alltfo_delete_entries' ) ) {
+			return new WP_Error( 'alltfo_forbidden', __( 'You cannot delete entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
 		}
 
 		wp_trash_post( $entry_id );
@@ -267,12 +267,12 @@ function atf_set_entry_status( $entry_id, $status ) {
 		)
 	);
 
-	if ( ATF_STATUS_SPAM === $status && ATF_STATUS_SPAM !== $was ) {
-		atf_akismet_submit_correction( $entry_id, 'spam' );
+	if ( ALLTFO_STATUS_SPAM === $status && ALLTFO_STATUS_SPAM !== $was ) {
+		alltfo_akismet_submit_correction( $entry_id, 'spam' );
 	}
 
-	if ( ATF_STATUS_SPAM === $was && ATF_STATUS_SPAM !== $status ) {
-		atf_akismet_submit_correction( $entry_id, 'ham' );
+	if ( ALLTFO_STATUS_SPAM === $was && ALLTFO_STATUS_SPAM !== $status ) {
+		alltfo_akismet_submit_correction( $entry_id, 'ham' );
 	}
 
 	/**
@@ -284,7 +284,7 @@ function atf_set_entry_status( $entry_id, $status ) {
 	 * @param string $status   The new status.
 	 * @param string $was      The status it had.
 	 */
-	do_action( 'atf_entry_status_changed', $entry_id, $status, $was );
+	do_action( 'alltfo_entry_status_changed', $entry_id, $status, $was );
 
 	return true;
 }
@@ -298,26 +298,26 @@ function atf_set_entry_status( $entry_id, $status ) {
  * @param bool $starred  Whether it should be starred.
  * @return true|WP_Error
  */
-function atf_star_entry( $entry_id, $starred ) {
+function alltfo_star_entry( $entry_id, $starred ) {
 	$entry_id = absint( $entry_id );
 	$post     = $entry_id ? get_post( $entry_id ) : null;
 
 	// The target has to actually be an entry, exactly as in
-	// `atf_set_entry_status()`. Without this check the meta write lands on
+	// `alltfo_set_entry_status()`. Without this check the meta write lands on
 	// whatever post carries the id, and a missing form id reads as 0 --
 	// "any form" -- which slips past a per-form read filter.
-	if ( ! $post || ATF_ENTRY_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_ENTRY_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	if ( ! atf_can_read_entries( (int) get_post_meta( $entry_id, ATF_META_FORM, true ) ) ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot change that entry.', 'allterrain-forms' ), array( 'status' => 403 ) );
+	if ( ! alltfo_can_read_entries( (int) get_post_meta( $entry_id, ALLTFO_META_FORM, true ) ) ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot change that entry.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
 	if ( $starred ) {
-		update_post_meta( $entry_id, '_atf_starred', 1 );
+		update_post_meta( $entry_id, '_alltfo_starred', 1 );
 	} else {
-		delete_post_meta( $entry_id, '_atf_starred' );
+		delete_post_meta( $entry_id, '_alltfo_starred' );
 	}
 
 	return true;
@@ -331,13 +331,13 @@ function atf_star_entry( $entry_id, $starred ) {
  * @param array $schema The form schema.
  * @return array<string, string> Column key => header.
  */
-function atf_export_columns( $schema ) {
+function alltfo_export_columns( $schema ) {
 	$columns = array(
 		'id'   => __( 'Entry ID', 'allterrain-forms' ),
 		'date' => __( 'Submitted', 'allterrain-forms' ),
 	);
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( 'password' === $field['type'] ) {
 			continue;
 		}
@@ -356,7 +356,7 @@ function atf_export_columns( $schema ) {
 	 * @param array<string, string> $columns Column key => header.
 	 * @param array                 $schema  The form schema.
 	 */
-	return apply_filters( 'atf_export_columns', $columns, $schema );
+	return apply_filters( 'alltfo_export_columns', $columns, $schema );
 }
 
 /**
@@ -369,18 +369,18 @@ function atf_export_columns( $schema ) {
  * @since 0.1.0
  *
  * @param int   $form_id The form.
- * @param array $args    Query arguments, as `atf_query_entries()` takes.
+ * @param array $args    Query arguments, as `alltfo_query_entries()` takes.
  * @return string|WP_Error The CSV.
  */
-function atf_export_entries_csv( $form_id, $args = array() ) {
+function alltfo_export_entries_csv( $form_id, $args = array() ) {
 	$form_id = absint( $form_id );
 
-	if ( ! atf_can_read_entries( $form_id ) ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot export these entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
+	if ( ! alltfo_can_read_entries( $form_id ) ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot export these entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
-	$schema  = atf_get_form_schema( $form_id );
-	$columns = atf_export_columns( $schema );
+	$schema  = alltfo_get_form_schema( $form_id );
+	$columns = alltfo_export_columns( $schema );
 
 	$args = wp_parse_args(
 		$args,
@@ -394,7 +394,7 @@ function atf_export_entries_csv( $form_id, $args = array() ) {
 	$handle = fopen( 'php://temp', 'r+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- An in-memory stream, not a file on disk; WP_Filesystem has no equivalent.
 
 	if ( ! $handle ) {
-		return new WP_Error( 'atf_export_failed', __( 'The export could not be built.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_export_failed', __( 'The export could not be built.', 'allterrain-forms' ) );
 	}
 
 	fputcsv( $handle, array_values( $columns ) );
@@ -405,13 +405,13 @@ function atf_export_entries_csv( $form_id, $args = array() ) {
 
 	do {
 		$args['page'] = $page;
-		$result       = atf_query_entries( $args );
+		$result       = alltfo_query_entries( $args );
 
 		foreach ( $result['entries'] as $entry ) {
 			$row = array();
 
 			foreach ( array_keys( $columns ) as $key ) {
-				$row[] = atf_export_cell( $key, $entry, $schema );
+				$row[] = alltfo_export_cell( $key, $entry, $schema );
 			}
 
 			fputcsv( $handle, $row );
@@ -439,17 +439,17 @@ function atf_export_entries_csv( $form_id, $args = array() ) {
  * @since 0.1.0
  *
  * @param int   $form_id The form.
- * @param array $args    Query arguments, as `atf_query_entries()` takes.
+ * @param array $args    Query arguments, as `alltfo_query_entries()` takes.
  * @return string|WP_Error The JSON.
  */
-function atf_export_entries_json( $form_id, $args = array() ) {
+function alltfo_export_entries_json( $form_id, $args = array() ) {
 	$form_id = absint( $form_id );
 
-	if ( ! atf_can_read_entries( $form_id ) ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot export these entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
+	if ( ! alltfo_can_read_entries( $form_id ) ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot export these entries.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
-	$schema  = atf_get_form_schema( $form_id );
+	$schema  = alltfo_get_form_schema( $form_id );
 	$entries = array();
 
 	$args = wp_parse_args(
@@ -466,14 +466,14 @@ function atf_export_entries_json( $form_id, $args = array() ) {
 
 	do {
 		$args['page'] = $page;
-		$result       = atf_query_entries( $args );
+		$result       = alltfo_query_entries( $args );
 
 		foreach ( $result['entries'] as $entry ) {
 			$values = $entry['values'];
 
 			// A password is never stored, but a form that used to have one may
 			// have older entries from before that was true.
-			foreach ( atf_input_fields( $schema ) as $field ) {
+			foreach ( alltfo_input_fields( $schema ) as $field ) {
 				if ( 'password' === $field['type'] ) {
 					unset( $values[ $field['id'] ] );
 				}
@@ -505,7 +505,7 @@ function atf_export_entries_json( $form_id, $args = array() ) {
 						'label' => $field['label'],
 					);
 				},
-				atf_input_fields( $schema )
+				alltfo_input_fields( $schema )
 			),
 			'entries' => $entries,
 		),
@@ -523,7 +523,7 @@ function atf_export_entries_json( $form_id, $args = array() ) {
  * @param array  $schema The form schema.
  * @return string
  */
-function atf_export_cell( $key, $entry, $schema ) {
+function alltfo_export_cell( $key, $entry, $schema ) {
 	if ( 'id' === $key ) {
 		return (string) $entry['id'];
 	}
@@ -542,7 +542,7 @@ function atf_export_cell( $key, $entry, $schema ) {
 
 	if ( 0 === strpos( $key, 'field:' ) ) {
 		$field_id = substr( $key, 6 );
-		$field    = atf_find_field( $schema, $field_id );
+		$field    = alltfo_find_field( $schema, $field_id );
 
 		if ( ! $field ) {
 			return '';
@@ -550,7 +550,7 @@ function atf_export_cell( $key, $entry, $schema ) {
 
 		$value = isset( $entry['values'][ $field_id ] ) ? $entry['values'][ $field_id ] : '';
 
-		return atf_sanitize_csv_cell( atf_format_field_value( $value, $field, 'csv' ) );
+		return alltfo_sanitize_csv_cell( alltfo_format_field_value( $value, $field, 'csv' ) );
 	}
 
 	/**
@@ -562,7 +562,7 @@ function atf_export_cell( $key, $entry, $schema ) {
 	 * @param string $key   Column key.
 	 * @param array  $entry The prepared entry.
 	 */
-	return (string) apply_filters( 'atf_export_cell', '', $key, $entry );
+	return (string) apply_filters( 'alltfo_export_cell', '', $key, $entry );
 }
 
 /**
@@ -578,7 +578,7 @@ function atf_export_cell( $key, $entry, $schema ) {
  * @param string $value The cell's value.
  * @return string
  */
-function atf_sanitize_csv_cell( $value ) {
+function alltfo_sanitize_csv_cell( $value ) {
 	$value = (string) $value;
 
 	if ( '' === $value ) {
@@ -603,10 +603,10 @@ function atf_sanitize_csv_cell( $value ) {
  *
  * @return int How many entries were deleted.
  */
-function atf_apply_retention() {
+function alltfo_apply_retention() {
 	$forms = get_posts(
 		array(
-			'post_type'        => ATF_FORM_TYPE,
+			'post_type'        => ALLTFO_FORM_TYPE,
 			'post_status'      => 'any',
 			'numberposts'      => -1,
 			'fields'           => 'ids',
@@ -617,7 +617,7 @@ function atf_apply_retention() {
 	$deleted = 0;
 
 	foreach ( $forms as $form_id ) {
-		$schema = atf_get_form_schema( $form_id );
+		$schema = alltfo_get_form_schema( $form_id );
 		$days   = (int) $schema['settings']['storage']['retention'];
 
 		if ( $days < 1 ) {
@@ -626,11 +626,11 @@ function atf_apply_retention() {
 
 		$old = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				// Named, not `'any'` -- see atf_entry_statuses(). With `'any'`
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				// Named, not `'any'` -- see alltfo_entry_statuses(). With `'any'`
 				// this query matched nothing and the sweep silently deleted
 				// nothing, on sites that had asked for a retention policy.
-				'post_status'    => atf_entry_statuses(),
+				'post_status'    => alltfo_entry_statuses(),
 				'posts_per_page' => 200,
 				'fields'         => 'ids',
 				'date_query'     => array(
@@ -640,7 +640,7 @@ function atf_apply_retention() {
 				),
 				'meta_query'     => array(
 					array(
-						'key'   => ATF_META_FORM,
+						'key'   => ALLTFO_META_FORM,
 						'value' => $form_id,
 					),
 				),
@@ -648,7 +648,7 @@ function atf_apply_retention() {
 		);
 
 		foreach ( $old as $entry_id ) {
-			atf_delete_entry_completely( $entry_id );
+			alltfo_delete_entry_completely( $entry_id );
 			++$deleted;
 		}
 	}
@@ -660,11 +660,11 @@ function atf_apply_retention() {
 	 *
 	 * @param int $deleted How many entries were removed.
 	 */
-	do_action( 'atf_retention_applied', $deleted );
+	do_action( 'alltfo_retention_applied', $deleted );
 
 	return $deleted;
 }
-add_action( 'atf_apply_retention', 'atf_apply_retention' );
+add_action( 'alltfo_apply_retention', 'alltfo_apply_retention' );
 
 /**
  * Deletes an entry and everything attached to it.
@@ -678,7 +678,7 @@ add_action( 'atf_apply_retention', 'atf_apply_retention' );
  * @param int $entry_id The entry.
  * @return void
  */
-function atf_delete_entry_completely( $entry_id ) {
+function alltfo_delete_entry_completely( $entry_id ) {
 	$entry_id = absint( $entry_id );
 
 	$attachments = get_posts(
@@ -705,9 +705,9 @@ function atf_delete_entry_completely( $entry_id ) {
  *
  * @return void
  */
-function atf_schedule_retention() {
-	if ( ! wp_next_scheduled( 'atf_apply_retention' ) ) {
-		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'atf_apply_retention' );
+function alltfo_schedule_retention() {
+	if ( ! wp_next_scheduled( 'alltfo_apply_retention' ) ) {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'alltfo_apply_retention' );
 	}
 }
-add_action( 'init', 'atf_schedule_retention' );
+add_action( 'init', 'alltfo_schedule_retention' );

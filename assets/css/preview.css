@@ -1,0 +1,70 @@
+/**
+ * The standalone preview page — the document around the form, not the form.
+ *
+ * Enqueued only by `alltfo_maybe_render_preview()`, which owns the whole
+ * request; nothing here reaches an ordinary front-end page.
+ */
+
+/* A page, not an admin screen.
+ *
+ * This used to follow `prefers-color-scheme` and paint itself dark for a
+ * viewer whose system is dark. That is right for a tool and wrong for
+ * this: the *form* decides its own colours from its theme, and a light
+ * theme like Clean leaves `--atf-bg` transparent and sets near-black text.
+ * Put that on a dark page and the labels vanish — dark grey on dark grey —
+ * while every swatch in the builder insists the theme is light. Two
+ * independent colour decisions, one surface.
+ *
+ * So the preview commits to a light page, the way an ordinary WordPress
+ * page renders on the overwhelming majority of sites. A dark theme still
+ * looks dark here, because a dark theme paints its own card — which is
+ * also exactly how it would look on a real light-themed site. What you see
+ * is what a visitor gets, which is the whole point of previewing on a URL
+ * rather than in an overlay.
+ */
+body.atf-preview-page {
+	margin: 0;
+	padding: 48px 20px;
+	background: #f6f7f7;
+	color: #1e1e1e;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+	min-height: 100vh;
+	box-sizing: border-box;
+	/* The viewer's browser must not restyle this page for dark mode either
+		— `color-scheme: light` is what stops form controls the theme has not
+		claimed from being painted with dark system chrome. */
+	color-scheme: light;
+}
+
+/* The content column of a page or post: white, centred, with the same kind
+	of measure a theme would give an article. */
+.atf-preview-page__inner {
+	max-width: 760px;
+	margin: 0 auto;
+	padding: 40px;
+	background: #fff;
+	border-radius: 8px;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.08 );
+	box-sizing: border-box;
+}
+
+.atf-preview-page__note {
+	margin: 0 0 28px;
+	padding: 10px 14px;
+	border-radius: 6px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+@media ( max-width: 600px ) {
+	body.atf-preview-page {
+		padding: 20px 12px;
+	}
+
+	.atf-preview-page__inner {
+		padding: 24px 20px;
+	}
+}

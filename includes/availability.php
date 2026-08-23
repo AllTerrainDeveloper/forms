@@ -3,7 +3,7 @@
  * Whether a form is accepting submissions right now.
  *
  * Scheduling, submission limits and login requirements all answer the same
- * question, so they answer it in one place. `atf_form_availability()` is called
+ * question, so they answer it in one place. `alltfo_form_availability()` is called
  * twice for every submission: once by the renderer, to decide whether to draw
  * the form at all, and once by the submission handler, to decide whether to
  * accept it. The second call is the one that matters -- a closed form that
@@ -24,9 +24,9 @@ defined( 'ABSPATH' ) || exit;
  * @param array $schema  Its schema. Read from the form when omitted.
  * @return array { open: bool, reason: string, message: string }
  */
-function atf_form_availability( $form_id, $schema = null ) {
+function alltfo_form_availability( $form_id, $schema = null ) {
 	$form_id = absint( $form_id );
-	$schema  = null === $schema ? atf_get_form_schema( $form_id ) : $schema;
+	$schema  = null === $schema ? alltfo_get_form_schema( $form_id ) : $schema;
 
 	$settings = $schema['settings'];
 	$open     = array(
@@ -38,7 +38,7 @@ function atf_form_availability( $form_id, $schema = null ) {
 	// Before the editor bypass below, on purpose: an archived form is retired,
 	// not scheduled or full, and "closed for everyone" is the whole meaning of
 	// the archive. The editor's way past it is unarchiving.
-	if ( atf_form_is_archived( $form_id ) ) {
+	if ( alltfo_form_is_archived( $form_id ) ) {
 		return array(
 			'open'    => false,
 			'reason'  => 'archived',
@@ -49,7 +49,7 @@ function atf_form_availability( $form_id, $schema = null ) {
 	// Someone who can edit forms is never locked out by a schedule or a limit.
 	// They are the person who needs to test the form, and a closed notice with
 	// no way past it is how a scheduling bug survives to launch day.
-	$is_editor = atf_can_edit_forms();
+	$is_editor = alltfo_can_edit_forms();
 
 	if ( ! empty( $settings['requireLogin'] ) && ! is_user_logged_in() ) {
 		return array(
@@ -112,7 +112,7 @@ function atf_form_availability( $form_id, $schema = null ) {
 
 	$limit = $settings['limit'];
 
-	if ( ! $is_editor && $limit['total'] > 0 && atf_count_entries( $form_id ) >= $limit['total'] ) {
+	if ( ! $is_editor && $limit['total'] > 0 && alltfo_count_entries( $form_id ) >= $limit['total'] ) {
 		return array(
 			'open'    => false,
 			'reason'  => 'limit_total',
@@ -123,7 +123,7 @@ function atf_form_availability( $form_id, $schema = null ) {
 	}
 
 	if ( ! $is_editor && $limit['perUser'] > 0 && is_user_logged_in() ) {
-		if ( atf_count_entries( $form_id, get_current_user_id() ) >= $limit['perUser'] ) {
+		if ( alltfo_count_entries( $form_id, get_current_user_id() ) >= $limit['perUser'] ) {
 			return array(
 				'open'    => false,
 				'reason'  => 'limit_user',
@@ -147,7 +147,7 @@ function atf_form_availability( $form_id, $schema = null ) {
 	 * @param int   $form_id The form.
 	 * @param array $schema  The form schema.
 	 */
-	return apply_filters( 'atf_form_availability', $open, $form_id, $schema );
+	return apply_filters( 'alltfo_form_availability', $open, $form_id, $schema );
 }
 
 /**
@@ -162,16 +162,16 @@ function atf_form_availability( $form_id, $schema = null ) {
  * @param int $user_id Optional. Restrict to one author.
  * @return int
  */
-function atf_count_entries( $form_id, $user_id = 0 ) {
+function alltfo_count_entries( $form_id, $user_id = 0 ) {
 	$args = array(
-		'post_type'      => ATF_ENTRY_TYPE,
-		'post_status'    => array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+		'post_type'      => ALLTFO_ENTRY_TYPE,
+		'post_status'    => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 		'fields'         => 'ids',
 		'posts_per_page' => 1,
 		'no_found_rows'  => false,
 		'meta_query'     => array(
 			array(
-				'key'   => ATF_META_FORM,
+				'key'   => ALLTFO_META_FORM,
 				'value' => absint( $form_id ),
 			),
 		),
@@ -198,7 +198,7 @@ function atf_count_entries( $form_id, $user_id = 0 ) {
  * @param array $schema The form schema.
  * @return bool
  */
-function atf_has_upload_field( $schema ) {
+function alltfo_has_upload_field( $schema ) {
 	foreach ( isset( $schema['fields'] ) ? $schema['fields'] : array() as $field ) {
 		if ( 'file' === $field['type'] ) {
 			return true;
@@ -227,14 +227,14 @@ function atf_has_upload_field( $schema ) {
  * @param array $values Values to override with.
  * @return array Field id => value.
  */
-function atf_prefill_values( $schema, $values = array() ) {
+function alltfo_prefill_values( $schema, $values = array() ) {
 	$resolved = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$value = $field['default'];
 
 		if ( '' !== $field['prefill'] ) {
-			$prefilled = atf_resolve_prefill( $field['prefill'], $field );
+			$prefilled = alltfo_resolve_prefill( $field['prefill'], $field );
 
 			if ( '' !== $prefilled ) {
 				$value = $prefilled;
@@ -256,7 +256,7 @@ function atf_prefill_values( $schema, $values = array() ) {
 	 * @param array $resolved Field id => value.
 	 * @param array $schema   The form schema.
 	 */
-	return apply_filters( 'atf_prefill_values', $resolved, $schema );
+	return apply_filters( 'alltfo_prefill_values', $resolved, $schema );
 }
 
 /**
@@ -272,7 +272,7 @@ function atf_prefill_values( $schema, $values = array() ) {
  * @param array  $field  The field it is for.
  * @return string The resolved value, or an empty string.
  */
-function atf_resolve_prefill( $source, $field ) {
+function alltfo_resolve_prefill( $source, $field ) {
 	$parts = explode( ':', $source, 2 );
 	$kind  = strtolower( trim( $parts[0] ) );
 	$key   = isset( $parts[1] ) ? trim( $parts[1] ) : '';
@@ -285,10 +285,10 @@ function atf_resolve_prefill( $source, $field ) {
 
 			$raw = wp_unslash( $_GET[ $key ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitised on the next line by the field's own type.
 
-			return atf_sanitize_field_value( $raw, $field );
+			return alltfo_sanitize_field_value( $raw, $field );
 
 		case 'user':
-			return atf_resolve_user_tag( $key );
+			return alltfo_resolve_user_tag( $key );
 
 		case 'site':
 			if ( 'url' === $key ) {
@@ -331,5 +331,5 @@ function atf_resolve_prefill( $source, $field ) {
 	 * @param string $source The whole source string.
 	 * @param array  $field  The field.
 	 */
-	return (string) apply_filters( 'atf_resolve_prefill', '', $source, $field );
+	return (string) apply_filters( 'alltfo_resolve_prefill', '', $source, $field );
 }

@@ -18,20 +18,20 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Validation_Presets extends WP_UnitTestCase {
+class ALLTFO_Test_Validation_Presets extends WP_UnitTestCase {
 
 	/**
 	 * The conformance table.
 	 *
 	 * @dataProvider data_presets
-	 * @covers ::atf_validate_preset
+	 * @covers ::alltfo_validate_preset
 	 *
 	 * @param string $preset The preset slug.
 	 * @param string $value  The value as typed.
 	 * @param bool   $valid  Whether the preset must accept it.
 	 */
 	public function test_preset_verdicts_match_the_fixture( $preset, $value, $valid ) {
-		$error = atf_validate_preset( array( 'messages' => array() ), $preset, $value );
+		$error = alltfo_validate_preset( array( 'messages' => array() ), $preset, $value );
 
 		$this->assertSame(
 			$valid,
@@ -48,7 +48,7 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 	public function data_presets() {
 		$cases = array();
 
-		foreach ( atf_test_fixture( 'validation-cases' )['presets'] as $index => $case ) {
+		foreach ( alltfo_test_fixture( 'validation-cases' )['presets'] as $index => $case ) {
 			$cases[ $index . ': ' . $case['preset'] . ' ' . $case['value'] ] = array(
 				$case['preset'],
 				$case['value'],
@@ -65,12 +65,12 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 	 * A typo in the fixture would otherwise pass both suites: an unknown slug
 	 * is deliberately not an error at validation time.
 	 *
-	 * @covers ::atf_validation_presets
+	 * @covers ::alltfo_validation_presets
 	 */
 	public function test_fixture_slugs_all_exist() {
-		$presets = atf_validation_presets();
+		$presets = alltfo_validation_presets();
 
-		foreach ( atf_test_fixture( 'validation-cases' )['presets'] as $case ) {
+		foreach ( alltfo_test_fixture( 'validation-cases' )['presets'] as $case ) {
 			$this->assertArrayHasKey( $case['preset'], $presets );
 		}
 	}
@@ -78,12 +78,12 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 	/**
 	 * Every preset has at least one fixture case, so none ships untested.
 	 *
-	 * @covers ::atf_validation_presets
+	 * @covers ::alltfo_validation_presets
 	 */
 	public function test_every_preset_is_in_the_fixture() {
-		$tested = wp_list_pluck( atf_test_fixture( 'validation-cases' )['presets'], 'preset' );
+		$tested = wp_list_pluck( alltfo_test_fixture( 'validation-cases' )['presets'], 'preset' );
 
-		foreach ( array_keys( atf_validation_presets() ) as $slug ) {
+		foreach ( array_keys( alltfo_validation_presets() ) as $slug ) {
 			$this->assertContains( $slug, $tested, "Preset '{$slug}' has no conformance case." );
 		}
 	}
@@ -91,16 +91,16 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 	/**
 	 * A slug from a newer version passes rather than rejecting everything.
 	 *
-	 * @covers ::atf_validate_preset
+	 * @covers ::alltfo_validate_preset
 	 */
 	public function test_unknown_preset_passes() {
-		$this->assertSame( '', atf_validate_preset( array( 'messages' => array() ), 'from_the_future', 'anything' ) );
+		$this->assertSame( '', alltfo_validate_preset( array( 'messages' => array() ), 'from_the_future', 'anything' ) );
 	}
 
 	/**
 	 * The preset is enforced through the ordinary field validation path.
 	 *
-	 * @covers ::atf_validate_field
+	 * @covers ::alltfo_validate_field
 	 */
 	public function test_validate_field_applies_the_preset() {
 		$field = array(
@@ -113,14 +113,14 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 			'validation' => 'email',
 		);
 
-		$this->assertSame( '', atf_validate_field( $field, 'jane@example.com', array() ) );
-		$this->assertNotSame( '', atf_validate_field( $field, 'not-an-email', array() ) );
+		$this->assertSame( '', alltfo_validate_field( $field, 'jane@example.com', array() ) );
+		$this->assertNotSame( '', alltfo_validate_field( $field, 'not-an-email', array() ) );
 	}
 
 	/**
 	 * The sentinel `custom` defers to the field's own pattern.
 	 *
-	 * @covers ::atf_validate_field
+	 * @covers ::alltfo_validate_field
 	 */
 	public function test_custom_defers_to_the_pattern() {
 		$field = array(
@@ -134,39 +134,39 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 			'pattern'    => '^AT-[0-9]+$',
 		);
 
-		$this->assertSame( '', atf_validate_field( $field, 'AT-42', array() ) );
-		$this->assertNotSame( '', atf_validate_field( $field, 'GF-42', array() ) );
+		$this->assertSame( '', alltfo_validate_field( $field, 'AT-42', array() ) );
+		$this->assertNotSame( '', alltfo_validate_field( $field, 'GF-42', array() ) );
 	}
 
 	/**
 	 * The field's own invalid message beats the preset's default.
 	 *
-	 * @covers ::atf_validate_preset
+	 * @covers ::alltfo_validate_preset
 	 */
 	public function test_field_message_wins() {
 		$field = array( 'messages' => array( 'invalid' => 'Work addresses only.' ) );
 
-		$this->assertSame( 'Work addresses only.', atf_validate_preset( $field, 'email', 'nope' ) );
+		$this->assertSame( 'Work addresses only.', alltfo_validate_preset( $field, 'email', 'nope' ) );
 	}
 
 	/**
 	 * The Luhn checksum, on its own.
 	 *
-	 * @covers ::atf_luhn_passes
+	 * @covers ::alltfo_luhn_passes
 	 */
 	public function test_luhn() {
-		$this->assertTrue( atf_luhn_passes( '4242 4242 4242 4242' ) );
-		$this->assertFalse( atf_luhn_passes( '4242 4242 4242 4241' ) );
-		$this->assertFalse( atf_luhn_passes( '42' ) );
+		$this->assertTrue( alltfo_luhn_passes( '4242 4242 4242 4242' ) );
+		$this->assertFalse( alltfo_luhn_passes( '4242 4242 4242 4241' ) );
+		$this->assertFalse( alltfo_luhn_passes( '42' ) );
 	}
 
 	/**
 	 * The schema keeps the preset slug and rebuilds the recipe from a whitelist.
 	 *
-	 * @covers ::atf_normalize_validation_recipe
+	 * @covers ::alltfo_normalize_validation_recipe
 	 */
 	public function test_schema_keeps_validation_and_normalises_the_recipe() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -204,9 +204,9 @@ class ATF_Test_Validation_Presets extends WP_UnitTestCase {
 	/**
 	 * A recipe that is not JSON is dropped rather than stored.
 	 *
-	 * @covers ::atf_normalize_validation_recipe
+	 * @covers ::alltfo_normalize_validation_recipe
 	 */
 	public function test_garbage_recipe_is_dropped() {
-		$this->assertSame( '', atf_normalize_validation_recipe( 'not json' ) );
+		$this->assertSame( '', alltfo_normalize_validation_recipe( 'not json' ) );
 	}
 }

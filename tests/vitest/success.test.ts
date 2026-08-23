@@ -3,7 +3,7 @@
  *
  * The renderer is the same module the front end and the builder preview both
  * run, and its markup is a contract shared with PHP's static fallback — the
- * class names asserted here are the ones `atf_success_screen_html()` emits and
+ * class names asserted here are the ones `alltfo_success_screen_html()` emits and
  * `form.css` styles. What these tests pin: `plain` is byte-for-byte the old
  * confirmation, an unknown style can never escape as a class name, and the
  * per-style structure (icon fallbacks, the drawn check, the typewriter's

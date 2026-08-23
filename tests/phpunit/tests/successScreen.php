@@ -17,15 +17,15 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Success_Screen extends WP_UnitTestCase {
+class ALLTFO_Test_Success_Screen extends WP_UnitTestCase {
 
 	/**
 	 * The style registry carries the promised presets.
 	 *
-	 * @covers ::atf_success_styles
+	 * @covers ::alltfo_success_styles
 	 */
 	public function test_the_styles_ship() {
-		$styles = atf_success_styles();
+		$styles = alltfo_success_styles();
 
 		foreach ( array( 'plain', 'simple', 'minimal', 'card', 'check', 'confetti', 'fireworks', 'sparkles', 'typewriter' ) as $key ) {
 			$this->assertArrayHasKey( $key, $styles );
@@ -36,8 +36,8 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	/**
 	 * The registry is filterable, and a filtered-in style survives normalisation.
 	 *
-	 * @covers ::atf_success_styles
-	 * @covers ::atf_normalize_success_screen
+	 * @covers ::alltfo_success_styles
+	 * @covers ::alltfo_normalize_success_screen
 	 */
 	public function test_a_plugin_can_register_a_style() {
 		$add = static function ( $styles ) {
@@ -50,28 +50,28 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 			return $styles;
 		};
 
-		add_filter( 'atf_success_styles', $add );
+		add_filter( 'alltfo_success_styles', $add );
 
-		$success = atf_normalize_success_screen( array( 'style' => 'disco' ) );
+		$success = alltfo_normalize_success_screen( array( 'style' => 'disco' ) );
 
 		$this->assertSame( 'disco', $success['style'] );
 
-		remove_filter( 'atf_success_styles', $add );
+		remove_filter( 'alltfo_success_styles', $add );
 	}
 
 	/**
 	 * Normalisation fills every knob and refuses what it does not know.
 	 *
-	 * @covers ::atf_normalize_success_screen
+	 * @covers ::alltfo_normalize_success_screen
 	 */
 	public function test_normalisation_is_complete_and_suspicious() {
-		$defaults = atf_normalize_success_screen( array() );
+		$defaults = alltfo_normalize_success_screen( array() );
 
 		$this->assertSame( 'simple', $defaults['style'] );
 		$this->assertSame( 'medium', $defaults['intensity'] );
 		$this->assertFalse( $defaults['showButton'] );
 
-		$mangled = atf_normalize_success_screen(
+		$mangled = alltfo_normalize_success_screen(
 			array(
 				'style'     => 'raveparty',
 				'intensity' => 'ludicrous',
@@ -92,11 +92,11 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	 * A confirmation stores its screen, and the resolver hands it out with
 	 * merge tags replaced.
 	 *
-	 * @covers ::atf_resolve_confirmation
-	 * @covers ::atf_resolve_success_screen
+	 * @covers ::alltfo_resolve_confirmation
+	 * @covers ::alltfo_resolve_success_screen
 	 */
 	public function test_the_resolved_confirmation_carries_the_screen() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'        => array(
 					array(
@@ -119,8 +119,8 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 			)
 		);
 
-		$schema   = atf_get_form_schema( $form_id );
-		$resolved = atf_resolve_confirmation( $schema, array( 'f1' => 'Ada' ), 0, $form_id );
+		$schema   = alltfo_get_form_schema( $form_id );
+		$resolved = alltfo_resolve_confirmation( $schema, array( 'f1' => 'Ada' ), 0, $form_id );
 
 		$this->assertSame( 'confetti', $resolved['success']['style'] );
 		$this->assertSame( 'Nice one, Ada!', $resolved['success']['title'] );
@@ -129,13 +129,13 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	/**
 	 * A form with no confirmations still resolves a complete screen.
 	 *
-	 * @covers ::atf_resolve_confirmation
-	 * @covers ::atf_default_confirmation
+	 * @covers ::alltfo_resolve_confirmation
+	 * @covers ::alltfo_default_confirmation
 	 */
 	public function test_the_default_confirmation_has_a_screen() {
-		$form_id  = atf_test_form();
-		$schema   = atf_get_form_schema( $form_id );
-		$resolved = atf_resolve_confirmation( $schema, array(), 0, $form_id );
+		$form_id  = alltfo_test_form();
+		$schema   = alltfo_get_form_schema( $form_id );
+		$resolved = alltfo_resolve_confirmation( $schema, array(), 0, $form_id );
 
 		$this->assertSame( 'simple', $resolved['success']['style'] );
 	}
@@ -143,10 +143,10 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	/**
 	 * The static render: same classes the bundle builds, style on the root.
 	 *
-	 * @covers ::atf_success_screen_html
+	 * @covers ::alltfo_success_screen_html
 	 */
 	public function test_static_markup_matches_the_bundle_contract() {
-		$html = atf_success_screen_html(
+		$html = alltfo_success_screen_html(
 			'<p>Saved.</p>',
 			array(
 				'style' => 'card',
@@ -165,10 +165,10 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	/**
 	 * Plain is exactly the old confirmation, untouched.
 	 *
-	 * @covers ::atf_success_screen_html
+	 * @covers ::alltfo_success_screen_html
 	 */
 	public function test_plain_is_the_old_markup() {
-		$html = atf_success_screen_html( '<p>Done.</p>', array( 'style' => 'plain' ) );
+		$html = alltfo_success_screen_html( '<p>Done.</p>', array( 'style' => 'plain' ) );
 
 		$this->assertStringNotContainsString( 'atf-success', $html );
 		$this->assertSame( '<div class="atf-confirmation" role="status" tabindex="-1"><p>Done.</p></div>', $html );
@@ -178,10 +178,10 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	 * The check style draws its SVG; the accent rides as a custom property;
 	 * hostile markup in the message is filtered on the way out.
 	 *
-	 * @covers ::atf_success_screen_html
+	 * @covers ::alltfo_success_screen_html
 	 */
 	public function test_the_render_is_styled_and_safe() {
-		$html = atf_success_screen_html(
+		$html = alltfo_success_screen_html(
 			'Fine. <script>alert(1)</script>',
 			array(
 				'style'  => 'check',
@@ -198,10 +198,10 @@ class ATF_Test_Success_Screen extends WP_UnitTestCase {
 	 * The again-button renders as a link — the one reset that works without
 	 * the bundle.
 	 *
-	 * @covers ::atf_success_screen_html
+	 * @covers ::alltfo_success_screen_html
 	 */
 	public function test_the_again_button_is_a_link() {
-		$html = atf_success_screen_html(
+		$html = alltfo_success_screen_html(
 			'Done.',
 			array(
 				'style'       => 'simple',

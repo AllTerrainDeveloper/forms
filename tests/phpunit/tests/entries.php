@@ -15,7 +15,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Entries extends WP_UnitTestCase {
+class ALLTFO_Test_Entries extends WP_UnitTestCase {
 
 	/**
 	 * A form and one stored entry.
@@ -23,7 +23,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * @return array { form_id: int, entry_id: int }
 	 */
 	private function seed() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -40,9 +40,9 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$schema = atf_get_form_schema( $form_id );
+		$schema = alltfo_get_form_schema( $form_id );
 
-		$entry_id = atf_store_entry(
+		$entry_id = alltfo_store_entry(
 			$form_id,
 			$schema,
 			array(
@@ -57,18 +57,18 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * Reading an entry requires the capability.
 	 *
-	 * @covers ::atf_prepare_entry
+	 * @covers ::alltfo_prepare_entry
 	 */
 	public function test_reading_an_entry_requires_capability() {
 		$seeded = $this->seed();
 
 		wp_set_current_user( 0 );
 
-		$this->assertSame( array(), atf_prepare_entry( $seeded['entry_id'] ) );
+		$this->assertSame( array(), alltfo_prepare_entry( $seeded['entry_id'] ) );
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$this->assertSame( array(), atf_prepare_entry( $seeded['entry_id'] ) );
+		$this->assertSame( array(), alltfo_prepare_entry( $seeded['entry_id'] ) );
 
 		// Capabilities first, *then* the user.
 		//
@@ -80,23 +80,23 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 		// test has already granted the cap. This one runs first and had no such
 		// help. On a real site the ordering is never in question: activation adds
 		// the capabilities long before anybody logs in.
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
-		$this->assertSame( 'Ada Lovelace', atf_prepare_entry( $seeded['entry_id'] )['values']['f1'] );
+		$this->assertSame( 'Ada Lovelace', alltfo_prepare_entry( $seeded['entry_id'] )['values']['f1'] );
 	}
 
 	/**
 	 * A query by somebody who may not read entries returns nothing.
 	 *
-	 * @covers ::atf_query_entries
+	 * @covers ::alltfo_query_entries
 	 */
 	public function test_querying_requires_capability() {
 		$seeded = $this->seed();
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$result = atf_query_entries( array( 'form_id' => $seeded['form_id'] ) );
+		$result = alltfo_query_entries( array( 'form_id' => $seeded['form_id'] ) );
 
 		$this->assertSame( 0, $result['total'] );
 		$this->assertSame( array(), $result['entries'] );
@@ -105,14 +105,14 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * An entry's answers come back formatted as well as raw.
 	 *
-	 * @covers ::atf_prepare_entry
+	 * @covers ::alltfo_prepare_entry
 	 */
 	public function test_prepared_entry_shape() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded = $this->seed();
-		$entry  = atf_prepare_entry( $seeded['entry_id'] );
+		$entry  = alltfo_prepare_entry( $seeded['entry_id'] );
 
 		foreach ( array( 'id', 'formId', 'formTitle', 'status', 'date', 'values', 'fields', 'starred', 'canDelete' ) as $key ) {
 			$this->assertArrayHasKey( $key, $entry, "A prepared entry is missing {$key}." );
@@ -125,33 +125,33 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * Opening an entry marks it read.
 	 *
-	 * @covers ::atf_set_entry_status
+	 * @covers ::alltfo_set_entry_status
 	 */
 	public function test_status_changes() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded = $this->seed();
 
-		$this->assertSame( ATF_STATUS_UNREAD, get_post_status( $seeded['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_UNREAD, get_post_status( $seeded['entry_id'] ) );
 
-		atf_set_entry_status( $seeded['entry_id'], ATF_STATUS_READ );
+		alltfo_set_entry_status( $seeded['entry_id'], ALLTFO_STATUS_READ );
 
-		$this->assertSame( ATF_STATUS_READ, get_post_status( $seeded['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_READ, get_post_status( $seeded['entry_id'] ) );
 	}
 
 	/**
 	 * A status that is not one an entry can have is refused.
 	 *
-	 * @covers ::atf_set_entry_status
+	 * @covers ::alltfo_set_entry_status
 	 */
 	public function test_bad_status_is_refused() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded = $this->seed();
 
-		$this->assertWPError( atf_set_entry_status( $seeded['entry_id'], 'publish' ) );
+		$this->assertWPError( alltfo_set_entry_status( $seeded['entry_id'], 'publish' ) );
 	}
 
 	/**
@@ -161,22 +161,22 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * as 0 -- "any form" -- which slipped past a per-form read filter and let
 	 * the star meta land on arbitrary posts.
 	 *
-	 * @covers ::atf_star_entry
+	 * @covers ::alltfo_star_entry
 	 */
 	public function test_starring_requires_an_entry() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded  = $this->seed();
 		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 
-		$this->assertWPError( atf_star_entry( $page_id, true ), 'A page is not an entry.' );
-		$this->assertSame( '', get_post_meta( $page_id, '_atf_starred', true ) );
+		$this->assertWPError( alltfo_star_entry( $page_id, true ), 'A page is not an entry.' );
+		$this->assertSame( '', get_post_meta( $page_id, '_alltfo_starred', true ) );
 
-		$this->assertWPError( atf_star_entry( 0, true ), 'Nothing is not an entry either.' );
+		$this->assertWPError( alltfo_star_entry( 0, true ), 'Nothing is not an entry either.' );
 
-		$this->assertTrue( atf_star_entry( $seeded['entry_id'], true ) );
-		$this->assertSame( '1', get_post_meta( $seeded['entry_id'], '_atf_starred', true ) );
+		$this->assertTrue( alltfo_star_entry( $seeded['entry_id'], true ) );
+		$this->assertSame( '1', get_post_meta( $seeded['entry_id'], '_alltfo_starred', true ) );
 	}
 
 	/**
@@ -184,14 +184,14 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 *
 	 * The route names its parameter `id`, because it lives at
 	 * `/forms/{id}/analytics` -- and the permission callback used to read only
-	 * `form_id`, so the documented `atf_can_read_entries` seam was always
+	 * `form_id`, so the documented `alltfo_can_read_entries` seam was always
 	 * asked about form 0 rather than the form whose numbers were being read.
 	 *
-	 * @covers ::atf_rest_can_read_entries
+	 * @covers ::alltfo_rest_can_read_entries
 	 */
 	public function test_analytics_permission_asks_about_the_right_form() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded = $this->seed();
 		$asked  = array();
@@ -202,21 +202,21 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			return $seeded['form_id'] === $form_id ? false : $can;
 		};
 
-		add_filter( 'atf_can_read_entries', $filter, 10, 2 );
+		add_filter( 'alltfo_can_read_entries', $filter, 10, 2 );
 
-		$request = new WP_REST_Request( 'GET', '/' . ATF_REST_NAMESPACE . '/forms/' . $seeded['form_id'] . '/analytics' );
+		$request = new WP_REST_Request( 'GET', '/' . ALLTFO_REST_NAMESPACE . '/forms/' . $seeded['form_id'] . '/analytics' );
 		$request->set_param( 'id', $seeded['form_id'] );
 
-		$result = atf_rest_can_read_entries( $request );
+		$result = alltfo_rest_can_read_entries( $request );
 
 		// An entry route's `id` is an entry, not a form, and must stay out of
 		// the per-form question.
-		$entry_request = new WP_REST_Request( 'GET', '/' . ATF_REST_NAMESPACE . '/entries/' . $seeded['entry_id'] );
+		$entry_request = new WP_REST_Request( 'GET', '/' . ALLTFO_REST_NAMESPACE . '/entries/' . $seeded['entry_id'] );
 		$entry_request->set_param( 'id', $seeded['entry_id'] );
 
-		$entry_result = atf_rest_can_read_entries( $entry_request );
+		$entry_result = alltfo_rest_can_read_entries( $entry_request );
 
-		remove_filter( 'atf_can_read_entries', $filter );
+		remove_filter( 'alltfo_can_read_entries', $filter );
 
 		$this->assertWPError( $result, 'Denying the form must deny its analytics.' );
 		$this->assertContains( $seeded['form_id'], $asked, 'The filter must be asked about the form being read.' );
@@ -230,14 +230,14 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * A CSV export has a header row and the answers under it.
 	 *
-	 * @covers ::atf_export_entries_csv
+	 * @covers ::alltfo_export_entries_csv
 	 */
 	public function test_export_has_headers_and_rows() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$seeded = $this->seed();
-		$csv    = atf_export_entries_csv( $seeded['form_id'] );
+		$csv    = alltfo_export_entries_csv( $seeded['form_id'] );
 
 		$this->assertIsString( $csv );
 		$this->assertStringStartsWith( "\xEF\xBB\xBF", $csv, 'A BOM-less UTF-8 CSV is mojibake in Excel.' );
@@ -252,12 +252,12 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * machine", and it is the reason exports need this at all.
 	 *
 	 * @dataProvider data_csv_attacks
-	 * @covers ::atf_sanitize_csv_cell
+	 * @covers ::alltfo_sanitize_csv_cell
 	 *
 	 * @param string $value A value that must be defused.
 	 */
 	public function test_csv_injection_is_defused( $value ) {
-		$cell = atf_sanitize_csv_cell( $value );
+		$cell = alltfo_sanitize_csv_cell( $value );
 
 		$this->assertStringStartsWith( "'", $cell, sprintf( '%s was not defused.', $value ) );
 	}
@@ -290,34 +290,34 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * An ordinary answer is not mangled.
 	 *
-	 * @covers ::atf_sanitize_csv_cell
+	 * @covers ::alltfo_sanitize_csv_cell
 	 */
 	public function test_ordinary_cells_survive() {
 		foreach ( array( 'Ada Lovelace', 'ada@example.com', '42', 'a, b, c', '' ) as $value ) {
-			$this->assertSame( $value, atf_sanitize_csv_cell( $value ) );
+			$this->assertSame( $value, alltfo_sanitize_csv_cell( $value ) );
 		}
 	}
 
 	/**
 	 * Exporting requires the capability.
 	 *
-	 * @covers ::atf_export_entries_csv
+	 * @covers ::alltfo_export_entries_csv
 	 */
 	public function test_export_requires_capability() {
 		$seeded = $this->seed();
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$this->assertWPError( atf_export_entries_csv( $seeded['form_id'] ) );
+		$this->assertWPError( alltfo_export_entries_csv( $seeded['form_id'] ) );
 	}
 
 	/**
 	 * A password column never appears in an export.
 	 *
-	 * @covers ::atf_export_columns
+	 * @covers ::alltfo_export_columns
 	 */
 	public function test_export_omits_passwords() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -334,7 +334,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$columns = atf_export_columns( $schema );
+		$columns = alltfo_export_columns( $schema );
 
 		$this->assertArrayHasKey( 'field:u', $columns );
 		$this->assertArrayNotHasKey( 'field:p', $columns );
@@ -346,14 +346,14 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * Nothing the web server might execute is ever an accepted extension.
 	 *
 	 * @dataProvider data_dangerous_extensions
-	 * @covers ::ATF_FORBIDDEN_EXTENSIONS
+	 * @covers ::ALLTFO_FORBIDDEN_EXTENSIONS
 	 *
 	 * @param string $extension An extension that must be forbidden.
 	 */
 	public function test_executable_extensions_are_forbidden( $extension ) {
 		$this->assertContains(
 			$extension,
-			ATF_FORBIDDEN_EXTENSIONS,
+			ALLTFO_FORBIDDEN_EXTENSIONS,
 			sprintf( '".%s" must never be an accepted upload.', $extension )
 		);
 	}
@@ -378,10 +378,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * A file field refuses an executable even when the form lists one.
 	 *
-	 * @covers ::atf_store_uploaded_file
+	 * @covers ::alltfo_store_uploaded_file
 	 */
 	public function test_upload_refuses_executables() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'        => 'f1',
 				'type'      => 'file',
@@ -395,7 +395,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 
 		file_put_contents( $tmp, "<?php echo 'pwned'; ?>" );
 
-		$result = atf_store_uploaded_file(
+		$result = alltfo_store_uploaded_file(
 			array(
 				'name'     => 'payload.php',
 				'type'     => 'application/x-php',
@@ -417,10 +417,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 *
 	 * `payload.php` renamed to `photo.jpg` is the oldest upload attack there is.
 	 *
-	 * @covers ::atf_store_uploaded_file
+	 * @covers ::alltfo_store_uploaded_file
 	 */
 	public function test_upload_refuses_a_disguised_file() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'        => 'f1',
 				'type'      => 'file',
@@ -432,7 +432,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 
 		file_put_contents( $tmp, "<?php echo 'pwned'; ?>" );
 
-		$result = atf_store_uploaded_file(
+		$result = alltfo_store_uploaded_file(
 			array(
 				'name'     => 'photo.jpg',
 				'type'     => 'image/jpeg',
@@ -452,10 +452,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * A file over the field's size limit is refused.
 	 *
-	 * @covers ::atf_store_uploaded_file
+	 * @covers ::alltfo_store_uploaded_file
 	 */
 	public function test_upload_size_limit() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'        => 'f1',
 				'type'      => 'file',
@@ -464,7 +464,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$result = atf_store_uploaded_file(
+		$result = alltfo_store_uploaded_file(
 			array(
 				'name'     => 'big.txt',
 				'type'     => 'text/plain',
@@ -477,7 +477,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'atf_file_too_big', $result->get_error_code() );
+		$this->assertSame( 'alltfo_file_too_big', $result->get_error_code() );
 	}
 
 	/**
@@ -486,7 +486,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * The original name is attacker-controlled, and a guessable one undoes the
 	 * directory protection for anyone who thinks to try.
 	 *
-	 * @covers ::atf_unique_upload_filename
+	 * @covers ::alltfo_unique_upload_filename
 	 */
 	public function test_upload_filenames_are_unguessable() {
 		// A stem made of characters the generator cannot produce.
@@ -501,8 +501,8 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 		// "none of the original stem survives" becomes something that either
 		// holds or does not.
 		$name   = 'mi currículum (final) v2.pdf';
-		$first  = atf_unique_upload_filename( '/tmp', $name, '.pdf' );
-		$second = atf_unique_upload_filename( '/tmp', $name, '.pdf' );
+		$first  = alltfo_unique_upload_filename( '/tmp', $name, '.pdf' );
+		$second = alltfo_unique_upload_filename( '/tmp', $name, '.pdf' );
 
 		$this->assertNotSame( $first, $second, 'Two uploads of the same file must not collide.' );
 
@@ -514,7 +514,12 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			'A stored upload name must be a random token plus the extension, and nothing else.'
 		);
 
-		foreach ( array( 'currículum', 'final', 'v2', ' ', '(' ) as $fragment ) {
+		// Only fragments a 24-character alphanumeric token *cannot* contain by
+		// construction. Short alphanumeric fragments like "v2" are excluded on
+		// purpose: a random token contains any given two-character pair about
+		// once in 170 runs, and the structural regex above already proves
+		// nothing of the original name survives.
+		foreach ( array( 'currículum', ' ', '(' ) as $fragment ) {
 			$this->assertStringNotContainsString(
 				$fragment,
 				$first,
@@ -526,12 +531,12 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * The uploads directory is protected against being served.
 	 *
-	 * @covers ::atf_protect_upload_directory
+	 * @covers ::alltfo_protect_upload_directory
 	 */
 	public function test_upload_directory_is_protected() {
 		$directory = get_temp_dir() . 'atf-protect-test-' . wp_rand( 1000, 9999 );
 
-		atf_protect_upload_directory( $directory );
+		alltfo_protect_upload_directory( $directory );
 
 		$this->assertFileExists( $directory . '/.htaccess' );
 		$this->assertFileExists( $directory . '/index.php' );
@@ -547,10 +552,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	/**
 	 * Retention deletes entries past their form's policy, and nothing else.
 	 *
-	 * @covers ::atf_apply_retention
+	 * @covers ::alltfo_apply_retention
 	 */
 	public function test_retention_only_takes_the_old() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -564,10 +569,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$schema = atf_get_form_schema( $form_id );
+		$schema = alltfo_get_form_schema( $form_id );
 
-		$old = atf_store_entry( $form_id, $schema, array( 'f1' => 'ancient' ) );
-		$new = atf_store_entry( $form_id, $schema, array( 'f1' => 'recent' ) );
+		$old = alltfo_store_entry( $form_id, $schema, array( 'f1' => 'ancient' ) );
+		$new = alltfo_store_entry( $form_id, $schema, array( 'f1' => 'recent' ) );
 
 		wp_update_post(
 			array(
@@ -577,7 +582,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		atf_apply_retention();
+		alltfo_apply_retention();
 
 		$this->assertNull( get_post( $old ), 'An entry past its retention period should be gone.' );
 		$this->assertNotNull( get_post( $new ), 'A recent entry must survive.' );
@@ -589,10 +594,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * A plugin must not start deleting somebody's data on a schedule they did
 	 * not choose.
 	 *
-	 * @covers ::atf_apply_retention
+	 * @covers ::alltfo_apply_retention
 	 */
 	public function test_retention_defaults_to_forever() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -603,7 +608,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$entry_id = atf_store_entry( $form_id, atf_get_form_schema( $form_id ), array( 'f1' => 'keep me' ) );
+		$entry_id = alltfo_store_entry( $form_id, alltfo_get_form_schema( $form_id ), array( 'f1' => 'keep me' ) );
 
 		wp_update_post(
 			array(
@@ -613,7 +618,7 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		atf_apply_retention();
+		alltfo_apply_retention();
 
 		$this->assertNotNull( get_post( $entry_id ) );
 	}
@@ -635,14 +640,14 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * Asserting the *broken* behaviour alongside the fixed one is the point: the
 	 * day `'any'` starts working, this test says so, and the helper can go.
 	 *
-	 * @covers ::atf_entry_statuses
+	 * @covers ::alltfo_entry_statuses
 	 */
 	public function test_entry_queries_must_name_their_statuses() {
 		$seeded = $this->seed();
 
 		$with_any = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => 'any',
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
@@ -653,13 +658,13 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			$seeded['entry_id'],
 			$with_any,
 			"If `'any'` has started matching entries, WordPress changed under us — "
-				. 'check whether atf_entry_statuses() is still needed before trusting this.'
+				. 'check whether alltfo_entry_statuses() is still needed before trusting this.'
 		);
 
 		$named = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				'post_status'    => atf_entry_statuses(),
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				'post_status'    => alltfo_entry_statuses(),
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
 			)
@@ -675,15 +680,15 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * sweep and to privacy requests — the same silent failure, one status at a
 	 * time.
 	 *
-	 * @covers ::atf_entry_statuses
+	 * @covers ::alltfo_entry_statuses
 	 */
 	public function test_the_helper_covers_every_entry_status() {
 		$missing = array_diff(
-			array( ATF_STATUS_UNREAD, ATF_STATUS_READ, ATF_STATUS_SPAM, ATF_STATUS_PARTIAL ),
-			atf_entry_statuses()
+			array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ, ALLTFO_STATUS_SPAM, ALLTFO_STATUS_PARTIAL ),
+			alltfo_entry_statuses()
 		);
 
-		$this->assertSame( array(), $missing, 'Statuses missing from atf_entry_statuses(): ' . implode( ', ', $missing ) );
+		$this->assertSame( array(), $missing, 'Statuses missing from alltfo_entry_statuses(): ' . implode( ', ', $missing ) );
 	}
 
 	/**
@@ -693,10 +698,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 	 * indistinguishable from "this person has submitted nothing" — a wrong answer
 	 * to a legal request.
 	 *
-	 * @covers ::atf_find_entries_for_email
+	 * @covers ::alltfo_find_entries_for_email
 	 */
 	public function test_a_privacy_export_finds_an_entry() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -707,10 +712,10 @@ class ATF_Test_Entries extends WP_UnitTestCase {
 			)
 		);
 
-		$schema   = atf_get_form_schema( $form_id );
-		$entry_id = atf_store_entry( $form_id, $schema, array( 'f1' => 'ada@example.com' ) );
+		$schema   = alltfo_get_form_schema( $form_id );
+		$entry_id = alltfo_store_entry( $form_id, $schema, array( 'f1' => 'ada@example.com' ) );
 
-		$found = atf_find_entries_for_email( 'ada@example.com' );
+		$found = alltfo_find_entries_for_email( 'ada@example.com' );
 
 		$this->assertContains(
 			$entry_id,

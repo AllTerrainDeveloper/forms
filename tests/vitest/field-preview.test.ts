@@ -21,7 +21,7 @@ import { hasPlaceholder, shapeFor } from '../../src/field-preview';
 /**
  * Every field type the plugin registers.
  *
- * Mirrors `atf_register_builtin_field_types()`. Kept as a literal rather than
+ * Mirrors `alltfo_register_builtin_field_types()`. Kept as a literal rather than
  * read from a fixture because the point of this test is to fail when the two
  * lists disagree — reading one from the other would make it agree by
  * construction and assert nothing.

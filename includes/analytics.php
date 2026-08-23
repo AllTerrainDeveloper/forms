@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string, int>
  */
-function atf_default_stats() {
+function alltfo_default_stats() {
 	return array(
 		'views'       => 0,
 		'starts'      => 0,
@@ -40,10 +40,10 @@ function atf_default_stats() {
  * @param int $form_id The form.
  * @return array<string, int>
  */
-function atf_get_stats( $form_id ) {
-	$stats = json_decode( (string) get_post_meta( absint( $form_id ), ATF_META_STATS, true ), true );
+function alltfo_get_stats( $form_id ) {
+	$stats = json_decode( (string) get_post_meta( absint( $form_id ), ALLTFO_META_STATS, true ), true );
 
-	return array_merge( atf_default_stats(), is_array( $stats ) ? array_map( 'absint', $stats ) : array() );
+	return array_merge( alltfo_default_stats(), is_array( $stats ) ? array_map( 'absint', $stats ) : array() );
 }
 
 /**
@@ -56,14 +56,14 @@ function atf_get_stats( $form_id ) {
  * @param int    $by      How much to add.
  * @return void
  */
-function atf_bump_stat( $form_id, $key, $by = 1 ) {
+function alltfo_bump_stat( $form_id, $key, $by = 1 ) {
 	$form_id = absint( $form_id );
 
 	if ( ! $form_id ) {
 		return;
 	}
 
-	$stats = atf_get_stats( $form_id );
+	$stats = alltfo_get_stats( $form_id );
 
 	if ( ! array_key_exists( $key, $stats ) ) {
 		return;
@@ -71,7 +71,7 @@ function atf_bump_stat( $form_id, $key, $by = 1 ) {
 
 	$stats[ $key ] = max( 0, $stats[ $key ] + (int) $by );
 
-	update_post_meta( $form_id, ATF_META_STATS, wp_slash( wp_json_encode( $stats ) ) );
+	update_post_meta( $form_id, ALLTFO_META_STATS, wp_slash( wp_json_encode( $stats ) ) );
 }
 
 /**
@@ -83,8 +83,8 @@ function atf_bump_stat( $form_id, $key, $by = 1 ) {
  * @param string $key     'enabled' or 'tech'.
  * @return bool
  */
-function atf_analytics_setting( $form_id, $key ) {
-	$schema   = atf_get_form_schema( $form_id );
+function alltfo_analytics_setting( $form_id, $key ) {
+	$schema   = alltfo_get_form_schema( $form_id );
 	$settings = isset( $schema['settings']['analytics'] ) ? $schema['settings']['analytics'] : array();
 
 	return ! empty( $settings[ $key ] );
@@ -107,7 +107,7 @@ function atf_analytics_setting( $form_id, $key ) {
  * @param string $ua The user-agent string.
  * @return array { device: string, browser: string, os: string }
  */
-function atf_classify_user_agent( $ua ) {
+function alltfo_classify_user_agent( $ua ) {
 	$ua = trim( (string) $ua );
 
 	if ( '' === $ua ) {
@@ -185,8 +185,8 @@ function atf_classify_user_agent( $ua ) {
  * @return array { views: array, submissions: array } -- each holding sparse
  *               `device` / `browser` / `os` count maps.
  */
-function atf_get_tech_stats( $form_id ) {
-	$stored = json_decode( (string) get_post_meta( absint( $form_id ), ATF_META_TECH, true ), true );
+function alltfo_get_tech_stats( $form_id ) {
+	$stored = json_decode( (string) get_post_meta( absint( $form_id ), ALLTFO_META_TECH, true ), true );
 	$tech   = array(
 		'views'       => array(),
 		'submissions' => array(),
@@ -231,7 +231,7 @@ function atf_get_tech_stats( $form_id ) {
  * @param int         $by      How much to add.
  * @return void
  */
-function atf_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
+function alltfo_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
 	$form_id = absint( $form_id );
 
 	if ( ! $form_id || ! in_array( $kind, array( 'views', 'submissions' ), true ) ) {
@@ -242,8 +242,8 @@ function atf_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
 		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
 	}
 
-	$classes = atf_classify_user_agent( $ua );
-	$tech    = atf_get_tech_stats( $form_id );
+	$classes = alltfo_classify_user_agent( $ua );
+	$tech    = alltfo_get_tech_stats( $form_id );
 
 	foreach ( $classes as $facet => $class ) {
 		$current = isset( $tech[ $kind ][ $facet ][ $class ] ) ? $tech[ $kind ][ $facet ][ $class ] : 0;
@@ -251,7 +251,7 @@ function atf_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
 		$tech[ $kind ][ $facet ][ $class ] = max( 0, $current + (int) $by );
 	}
 
-	update_post_meta( $form_id, ATF_META_TECH, wp_slash( wp_json_encode( $tech ) ) );
+	update_post_meta( $form_id, ALLTFO_META_TECH, wp_slash( wp_json_encode( $tech ) ) );
 }
 
 /**
@@ -262,8 +262,8 @@ function atf_bump_tech( $form_id, $kind, $ua = null, $by = 1 ) {
  * @param int $form_id The form.
  * @return bool
  */
-function atf_should_record_tech( $form_id ) {
-	if ( ! atf_analytics_setting( $form_id, 'enabled' ) || ! atf_analytics_setting( $form_id, 'tech' ) ) {
+function alltfo_should_record_tech( $form_id ) {
+	if ( ! alltfo_analytics_setting( $form_id, 'enabled' ) || ! alltfo_analytics_setting( $form_id, 'tech' ) ) {
 		return false;
 	}
 
@@ -279,7 +279,7 @@ function atf_should_record_tech( $form_id ) {
 	 * @param bool $record  Whether to tally it.
 	 * @param int  $form_id The form.
 	 */
-	return (bool) apply_filters( 'atf_record_tech', true, $form_id );
+	return (bool) apply_filters( 'alltfo_record_tech', true, $form_id );
 }
 
 /**
@@ -294,8 +294,8 @@ function atf_should_record_tech( $form_id ) {
  * @param int $form_id The form.
  * @return void
  */
-function atf_record_view( $form_id ) {
-	if ( atf_can_edit_forms() ) {
+function alltfo_record_view( $form_id ) {
+	if ( alltfo_can_edit_forms() ) {
 		return;
 	}
 
@@ -307,18 +307,18 @@ function atf_record_view( $form_id ) {
 	 * @param bool $record  Whether to count it.
 	 * @param int  $form_id The form.
 	 */
-	if ( ! apply_filters( 'atf_record_view', true, $form_id ) ) {
+	if ( ! apply_filters( 'alltfo_record_view', true, $form_id ) ) {
 		return;
 	}
 
-	if ( ! atf_analytics_setting( $form_id, 'enabled' ) ) {
+	if ( ! alltfo_analytics_setting( $form_id, 'enabled' ) ) {
 		return;
 	}
 
-	atf_bump_stat( $form_id, 'views' );
+	alltfo_bump_stat( $form_id, 'views' );
 
-	if ( atf_should_record_tech( $form_id ) ) {
-		atf_bump_tech( $form_id, 'views' );
+	if ( alltfo_should_record_tech( $form_id ) ) {
+		alltfo_bump_tech( $form_id, 'views' );
 	}
 }
 
@@ -330,11 +330,11 @@ function atf_record_view( $form_id ) {
  * @param int $form_id The form.
  * @return void
  */
-function atf_record_submission( $form_id ) {
-	atf_bump_stat( $form_id, 'submissions' );
+function alltfo_record_submission( $form_id ) {
+	alltfo_bump_stat( $form_id, 'submissions' );
 
-	if ( atf_should_record_tech( $form_id ) ) {
-		atf_bump_tech( $form_id, 'submissions' );
+	if ( alltfo_should_record_tech( $form_id ) ) {
+		alltfo_bump_tech( $form_id, 'submissions' );
 	}
 }
 
@@ -351,12 +351,12 @@ function atf_record_submission( $form_id ) {
  * @param int $form_id The form.
  * @return void
  */
-function atf_record_start( $form_id ) {
-	if ( ! atf_analytics_setting( $form_id, 'enabled' ) ) {
+function alltfo_record_start( $form_id ) {
+	if ( ! alltfo_analytics_setting( $form_id, 'enabled' ) ) {
 		return;
 	}
 
-	atf_bump_stat( $form_id, 'starts' );
+	alltfo_bump_stat( $form_id, 'starts' );
 }
 
 /**
@@ -369,10 +369,10 @@ function atf_record_start( $form_id ) {
  *                          the first one that is suitable.
  * @return array
  */
-function atf_form_analytics( $form_id, $dimension = '' ) {
+function alltfo_form_analytics( $form_id, $dimension = '' ) {
 	$form_id = absint( $form_id );
-	$stats   = atf_get_stats( $form_id );
-	$schema  = atf_get_form_schema( $form_id );
+	$stats   = alltfo_get_stats( $form_id );
+	$schema  = alltfo_get_form_schema( $form_id );
 
 	$views       = $stats['views'];
 	$submissions = $stats['submissions'];
@@ -397,36 +397,36 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 		'fields'      => array(),
 	);
 
-	$counts = wp_count_posts( ATF_ENTRY_TYPE );
+	$counts = wp_count_posts( ALLTFO_ENTRY_TYPE );
 
 	// The per-status counts are site-wide, so a form-specific number needs its
 	// own query. Only done for the two that are shown as badges.
-	$report['unread'] = atf_count_entries_by_status( $form_id, ATF_STATUS_UNREAD );
-	$report['spam']   = atf_count_entries_by_status( $form_id, ATF_STATUS_SPAM );
+	$report['unread'] = alltfo_count_entries_by_status( $form_id, ALLTFO_STATUS_UNREAD );
+	$report['spam']   = alltfo_count_entries_by_status( $form_id, ALLTFO_STATUS_SPAM );
 
 	unset( $counts );
 
-	$report['fields'] = atf_field_response_rates( $form_id, $schema );
+	$report['fields'] = alltfo_field_response_rates( $form_id, $schema );
 
-	$sample = atf_analytics_sample( $form_id );
+	$sample = alltfo_analytics_sample( $form_id );
 
 	$report['sampled']  = $sample['sampled'];
-	$report['timeline'] = atf_analytics_timeline( $sample['rows'] );
-	$report['tech']     = atf_analytics_tech( $form_id );
+	$report['timeline'] = alltfo_analytics_timeline( $sample['rows'] );
+	$report['tech']     = alltfo_analytics_tech( $form_id );
 
 	// The numeric summaries are attached to the fields they belong to rather than
 	// listed separately, so a client drawing the per-field report has everything
 	// about a field in one place and never has to join two lists by id.
 	$by_id = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$by_id[ $field['id'] ] = $field;
 	}
 
 	foreach ( $report['fields'] as $index => $row ) {
 		$field = isset( $by_id[ $row['id'] ] ) ? $by_id[ $row['id'] ] : null;
 
-		if ( ! $field || ! atf_analytics_is_numeric_field( $field ) ) {
+		if ( ! $field || ! alltfo_analytics_is_numeric_field( $field ) ) {
 			continue;
 		}
 
@@ -440,13 +440,13 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 			}
 		}
 
-		$report['fields'][ $index ]['numbers'] = atf_analytics_numbers( $numbers );
-		$report['fields'][ $index ]['nps']     = atf_analytics_is_nps_field( $field )
-			? atf_analytics_nps( $numbers )
+		$report['fields'][ $index ]['numbers'] = alltfo_analytics_numbers( $numbers );
+		$report['fields'][ $index ]['nps']     = alltfo_analytics_is_nps_field( $field )
+			? alltfo_analytics_nps( $numbers )
 			: null;
 	}
 
-	$dimensions = atf_analytics_dimensions( $schema );
+	$dimensions = alltfo_analytics_dimensions( $schema );
 	$dimension  = (string) $dimension;
 
 	// An unknown or absent grouping falls back to the first suitable field rather
@@ -460,7 +460,7 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 
 	$report['dimensions'] = $dimensions;
 	$report['breakdown']  = '' !== $dimension
-		? atf_analytics_breakdown( $sample['rows'], $schema, $dimension )
+		? alltfo_analytics_breakdown( $sample['rows'], $schema, $dimension )
 		: null;
 
 	/**
@@ -471,7 +471,7 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
 	 * @param array $report  The report.
 	 * @param int   $form_id The form.
 	 */
-	return apply_filters( 'atf_form_analytics', $report, $form_id );
+	return apply_filters( 'alltfo_form_analytics', $report, $form_id );
 }
 
 /**
@@ -481,7 +481,7 @@ function atf_form_analytics( $form_id, $dimension = '' ) {
  *
  * @return array<string, array<string, string>> Facet => class => label.
  */
-function atf_tech_labels() {
+function alltfo_tech_labels() {
 	return array(
 		'device'  => array(
 			'desktop' => __( 'Desktop', 'allterrain-forms' ),
@@ -526,9 +526,9 @@ function atf_tech_labels() {
  * @param int $form_id The form.
  * @return array|null Facet => rows, or null when nothing has been tallied.
  */
-function atf_analytics_tech( $form_id ) {
-	$tech   = atf_get_tech_stats( $form_id );
-	$labels = atf_tech_labels();
+function alltfo_analytics_tech( $form_id ) {
+	$tech   = alltfo_get_tech_stats( $form_id );
+	$labels = alltfo_tech_labels();
 	$out    = array();
 	$any    = false;
 
@@ -592,16 +592,16 @@ function atf_analytics_tech( $form_id ) {
  * @param string $status  The status.
  * @return int
  */
-function atf_count_entries_by_status( $form_id, $status ) {
+function alltfo_count_entries_by_status( $form_id, $status ) {
 	$query = new WP_Query(
 		array(
-			'post_type'      => ATF_ENTRY_TYPE,
+			'post_type'      => ALLTFO_ENTRY_TYPE,
 			'post_status'    => $status,
 			'fields'         => 'ids',
 			'posts_per_page' => 1,
 			'meta_query'     => array(
 				array(
-					'key'   => ATF_META_FORM,
+					'key'   => ALLTFO_META_FORM,
 					'value' => absint( $form_id ),
 				),
 			),
@@ -627,8 +627,8 @@ function atf_count_entries_by_status( $form_id, $status ) {
  * @param array $schema  The form schema.
  * @return array[] One row per input field.
  */
-function atf_field_response_rates( $form_id, $schema ) {
-	$sample  = atf_analytics_sample( $form_id );
+function alltfo_field_response_rates( $form_id, $schema ) {
+	$sample  = alltfo_analytics_sample( $form_id );
 	$sampled = $sample['sampled'];
 	$answers = array();
 	$choices = array();
@@ -637,7 +637,7 @@ function atf_field_response_rates( $form_id, $schema ) {
 		$values = $row['values'];
 
 		foreach ( $values as $field_id => $value ) {
-			if ( atf_value_is_empty( $value ) ) {
+			if ( alltfo_value_is_empty( $value ) ) {
 				continue;
 			}
 
@@ -663,7 +663,7 @@ function atf_field_response_rates( $form_id, $schema ) {
 
 	$rows = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$answered = isset( $answers[ $field['id'] ] ) ? $answers[ $field['id'] ] : 0;
 
 		$row = array(
@@ -718,10 +718,10 @@ function atf_field_response_rates( $form_id, $schema ) {
 				}
 			}
 
-			$row['numbers'] = atf_analytics_numbers( $counts );
+			$row['numbers'] = alltfo_analytics_numbers( $counts );
 
 			$rows[] = $row;
-			$rows   = array_merge( $rows, atf_repeater_report_rows( $field, $sample ) );
+			$rows   = array_merge( $rows, alltfo_repeater_report_rows( $field, $sample ) );
 
 			continue;
 		}
@@ -746,10 +746,10 @@ function atf_field_response_rates( $form_id, $schema ) {
  * @since 0.1.0
  *
  * @param array $field  The repeater field.
- * @param array $sample The sampled entries, from `atf_analytics_sample()`.
- * @return array[] Report rows shaped like `atf_field_response_rates()` rows.
+ * @param array $sample The sampled entries, from `alltfo_analytics_sample()`.
+ * @return array[] Report rows shaped like `alltfo_field_response_rates()` rows.
  */
-function atf_repeater_report_rows( $field, $sample ) {
+function alltfo_repeater_report_rows( $field, $sample ) {
 	$subs         = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
 	$parent_label = '' !== $field['label'] ? $field['label'] : $field['id'];
 	$out          = array();
@@ -780,7 +780,7 @@ function atf_repeater_report_rows( $field, $sample ) {
 
 				$answer = isset( $entry_row[ $sub['id'] ] ) ? $entry_row[ $sub['id'] ] : null;
 
-				if ( atf_value_is_empty( $answer ) ) {
+				if ( alltfo_value_is_empty( $answer ) ) {
 					continue;
 				}
 
@@ -825,8 +825,8 @@ function atf_repeater_report_rows( $field, $sample ) {
 			}
 		}
 
-		if ( atf_analytics_is_numeric_field( $sub ) ) {
-			$sub_row['numbers'] = atf_analytics_numbers( $numbers );
+		if ( alltfo_analytics_is_numeric_field( $sub ) ) {
+			$sub_row['numbers'] = alltfo_analytics_numbers( $numbers );
 		}
 
 		$out[] = $sub_row;
@@ -852,7 +852,7 @@ function atf_repeater_report_rows( $field, $sample ) {
  * @param int $form_id The form.
  * @return array { sampled, rows: array of { values, time } }.
  */
-function atf_analytics_sample( $form_id ) {
+function alltfo_analytics_sample( $form_id ) {
 	/**
 	 * Filters how many entries a report samples.
 	 *
@@ -864,19 +864,19 @@ function atf_analytics_sample( $form_id ) {
 	 * @param int $limit   Number of entries.
 	 * @param int $form_id The form.
 	 */
-	$limit = (int) apply_filters( 'atf_analytics_sample_size', 500, $form_id );
+	$limit = (int) apply_filters( 'alltfo_analytics_sample_size', 500, $form_id );
 
 	$query = new WP_Query(
 		array(
-			'post_type'      => ATF_ENTRY_TYPE,
-			'post_status'    => array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+			'post_type'      => ALLTFO_ENTRY_TYPE,
+			'post_status'    => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 			'posts_per_page' => $limit,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
 			'no_found_rows'  => true,
 			'meta_query'     => array(
 				array(
-					'key'   => ATF_META_FORM,
+					'key'   => ALLTFO_META_FORM,
 					'value' => absint( $form_id ),
 				),
 			),
@@ -886,7 +886,7 @@ function atf_analytics_sample( $form_id ) {
 	$rows = array();
 
 	foreach ( $query->posts as $entry ) {
-		$values = json_decode( (string) get_post_meta( $entry->ID, ATF_META_VALUES, true ), true );
+		$values = json_decode( (string) get_post_meta( $entry->ID, ALLTFO_META_VALUES, true ), true );
 
 		if ( ! is_array( $values ) ) {
 			continue;
@@ -921,7 +921,7 @@ function atf_analytics_sample( $form_id ) {
  * @param int   $days How far back to go.
  * @return array[] One row per day, oldest first: { date, count }.
  */
-function atf_analytics_timeline( $rows, $days = 90 ) {
+function alltfo_analytics_timeline( $rows, $days = 90 ) {
 	$days   = max( 1, (int) $days );
 	$today  = (int) ( floor( time() / DAY_IN_SECONDS ) * DAY_IN_SECONDS );
 	$counts = array();
@@ -970,7 +970,7 @@ function atf_analytics_timeline( $rows, $days = 90 ) {
  * @param float[] $numbers The values.
  * @return array|null { count, mean, median, min, max, distribution }, or null.
  */
-function atf_analytics_numbers( $numbers ) {
+function alltfo_analytics_numbers( $numbers ) {
 	$numbers = array_values( array_filter( $numbers, 'is_numeric' ) );
 
 	if ( ! $numbers ) {
@@ -1020,7 +1020,7 @@ function atf_analytics_numbers( $numbers ) {
  * @param float[] $numbers Answers, 0 to 10.
  * @return array|null { score, promoters, passives, detractors, responses }.
  */
-function atf_analytics_nps( $numbers ) {
+function alltfo_analytics_nps( $numbers ) {
 	$numbers = array_values( array_filter( $numbers, 'is_numeric' ) );
 
 	if ( ! $numbers ) {
@@ -1062,7 +1062,7 @@ function atf_analytics_nps( $numbers ) {
  * @param array $field The field.
  * @return bool
  */
-function atf_analytics_is_numeric_field( $field ) {
+function alltfo_analytics_is_numeric_field( $field ) {
 	return in_array( $field['type'], array( 'rating', 'scale', 'number', 'range', 'total' ), true );
 }
 
@@ -1077,7 +1077,7 @@ function atf_analytics_is_numeric_field( $field ) {
  * @param array $field The field.
  * @return bool
  */
-function atf_analytics_is_nps_field( $field ) {
+function alltfo_analytics_is_nps_field( $field ) {
 	if ( 'scale' !== $field['type'] ) {
 		return false;
 	}
@@ -1100,10 +1100,10 @@ function atf_analytics_is_nps_field( $field ) {
  * @param array $schema The form schema.
  * @return array[] { id, label }.
  */
-function atf_analytics_dimensions( $schema ) {
+function alltfo_analytics_dimensions( $schema ) {
 	$out = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( ! in_array( $field['type'], array( 'select', 'radio', 'country' ), true ) ) {
 			continue;
 		}
@@ -1128,7 +1128,7 @@ function atf_analytics_dimensions( $schema ) {
 	 * @param array[] $dimensions { id, label }.
 	 * @param array   $schema     The form schema.
 	 */
-	return apply_filters( 'atf_analytics_dimensions', $out, $schema );
+	return apply_filters( 'alltfo_analytics_dimensions', $out, $schema );
 }
 
 /**
@@ -1149,10 +1149,10 @@ function atf_analytics_dimensions( $schema ) {
  * @param string $dimension The field to group by.
  * @return array { id, label, groups }.
  */
-function atf_analytics_breakdown( $rows, $schema, $dimension ) {
+function alltfo_analytics_breakdown( $rows, $schema, $dimension ) {
 	$fields = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$fields[ $field['id'] ] = $field;
 	}
 
@@ -1191,7 +1191,7 @@ function atf_analytics_breakdown( $rows, $schema, $dimension ) {
 		++$buckets[ $key ]['count'];
 
 		foreach ( $fields as $field_id => $field ) {
-			if ( ! atf_analytics_is_numeric_field( $field ) ) {
+			if ( ! alltfo_analytics_is_numeric_field( $field ) ) {
 				continue;
 			}
 
@@ -1209,7 +1209,7 @@ function atf_analytics_breakdown( $rows, $schema, $dimension ) {
 		$metrics = array();
 
 		foreach ( $bucket['answers'] as $field_id => $numbers ) {
-			$summary = atf_analytics_numbers( $numbers );
+			$summary = alltfo_analytics_numbers( $numbers );
 
 			if ( ! $summary ) {
 				continue;
@@ -1219,8 +1219,8 @@ function atf_analytics_breakdown( $rows, $schema, $dimension ) {
 				'id'    => $field_id,
 				'label' => '' !== $fields[ $field_id ]['label'] ? $fields[ $field_id ]['label'] : $field_id,
 				'mean'  => $summary['mean'],
-				'nps'   => atf_analytics_is_nps_field( $fields[ $field_id ] )
-					? atf_analytics_nps( $numbers )['score']
+				'nps'   => alltfo_analytics_is_nps_field( $fields[ $field_id ] )
+					? alltfo_analytics_nps( $numbers )['score']
 					: null,
 			);
 		}

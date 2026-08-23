@@ -2,7 +2,7 @@
 /**
  * Schema normalisation.
  *
- * `atf_normalize_schema()` is the single door everything untrusted comes through
+ * `alltfo_normalize_schema()` is the single door everything untrusted comes through
  * — the builder, an import, a template — and everything downstream assumes what
  * it guarantees. These tests pin those guarantees.
  *
@@ -15,18 +15,18 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Schema extends WP_UnitTestCase {
+class ALLTFO_Test_Schema extends WP_UnitTestCase {
 
 	/**
 	 * Rubbish in gives a valid schema out rather than an exception.
 	 *
 	 * @dataProvider data_rubbish
-	 * @covers ::atf_normalize_schema
+	 * @covers ::alltfo_normalize_schema
 	 *
 	 * @param mixed $input Something that is not a schema.
 	 */
 	public function test_normalises_anything( $input ) {
-		$schema = atf_normalize_schema( $input );
+		$schema = alltfo_normalize_schema( $input );
 
 		$this->assertIsArray( $schema );
 		$this->assertArrayHasKey( 'fields', $schema );
@@ -62,11 +62,11 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * Field ids are what logic, calculations and merge tags all reference, so a
 	 * duplicate makes every one of them address the wrong field.
 	 *
-	 * @covers ::atf_normalize_schema
-	 * @covers ::atf_generate_field_id
+	 * @covers ::alltfo_normalize_schema
+	 * @covers ::alltfo_generate_field_id
 	 */
 	public function test_field_ids_are_unique() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array( 'type' => 'text' ),
@@ -96,10 +96,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A field with no type is dropped; there is nothing to render.
 	 *
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_field
 	 */
 	public function test_typeless_fields_are_dropped() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array( 'label' => 'No type here' ),
@@ -118,10 +118,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A field's type-specific settings are filled in from its registration.
 	 *
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_field
 	 */
 	public function test_type_settings_are_merged() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -143,10 +143,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A choice with a label and no value takes the label as its value.
 	 *
-	 * @covers ::atf_normalize_choices
+	 * @covers ::alltfo_normalize_choices
 	 */
 	public function test_choices_normalise() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -179,10 +179,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 *
 	 * Sending only `spam.honeypot` must not wipe `spam.timeTrap`.
 	 *
-	 * @covers ::atf_normalize_settings
+	 * @covers ::alltfo_normalize_settings
 	 */
 	public function test_partial_settings_keep_siblings() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'settings' => array(
 					'spam' => array( 'honeypot' => false ),
@@ -201,12 +201,12 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * `schedule.start` rides straight into `strtotime()` -- which fatals on an
 	 * array on PHP 8. The default's own type is the contract.
 	 *
-	 * @covers ::atf_normalize_settings
-	 * @covers ::atf_coerce_setting
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_settings
+	 * @covers ::alltfo_coerce_setting
+	 * @covers ::alltfo_normalize_field
 	 */
 	public function test_settings_are_coerced_to_their_declared_types() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'settings' => array(
 					'schedule' => array(
@@ -240,10 +240,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * An HTML block is filtered, so editing a form is not a way to run script.
 	 *
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_field
 	 */
 	public function test_html_block_is_filtered() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -262,10 +262,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A repeater's sub-fields go through the same normaliser.
 	 *
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_field
 	 */
 	public function test_repeater_subfields_normalise() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -294,11 +294,11 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A schema survives a round trip through storage unchanged.
 	 *
-	 * @covers ::atf_save_form_schema
-	 * @covers ::atf_get_form_schema
+	 * @covers ::alltfo_save_form_schema
+	 * @covers ::alltfo_get_form_schema
 	 */
 	public function test_schema_round_trips() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -321,7 +321,7 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 			)
 		);
 
-		$stored = atf_get_form_schema( $form_id );
+		$stored = alltfo_get_form_schema( $form_id );
 
 		$this->assertSame( "Quotes ' and \" and \\ backslash", $stored['fields'][0]['label'] );
 		$this->assertSame( 'Ünïcödé — em dash', $stored['fields'][1]['choices'][0]['label'] );
@@ -331,11 +331,11 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * Pages split at each page break, and there is always at least one.
 	 *
-	 * @covers ::atf_schema_pages
-	 * @covers ::atf_is_multi_page
+	 * @covers ::alltfo_schema_pages
+	 * @covers ::alltfo_is_multi_page
 	 */
 	public function test_pages_split_at_breaks() {
-		$single = atf_normalize_schema(
+		$single = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -346,10 +346,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertCount( 1, atf_schema_pages( $single ) );
-		$this->assertFalse( atf_is_multi_page( $single ) );
+		$this->assertCount( 1, alltfo_schema_pages( $single ) );
+		$this->assertFalse( alltfo_is_multi_page( $single ) );
 
-		$multi = atf_normalize_schema(
+		$multi = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -376,10 +376,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 			)
 		);
 
-		$pages = atf_schema_pages( $multi );
+		$pages = alltfo_schema_pages( $multi );
 
 		$this->assertCount( 3, $pages );
-		$this->assertTrue( atf_is_multi_page( $multi ) );
+		$this->assertTrue( alltfo_is_multi_page( $multi ) );
 		$this->assertSame( 'f1', $pages[0]['fields'][0]['id'] );
 		$this->assertSame( 'b1', $pages[0]['break']['id'], 'A break belongs to the page it closes.' );
 		$this->assertNull( $pages[2]['break'] );
@@ -388,20 +388,20 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * An empty schema still has a page, so nothing has to special-case it.
 	 *
-	 * @covers ::atf_schema_pages
+	 * @covers ::alltfo_schema_pages
 	 */
 	public function test_empty_schema_has_one_page() {
-		$this->assertCount( 1, atf_schema_pages( atf_normalize_schema( array() ) ) );
+		$this->assertCount( 1, alltfo_schema_pages( alltfo_normalize_schema( array() ) ) );
 	}
 
 	/**
 	 * Layout fields do not count as inputs.
 	 *
-	 * @covers ::atf_input_fields
-	 * @covers ::atf_field_is_input
+	 * @covers ::alltfo_input_fields
+	 * @covers ::alltfo_field_is_input
 	 */
 	public function test_layout_fields_are_not_inputs() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -424,7 +424,7 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( array( 'f1', 'f2' ), wp_list_pluck( atf_input_fields( $schema ), 'id' ) );
+		$this->assertSame( array( 'f1', 'f2' ), wp_list_pluck( alltfo_input_fields( $schema ), 'id' ) );
 	}
 
 	/**
@@ -434,19 +434,19 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * still has that answer in every entry, and pretending the field was
 	 * decorative would drop the column from the export.
 	 *
-	 * @covers ::atf_field_is_input
+	 * @covers ::alltfo_field_is_input
 	 */
 	public function test_unknown_type_is_treated_as_an_input() {
-		$this->assertTrue( atf_field_is_input( array( 'type' => 'some_plugins_field' ) ) );
+		$this->assertTrue( alltfo_field_is_input( array( 'type' => 'some_plugins_field' ) ) );
 	}
 
 	/**
 	 * A field can be found anywhere, including inside a repeater.
 	 *
-	 * @covers ::atf_find_field
+	 * @covers ::alltfo_find_field
 	 */
 	public function test_find_field_reaches_into_repeaters() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -463,8 +463,8 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 'inner', atf_find_field( $schema, 'inner' )['id'] );
-		$this->assertNull( atf_find_field( $schema, 'nope' ) );
+		$this->assertSame( 'inner', alltfo_find_field( $schema, 'inner' )['id'] );
+		$this->assertNull( alltfo_find_field( $schema, 'nope' ) );
 	}
 
 	/**
@@ -479,12 +479,12 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * watching the form render.
 	 *
 	 * @dataProvider data_choice_types
-	 * @covers ::atf_seed_field_defaults
+	 * @covers ::alltfo_seed_field_defaults
 	 *
 	 * @param string $type A field type that is a list of choices.
 	 */
 	public function test_a_choice_field_is_never_left_empty( $type ) {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -512,7 +512,7 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	public function data_choice_types() {
 		$cases = array();
 
-		foreach ( atf_get_field_types() as $slug => $definition ) {
+		foreach ( alltfo_get_field_types() as $slug => $definition ) {
 			if ( ! empty( $definition['choices'] ) ) {
 				$cases[ $slug ] = array( $slug );
 			}
@@ -527,10 +527,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * The seeding must be a fallback, not a policy. Overwriting or appending to a
 	 * real list would corrupt every imported form it touched.
 	 *
-	 * @covers ::atf_seed_field_defaults
+	 * @covers ::alltfo_seed_field_defaults
 	 */
 	public function test_seeding_never_touches_real_choices() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -557,10 +557,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	 * Choices are the shared answer scale and rows are the statements. One
 	 * without the other is still an unanswerable question.
 	 *
-	 * @covers ::atf_seed_field_defaults
+	 * @covers ::alltfo_seed_field_defaults
 	 */
 	public function test_a_likert_gets_statements_as_well_as_a_scale() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -578,10 +578,10 @@ class ATF_Test_Schema extends WP_UnitTestCase {
 	/**
 	 * A repeater gets something to repeat.
 	 *
-	 * @covers ::atf_seed_field_defaults
+	 * @covers ::alltfo_seed_field_defaults
 	 */
 	public function test_a_repeater_gets_a_sub_field() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(

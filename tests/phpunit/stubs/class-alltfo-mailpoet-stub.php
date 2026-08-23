@@ -5,7 +5,7 @@
  * Defines the two symbols `includes/mailpoet.php` touches — the namespaced
  * `\MailPoet\API\API` gate and the instance behind `MP( 'v1' )` — so the
  * bridge can be exercised without MailPoet installed. Everything recorded and
- * every throwable behaviour is driven through `ATF_MailPoet_Stub`, which the
+ * every throwable behaviour is driven through `ALLTFO_MailPoet_Stub`, which the
  * tests reset between cases.
  *
  * @package AllTerrain_Forms
@@ -14,7 +14,7 @@
 /**
  * The recorder the namespaced facade forwards to.
  */
-class ATF_MailPoet_Stub {
+class ALLTFO_MailPoet_Stub {
 
 	/**
 	 * What `getLists()` answers.
@@ -118,7 +118,7 @@ if ( ! class_exists( '\MailPoet\API\API' ) ) {
 	eval( // phpcs:ignore Squiz.PHP.Eval.Discouraged -- The one way to define a namespaced class from an unnamespaced test file.
 		'namespace MailPoet\API; class API {
 			public static function MP( $version ) {
-				return new \ATF_MailPoet_Stub();
+				return new \ALLTFO_MailPoet_Stub();
 			}
 		}'
 	);

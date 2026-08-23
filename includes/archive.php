@@ -12,7 +12,7 @@
  *
  * # How the pieces move
  *
- * The form itself changes post status, to `atf-archived` — a real registered
+ * The form itself changes post status, to `alltfo-archived` — a real registered
  * status, so revisions, meta and the trash all keep working and nothing about
  * the post is copied anywhere. Its previous status is kept in meta, because
  * "unarchive" must mean "put it back", not "publish it": archiving a draft
@@ -21,10 +21,10 @@
  *
  * The entries stay in place and keep their own statuses — unread, read, spam
  * are *facts about the entry* that archiving must not erase — and are marked
- * with `_atf_archived` instead. Every surface that reaches entries through
+ * with `_alltfo_archived` instead. Every surface that reaches entries through
  * their form is covered the moment the form leaves the pickers; the marker is
  * for the surfaces that do not: the all-forms entry list and the all-forms
- * export, which `atf_query_entries()` filters by it.
+ * export, which `alltfo_query_entries()` filters by it.
  *
  * The stats are post meta on the form, so they need no moving at all: they
  * vanish with the form and return with it, untouched.
@@ -35,10 +35,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Where an archived form's previous status waits for it. */
-const ATF_META_PREARCHIVE = '_atf_prearchive_status';
+const ALLTFO_META_PREARCHIVE = '_alltfo_prearchive_status';
 
 /** The marker on an archived form's entries. */
-const ATF_META_ARCHIVED = '_atf_archived';
+const ALLTFO_META_ARCHIVED = '_alltfo_archived';
 
 /**
  * Whether a form is archived.
@@ -48,8 +48,8 @@ const ATF_META_ARCHIVED = '_atf_archived';
  * @param int $form_id The form.
  * @return bool
  */
-function atf_form_is_archived( $form_id ) {
-	return ATF_STATUS_ARCHIVED === get_post_status( absint( $form_id ) );
+function alltfo_form_is_archived( $form_id ) {
+	return ALLTFO_STATUS_ARCHIVED === get_post_status( absint( $form_id ) );
 }
 
 /**
@@ -60,26 +60,26 @@ function atf_form_is_archived( $form_id ) {
  * @param int $form_id The form.
  * @return true|WP_Error
  */
-function atf_archive_form( $form_id ) {
+function alltfo_archive_form( $form_id ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ATF_FORM_TYPE !== $form->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	if ( ATF_STATUS_ARCHIVED === $form->post_status ) {
-		return new WP_Error( 'atf_already_archived', __( 'That form is already archived.', 'allterrain-forms' ), array( 'status' => 409 ) );
+	if ( ALLTFO_STATUS_ARCHIVED === $form->post_status ) {
+		return new WP_Error( 'alltfo_already_archived', __( 'That form is already archived.', 'allterrain-forms' ), array( 'status' => 409 ) );
 	}
 
 	// Remembered before the change, so unarchiving restores what was true —
 	// a draft comes back a draft, never surprise-published.
-	update_post_meta( $form_id, ATF_META_PREARCHIVE, $form->post_status );
+	update_post_meta( $form_id, ALLTFO_META_PREARCHIVE, $form->post_status );
 
 	$updated = wp_update_post(
 		array(
 			'ID'          => $form_id,
-			'post_status' => ATF_STATUS_ARCHIVED,
+			'post_status' => ALLTFO_STATUS_ARCHIVED,
 		),
 		true
 	);
@@ -88,19 +88,19 @@ function atf_archive_form( $form_id ) {
 		return $updated;
 	}
 
-	atf_mark_form_entries_archived( $form_id, true );
+	alltfo_mark_form_entries_archived( $form_id, true );
 
 	/**
 	 * Fires after a form is archived.
 	 *
-	 * Its entries carry the `_atf_archived` marker and its stats sit
+	 * Its entries carry the `_alltfo_archived` marker and its stats sit
 	 * untouched in the form's own meta.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param int $form_id The form.
 	 */
-	do_action( 'atf_form_archived', $form_id );
+	do_action( 'alltfo_form_archived', $form_id );
 
 	return true;
 }
@@ -113,22 +113,22 @@ function atf_archive_form( $form_id ) {
  * @param int $form_id The form.
  * @return true|WP_Error
  */
-function atf_unarchive_form( $form_id ) {
+function alltfo_unarchive_form( $form_id ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ATF_FORM_TYPE !== $form->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	if ( ATF_STATUS_ARCHIVED !== $form->post_status ) {
-		return new WP_Error( 'atf_not_archived', __( 'That form is not archived.', 'allterrain-forms' ), array( 'status' => 409 ) );
+	if ( ALLTFO_STATUS_ARCHIVED !== $form->post_status ) {
+		return new WP_Error( 'alltfo_not_archived', __( 'That form is not archived.', 'allterrain-forms' ), array( 'status' => 409 ) );
 	}
 
 	// The status it had when it went in. A form archived by something other
-	// than `atf_archive_form()` has no note, and `draft` is the safe reading:
+	// than `alltfo_archive_form()` has no note, and `draft` is the safe reading:
 	// wrongly-draft is a visible inconvenience, wrongly-published is live.
-	$previous = (string) get_post_meta( $form_id, ATF_META_PREARCHIVE, true );
+	$previous = (string) get_post_meta( $form_id, ALLTFO_META_PREARCHIVE, true );
 	$previous = in_array( $previous, array( 'publish', 'draft' ), true ) ? $previous : 'draft';
 
 	$updated = wp_update_post(
@@ -143,8 +143,8 @@ function atf_unarchive_form( $form_id ) {
 		return $updated;
 	}
 
-	delete_post_meta( $form_id, ATF_META_PREARCHIVE );
-	atf_mark_form_entries_archived( $form_id, false );
+	delete_post_meta( $form_id, ALLTFO_META_PREARCHIVE );
+	alltfo_mark_form_entries_archived( $form_id, false );
 
 	/**
 	 * Fires after a form is unarchived.
@@ -153,7 +153,7 @@ function atf_unarchive_form( $form_id ) {
 	 *
 	 * @param int $form_id The form.
 	 */
-	do_action( 'atf_form_unarchived', $form_id );
+	do_action( 'alltfo_form_unarchived', $form_id );
 
 	return true;
 }
@@ -176,17 +176,17 @@ function atf_unarchive_form( $form_id ) {
  * @param bool $archived Whether the entries are entering or leaving the archive.
  * @return void
  */
-function atf_mark_form_entries_archived( $form_id, $archived ) {
+function alltfo_mark_form_entries_archived( $form_id, $archived ) {
 	$entry_ids = get_posts(
 		array(
-			'post_type'      => ATF_ENTRY_TYPE,
-			'post_status'    => atf_entry_statuses(),
+			'post_type'      => ALLTFO_ENTRY_TYPE,
+			'post_status'    => alltfo_entry_statuses(),
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
 			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 				array(
-					'key'   => ATF_META_FORM,
+					'key'   => ALLTFO_META_FORM,
 					'value' => absint( $form_id ),
 				),
 			),
@@ -195,9 +195,9 @@ function atf_mark_form_entries_archived( $form_id, $archived ) {
 
 	foreach ( $entry_ids as $entry_id ) {
 		if ( $archived ) {
-			update_post_meta( $entry_id, ATF_META_ARCHIVED, 1 );
+			update_post_meta( $entry_id, ALLTFO_META_ARCHIVED, 1 );
 		} else {
-			delete_post_meta( $entry_id, ATF_META_ARCHIVED );
+			delete_post_meta( $entry_id, ALLTFO_META_ARCHIVED );
 		}
 	}
 }
@@ -209,11 +209,11 @@ function atf_mark_form_entries_archived( $form_id, $archived ) {
  *
  * @return array[] Form summaries.
  */
-function atf_archived_form_ids() {
+function alltfo_archived_form_ids() {
 	return get_posts(
 		array(
-			'post_type'        => ATF_FORM_TYPE,
-			'post_status'      => ATF_STATUS_ARCHIVED,
+			'post_type'        => ALLTFO_FORM_TYPE,
+			'post_status'      => ALLTFO_STATUS_ARCHIVED,
 			'numberposts'      => 200,
 			'orderby'          => 'modified',
 			'order'            => 'DESC',

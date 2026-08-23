@@ -18,7 +18,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
+class ALLTFO_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 
 	/**
 	 * Every status an imported entry can land in.
@@ -28,7 +28,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	 *
 	 * @var string[]
 	 */
-	const ENTRY_STATUSES = array( 'atf-unread', 'atf-read', 'atf-spam' );
+	const ENTRY_STATUSES = array( 'alltfo-unread', 'alltfo-read', 'alltfo-spam' );
 
 	/**
 	 * The Gravity form id in the fixture tables.
@@ -69,7 +69,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
 
@@ -217,7 +217,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	 * @return int
 	 */
 	protected function import_form() {
-		return atf_import_source_form( 'gravityforms', (string) $this->gf_id );
+		return alltfo_import_source_form( 'gravityforms', (string) $this->gf_id );
 	}
 
 	/**
@@ -229,12 +229,12 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	protected function entries( $form_id ) {
 		return get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
 				'orderby'        => 'date',
 				'order'          => 'ASC',
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -243,10 +243,10 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	/**
 	 * The recomputed map mints the same ids the conversion did — gaps included.
 	 *
-	 * @covers ::atf_gf_map
+	 * @covers ::alltfo_gf_map
 	 */
 	public function test_map_matches_conversion() {
-		$map = atf_gf_map( $this->display_meta() );
+		$map = alltfo_gf_map( $this->display_meta() );
 
 		$this->assertSame( 'f1', $map['1'] );
 		$this->assertSame( 'f6', $map['6'] );
@@ -257,9 +257,9 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	/**
 	 * Every stored shape arrives as the shape its new field stores.
 	 *
-	 * @covers ::atf_gf_import_entries
-	 * @covers ::atf_gf_entry_values
-	 * @covers ::atf_gf_entry_value
+	 * @covers ::alltfo_gf_import_entries
+	 * @covers ::alltfo_gf_entry_values
+	 * @covers ::alltfo_gf_entry_value
 	 */
 	public function test_shapes_survive_the_trip() {
 		$this->add_entry(
@@ -292,7 +292,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 		);
 
 		$form_id = $this->import_form();
-		$result  = atf_import_form_entries( $form_id );
+		$result  = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 1, $result['imported'] );
 
@@ -300,8 +300,8 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $entries );
 
-		$map    = atf_form_import_map( $form_id );
-		$values = json_decode( get_post_meta( $entries[0]->ID, ATF_META_VALUES, true ), true );
+		$map    = alltfo_form_import_map( $form_id );
+		$values = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_VALUES, true ), true );
 
 		$this->assertSame(
 			array(
@@ -339,7 +339,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 
 		$this->assertSame( '2025-03-04 09:15:00', $entries[0]->post_date_gmt );
 
-		$context = json_decode( get_post_meta( $entries[0]->ID, ATF_META_CONTEXT, true ), true );
+		$context = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_CONTEXT, true ), true );
 
 		$this->assertSame( '203.0.113.9', $context['ip'] );
 		$this->assertSame( 'gravityforms', $context['imported'] );
@@ -348,8 +348,8 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	/**
 	 * Spam arrives as spam; trash stays where somebody put it.
 	 *
-	 * @covers ::atf_gf_import_entries
-	 * @covers ::atf_gf_entry_count
+	 * @covers ::alltfo_gf_import_entries
+	 * @covers ::alltfo_gf_entry_count
 	 */
 	public function test_spam_comes_and_trash_stays() {
 		$this->add_entry( array( '2' => 'seo.team@example.net' ), '2025-01-02 08:00:00', 'spam' );
@@ -358,19 +358,19 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 
 		$form_id = $this->import_form();
 
-		$this->assertSame( 2, atf_gf_entry_count( (string) $this->gf_id, $form_id ), 'Trash is not offered.' );
+		$this->assertSame( 2, alltfo_gf_entry_count( (string) $this->gf_id, $form_id ), 'Trash is not offered.' );
 
-		$result = atf_import_form_entries( $form_id );
+		$result = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 2, $result['imported'] );
 		$this->assertTrue( $result['done'] );
 
 		$spam = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				'post_status'    => ATF_STATUS_SPAM,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				'post_status'    => ALLTFO_STATUS_SPAM,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -381,7 +381,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	/**
 	 * Running it twice imports nothing twice, and chunking says what is left.
 	 *
-	 * @covers ::atf_gf_import_entries
+	 * @covers ::alltfo_gf_import_entries
 	 */
 	public function test_second_run_and_chunking() {
 		for ( $i = 0; $i < 3; $i++ ) {
@@ -390,13 +390,13 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 
 		$form_id = $this->import_form();
 
-		$first = atf_import_form_entries( $form_id, 2 );
+		$first = alltfo_import_form_entries( $form_id, 2 );
 
 		$this->assertSame( 2, $first['imported'] );
 		$this->assertFalse( $first['done'] );
 		$this->assertSame( 1, $first['remaining'] );
 
-		$second = atf_import_form_entries( $form_id, 2 );
+		$second = alltfo_import_form_entries( $form_id, 2 );
 
 		$this->assertSame( 1, $second['imported'] );
 		$this->assertSame( 2, $second['skipped'] );
@@ -408,7 +408,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 	/**
 	 * The source tables are never touched.
 	 *
-	 * @covers ::atf_gf_import_entries
+	 * @covers ::alltfo_gf_import_entries
 	 */
 	public function test_source_is_left_alone() {
 		global $wpdb;
@@ -416,7 +416,7 @@ class ATF_Test_Importers_Entries_Gravityforms extends WP_UnitTestCase {
 		$entry_id = $this->add_entry( array( '2' => 'aoife@example.com' ), '2025-07-01 09:00:00' );
 
 		$form_id = $this->import_form();
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Asserting against the fixture.
 		$this->assertSame( 'active', $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}gf_entry WHERE id = %d", $entry_id ) ) );

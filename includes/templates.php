@@ -3,13 +3,13 @@
  * The template library.
  *
  * A template is just a schema. Starting a form from one is
- * `atf_save_form_schema( $new_form, atf_get_template( 'contact' ) )` -- there is
+ * `alltfo_save_form_schema( $new_form, alltfo_get_template( 'contact' ) )` -- there is
  * no template engine, no separate format, and no import path that differs from
  * the ordinary one. That is deliberate: a template that could express something
  * a hand-built form could not would be a second schema language to maintain.
  *
  * Which also means a site can turn any form it has into a template by exporting
- * its schema, and register it through `atf_form_templates`.
+ * its schema, and register it through `alltfo_form_templates`.
  *
  * @package AllTerrain_Forms
  */
@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string, array> Slug => { label, description, icon, schema }.
  */
-function atf_form_templates() {
+function alltfo_form_templates() {
 	$templates = array(
 
 		'blank'        => array(
@@ -739,7 +739,7 @@ function atf_form_templates() {
 	 *
 	 * @param array<string, array> $templates Slug => { label, description, icon, schema }.
 	 */
-	return apply_filters( 'atf_form_templates', $templates );
+	return apply_filters( 'alltfo_form_templates', $templates );
 }
 
 /**
@@ -750,15 +750,15 @@ function atf_form_templates() {
  * @param string $slug Template slug.
  * @return array A complete schema. An unknown slug returns an empty form.
  */
-function atf_get_template( $slug ) {
-	$templates = atf_form_templates();
+function alltfo_get_template( $slug ) {
+	$templates = alltfo_form_templates();
 	$slug      = sanitize_key( (string) $slug );
 
 	if ( ! isset( $templates[ $slug ] ) ) {
-		return atf_normalize_schema( array() );
+		return alltfo_normalize_schema( array() );
 	}
 
-	return atf_normalize_schema( $templates[ $slug ]['schema'] );
+	return alltfo_normalize_schema( $templates[ $slug ]['schema'] );
 }
 
 /**
@@ -770,12 +770,12 @@ function atf_get_template( $slug ) {
  * @param string $title The new form's title.
  * @return int|WP_Error The new form's id.
  */
-function atf_create_form_from_template( $slug, $title = '' ) {
-	if ( ! atf_can_edit_forms() ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot create forms.', 'allterrain-forms' ), array( 'status' => 403 ) );
+function alltfo_create_form_from_template( $slug, $title = '' ) {
+	if ( ! alltfo_can_edit_forms() ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot create forms.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
-	$templates = atf_form_templates();
+	$templates = alltfo_form_templates();
 	$slug      = sanitize_key( (string) $slug );
 
 	if ( '' === $title ) {
@@ -786,7 +786,7 @@ function atf_create_form_from_template( $slug, $title = '' ) {
 
 	$form_id = wp_insert_post(
 		array(
-			'post_type'   => ATF_FORM_TYPE,
+			'post_type'   => ALLTFO_FORM_TYPE,
 			'post_title'  => sanitize_text_field( $title ),
 			'post_status' => 'publish',
 			'post_author' => get_current_user_id(),
@@ -798,7 +798,7 @@ function atf_create_form_from_template( $slug, $title = '' ) {
 		return $form_id;
 	}
 
-	atf_save_form_schema( $form_id, atf_get_template( $slug ) );
+	alltfo_save_form_schema( $form_id, alltfo_get_template( $slug ) );
 
 	/**
 	 * Fires after a form is created from a template.
@@ -808,7 +808,7 @@ function atf_create_form_from_template( $slug, $title = '' ) {
 	 * @param int    $form_id The new form.
 	 * @param string $slug    The template it came from.
 	 */
-	do_action( 'atf_form_created', $form_id, $slug );
+	do_action( 'alltfo_form_created', $form_id, $slug );
 
 	return $form_id;
 }

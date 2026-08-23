@@ -19,7 +19,7 @@
  * # Developer mode is not a permission
  *
  * It says "show me developer things", not "you may do developer things". Every
- * route it gates is *also* gated on `atf_edit_forms`, and the two are checked
+ * route it gates is *also* gated on `alltfo_edit_forms`, and the two are checked
  * separately on purpose: a preference is stored per user and a capability is not,
  * so treating the preference as authorisation would mean anybody who could write
  * their own user meta could seed a database.
@@ -41,7 +41,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int $user_id The user, or 0 for the current one.
  * @return bool
  */
-function atf_developer_mode( $user_id = 0 ) {
+function alltfo_developer_mode( $user_id = 0 ) {
 	$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
 	$enabled = false;
 
@@ -56,19 +56,19 @@ function atf_developer_mode( $user_id = 0 ) {
 	 * The way to switch the demo-data tools on without OpenStation — a CI run, a
 	 * plain wp-admin install, a site that wants them for one role:
 	 *
-	 *     add_filter( 'atf_developer_mode', function ( $on ) {
+	 *     add_filter( 'alltfo_developer_mode', function ( $on ) {
 	 *         return $on || current_user_can( 'manage_options' );
 	 *     } );
 	 *
 	 * Returning true does not grant anything on its own: every route this gates
-	 * checks `atf_edit_forms` as well.
+	 * checks `alltfo_edit_forms` as well.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param bool $enabled Whether it is on.
 	 * @param int  $user_id The user being asked about.
 	 */
-	return (bool) apply_filters( 'atf_developer_mode', $enabled, $user_id );
+	return (bool) apply_filters( 'alltfo_developer_mode', $enabled, $user_id );
 }
 
 /**
@@ -81,6 +81,6 @@ function atf_developer_mode( $user_id = 0 ) {
  *
  * @return bool
  */
-function atf_can_use_developer_tools() {
-	return atf_developer_mode() && atf_can_edit_forms();
+function alltfo_can_use_developer_tools() {
+	return alltfo_developer_mode() && alltfo_can_edit_forms();
 }

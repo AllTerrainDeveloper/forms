@@ -27,7 +27,7 @@ It becomes selectable anywhere a built-in is, and can be exported as JSON and
 imported on another site.
 
 The Studio's controls are **built from the token table**, not hard-coded. A
-plugin that adds a token through `atf_theme_tokens` gets an editor for it for
+plugin that adds a token through `alltfo_theme_tokens` gets an editor for it for
 free — which is what makes the promise true for the editor as well as the
 renderer.
 
@@ -111,7 +111,7 @@ a theme sets.
 Three layers, each beating the one before:
 
 ```
-atf_theme_token_defaults()      the Clean theme's values
+alltfo_theme_token_defaults()      the Clean theme's values
         ↓
 the theme's own token map       whatever it changes
         ↓
@@ -122,12 +122,12 @@ That last layer is what lets one form nudge its accent colour without anybody
 having to make a whole new theme for it. It is also what the Studio writes while
 you are moving sliders, before you save.
 
-The result is emitted as CSS custom properties **scoped to that form's instance
-id**, inline, so two forms wearing two different themes can sit on the same page.
+The result is emitted as CSS custom-property declarations **on that form's own
+wrapper element**, so two forms wearing two different themes can sit on the same
+page.
 
 ```html
-<div class="atf-form-wrap" id="atf-12-1">
-	<style>#atf-12-1 .atf-form { --atf-accent: #f252fc; … }</style>
+<div class="atf-form-wrap" id="atf-12-1" style="--atf-accent: #f252fc; …">
 	<form class="atf-form atf-theme-holo atf-labels-top atf-fields-outline" …>
 ```
 
@@ -136,7 +136,7 @@ id**, inline, so two forms wearing two different themes can sit on the same page
 ## Adding a token in code
 
 ```php
-add_filter( 'atf_theme_tokens', function ( $tokens ) {
+add_filter( 'alltfo_theme_tokens', function ( $tokens ) {
 	$tokens['field-icon-color'] = 'currentColor';
 
 	return $tokens;
@@ -161,8 +161,8 @@ the other and the build fails.
 For a theme that ships inside another plugin, rather than one a user made:
 
 ```php
-add_action( 'atf_loaded', function () {
-	atf_register_theme( 'sunset', array(
+add_action( 'alltfo_loaded', function () {
+	alltfo_register_theme( 'sunset', array(
 		'label'       => __( 'Sunset', 'my-plugin' ),
 		'description' => __( 'Warm gradients, soft corners.', 'my-plugin' ),
 		// Marks the theme as dark so the form gets `atf-is-dark`, which the
@@ -187,16 +187,16 @@ Tokens are sanitised at registration rather than at use, so a typo in a token
 name is dropped once and reported nowhere, instead of being carried around and
 silently ignored by every reader.
 
-`atf_unregister_theme( 'sunset' )` removes it again. Forms using it fall back to
+`alltfo_unregister_theme( 'sunset' )` removes it again. Forms using it fall back to
 Clean the next time they render, which is recoverable where rewriting every form
 that referenced it is not.
 
 Themes resolve from three sources, each beating the one before:
 
 ```
-atf_builtin_themes()      the ten that ship
+alltfo_builtin_themes()      the ten that ship
         ↓
-atf_register_theme()      registered in code by a plugin
+alltfo_register_theme()      registered in code by a plugin
         ↓
 saved themes (posts)      made in the Studio
 ```
@@ -208,11 +208,11 @@ theme, and get it back by deleting theirs.
 
 ## The security boundary
 
-Token values land inside a `<style>` block. A value containing a brace could
-close the rule and open another, which is how a "theme" becomes a way to restyle
+Token values land inside the wrapper's `style` attribute. A value that could
+close a rule or smuggle in another is how a "theme" becomes a way to restyle
 the page around it or load a remote resource.
 
-`atf_sanitize_tokens()` **refuses** rather than escapes:
+`alltfo_sanitize_tokens()` **refuses** rather than escapes:
 
 - any of `{ } ; < >` or a backslash
 - `url(`, `image-set(` or `expression(`

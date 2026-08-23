@@ -1,4 +1,4 @@
-=== AllTerrain Forms – Contact Form, Drag & Drop Form Builder, Surveys, Quizzes, Multi-Step Forms & Conditional Logic ===
+=== AllTerrain Forms ===
 Contributors: allterraindeveloper
 Tags: contact form, form builder, survey, quiz, conditional logic
 Requires at least: 6.9
@@ -13,7 +13,7 @@ Drag & drop contact form builder with conditional logic, multi-step forms, file 
 
 == Description ==
 
-**The best contact form plugin is the one that doesn't sell you the rest of itself.** AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever.
+AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever.
 
 Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.
 Save and resume. Entry management with CSV export. Webhooks. Form analytics
@@ -79,7 +79,7 @@ JSON. Unread counts, a spam folder, and bulk actions included.
 Send conditional notification emails with CC, BCC, reply-to and attachments.
 Show a message, redirect, or send visitors to a page — conditionally, per
 answer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and hook
-`atf_entry_created` for anything else.
+`alltfo_entry_created` for anything else.
 
 = Grows your MailPoet lists =
 
@@ -145,7 +145,8 @@ A form is a post. An entry is a post. A note on an entry is a comment. Nothing
 lives in a custom table, so WordPress's own privacy exporter and eraser, user
 capabilities, search and the trash already work on your form data. A consent
 field, IP anonymisation and per-form storage controls are built in — and
-nothing is ever sent to us or to any third party.
+nothing is ever sent to us. The only third parties your data can reach are the
+ones you configure yourself, listed under *External services* below.
 
 = Ready for AI agents — WordPress Abilities API and MCP =
 
@@ -188,6 +189,24 @@ without it.
 Your visitors are never part of that dependency: published forms render and
 submit on the front end regardless of what is happening in the admin.
 
+= External services =
+
+The plugin makes no connection of its own to us or to anyone else — no
+accounts, no license checks, no telemetry, no updates outside WordPress.org.
+Two optional features send data to a destination **you** choose:
+
+* **Akismet** — if the [Akismet plugin](https://wordpress.org/plugins/akismet/)
+  is installed and configured on your site *and* you switch it on for a form,
+  each submission to that form (the answers, plus the sender's IP and
+  user agent) is sent to Akismet's servers for a spam verdict, and spam/ham
+  corrections you make in the entries screen are reported back. Without the
+  Akismet plugin, or with the per-form switch off, nothing is sent. See the
+  [Akismet Terms of Service](https://akismet.com/tos/) and the
+  [Automattic Privacy Policy](https://automattic.com/privacy/).
+* **Webhooks** — a form can POST each entry as JSON to a URL you enter,
+  signed with HMAC-SHA256. Entries go only to the address you configured, and
+  the feature is off until you configure one.
+
 = Built in the open =
 
 Source, issue tracker and full developer documentation:
@@ -208,7 +227,9 @@ required, you would be shown a form you could not submit.
 4. Paste the shortcode it shows you into any page or post, or add the **Form**
    block.
 
-No account, no licence key, no connection to any external service.
+No account, no licence key, and no connection to any service of ours — the
+only external services it can talk to are the ones you configure, listed under
+*External services* above.
 
 == Frequently Asked Questions ==
 
@@ -268,10 +289,12 @@ shortcode works, including page builders and widgets.
 
 = Does it send my data anywhere? Is it GDPR-friendly? =
 
-Nothing is sent to us or to any third party. Entries are ordinary WordPress
-posts, so the privacy exporter and eraser already cover them; a consent field,
-IP anonymisation and per-form storage controls are built in. Akismet is used
-only if you already have it installed and configured.
+Nothing is sent to us, ever. Entries are ordinary WordPress posts, so the
+privacy exporter and eraser already cover them; a consent field, IP
+anonymisation and per-form storage controls are built in. The two optional
+features that can send data elsewhere — Akismet spam checking and webhooks —
+are off until you configure them, and are documented under *External services*
+above with links to Akismet's terms and privacy policy.
 
 = Is it accessible? =
 

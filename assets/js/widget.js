@@ -254,7 +254,7 @@ var allTerrainFormsWidget = function(exports) {
       class: "atfw__list",
       children: entries.map(
         (entry) => el("li", {
-          class: `atfw__item${entry.status === "atf-unread" ? " is-unread" : ""}`,
+          class: `atfw__item${entry.status === "alltfo-unread" ? " is-unread" : ""}`,
           children: [
             el("span", { class: "atfw__title", text: entry.title }),
             el("span", { class: "atfw__meta", text: `${entry.formTitle} · ${entry.dateHuman}` })
@@ -268,7 +268,7 @@ var allTerrainFormsWidget = function(exports) {
     void render(host);
     const timer = window.setInterval(() => void render(host), REFRESH_MS);
     const shell = window.wp?.os;
-    const unsubscribe = shell?.subscribe?.("os.atf_entry.changed", () => void render(host));
+    const unsubscribe = shell?.subscribe?.("os.alltfo_entry.changed", () => void render(host));
     return () => {
       window.clearInterval(timer);
       unsubscribe?.();

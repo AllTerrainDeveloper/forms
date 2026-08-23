@@ -7,7 +7,7 @@
  * because a form is only ever edited whole, and a partial write is always a bug.
  *
  * Everything that enters this file is untrusted. The builder posts a schema, an
- * import posts a schema, a template posts a schema; `atf_normalize_schema()` is
+ * import posts a schema, a template posts a schema; `alltfo_normalize_schema()` is
  * the single door all three come through, and after it the rest of the plugin
  * can assume every key exists and every value is the type it claims to be. That
  * assumption is what lets the renderer and the validator be short.
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-const ATF_SCHEMA_VERSION = 1;
+const ALLTFO_SCHEMA_VERSION = 1;
 
 /**
  * An empty, valid schema.
@@ -42,9 +42,9 @@ const ATF_SCHEMA_VERSION = 1;
  *
  * @return array A complete schema with no fields.
  */
-function atf_default_schema() {
+function alltfo_default_schema() {
 	$schema = array(
-		'version'       => ATF_SCHEMA_VERSION,
+		'version'       => ALLTFO_SCHEMA_VERSION,
 		'fields'        => array(),
 		'settings'      => array(
 			'theme'          => 'clean',
@@ -116,7 +116,7 @@ function atf_default_schema() {
 	 *
 	 * @param array $schema The default schema.
 	 */
-	return apply_filters( 'atf_default_schema', $schema );
+	return apply_filters( 'alltfo_default_schema', $schema );
 }
 
 /**
@@ -133,7 +133,7 @@ function atf_default_schema() {
  * @param mixed $raw A JSON string, an array, or anything else.
  * @return array A complete, valid schema.
  */
-function atf_normalize_schema( $raw ) {
+function alltfo_normalize_schema( $raw ) {
 	if ( is_string( $raw ) ) {
 		$decoded = json_decode( $raw, true );
 		$raw     = is_array( $decoded ) ? $decoded : array();
@@ -143,22 +143,22 @@ function atf_normalize_schema( $raw ) {
 		$raw = array();
 	}
 
-	$defaults = atf_default_schema();
+	$defaults = alltfo_default_schema();
 
 	$schema = array(
-		'version'       => ATF_SCHEMA_VERSION,
+		'version'       => ALLTFO_SCHEMA_VERSION,
 		'fields'        => array(),
-		'settings'      => atf_normalize_settings( isset( $raw['settings'] ) ? $raw['settings'] : array(), $defaults['settings'] ),
-		'notifications' => atf_normalize_notifications( isset( $raw['notifications'] ) ? $raw['notifications'] : array() ),
-		'confirmations' => atf_normalize_confirmations( isset( $raw['confirmations'] ) ? $raw['confirmations'] : array() ),
-		'actions'       => atf_normalize_actions( isset( $raw['actions'] ) ? $raw['actions'] : array() ),
+		'settings'      => alltfo_normalize_settings( isset( $raw['settings'] ) ? $raw['settings'] : array(), $defaults['settings'] ),
+		'notifications' => alltfo_normalize_notifications( isset( $raw['notifications'] ) ? $raw['notifications'] : array() ),
+		'confirmations' => alltfo_normalize_confirmations( isset( $raw['confirmations'] ) ? $raw['confirmations'] : array() ),
+		'actions'       => alltfo_normalize_actions( isset( $raw['actions'] ) ? $raw['actions'] : array() ),
 	);
 
 	$fields = isset( $raw['fields'] ) && is_array( $raw['fields'] ) ? $raw['fields'] : array();
 	$seen   = array();
 
 	foreach ( $fields as $field ) {
-		$normalised = atf_normalize_field( $field, $seen );
+		$normalised = alltfo_normalize_field( $field, $seen );
 
 		if ( $normalised ) {
 			$seen[]             = $normalised['id'];
@@ -177,7 +177,7 @@ function atf_normalize_schema( $raw ) {
 	 * @param array $schema The normalised schema.
 	 * @param mixed $raw    What was passed in.
 	 */
-	return apply_filters( 'atf_normalize_schema', $schema, $raw );
+	return apply_filters( 'alltfo_normalize_schema', $schema, $raw );
 }
 
 /**
@@ -193,7 +193,7 @@ function atf_normalize_schema( $raw ) {
  * @param string[] $seen Ids already used in this schema, so a duplicate can be re-issued.
  * @return array|null The field, or null when it is unusable.
  */
-function atf_normalize_field( $raw, $seen = array() ) {
+function alltfo_normalize_field( $raw, $seen = array() ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
 	}
@@ -204,7 +204,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		return null;
 	}
 
-	$definition = atf_get_field_type( $type );
+	$definition = alltfo_get_field_type( $type );
 
 	$id = isset( $raw['id'] ) ? preg_replace( '/[^a-zA-Z0-9_]/', '', (string) $raw['id'] ) : '';
 
@@ -212,7 +212,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	// from another site, or a hand-written JSON file, routinely has neither --
 	// and dropping the field would lose the question rather than fix the id.
 	if ( '' === $id || in_array( $id, $seen, true ) ) {
-		$id = atf_generate_field_id( $seen );
+		$id = alltfo_generate_field_id( $seen );
 	}
 
 	$field = array(
@@ -222,18 +222,18 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		'placeholder' => isset( $raw['placeholder'] ) ? sanitize_text_field( (string) $raw['placeholder'] ) : '',
 		'hint'        => isset( $raw['hint'] ) ? wp_kses_post( (string) $raw['hint'] ) : '',
 		'required'    => ! empty( $raw['required'] ),
-		'width'       => atf_normalize_width( isset( $raw['width'] ) ? $raw['width'] : 'full' ),
+		'width'       => alltfo_normalize_width( isset( $raw['width'] ) ? $raw['width'] : 'full' ),
 		'cssClass'    => isset( $raw['cssClass'] ) ? sanitize_html_class( (string) $raw['cssClass'] ) : '',
 		'default'     => isset( $raw['default'] ) ? $raw['default'] : '',
-		'choices'     => atf_normalize_choices( isset( $raw['choices'] ) ? $raw['choices'] : array() ),
-		'logic'       => atf_normalize_logic( isset( $raw['logic'] ) ? $raw['logic'] : array() ),
-		'messages'    => atf_normalize_messages( isset( $raw['messages'] ) ? $raw['messages'] : array() ),
+		'choices'     => alltfo_normalize_choices( isset( $raw['choices'] ) ? $raw['choices'] : array() ),
+		'logic'       => alltfo_normalize_logic( isset( $raw['logic'] ) ? $raw['logic'] : array() ),
+		'messages'    => alltfo_normalize_messages( isset( $raw['messages'] ) ? $raw['messages'] : array() ),
 		'prefill'     => isset( $raw['prefill'] ) ? sanitize_text_field( (string) $raw['prefill'] ) : '',
 	);
 
 	// The default value is sanitised through the field's own type, so a default
 	// for a checkbox group is an array and a default for a number is a number.
-	$field['default'] = atf_sanitize_field_value( $field['default'], $field );
+	$field['default'] = alltfo_sanitize_field_value( $field['default'], $field );
 
 	$settings = $definition && is_array( $definition['settings'] ) ? $definition['settings'] : array();
 
@@ -256,7 +256,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		// Everything else is typed against its declared default, so an
 		// imported schema cannot put an array where `strtotime()` or a
 		// renderer will later assume a scalar.
-		$field[ $key ] = atf_coerce_setting( $raw[ $key ], $fallback );
+		$field[ $key ] = alltfo_coerce_setting( $raw[ $key ], $fallback );
 	}
 
 	// Validation bounds are common enough to live on the field rather than in
@@ -269,7 +269,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	}
 
 	// A named answer shape -- "an email address", "a ZIP code" -- enforced by
-	// `atf_validate_preset()`. The sentinel `custom` means "use `pattern`",
+	// `alltfo_validate_preset()`. The sentinel `custom` means "use `pattern`",
 	// which the custom-rule builder writes alongside this flag.
 	if ( isset( $raw['validation'] ) && is_scalar( $raw['validation'] ) && '' !== $raw['validation'] ) {
 		$field['validation'] = sanitize_key( (string) $raw['validation'] );
@@ -280,7 +280,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	// and re-encoded through a whitelist, so an imported schema cannot smuggle
 	// arbitrary structure through what is otherwise an opaque blob.
 	if ( isset( $raw['validationRecipe'] ) && is_string( $raw['validationRecipe'] ) && '' !== $raw['validationRecipe'] ) {
-		$recipe = atf_normalize_validation_recipe( $raw['validationRecipe'] );
+		$recipe = alltfo_normalize_validation_recipe( $raw['validationRecipe'] );
 
 		if ( '' !== $recipe ) {
 			$field['validationRecipe'] = $recipe;
@@ -315,7 +315,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		$subs     = array();
 
 		foreach ( $field['fields'] as $sub ) {
-			$normalised = atf_normalize_field( $sub, $sub_seen );
+			$normalised = alltfo_normalize_field( $sub, $sub_seen );
 
 			if ( $normalised ) {
 				$sub_seen[] = $normalised['id'];
@@ -326,7 +326,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 		$field['fields'] = $subs;
 	}
 
-	$field = atf_seed_field_defaults( $field, $definition );
+	$field = alltfo_seed_field_defaults( $field, $definition );
 
 	/**
 	 * Filters one normalised field.
@@ -336,7 +336,7 @@ function atf_normalize_field( $raw, $seen = array() ) {
 	 * @param array $field The normalised field.
 	 * @param mixed $raw   What was passed in.
 	 */
-	return apply_filters( 'atf_normalize_field', $field, $raw );
+	return apply_filters( 'alltfo_normalize_field', $field, $raw );
 }
 
 /**
@@ -366,13 +366,13 @@ function atf_normalize_field( $raw, $seen = array() ) {
  * @param array|null $definition Its registered type, or null for an unknown type.
  * @return array The field, with any missing sub-list filled in.
  */
-function atf_seed_field_defaults( $field, $definition ) {
+function alltfo_seed_field_defaults( $field, $definition ) {
 	if ( ! $definition ) {
 		return $field;
 	}
 
 	if ( ! empty( $definition['choices'] ) && empty( $field['choices'] ) ) {
-		$field['choices'] = atf_normalize_choices(
+		$field['choices'] = alltfo_normalize_choices(
 			array(
 				array(
 					'label' => __( 'First choice', 'allterrain-forms' ),
@@ -404,7 +404,7 @@ function atf_seed_field_defaults( $field, $definition ) {
 	// One text box, so a repeater built by an import is a repeater of something.
 	if ( 'repeater' === $field['type'] && empty( $field['fields'] ) ) {
 		$field['fields'] = array(
-			atf_normalize_field(
+			alltfo_normalize_field(
 				array(
 					'id'    => $field['id'] . '_1',
 					'type'  => 'text',
@@ -426,7 +426,7 @@ function atf_seed_field_defaults( $field, $definition ) {
  * @param mixed $width Requested width.
  * @return string One of full|half|third|two-thirds|quarter.
  */
-function atf_normalize_width( $width ) {
+function alltfo_normalize_width( $width ) {
 	$allowed = array( 'full', 'half', 'third', 'two-thirds', 'quarter' );
 	$width   = is_scalar( $width ) ? (string) $width : 'full';
 
@@ -444,7 +444,7 @@ function atf_normalize_width( $width ) {
  * @param mixed $raw Raw choices.
  * @return array[] Normalised choices.
  */
-function atf_normalize_choices( $raw ) {
+function alltfo_normalize_choices( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -497,7 +497,7 @@ function atf_normalize_choices( $raw ) {
  * Normalises a conditional-logic block.
  *
  * The shape is deliberately the same everywhere logic appears -- on a field, on
- * a notification, on a confirmation -- so `atf_logic_passes()` is one function
+ * a notification, on a confirmation -- so `alltfo_logic_passes()` is one function
  * rather than three.
  *
  * @since 0.1.0
@@ -505,7 +505,7 @@ function atf_normalize_choices( $raw ) {
  * @param mixed $raw Raw logic.
  * @return array Normalised logic.
  */
-function atf_normalize_logic( $raw ) {
+function alltfo_normalize_logic( $raw ) {
 	$logic = array(
 		'enabled' => false,
 		'action'  => 'show',
@@ -530,7 +530,7 @@ function atf_normalize_logic( $raw ) {
 
 		$logic['rules'][] = array(
 			'field'    => preg_replace( '/[^a-zA-Z0-9_]/', '', (string) $rule['field'] ),
-			'operator' => atf_normalize_operator( isset( $rule['operator'] ) ? $rule['operator'] : 'is' ),
+			'operator' => alltfo_normalize_operator( isset( $rule['operator'] ) ? $rule['operator'] : 'is' ),
 			'value'    => isset( $rule['value'] ) && is_scalar( $rule['value'] ) ? (string) $rule['value'] : '',
 		);
 	}
@@ -550,7 +550,7 @@ function atf_normalize_logic( $raw ) {
  * @param mixed $operator Requested operator.
  * @return string A supported operator.
  */
-function atf_normalize_operator( $operator ) {
+function alltfo_normalize_operator( $operator ) {
 	$allowed = array(
 		'is',
 		'is_not',
@@ -579,7 +579,7 @@ function atf_normalize_operator( $operator ) {
  * @param mixed $raw Raw messages.
  * @return array<string, string>
  */
-function atf_normalize_messages( $raw ) {
+function alltfo_normalize_messages( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -613,7 +613,7 @@ function atf_normalize_messages( $raw ) {
  * @param mixed $fallback The declared default.
  * @return mixed The value, in the default's type.
  */
-function atf_coerce_setting( $value, $fallback ) {
+function alltfo_coerce_setting( $value, $fallback ) {
 	if ( is_array( $fallback ) ) {
 		return is_array( $value ) ? $value : $fallback;
 	}
@@ -646,7 +646,7 @@ function atf_coerce_setting( $value, $fallback ) {
  * @param array $defaults The default settings.
  * @return array
  */
-function atf_normalize_settings( $raw, $defaults ) {
+function alltfo_normalize_settings( $raw, $defaults ) {
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
@@ -671,7 +671,7 @@ function atf_normalize_settings( $raw, $defaults ) {
 
 			foreach ( $raw[ $key ] as $sub_key => $sub_value ) {
 				$merged[ $sub_key ] = array_key_exists( $sub_key, $default )
-					? atf_coerce_setting( $sub_value, $default[ $sub_key ] )
+					? alltfo_coerce_setting( $sub_value, $default[ $sub_key ] )
 					: $sub_value;
 			}
 
@@ -679,7 +679,7 @@ function atf_normalize_settings( $raw, $defaults ) {
 			continue;
 		}
 
-		$settings[ $key ] = atf_coerce_setting( $raw[ $key ], $default );
+		$settings[ $key ] = alltfo_coerce_setting( $raw[ $key ], $default );
 	}
 
 	// The blocklist is newline-separated -- one term per line -- and the text
@@ -729,7 +729,7 @@ function atf_normalize_settings( $raw, $defaults ) {
  * @param mixed $raw Raw notifications.
  * @return array[]
  */
-function atf_normalize_notifications( $raw ) {
+function alltfo_normalize_notifications( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -757,7 +757,7 @@ function atf_normalize_notifications( $raw ) {
 			'subject'     => isset( $notification['subject'] ) ? sanitize_text_field( (string) $notification['subject'] ) : '',
 			'message'     => isset( $notification['message'] ) ? wp_kses_post( (string) $notification['message'] ) : '',
 			'attachFiles' => ! empty( $notification['attachFiles'] ),
-			'logic'       => atf_normalize_logic( isset( $notification['logic'] ) ? $notification['logic'] : array() ),
+			'logic'       => alltfo_normalize_logic( isset( $notification['logic'] ) ? $notification['logic'] : array() ),
 		);
 	}
 
@@ -772,7 +772,7 @@ function atf_normalize_notifications( $raw ) {
  * @param mixed $raw Raw confirmations.
  * @return array[]
  */
-function atf_normalize_confirmations( $raw ) {
+function alltfo_normalize_confirmations( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -795,8 +795,8 @@ function atf_normalize_confirmations( $raw ) {
 			'url'     => isset( $confirmation['url'] ) ? sanitize_text_field( (string) $confirmation['url'] ) : '',
 			'pageId'  => isset( $confirmation['pageId'] ) ? absint( $confirmation['pageId'] ) : 0,
 			'query'   => isset( $confirmation['query'] ) ? sanitize_text_field( (string) $confirmation['query'] ) : '',
-			'success' => atf_normalize_success_screen( isset( $confirmation['success'] ) ? $confirmation['success'] : array() ),
-			'logic'   => atf_normalize_logic( isset( $confirmation['logic'] ) ? $confirmation['logic'] : array() ),
+			'success' => alltfo_normalize_success_screen( isset( $confirmation['success'] ) ? $confirmation['success'] : array() ),
+			'logic'   => alltfo_normalize_logic( isset( $confirmation['logic'] ) ? $confirmation['logic'] : array() ),
 		);
 	}
 
@@ -807,7 +807,7 @@ function atf_normalize_confirmations( $raw ) {
  * Normalises a confirmation's success screen.
  *
  * The screen is what a message confirmation *looks like*: a style from
- * `atf_success_styles()` plus the handful of knobs every style shares. An
+ * `alltfo_success_styles()` plus the handful of knobs every style shares. An
  * unknown style falls back to `simple` rather than erroring, so a form saved
  * by a newer version still shows something sensible on an older one.
  *
@@ -816,7 +816,7 @@ function atf_normalize_confirmations( $raw ) {
  * @param mixed $raw Raw success screen config.
  * @return array
  */
-function atf_normalize_success_screen( $raw ) {
+function alltfo_normalize_success_screen( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		$raw = array();
 	}
@@ -832,7 +832,7 @@ function atf_normalize_success_screen( $raw ) {
 	$icon = function_exists( 'mb_substr' ) ? mb_substr( $icon, 0, 8 ) : substr( $icon, 0, 8 );
 
 	return array(
-		'style'       => array_key_exists( $style, atf_success_styles() ) ? $style : 'simple',
+		'style'       => array_key_exists( $style, alltfo_success_styles() ) ? $style : 'simple',
 		'title'       => isset( $raw['title'] ) ? sanitize_text_field( (string) $raw['title'] ) : '',
 		'icon'        => $icon,
 		'accent'      => is_string( $accent ) ? $accent : '',
@@ -850,7 +850,7 @@ function atf_normalize_success_screen( $raw ) {
  * @param mixed $raw Raw actions.
  * @return array[]
  */
-function atf_normalize_actions( $raw ) {
+function alltfo_normalize_actions( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -866,7 +866,7 @@ function atf_normalize_actions( $raw ) {
 			'id'       => isset( $action['id'] ) ? sanitize_key( $action['id'] ) : 'a' . ( $index + 1 ),
 			'type'     => sanitize_key( $action['type'] ),
 			'enabled'  => ! isset( $action['enabled'] ) || ! empty( $action['enabled'] ),
-			'logic'    => atf_normalize_logic( isset( $action['logic'] ) ? $action['logic'] : array() ),
+			'logic'    => alltfo_normalize_logic( isset( $action['logic'] ) ? $action['logic'] : array() ),
 			// Action settings vary per action type, and the action's own handler
 			// is what knows their shape. Kept as-is here and sanitised there,
 			// which is the only place with enough context to do it properly.
@@ -889,7 +889,7 @@ function atf_normalize_actions( $raw ) {
  * @param string[] $seen Ids already in use.
  * @return string A fresh id.
  */
-function atf_generate_field_id( $seen = array() ) {
+function alltfo_generate_field_id( $seen = array() ) {
 	$index = count( $seen ) + 1;
 
 	while ( in_array( 'f' . $index, $seen, true ) ) {
@@ -907,14 +907,14 @@ function atf_generate_field_id( $seen = array() ) {
  * @param int|WP_Post $form The form.
  * @return array The normalised schema. An unknown form gets the default one.
  */
-function atf_get_form_schema( $form ) {
+function alltfo_get_form_schema( $form ) {
 	$form_id = is_object( $form ) ? $form->ID : absint( $form );
 
 	if ( ! $form_id ) {
-		return atf_normalize_schema( array() );
+		return alltfo_normalize_schema( array() );
 	}
 
-	return atf_normalize_schema( get_post_meta( $form_id, ATF_META_SCHEMA, true ) );
+	return alltfo_normalize_schema( get_post_meta( $form_id, ALLTFO_META_SCHEMA, true ) );
 }
 
 /**
@@ -931,13 +931,13 @@ function atf_get_form_schema( $form ) {
  * @param array $schema  A schema, normalised or not.
  * @return array The normalised schema that was stored.
  */
-function atf_save_form_schema( $form_id, $schema ) {
+function alltfo_save_form_schema( $form_id, $schema ) {
 	$form_id = absint( $form_id );
-	$schema  = atf_normalize_schema( $schema );
+	$schema  = alltfo_normalize_schema( $schema );
 
 	$json = wp_json_encode( $schema );
 
-	update_post_meta( $form_id, ATF_META_SCHEMA, wp_slash( $json ) );
+	update_post_meta( $form_id, ALLTFO_META_SCHEMA, wp_slash( $json ) );
 
 	/**
 	 * Fires after a form's schema is saved.
@@ -947,7 +947,7 @@ function atf_save_form_schema( $form_id, $schema ) {
 	 * @param int   $form_id The form.
 	 * @param array $schema  The normalised schema that was stored.
 	 */
-	do_action( 'atf_schema_saved', $form_id, $schema );
+	do_action( 'alltfo_schema_saved', $form_id, $schema );
 
 	return $schema;
 }
@@ -964,7 +964,7 @@ function atf_save_form_schema( $form_id, $schema ) {
  * @param string $field_id The id to find.
  * @return array|null The field, or null.
  */
-function atf_find_field( $schema, $field_id ) {
+function alltfo_find_field( $schema, $field_id ) {
 	$fields = isset( $schema['fields'] ) ? $schema['fields'] : array();
 
 	foreach ( $fields as $field ) {
@@ -996,10 +996,10 @@ function atf_find_field( $schema, $field_id ) {
  * @param array $schema The schema.
  * @return array[] Input fields.
  */
-function atf_input_fields( $schema ) {
+function alltfo_input_fields( $schema ) {
 	$fields = isset( $schema['fields'] ) ? $schema['fields'] : array();
 
-	return array_values( array_filter( $fields, 'atf_field_is_input' ) );
+	return array_values( array_filter( $fields, 'alltfo_field_is_input' ) );
 }
 
 /**
@@ -1014,7 +1014,7 @@ function atf_input_fields( $schema ) {
  * @param array $schema The schema.
  * @return array[] { fields: array[], break: array|null } per page.
  */
-function atf_schema_pages( $schema ) {
+function alltfo_schema_pages( $schema ) {
 	$fields = isset( $schema['fields'] ) ? $schema['fields'] : array();
 	$pages  = array();
 	$page   = array(
@@ -1051,8 +1051,8 @@ function atf_schema_pages( $schema ) {
  * @param array $schema The schema.
  * @return bool
  */
-function atf_is_multi_page( $schema ) {
-	return count( atf_schema_pages( $schema ) ) > 1;
+function alltfo_is_multi_page( $schema ) {
+	return count( alltfo_schema_pages( $schema ) ) > 1;
 }
 
 /**
@@ -1068,7 +1068,7 @@ function atf_is_multi_page( $schema ) {
  * @param string $json The raw recipe JSON.
  * @return string The normalised JSON, or an empty string when unusable.
  */
-function atf_normalize_validation_recipe( $json ) {
+function alltfo_normalize_validation_recipe( $json ) {
 	$raw = json_decode( $json, true );
 
 	if ( ! is_array( $raw ) ) {

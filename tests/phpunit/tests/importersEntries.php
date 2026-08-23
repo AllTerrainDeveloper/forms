@@ -17,7 +17,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers_Entries extends WP_UnitTestCase {
+class ALLTFO_Test_Importers_Entries extends WP_UnitTestCase {
 
 	/**
 	 * A CF7 template with one field of each shape the messages below use.
@@ -48,7 +48,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 *
 	 * @var string[]
 	 */
-	const ENTRY_STATUSES = array( 'atf-unread', 'atf-read', 'atf-spam' );
+	const ENTRY_STATUSES = array( 'alltfo-unread', 'alltfo-read', 'alltfo-spam' );
 
 	/**
 	 * The CF7 form post id.
@@ -96,7 +96,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 
 		// The plugin's capabilities are granted on activation, which does not
 		// run in the suite -- an administrator has none of them until this does.
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
 
@@ -147,7 +147,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 * @return int
 	 */
 	protected function import_form() {
-		return atf_import_source_form( 'contact-form-7', (string) $this->cf7_id );
+		return alltfo_import_source_form( 'contact-form-7', (string) $this->cf7_id );
 	}
 
 	/**
@@ -156,7 +156,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 * A count with no import behind it would put a number on the screen that no
 	 * button could act on.
 	 *
-	 * @covers ::atf_importers
+	 * @covers ::alltfo_importers
 	 */
 	public function test_half_an_entry_contract_is_dropped() {
 		$filter = static function ( $importers ) {
@@ -171,9 +171,9 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 			return $importers;
 		};
 
-		add_filter( 'atf_importers', $filter );
-		$importers = atf_importers();
-		remove_filter( 'atf_importers', $filter );
+		add_filter( 'alltfo_importers', $filter );
+		$importers = alltfo_importers();
+		remove_filter( 'alltfo_importers', $filter );
 
 		$this->assertArrayHasKey( 'halfway', $importers, 'The importer itself is still valid.' );
 		$this->assertArrayNotHasKey( 'entries', $importers['halfway'] );
@@ -185,21 +185,21 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 *
 	 * Without both, its stored submissions are unreadable later.
 	 *
-	 * @covers ::atf_create_imported_form
-	 * @covers ::atf_form_import_source
-	 * @covers ::atf_form_import_map
+	 * @covers ::alltfo_create_imported_form
+	 * @covers ::alltfo_form_import_source
+	 * @covers ::alltfo_form_import_map
 	 */
 	public function test_import_records_source_and_map() {
 		$form_id = $this->import_form();
 
 		$this->assertNotWPError( $form_id );
 
-		$source = atf_form_import_source( $form_id );
+		$source = alltfo_form_import_source( $form_id );
 
 		$this->assertSame( 'contact-form-7', $source['importer'] );
 		$this->assertSame( (string) $this->cf7_id, $source['source'] );
 
-		$map = atf_form_import_map( $form_id );
+		$map = alltfo_form_import_map( $form_id );
 
 		$this->assertArrayHasKey( 'your-name', $map );
 		$this->assertArrayHasKey( 'bid-funding', $map );
@@ -208,8 +208,8 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	/**
 	 * Stored messages become entries, with their values under the new field ids.
 	 *
-	 * @covers ::atf_cf7_import_entries
-	 * @covers ::atf_import_entry
+	 * @covers ::alltfo_cf7_import_entries
+	 * @covers ::alltfo_import_entry
 	 */
 	public function test_messages_become_entries() {
 		$this->add_message(
@@ -223,25 +223,25 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 		);
 
 		$form_id = $this->import_form();
-		$result  = atf_import_form_entries( $form_id );
+		$result  = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 1, $result['imported'] );
 		$this->assertTrue( $result['done'] );
 
 		$entries = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
 
 		$this->assertCount( 1, $entries );
 
-		$map    = atf_form_import_map( $form_id );
-		$values = json_decode( get_post_meta( $entries[0]->ID, ATF_META_VALUES, true ), true );
+		$map    = alltfo_form_import_map( $form_id );
+		$values = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_VALUES, true ), true );
 
 		$this->assertSame( 'Elena Ruiz', $values[ $map['your-name'] ] );
 		$this->assertSame( 'Is the terrace south facing?', $values[ $map['your-message'] ] );
@@ -252,27 +252,27 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 *
 	 * A history that all arrives today is not a history.
 	 *
-	 * @covers ::atf_import_entry
+	 * @covers ::alltfo_import_entry
 	 */
 	public function test_original_date_is_kept() {
 		$this->add_message( array( 'your-name' => 'Marcus Hale' ), '2024-11-19 14:02:00' );
 
 		$form_id = $this->import_form();
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
 		$entries = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
 
 		$this->assertSame( '2024-11-19 14:02:00', $entries[0]->post_date_gmt );
 
-		$context = json_decode( get_post_meta( $entries[0]->ID, ATF_META_CONTEXT, true ), true );
+		$context = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_CONTEXT, true ), true );
 
 		$this->assertSame( '203.0.113.7', $context['ip'] );
 		$this->assertSame( 'contact-form-7', $context['imported'] );
@@ -285,23 +285,23 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 * is exactly the status a `post_status => 'any'` query silently omits — so
 	 * this also pins that the reader does not use one.
 	 *
-	 * @covers ::atf_cf7_import_entries
+	 * @covers ::alltfo_cf7_import_entries
 	 */
 	public function test_spam_is_imported_as_spam() {
 		$this->add_message( array( 'your-name' => 'SEO Growth Team' ), '2025-01-02 08:00:00', true );
 		$this->add_message( array( 'your-name' => 'Priya Nandra' ), '2025-01-03 08:00:00' );
 
 		$form_id = $this->import_form();
-		$result  = atf_import_form_entries( $form_id );
+		$result  = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 2, $result['imported'], 'The spam message was found as well as the published one.' );
 
 		$spam = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				'post_status'    => ATF_STATUS_SPAM,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				'post_status'    => ALLTFO_STATUS_SPAM,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -315,7 +315,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 * The natural response to a migration that looks incomplete is to run it
 	 * again, so it has to be safe to.
 	 *
-	 * @covers ::atf_cf7_import_entries
+	 * @covers ::alltfo_cf7_import_entries
 	 */
 	public function test_second_run_imports_nothing_new() {
 		$this->add_message( array( 'your-name' => 'Tomas Berg' ), '2025-02-01 10:00:00' );
@@ -323,19 +323,19 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 
 		$form_id = $this->import_form();
 
-		$first = atf_import_form_entries( $form_id );
+		$first = alltfo_import_form_entries( $form_id );
 		$this->assertSame( 2, $first['imported'] );
 
-		$second = atf_import_form_entries( $form_id );
+		$second = alltfo_import_form_entries( $form_id );
 		$this->assertSame( 0, $second['imported'] );
 		$this->assertSame( 2, $second['skipped'] );
 
 		$entries = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -346,7 +346,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	/**
 	 * A pass stops at the limit and says how much is left.
 	 *
-	 * @covers ::atf_cf7_import_entries
+	 * @covers ::alltfo_cf7_import_entries
 	 */
 	public function test_import_is_chunked() {
 		for ( $i = 0; $i < 5; $i++ ) {
@@ -354,7 +354,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 		}
 
 		$form_id = $this->import_form();
-		$result  = atf_import_form_entries( $form_id, 2 );
+		$result  = alltfo_import_form_entries( $form_id, 2 );
 
 		$this->assertSame( 2, $result['imported'] );
 		$this->assertFalse( $result['done'] );
@@ -364,21 +364,21 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	/**
 	 * The count reports what is still waiting, and reaches zero when done.
 	 *
-	 * @covers ::atf_cf7_entry_count
-	 * @covers ::atf_forms_with_importable_entries
+	 * @covers ::alltfo_cf7_entry_count
+	 * @covers ::alltfo_forms_with_importable_entries
 	 */
 	public function test_count_falls_to_zero() {
 		$this->add_message( array( 'your-name' => 'Ruth Ellery' ), '2025-05-01 09:00:00' );
 
 		$form_id = $this->import_form();
 
-		$this->assertSame( 1, atf_cf7_entry_count( (string) $this->cf7_id, $form_id ) );
-		$this->assertArrayHasKey( $form_id, atf_forms_with_importable_entries() );
+		$this->assertSame( 1, alltfo_cf7_entry_count( (string) $this->cf7_id, $form_id ) );
+		$this->assertArrayHasKey( $form_id, alltfo_forms_with_importable_entries() );
 
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
-		$this->assertSame( 0, atf_cf7_entry_count( (string) $this->cf7_id, $form_id ) );
-		$this->assertArrayNotHasKey( $form_id, atf_forms_with_importable_entries() );
+		$this->assertSame( 0, alltfo_cf7_entry_count( (string) $this->cf7_id, $form_id ) );
+		$this->assertArrayNotHasKey( $form_id, alltfo_forms_with_importable_entries() );
 	}
 
 	/**
@@ -387,7 +387,7 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	 * Sanitising runs; validation deliberately does not. A choice retired since
 	 * the message was sent is still what that person said.
 	 *
-	 * @covers ::atf_import_entry
+	 * @covers ::alltfo_import_entry
 	 */
 	public function test_retired_choice_survives() {
 		$this->add_message(
@@ -399,20 +399,20 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 		);
 
 		$form_id = $this->import_form();
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
 		$entries = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
 
-		$map    = atf_form_import_map( $form_id );
-		$values = json_decode( get_post_meta( $entries[0]->ID, ATF_META_VALUES, true ), true );
+		$map    = alltfo_form_import_map( $form_id );
+		$values = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_VALUES, true ), true );
 
 		$this->assertSame( 'Paying in gold bars', $values[ $map['bid-funding'] ] );
 	}
@@ -420,27 +420,27 @@ class ATF_Test_Importers_Entries extends WP_UnitTestCase {
 	/**
 	 * A form that was never imported has nothing to bring across.
 	 *
-	 * @covers ::atf_import_form_entries
+	 * @covers ::alltfo_import_form_entries
 	 */
 	public function test_native_form_is_rejected() {
-		$form_id = self::factory()->post->create( array( 'post_type' => ATF_FORM_TYPE ) );
+		$form_id = self::factory()->post->create( array( 'post_type' => ALLTFO_FORM_TYPE ) );
 
-		$result = atf_import_form_entries( $form_id );
+		$result = alltfo_import_form_entries( $form_id );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'atf_not_imported', $result->get_error_code() );
+		$this->assertSame( 'alltfo_not_imported', $result->get_error_code() );
 	}
 
 	/**
 	 * The source's own records are never touched.
 	 *
-	 * @covers ::atf_cf7_import_entries
+	 * @covers ::alltfo_cf7_import_entries
 	 */
 	public function test_source_is_left_alone() {
 		$message_id = $this->add_message( array( 'your-name' => 'Aoife Brennan' ), '2025-07-01 09:00:00' );
 
 		$form_id = $this->import_form();
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
 		$message = get_post( $message_id );
 

@@ -55,32 +55,32 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ATF_VERSION', '0.1.0' );
-define( 'ATF_FILE', __FILE__ );
-define( 'ATF_DIR', plugin_dir_path( __FILE__ ) );
-define( 'ATF_URL', plugin_dir_url( __FILE__ ) );
+define( 'ALLTFO_VERSION', '0.1.0' );
+define( 'ALLTFO_FILE', __FILE__ );
+define( 'ALLTFO_DIR', plugin_dir_path( __FILE__ ) );
+define( 'ALLTFO_URL', plugin_dir_url( __FILE__ ) );
 
 /**
  * REST namespace for the form-shaped endpoints.
  *
- * The post types are `show_in_rest`, so `/wp/v2/atf_form` handles ordinary CRUD.
+ * The post types are `show_in_rest`, so `/wp/v2/alltfo_form` handles ordinary CRUD.
  * This namespace exists for the things core REST cannot express in one round
  * trip: submitting a form (which validates, screens for spam, stores an entry,
  * sends notifications and resolves a confirmation as one operation), saving a
  * whole schema atomically, and querying entries as a table rather than as posts.
  */
-define( 'ATF_REST_NAMESPACE', 'allterrain-forms/v1' );
+define( 'ALLTFO_REST_NAMESPACE', 'allterrain-forms/v1' );
 
 /**
  * The post types.
  *
  * `register_post_type()` rejects a key longer than 20 characters, and
- * `allterrain-forms-` is 17 of them on its own. `atf_` keeps every key short
+ * `allterrain-forms-` is 17 of them on its own. `alltfo_` keeps every key short
  * enough and reads consistently with the meta keys and the CSS prefix.
  */
-define( 'ATF_FORM_TYPE', 'atf_form' );
-define( 'ATF_ENTRY_TYPE', 'atf_entry' );
-define( 'ATF_THEME_TYPE', 'atf_theme' );
+define( 'ALLTFO_FORM_TYPE', 'alltfo_form' );
+define( 'ALLTFO_ENTRY_TYPE', 'alltfo_entry' );
+define( 'ALLTFO_THEME_TYPE', 'alltfo_theme' );
 
 /**
  * The form's field list and settings, as one JSON document.
@@ -90,13 +90,13 @@ define( 'ATF_THEME_TYPE', 'atf_theme' );
  * write is always a bug. Storing it as one document also means post revisions
  * give version history -- and a way back from a bad edit -- for free.
  */
-define( 'ATF_META_SCHEMA', '_atf_schema' );
+define( 'ALLTFO_META_SCHEMA', '_alltfo_schema' );
 
 /** The submitted values, keyed by field id. */
-define( 'ATF_META_VALUES', '_atf_values' );
+define( 'ALLTFO_META_VALUES', '_alltfo_values' );
 
 /** Which form an entry belongs to. Indexed by every entries query. */
-define( 'ATF_META_FORM', '_atf_form' );
+define( 'ALLTFO_META_FORM', '_alltfo_form' );
 
 /**
  * Submission metadata kept beside the values rather than inside them.
@@ -105,7 +105,7 @@ define( 'ATF_META_FORM', '_atf_form' );
  * a form with a field called `ip` would otherwise overwrite the record of where
  * the submission came from.
  */
-define( 'ATF_META_CONTEXT', '_atf_context' );
+define( 'ALLTFO_META_CONTEXT', '_alltfo_context' );
 
 /**
  * Where an imported form came from: `{ importer, source }`.
@@ -115,7 +115,7 @@ define( 'ATF_META_CONTEXT', '_atf_context' );
  * submissions across is the half they think of a week afterwards, by which time
  * nothing else remembers which source form became which AllTerrain form.
  */
-define( 'ATF_META_IMPORT_SOURCE', '_atf_import_source' );
+define( 'ALLTFO_META_IMPORT_SOURCE', '_alltfo_import_source' );
 
 /**
  * Source field name => new field id, for an imported form.
@@ -125,7 +125,7 @@ define( 'ATF_META_IMPORT_SOURCE', '_atf_import_source' );
  * source keys its saved values by its own field names and nothing else can
  * translate them.
  */
-define( 'ATF_META_IMPORT_MAP', '_atf_import_map' );
+define( 'ALLTFO_META_IMPORT_MAP', '_alltfo_import_map' );
 
 /**
  * The source record an imported entry came from: `{ importer, source }`.
@@ -134,13 +134,13 @@ define( 'ATF_META_IMPORT_MAP', '_atf_import_map' );
  * brought across instead of duplicating it, which matters because the natural
  * response to a migration that looks incomplete is to run it again.
  */
-define( 'ATF_META_ENTRY_SOURCE', '_atf_entry_source' );
+define( 'ALLTFO_META_ENTRY_SOURCE', '_alltfo_entry_source' );
 
 /** Design tokens for a user-created theme. */
-define( 'ATF_META_TOKENS', '_atf_tokens' );
+define( 'ALLTFO_META_TOKENS', '_alltfo_tokens' );
 
 /** Rolling per-form counters for views, starts and submissions. */
-define( 'ATF_META_STATS', '_atf_stats' );
+define( 'ALLTFO_META_STATS', '_alltfo_stats' );
 
 /**
  * Rolling per-form device / browser / OS tallies.
@@ -149,16 +149,16 @@ define( 'ATF_META_STATS', '_atf_stats' );
  * views and one for submissions -- never a per-visitor row, and never the
  * user-agent string itself.
  */
-define( 'ATF_META_TECH', '_atf_tech' );
+define( 'ALLTFO_META_TECH', '_alltfo_tech' );
 
 /**
  * A partially completed submission, kept so the user can resume it.
  *
  * Holds a token, the values so far, and an expiry. Stored on its own entry post
- * in the `atf-partial` status so retention and the privacy eraser reach it by
+ * in the `alltfo-partial` status so retention and the privacy eraser reach it by
  * exactly the same code path as a finished submission.
  */
-define( 'ATF_META_RESUME', '_atf_resume' );
+define( 'ALLTFO_META_RESUME', '_alltfo_resume' );
 
 /**
  * Entry post statuses.
@@ -167,10 +167,10 @@ define( 'ATF_META_RESUME', '_atf_resume' );
  * the "12 unread" counts the entries table shows without a bespoke query, and
  * so the trash works the way the trash works everywhere else in WordPress.
  */
-define( 'ATF_STATUS_UNREAD', 'atf-unread' );
-define( 'ATF_STATUS_READ', 'atf-read' );
-define( 'ATF_STATUS_SPAM', 'atf-spam' );
-define( 'ATF_STATUS_PARTIAL', 'atf-partial' );
+define( 'ALLTFO_STATUS_UNREAD', 'alltfo-unread' );
+define( 'ALLTFO_STATUS_READ', 'alltfo-read' );
+define( 'ALLTFO_STATUS_SPAM', 'alltfo-spam' );
+define( 'ALLTFO_STATUS_PARTIAL', 'alltfo-partial' );
 
 /**
  * The status an archived *form* holds.
@@ -179,53 +179,53 @@ define( 'ATF_STATUS_PARTIAL', 'atf-partial' );
  * keeps its meta, its revisions and its trash behaviour, and nothing about it
  * is copied anywhere to make it disappear from the pickers.
  */
-define( 'ATF_STATUS_ARCHIVED', 'atf-archived' );
+define( 'ALLTFO_STATUS_ARCHIVED', 'alltfo-archived' );
 
-require_once ATF_DIR . 'includes/shell-api.php';
-require_once ATF_DIR . 'includes/post-types.php';
-require_once ATF_DIR . 'includes/fields.php';
-require_once ATF_DIR . 'includes/field-types.php';
-require_once ATF_DIR . 'includes/schema.php';
-require_once ATF_DIR . 'includes/themes.php';
-require_once ATF_DIR . 'includes/logic.php';
-require_once ATF_DIR . 'includes/calc.php';
-require_once ATF_DIR . 'includes/merge-tags.php';
-require_once ATF_DIR . 'includes/render.php';
-require_once ATF_DIR . 'includes/render-controls.php';
-require_once ATF_DIR . 'includes/availability.php';
-require_once ATF_DIR . 'includes/validation.php';
-require_once ATF_DIR . 'includes/spam.php';
-require_once ATF_DIR . 'includes/uploads.php';
-require_once ATF_DIR . 'includes/submission.php';
-require_once ATF_DIR . 'includes/resume.php';
-require_once ATF_DIR . 'includes/notifications.php';
-require_once ATF_DIR . 'includes/confirmations.php';
-require_once ATF_DIR . 'includes/actions.php';
-require_once ATF_DIR . 'includes/mailpoet.php';
-require_once ATF_DIR . 'includes/entries.php';
-require_once ATF_DIR . 'includes/archive.php';
-require_once ATF_DIR . 'includes/analytics.php';
-require_once ATF_DIR . 'includes/dev-mode.php';
-require_once ATF_DIR . 'includes/demo-data.php';
-require_once ATF_DIR . 'includes/templates.php';
-require_once ATF_DIR . 'includes/importers.php';
-require_once ATF_DIR . 'includes/importer-cf7.php';
-require_once ATF_DIR . 'includes/importer-wpforms.php';
-require_once ATF_DIR . 'includes/importer-gravityforms.php';
-require_once ATF_DIR . 'includes/import-notice.php';
-require_once ATF_DIR . 'includes/rest.php';
-require_once ATF_DIR . 'includes/abilities.php';
-require_once ATF_DIR . 'includes/preview.php';
-require_once ATF_DIR . 'includes/shortcode.php';
-require_once ATF_DIR . 'includes/block.php';
-require_once ATF_DIR . 'includes/assets.php';
-require_once ATF_DIR . 'includes/admin-page.php';
-require_once ATF_DIR . 'includes/openstation.php';
-require_once ATF_DIR . 'includes/openstation-explorer.php';
-require_once ATF_DIR . 'includes/privacy.php';
+require_once ALLTFO_DIR . 'includes/shell-api.php';
+require_once ALLTFO_DIR . 'includes/post-types.php';
+require_once ALLTFO_DIR . 'includes/fields.php';
+require_once ALLTFO_DIR . 'includes/field-types.php';
+require_once ALLTFO_DIR . 'includes/schema.php';
+require_once ALLTFO_DIR . 'includes/themes.php';
+require_once ALLTFO_DIR . 'includes/logic.php';
+require_once ALLTFO_DIR . 'includes/calc.php';
+require_once ALLTFO_DIR . 'includes/merge-tags.php';
+require_once ALLTFO_DIR . 'includes/render.php';
+require_once ALLTFO_DIR . 'includes/render-controls.php';
+require_once ALLTFO_DIR . 'includes/availability.php';
+require_once ALLTFO_DIR . 'includes/validation.php';
+require_once ALLTFO_DIR . 'includes/spam.php';
+require_once ALLTFO_DIR . 'includes/uploads.php';
+require_once ALLTFO_DIR . 'includes/submission.php';
+require_once ALLTFO_DIR . 'includes/resume.php';
+require_once ALLTFO_DIR . 'includes/notifications.php';
+require_once ALLTFO_DIR . 'includes/confirmations.php';
+require_once ALLTFO_DIR . 'includes/actions.php';
+require_once ALLTFO_DIR . 'includes/mailpoet.php';
+require_once ALLTFO_DIR . 'includes/entries.php';
+require_once ALLTFO_DIR . 'includes/archive.php';
+require_once ALLTFO_DIR . 'includes/analytics.php';
+require_once ALLTFO_DIR . 'includes/dev-mode.php';
+require_once ALLTFO_DIR . 'includes/demo-data.php';
+require_once ALLTFO_DIR . 'includes/templates.php';
+require_once ALLTFO_DIR . 'includes/importers.php';
+require_once ALLTFO_DIR . 'includes/importer-cf7.php';
+require_once ALLTFO_DIR . 'includes/importer-wpforms.php';
+require_once ALLTFO_DIR . 'includes/importer-gravityforms.php';
+require_once ALLTFO_DIR . 'includes/import-notice.php';
+require_once ALLTFO_DIR . 'includes/rest.php';
+require_once ALLTFO_DIR . 'includes/abilities.php';
+require_once ALLTFO_DIR . 'includes/preview.php';
+require_once ALLTFO_DIR . 'includes/shortcode.php';
+require_once ALLTFO_DIR . 'includes/block.php';
+require_once ALLTFO_DIR . 'includes/assets.php';
+require_once ALLTFO_DIR . 'includes/admin-page.php';
+require_once ALLTFO_DIR . 'includes/openstation.php';
+require_once ALLTFO_DIR . 'includes/openstation-explorer.php';
+require_once ALLTFO_DIR . 'includes/privacy.php';
 
-register_activation_hook( __FILE__, 'atf_activate' );
-register_deactivation_hook( __FILE__, 'atf_deactivate' );
+register_activation_hook( __FILE__, 'alltfo_activate' );
+register_deactivation_hook( __FILE__, 'alltfo_deactivate' );
 
 /**
  * Prepares the site on activation.
@@ -240,11 +240,11 @@ register_deactivation_hook( __FILE__, 'atf_deactivate' );
  *
  * @return void
  */
-function atf_activate() {
-	atf_register_post_types();
-	atf_register_post_statuses();
-	atf_add_capabilities();
-	atf_schedule_retention();
+function alltfo_activate() {
+	alltfo_register_post_types();
+	alltfo_register_post_statuses();
+	alltfo_add_capabilities();
+	alltfo_schedule_retention();
 
 	flush_rewrite_rules();
 }
@@ -262,8 +262,8 @@ function atf_activate() {
  *
  * @return void
  */
-function atf_deactivate() {
-	wp_clear_scheduled_hook( 'atf_apply_retention' );
+function alltfo_deactivate() {
+	wp_clear_scheduled_hook( 'alltfo_apply_retention' );
 
 	flush_rewrite_rules();
 }
@@ -279,14 +279,14 @@ function atf_deactivate() {
  *
  * @return void
  */
-function atf_loaded() {
+function alltfo_loaded() {
 	/**
 	 * Fires once AllTerrain Forms is loaded and its registries are open.
 	 *
-	 * The place to call `atf_register_field_type()` and `atf_register_theme()`.
+	 * The place to call `alltfo_register_field_type()` and `alltfo_register_theme()`.
 	 *
 	 * @since 0.1.0
 	 */
-	do_action( 'atf_loaded' );
+	do_action( 'alltfo_loaded' );
 }
-add_action( 'plugins_loaded', 'atf_loaded', 20 );
+add_action( 'plugins_loaded', 'alltfo_loaded', 20 );

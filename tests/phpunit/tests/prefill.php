@@ -21,7 +21,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Prefill extends WP_UnitTestCase {
+class ALLTFO_Test_Prefill extends WP_UnitTestCase {
 
 	/**
 	 * A one-field schema whose field pre-fills from a source.
@@ -31,7 +31,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * @return array The normalised schema.
 	 */
 	private function schema_with( $source, $type = 'text' ) {
-		return atf_normalize_schema(
+		return alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -65,7 +65,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * everything on it works.
 	 *
 	 * @dataProvider data_offered_sources
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 *
 	 * @param string $source The source string.
 	 */
@@ -85,7 +85,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 
 		$this->assertNotSame(
 			'',
-			atf_resolve_prefill( $source, $this->field() ),
+			alltfo_resolve_prefill( $source, $this->field() ),
 			sprintf( 'The builder offers "%s" but nothing resolves it, so the field opens empty.', $source )
 		);
 	}
@@ -126,11 +126,11 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * builder's hint said `date:today` as though the word mattered. A time field
 	 * pre-filled with `date:now` got a date in it.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_date_sources_differ() {
-		$today = atf_resolve_prefill( 'date:today', $this->field( 'date' ) );
-		$now   = atf_resolve_prefill( 'date:now', $this->field( 'time' ) );
+		$today = alltfo_resolve_prefill( 'date:today', $this->field( 'date' ) );
+		$now   = alltfo_resolve_prefill( 'date:now', $this->field( 'time' ) );
 
 		$this->assertSame( wp_date( 'Y-m-d' ), $today );
 		$this->assertSame( wp_date( 'H:i' ), $now );
@@ -140,10 +140,10 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	/**
 	 * A bare `date:` still means today, because it always did.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_a_bare_date_source_is_still_today() {
-		$this->assertSame( wp_date( 'Y-m-d' ), atf_resolve_prefill( 'date', $this->field( 'date' ) ) );
+		$this->assertSame( wp_date( 'Y-m-d' ), alltfo_resolve_prefill( 'date', $this->field( 'date' ) ) );
 	}
 
 	/**
@@ -153,12 +153,12 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * into the page. Sanitising through the field type rather than generically is
 	 * what makes a number field reject a script tag by being a number field.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_a_query_source_is_sanitised() {
 		$_GET['utm_source'] = '<script>alert(1)</script>newsletter';
 
-		$value = atf_resolve_prefill( 'query:utm_source', $this->field() );
+		$value = alltfo_resolve_prefill( 'query:utm_source', $this->field() );
 
 		unset( $_GET['utm_source'] );
 
@@ -169,10 +169,10 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	/**
 	 * A `query:` source that is not in the URL fills nothing.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_a_missing_query_parameter_fills_nothing() {
-		$this->assertSame( '', atf_resolve_prefill( 'query:not_here', $this->field() ) );
+		$this->assertSame( '', alltfo_resolve_prefill( 'query:not_here', $this->field() ) );
 	}
 
 	/**
@@ -183,20 +183,20 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * a prefill source is never anything else, and echoing `myplugin:whatever`
 	 * into a visitor's name box would be worse than leaving it empty.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_an_unknown_source_fills_nothing() {
-		$this->assertSame( '', atf_resolve_prefill( 'nonsense:here', $this->field() ) );
+		$this->assertSame( '', alltfo_resolve_prefill( 'nonsense:here', $this->field() ) );
 	}
 
 	/**
 	 * A plugin can add a source.
 	 *
-	 * @covers ::atf_resolve_prefill
+	 * @covers ::alltfo_resolve_prefill
 	 */
 	public function test_a_plugin_can_add_a_source() {
 		add_filter(
-			'atf_resolve_prefill',
+			'alltfo_resolve_prefill',
 			static function ( $value, $source ) {
 				return 'crm:ref' === $source ? 'CRM-1234' : $value;
 			},
@@ -204,7 +204,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertSame( 'CRM-1234', atf_resolve_prefill( 'crm:ref', $this->field() ) );
+		$this->assertSame( 'CRM-1234', alltfo_resolve_prefill( 'crm:ref', $this->field() ) );
 	}
 
 	/**
@@ -213,12 +213,12 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * Otherwise adding a pre-fill would silently wipe the default for every
 	 * visitor the source does not apply to — a logged-out one, most of the time.
 	 *
-	 * @covers ::atf_prefill_values
+	 * @covers ::alltfo_prefill_values
 	 */
 	public function test_the_default_survives_an_empty_source() {
 		wp_set_current_user( 0 );
 
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -232,7 +232,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 'Fallback', atf_prefill_values( $schema )['f1'] );
+		$this->assertSame( 'Fallback', alltfo_prefill_values( $schema )['f1'] );
 	}
 
 	/**
@@ -245,7 +245,7 @@ class ATF_Test_Prefill extends WP_UnitTestCase {
 	 * against nothing.
 	 *
 	 * @dataProvider data_storable_sources
-	 * @covers ::atf_normalize_field
+	 * @covers ::alltfo_normalize_field
 	 *
 	 * @param string $source The source string.
 	 */

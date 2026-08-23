@@ -8,10 +8,10 @@
  * control that does nothing; a CSS custom property no token declares is a value
  * no theme can reach. Both directions are asserted against the real stylesheet.
  *
- * **A theme cannot inject CSS.** Token values land inside a `<style>` block, so
- * a value containing a brace could close the rule and open another — which is
- * how a "theme" becomes a way to restyle the page around it or load a remote
- * resource.
+ * **A theme cannot inject CSS.** Token values land inside the form wrapper's
+ * `style` attribute, so a value that could close a declaration and open a rule
+ * of its own is how a "theme" becomes a way to restyle the page around it or
+ * load a remote resource.
  *
  * @package AllTerrain_Forms
  * @group allterrain-forms
@@ -22,7 +22,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Themes extends WP_UnitTestCase {
+class ALLTFO_Test_Themes extends WP_UnitTestCase {
 
 	/**
 	 * Tokens the renderer turns into a class rather than a custom property.
@@ -40,10 +40,10 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * setting `label-position` to `floating` must produce a form the stylesheet's
 	 * `.atf-labels-floating` rules can reach.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_structural_tokens_reach_the_markup() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -62,12 +62,12 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertStringContainsString( 'atf-labels-floating', $html );
 		$this->assertStringContainsString( 'atf-fields-underline', $html );
 
-		$css = file_get_contents( ATF_DIR . 'assets/css/form.css' );
+		$css = file_get_contents( ALLTFO_DIR . 'assets/css/form.css' );
 
 		$this->assertStringContainsString( '.atf-labels-floating', $css );
 		$this->assertStringContainsString( '.atf-fields-underline', $css );
@@ -76,10 +76,10 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	/**
 	 * Ten themes ship.
 	 *
-	 * @covers ::atf_builtin_themes
+	 * @covers ::alltfo_builtin_themes
 	 */
 	public function test_ten_themes_ship() {
-		$themes = atf_builtin_themes();
+		$themes = alltfo_builtin_themes();
 
 		$this->assertCount( 10, $themes, 'The plugin promises ten built-in themes.' );
 
@@ -92,13 +92,13 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	/**
 	 * Every theme resolves to a complete token map.
 	 *
-	 * @covers ::atf_resolve_tokens
+	 * @covers ::alltfo_resolve_tokens
 	 */
 	public function test_every_theme_resolves_completely() {
-		$expected = array_keys( atf_theme_token_defaults() );
+		$expected = array_keys( alltfo_theme_token_defaults() );
 
-		foreach ( array_keys( atf_builtin_themes() ) as $slug ) {
-			$resolved = atf_resolve_tokens( $slug );
+		foreach ( array_keys( alltfo_builtin_themes() ) as $slug ) {
+			$resolved = alltfo_resolve_tokens( $slug );
 
 			foreach ( $expected as $token ) {
 				$this->assertArrayHasKey( $token, $resolved, "Theme {$slug} is missing token {$token}." );
@@ -113,12 +113,12 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * A typo in a theme's token name is otherwise invisible: the value is stored,
 	 * emitted, and read by nothing at all.
 	 *
-	 * @covers ::atf_builtin_themes
+	 * @covers ::alltfo_builtin_themes
 	 */
 	public function test_themes_only_set_known_tokens() {
-		$known = atf_theme_token_defaults();
+		$known = alltfo_theme_token_defaults();
 
-		foreach ( atf_builtin_themes() as $slug => $theme ) {
+		foreach ( alltfo_builtin_themes() as $slug => $theme ) {
 			foreach ( array_keys( $theme['tokens'] ) as $token ) {
 				$this->assertArrayHasKey(
 					$token,
@@ -132,16 +132,16 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	/**
 	 * Every declared token is actually used by the stylesheet.
 	 *
-	 * @covers ::atf_theme_token_defaults
+	 * @covers ::alltfo_theme_token_defaults
 	 */
 	public function test_every_token_is_read_by_the_css() {
-		$css = file_get_contents( ATF_DIR . 'assets/css/form.css' );
+		$css = file_get_contents( ALLTFO_DIR . 'assets/css/form.css' );
 
 		$this->assertNotEmpty( $css, 'The front-end stylesheet is missing.' );
 
 		$unused = array();
 
-		foreach ( array_keys( atf_theme_token_defaults() ) as $token ) {
+		foreach ( array_keys( alltfo_theme_token_defaults() ) as $token ) {
 			// Two tokens are structural rather than visual: the renderer reads
 			// them in PHP and picks a class (`atf-fields-filled`,
 			// `atf-labels-floating`), because they change the *markup's shape*
@@ -168,11 +168,11 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	/**
 	 * The stylesheet reads no token the token table does not declare.
 	 *
-	 * @covers ::atf_theme_token_defaults
+	 * @covers ::alltfo_theme_token_defaults
 	 */
 	public function test_css_reads_no_undeclared_token() {
-		$css   = file_get_contents( ATF_DIR . 'assets/css/form.css' );
-		$known = atf_theme_token_defaults();
+		$css   = file_get_contents( ALLTFO_DIR . 'assets/css/form.css' );
+		$known = alltfo_theme_token_defaults();
 
 		preg_match_all( '/var\(\s*--atf-([a-z0-9-]+)/i', $css, $matches );
 
@@ -212,10 +212,10 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * which makes them (0,2,0) — two classes beat one class plus one type. This
 	 * test is what stops the next control being added without it.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_control_rules_outrank_theme_stylesheets() {
-		$css = file_get_contents( ATF_DIR . 'assets/css/form.css' );
+		$css = file_get_contents( ALLTFO_DIR . 'assets/css/form.css' );
 
 		// The classes that dress an actual form control. A theme's `input[type]`
 		// rules reach every one of them.
@@ -321,10 +321,10 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * a hint that any stylesheet in the document can retire without touching a
 	 * single one of our rules. The checked state has to be something we draw.
 	 *
-	 * @covers ::atf_theme_token_defaults
+	 * @covers ::alltfo_theme_token_defaults
 	 */
 	public function test_the_tick_box_draws_its_own_accent() {
-		$css = $this->without_comments( file_get_contents( ATF_DIR . 'assets/css/form.css' ) );
+		$css = $this->without_comments( file_get_contents( ALLTFO_DIR . 'assets/css/form.css' ) );
 
 		$this->assertMatchesRegularExpression(
 			'/\.atf-form \.atf-choice__input,\s*\.atf-form \.atf-toggle__input\s*\{[^}]*appearance:\s*none/s',
@@ -361,7 +361,7 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * theme that changes it — and `--atf-line-height` is a token themes are
 	 * expected to change.
 	 *
-	 * @covers ::atf_theme_token_defaults
+	 * @covers ::alltfo_theme_token_defaults
 	 */
 	public function test_checkbox_offset_is_derived_from_the_line_height() {
 		// Comments stripped first, and that is not tidiness.
@@ -373,7 +373,7 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 		// test failed while the CSS it was checking was perfectly correct. A test
 		// that a comment can break is a test that gets deleted rather than
 		// believed.
-		$css = $this->without_comments( file_get_contents( ATF_DIR . 'assets/css/form.css' ) );
+		$css = $this->without_comments( file_get_contents( ALLTFO_DIR . 'assets/css/form.css' ) );
 
 		$this->assertMatchesRegularExpression(
 			'/\.atf-form \.atf-choice__input\s*\{[^}]*margin-block-start:\s*calc\([^}]*--atf-line-height/s',
@@ -392,12 +392,12 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * A token value that could break out of the style block is refused.
 	 *
 	 * @dataProvider data_dangerous_values
-	 * @covers ::atf_sanitize_tokens
+	 * @covers ::alltfo_sanitize_tokens
 	 *
 	 * @param string $value A value that must not survive.
 	 */
 	public function test_dangerous_token_values_are_refused( $value ) {
-		$clean = atf_sanitize_tokens( array( 'accent' => $value ) );
+		$clean = alltfo_sanitize_tokens( array( 'accent' => $value ) );
 
 		$this->assertArrayNotHasKey(
 			'accent',
@@ -442,12 +442,12 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * theme system useless, so the other direction matters just as much.
 	 *
 	 * @dataProvider data_safe_values
-	 * @covers ::atf_sanitize_tokens
+	 * @covers ::alltfo_sanitize_tokens
 	 *
 	 * @param string $value A value that must survive.
 	 */
 	public function test_ordinary_token_values_survive( $value ) {
-		$clean = atf_sanitize_tokens( array( 'accent' => $value ) );
+		$clean = alltfo_sanitize_tokens( array( 'accent' => $value ) );
 
 		$this->assertSame( $value, $clean['accent'] );
 	}
@@ -483,10 +483,10 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	/**
 	 * Unknown token names are dropped.
 	 *
-	 * @covers ::atf_sanitize_tokens
+	 * @covers ::alltfo_sanitize_tokens
 	 */
 	public function test_unknown_tokens_are_dropped() {
-		$clean = atf_sanitize_tokens(
+		$clean = alltfo_sanitize_tokens(
 			array(
 				'accent'           => '#fff',
 				'not-a-real-token' => 'red',
@@ -498,31 +498,30 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The emitted CSS is scoped and well-formed.
+	 * The emitted declarations are attribute-safe and well-formed.
 	 *
-	 * @covers ::atf_tokens_to_css
+	 * @covers ::alltfo_tokens_to_declarations
 	 */
-	public function test_css_is_scoped() {
-		$css = atf_tokens_to_css( '#atf-1-1 .atf-form', array( 'accent' => '#ff0000' ) );
+	public function test_declarations_are_attribute_safe() {
+		$style = alltfo_tokens_to_declarations( array( 'accent' => '#ff0000' ) );
 
-		$this->assertStringStartsWith( '#atf-1-1 .atf-form {', $css );
-		$this->assertStringContainsString( '--atf-accent: #ff0000;', $css );
-		$this->assertSame( 1, substr_count( $css, '{' ), 'The rule must not be able to open a second block.' );
-		$this->assertSame( 1, substr_count( $css, '}' ) );
+		$this->assertSame( '--atf-accent: #ff0000;', $style );
+		$this->assertSame( 0, substr_count( $style, '{' ), 'A declaration list must not be able to open a block.' );
+		$this->assertSame( 0, substr_count( $style, '}' ) );
 	}
 
 	/**
 	 * Overrides beat the theme, which beats the defaults.
 	 *
-	 * @covers ::atf_resolve_tokens
+	 * @covers ::alltfo_resolve_tokens
 	 */
 	public function test_overrides_win() {
-		$defaults = atf_theme_token_defaults();
-		$midnight = atf_resolve_tokens( 'midnight' );
+		$defaults = alltfo_theme_token_defaults();
+		$midnight = alltfo_resolve_tokens( 'midnight' );
 
 		$this->assertNotSame( $defaults['surface'], $midnight['surface'], 'Midnight should change the surface.' );
 
-		$overridden = atf_resolve_tokens( 'midnight', array( 'surface' => '#123456' ) );
+		$overridden = alltfo_resolve_tokens( 'midnight', array( 'surface' => '#123456' ) );
 
 		$this->assertSame( '#123456', $overridden['surface'] );
 	}
@@ -532,25 +531,25 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 *
 	 * A form whose theme was deleted should look plain, not blow up.
 	 *
-	 * @covers ::atf_get_theme
+	 * @covers ::alltfo_get_theme
 	 */
 	public function test_unknown_theme_falls_back() {
-		$theme = atf_get_theme( 'a-theme-that-was-deleted' );
+		$theme = alltfo_get_theme( 'a-theme-that-was-deleted' );
 
 		$this->assertSame( 'clean', $theme['slug'] );
-		$this->assertNotEmpty( atf_resolve_tokens( 'a-theme-that-was-deleted' ) );
+		$this->assertNotEmpty( alltfo_resolve_tokens( 'a-theme-that-was-deleted' ) );
 	}
 
 	/**
 	 * A saved theme cannot shadow a built-in.
 	 *
-	 * @covers ::atf_save_theme
+	 * @covers ::alltfo_save_theme
 	 */
 	public function test_saved_theme_cannot_take_a_builtin_slug() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
-		$saved = atf_save_theme(
+		$saved = alltfo_save_theme(
 			array(
 				'label'  => 'Midnight',
 				'slug'   => 'midnight',
@@ -560,19 +559,19 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 
 		$this->assertNotWPError( $saved );
 		$this->assertNotSame( 'midnight', $saved['slug'] );
-		$this->assertSame( 'Midnight', atf_get_theme( 'midnight' )['label'] );
-		$this->assertFalse( atf_get_theme( 'midnight' )['custom'] );
+		$this->assertSame( 'Midnight', alltfo_get_theme( 'midnight' )['label'] );
+		$this->assertFalse( alltfo_get_theme( 'midnight' )['custom'] );
 	}
 
 	/**
 	 * Saving a theme needs the capability.
 	 *
-	 * @covers ::atf_save_theme
+	 * @covers ::alltfo_save_theme
 	 */
 	public function test_saving_a_theme_requires_capability() {
 		wp_set_current_user( 0 );
 
-		$this->assertWPError( atf_save_theme( array( 'label' => 'Sneaky' ) ) );
+		$this->assertWPError( alltfo_save_theme( array( 'label' => 'Sneaky' ) ) );
 	}
 
 	/**
@@ -590,14 +589,14 @@ class ATF_Test_Themes extends WP_UnitTestCase {
 	 * somebody puts it and a theme cannot require a particular backdrop.
 	 *
 	 * @dataProvider data_page_colours
-	 * @covers ::atf_builtin_themes
+	 * @covers ::alltfo_builtin_themes
 	 *
 	 * @param string $label Which page is behind the form.
 	 * @param array  $page  Its opaque RGB.
 	 */
 	public function test_themes_are_legible_on_any_page( $label, $page ) {
-		foreach ( array_keys( atf_builtin_themes() ) as $slug ) {
-			$tokens = atf_resolve_tokens( $slug );
+		foreach ( array_keys( alltfo_builtin_themes() ) as $slug ) {
+			$tokens = alltfo_resolve_tokens( $slug );
 			$text   = $this->to_rgba( $tokens['text'] );
 
 			$this->assertNotNull( $text, sprintf( 'Theme "%s" has an unreadable text colour.', $slug ) );

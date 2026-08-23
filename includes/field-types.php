@@ -2,7 +2,7 @@
 /**
  * The field types that ship with the plugin.
  *
- * One `atf_register_field_type()` call each, using exactly the API a third-party
+ * One `alltfo_register_field_type()` call each, using exactly the API a third-party
  * plugin would use. There is no privileged path: if a built-in needs something
  * the registry cannot express, the registry is missing a feature and gets one,
  * rather than the built-in reaching around it. That is the only way to know the
@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * @param string[] $extra Additional supports to append.
  * @return string[] Support flags.
  */
-function atf_input_supports( $extra = array() ) {
+function alltfo_input_supports( $extra = array() ) {
 	return array_merge(
 		array( 'label', 'placeholder', 'hint', 'required', 'default', 'width', 'css', 'prefill', 'logic' ),
 		$extra
@@ -31,17 +31,17 @@ function atf_input_supports( $extra = array() ) {
 /**
  * Registers every built-in field type.
  *
- * Called once from `atf_boot_field_types()`.
+ * Called once from `alltfo_boot_field_types()`.
  *
  * @since 0.1.0
  *
  * @return void
  */
-function atf_register_builtin_field_types() {
+function alltfo_register_builtin_field_types() {
 
 	/* -------------------------------------------------------------- Text -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'text',
 		array(
 			'label'       => __( 'Single line', 'allterrain-forms' ),
@@ -49,12 +49,12 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-editor-textcolor',
 			'value'       => 'string',
-			'supports'    => atf_input_supports( array( 'minlength', 'maxlength', 'pattern', 'unique' ) ),
+			'supports'    => alltfo_input_supports( array( 'minlength', 'maxlength', 'pattern', 'unique' ) ),
 			'position'    => 10,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'textarea',
 		array(
 			'label'       => __( 'Paragraph', 'allterrain-forms' ),
@@ -62,13 +62,13 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-editor-paragraph',
 			'value'       => 'text',
-			'supports'    => atf_input_supports( array( 'minlength', 'maxlength', 'rows' ) ),
+			'supports'    => alltfo_input_supports( array( 'minlength', 'maxlength', 'rows' ) ),
 			'settings'    => array( 'rows' => 5 ),
 			'position'    => 20,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'email',
 		array(
 			'label'       => __( 'Email', 'allterrain-forms' ),
@@ -76,7 +76,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-email',
 			'value'       => 'string',
-			'supports'    => atf_input_supports( array( 'unique' ) ),
+			'supports'    => alltfo_input_supports( array( 'unique' ) ),
 			'sanitize'    => static function ( $raw ) {
 				return sanitize_email( (string) ( is_scalar( $raw ) ? $raw : '' ) );
 			},
@@ -86,65 +86,65 @@ function atf_register_builtin_field_types() {
 				}
 
 				return new WP_Error(
-					'atf_invalid_email',
-					atf_field_message( $field, 'invalid', __( 'That does not look like an email address.', 'allterrain-forms' ) )
+					'alltfo_invalid_email',
+					alltfo_field_message( $field, 'invalid', __( 'That does not look like an email address.', 'allterrain-forms' ) )
 				);
 			},
 			'position'    => 30,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'url',
 		array(
 			'label'    => __( 'Website', 'allterrain-forms' ),
 			'group'    => 'text',
 			'icon'     => 'dashicons-admin-links',
 			'value'    => 'string',
-			'supports' => atf_input_supports(),
+			'supports' => alltfo_input_supports(),
 			'sanitize' => static function ( $raw ) {
 				return esc_url_raw( trim( (string) ( is_scalar( $raw ) ? $raw : '' ) ) );
 			},
 			'validate' => static function ( $value, $field ) {
-				if ( '' === $value || atf_looks_like_a_url( $value ) ) {
+				if ( '' === $value || alltfo_looks_like_a_url( $value ) ) {
 					return true;
 				}
 
 				return new WP_Error(
-					'atf_invalid_url',
-					atf_field_message( $field, 'invalid', __( 'That does not look like a web address.', 'allterrain-forms' ) )
+					'alltfo_invalid_url',
+					alltfo_field_message( $field, 'invalid', __( 'That does not look like a web address.', 'allterrain-forms' ) )
 				);
 			},
 			'position' => 40,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'tel',
 		array(
 			'label'    => __( 'Phone', 'allterrain-forms' ),
 			'group'    => 'text',
 			'icon'     => 'dashicons-phone',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'pattern' ) ),
+			'supports' => alltfo_input_supports( array( 'pattern' ) ),
 			'position' => 50,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'number',
 		array(
 			'label'    => __( 'Number', 'allterrain-forms' ),
 			'group'    => 'text',
 			'icon'     => 'dashicons-calculator',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'min', 'max', 'step' ) ),
+			'supports' => alltfo_input_supports( array( 'min', 'max', 'step' ) ),
 			'settings' => array( 'step' => '' ),
 			'position' => 60,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'password',
 		array(
 			'label'       => __( 'Password', 'allterrain-forms' ),
@@ -152,7 +152,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'text',
 			'icon'        => 'dashicons-lock',
 			'value'       => 'string',
-			'supports'    => atf_input_supports( array( 'minlength' ) ),
+			'supports'    => alltfo_input_supports( array( 'minlength' ) ),
 			// A password is the one value the entry must not keep. The
 			// registration action reads it out of the submission while it is
 			// still in memory; by storage time this has replaced it, so an
@@ -164,7 +164,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'hidden',
 		array(
 			'label'       => __( 'Hidden', 'allterrain-forms' ),
@@ -179,7 +179,7 @@ function atf_register_builtin_field_types() {
 
 	/* ------------------------------------------------------------ Choice -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'select',
 		array(
 			'label'    => __( 'Dropdown', 'allterrain-forms' ),
@@ -187,13 +187,13 @@ function atf_register_builtin_field_types() {
 			'icon'     => 'dashicons-arrow-down-alt2',
 			'value'    => 'string',
 			'choices'  => true,
-			'supports' => atf_input_supports( array( 'choices', 'placeholder' ) ),
-			'format'   => 'atf_format_choice_value',
+			'supports' => alltfo_input_supports( array( 'choices', 'placeholder' ) ),
+			'format'   => 'alltfo_format_choice_value',
 			'position' => 10,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'multiselect',
 		array(
 			'label'    => __( 'Multi-select', 'allterrain-forms' ),
@@ -201,13 +201,13 @@ function atf_register_builtin_field_types() {
 			'icon'     => 'dashicons-list-view',
 			'value'    => 'array',
 			'choices'  => true,
-			'supports' => atf_input_supports( array( 'choices', 'minchoices', 'maxchoices' ) ),
-			'format'   => 'atf_format_choice_list',
+			'supports' => alltfo_input_supports( array( 'choices', 'minchoices', 'maxchoices' ) ),
+			'format'   => 'alltfo_format_choice_list',
 			'position' => 20,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'radio',
 		array(
 			'label'    => __( 'Radio buttons', 'allterrain-forms' ),
@@ -215,13 +215,13 @@ function atf_register_builtin_field_types() {
 			'icon'     => 'dashicons-marker',
 			'value'    => 'string',
 			'choices'  => true,
-			'supports' => atf_input_supports( array( 'choices', 'other', 'inline' ) ),
-			'format'   => 'atf_format_choice_value',
+			'supports' => alltfo_input_supports( array( 'choices', 'other', 'inline' ) ),
+			'format'   => 'alltfo_format_choice_value',
 			'position' => 30,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'checkboxes',
 		array(
 			'label'    => __( 'Checkboxes', 'allterrain-forms' ),
@@ -229,13 +229,13 @@ function atf_register_builtin_field_types() {
 			'icon'     => 'dashicons-yes-alt',
 			'value'    => 'array',
 			'choices'  => true,
-			'supports' => atf_input_supports( array( 'choices', 'other', 'inline', 'minchoices', 'maxchoices' ) ),
-			'format'   => 'atf_format_choice_list',
+			'supports' => alltfo_input_supports( array( 'choices', 'other', 'inline', 'minchoices', 'maxchoices' ) ),
+			'format'   => 'alltfo_format_choice_list',
 			'position' => 40,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'image_choice',
 		array(
 			'label'       => __( 'Image choice', 'allterrain-forms' ),
@@ -244,7 +244,7 @@ function atf_register_builtin_field_types() {
 			'icon'        => 'dashicons-format-gallery',
 			'value'       => 'string',
 			'choices'     => true,
-			'supports'    => atf_input_supports( array( 'choices', 'multiple', 'columns' ) ),
+			'supports'    => alltfo_input_supports( array( 'choices', 'multiple', 'columns' ) ),
 			'settings'    => array( 'columns' => 3 ),
 			// The declared shape is a string, but the renderer posts an array
 			// the moment `multiple` is on -- so the shape has to follow the
@@ -269,63 +269,63 @@ function atf_register_builtin_field_types() {
 			},
 			// The list formatter, because it handles both shapes: a lone value
 			// formats as its label, an array as a comma-separated list.
-			'format'      => 'atf_format_choice_list',
+			'format'      => 'alltfo_format_choice_list',
 			'position'    => 50,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'switch',
 		array(
 			'label'    => __( 'Toggle', 'allterrain-forms' ),
 			'group'    => 'choice',
 			'icon'     => 'dashicons-controls-play',
 			'value'    => 'bool',
-			'supports' => atf_input_supports(),
+			'supports' => alltfo_input_supports(),
 			'position' => 60,
 		)
 	);
 
 	/* ----------------------------------------------------- Date and time -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'date',
 		array(
 			'label'    => __( 'Date', 'allterrain-forms' ),
 			'group'    => 'datetime',
 			'icon'     => 'dashicons-calendar-alt',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'mindate', 'maxdate' ) ),
-			'validate' => 'atf_validate_date_value',
+			'supports' => alltfo_input_supports( array( 'mindate', 'maxdate' ) ),
+			'validate' => 'alltfo_validate_date_value',
 			'position' => 10,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'time',
 		array(
 			'label'    => __( 'Time', 'allterrain-forms' ),
 			'group'    => 'datetime',
 			'icon'     => 'dashicons-clock',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'mintime', 'maxtime', 'step' ) ),
+			'supports' => alltfo_input_supports( array( 'mintime', 'maxtime', 'step' ) ),
 			'position' => 20,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'datetime',
 		array(
 			'label'    => __( 'Date & time', 'allterrain-forms' ),
 			'group'    => 'datetime',
 			'icon'     => 'dashicons-calendar',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'mindate', 'maxdate' ) ),
+			'supports' => alltfo_input_supports( array( 'mindate', 'maxdate' ) ),
 			'position' => 30,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'date_range',
 		array(
 			'label'       => __( 'Date range', 'allterrain-forms' ),
@@ -333,8 +333,8 @@ function atf_register_builtin_field_types() {
 			'group'       => 'datetime',
 			'icon'        => 'dashicons-calendar-alt',
 			'value'       => 'object',
-			'supports'    => atf_input_supports( array( 'mindate', 'maxdate' ) ),
-			'validate'    => 'atf_validate_date_range',
+			'supports'    => alltfo_input_supports( array( 'mindate', 'maxdate' ) ),
+			'validate'    => 'alltfo_validate_date_range',
 			'format'      => static function ( $value ) {
 				$from = isset( $value['from'] ) ? $value['from'] : '';
 				$to   = isset( $value['to'] ) ? $value['to'] : '';
@@ -352,7 +352,7 @@ function atf_register_builtin_field_types() {
 
 	/* ---------------------------------------------------------- Advanced -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'file',
 		array(
 			'label'       => __( 'File upload', 'allterrain-forms' ),
@@ -360,18 +360,18 @@ function atf_register_builtin_field_types() {
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-upload',
 			'value'       => 'files',
-			'supports'    => atf_input_supports( array( 'filetypes', 'maxsize', 'maxfiles' ) ),
+			'supports'    => alltfo_input_supports( array( 'filetypes', 'maxsize', 'maxfiles' ) ),
 			'settings'    => array(
 				'filetypes' => array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'txt', 'csv', 'zip' ),
 				'maxsize'   => 10,
 				'maxfiles'  => 1,
 			),
-			'format'      => 'atf_format_file_value',
+			'format'      => 'alltfo_format_file_value',
 			'position'    => 10,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'signature',
 		array(
 			'label'       => __( 'Signature', 'allterrain-forms' ),
@@ -379,7 +379,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-edit',
 			'value'       => 'string',
-			'supports'    => atf_input_supports(),
+			'supports'    => alltfo_input_supports(),
 			// The canvas posts a data URI. Anything that is not one is either a
 			// browser that failed to draw or a forged field, and both are the
 			// same empty answer.
@@ -395,20 +395,20 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'rating',
 		array(
 			'label'    => __( 'Star rating', 'allterrain-forms' ),
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-star-filled',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'max' ) ),
+			'supports' => alltfo_input_supports( array( 'max' ) ),
 			'settings' => array( 'max' => 5 ),
 			'position' => 30,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'scale',
 		array(
 			'label'       => __( 'Opinion scale', 'allterrain-forms' ),
@@ -416,7 +416,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-chart-bar',
 			'value'       => 'number',
-			'supports'    => atf_input_supports( array( 'min', 'max', 'endlabels' ) ),
+			'supports'    => alltfo_input_supports( array( 'min', 'max', 'endlabels' ) ),
 			'settings'    => array(
 				'min'      => 0,
 				'max'      => 10,
@@ -427,7 +427,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'likert',
 		array(
 			'label'       => __( 'Likert matrix', 'allterrain-forms' ),
@@ -436,21 +436,21 @@ function atf_register_builtin_field_types() {
 			'icon'        => 'dashicons-grid-view',
 			'value'       => 'object',
 			'choices'     => true,
-			'supports'    => atf_input_supports( array( 'choices', 'rows' ) ),
+			'supports'    => alltfo_input_supports( array( 'choices', 'rows' ) ),
 			'settings'    => array( 'rows' => array() ),
-			'format'      => 'atf_format_likert_value',
+			'format'      => 'alltfo_format_likert_value',
 			'position'    => 50,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'range',
 		array(
 			'label'    => __( 'Slider', 'allterrain-forms' ),
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-leftright',
 			'value'    => 'number',
-			'supports' => atf_input_supports( array( 'min', 'max', 'step' ) ),
+			'supports' => alltfo_input_supports( array( 'min', 'max', 'step' ) ),
 			'settings' => array(
 				'min'  => 0,
 				'max'  => 100,
@@ -460,14 +460,14 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'color',
 		array(
 			'label'    => __( 'Colour', 'allterrain-forms' ),
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-art',
 			'value'    => 'string',
-			'supports' => atf_input_supports(),
+			'supports' => alltfo_input_supports(),
 			'sanitize' => static function ( $raw ) {
 				$hex = sanitize_hex_color( (string) ( is_scalar( $raw ) ? $raw : '' ) );
 
@@ -477,7 +477,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'name',
 		array(
 			'label'       => __( 'Name', 'allterrain-forms' ),
@@ -485,7 +485,7 @@ function atf_register_builtin_field_types() {
 			'group'       => 'advanced',
 			'icon'        => 'dashicons-admin-users',
 			'value'       => 'object',
-			'supports'    => atf_input_supports( array( 'parts' ) ),
+			'supports'    => alltfo_input_supports( array( 'parts' ) ),
 			'settings'    => array(
 				'parts' => array( 'first', 'last' ),
 			),
@@ -513,14 +513,14 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'address',
 		array(
 			'label'    => __( 'Address', 'allterrain-forms' ),
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-location',
 			'value'    => 'object',
-			'supports' => atf_input_supports( array( 'parts' ) ),
+			'supports' => alltfo_input_supports( array( 'parts' ) ),
 			'settings' => array(
 				'parts' => array( 'line1', 'line2', 'city', 'region', 'postcode', 'country' ),
 			),
@@ -540,19 +540,19 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'country',
 		array(
 			'label'    => __( 'Country', 'allterrain-forms' ),
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-admin-site-alt3',
 			'value'    => 'string',
-			'supports' => atf_input_supports( array( 'placeholder' ) ),
+			'supports' => alltfo_input_supports( array( 'placeholder' ) ),
 			'position' => 100,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'repeater',
 		array(
 			'label'       => __( 'Repeater', 'allterrain-forms' ),
@@ -568,15 +568,15 @@ function atf_register_builtin_field_types() {
 				'addLabel'  => '',
 				'itemLabel' => '',
 			),
-			'sanitize'    => 'atf_sanitize_repeater_value',
-			'format'      => 'atf_format_repeater_value',
+			'sanitize'    => 'alltfo_sanitize_repeater_value',
+			'format'      => 'alltfo_format_repeater_value',
 			'position'    => 110,
 		)
 	);
 
 	/* ------------------------------------------------------------ Layout -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'heading',
 		array(
 			'label'    => __( 'Section heading', 'allterrain-forms' ),
@@ -589,7 +589,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'html',
 		array(
 			'label'       => __( 'HTML block', 'allterrain-forms' ),
@@ -603,7 +603,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'divider',
 		array(
 			'label'    => __( 'Divider', 'allterrain-forms' ),
@@ -615,7 +615,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'spacer',
 		array(
 			'label'    => __( 'Spacer', 'allterrain-forms' ),
@@ -628,7 +628,7 @@ function atf_register_builtin_field_types() {
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'page_break',
 		array(
 			'label'       => __( 'Page break', 'allterrain-forms' ),
@@ -647,7 +647,7 @@ function atf_register_builtin_field_types() {
 
 	/* ----------------------------------------------------------- Special -- */
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'consent',
 		array(
 			'label'       => __( 'Consent', 'allterrain-forms' ),
@@ -666,15 +666,15 @@ function atf_register_builtin_field_types() {
 				}
 
 				return new WP_Error(
-					'atf_consent_required',
-					atf_field_message( $field, 'required', __( 'This has to be agreed to before the form can be sent.', 'allterrain-forms' ) )
+					'alltfo_consent_required',
+					alltfo_field_message( $field, 'required', __( 'This has to be agreed to before the form can be sent.', 'allterrain-forms' ) )
 				);
 			},
 			'position'    => 10,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'total',
 		array(
 			'label'       => __( 'Total', 'allterrain-forms' ),
@@ -688,12 +688,12 @@ function atf_register_builtin_field_types() {
 				'currency' => '',
 				'decimals' => 2,
 			),
-			'format'      => 'atf_format_total_value',
+			'format'      => 'alltfo_format_total_value',
 			'position'    => 20,
 		)
 	);
 
-	atf_register_field_type(
+	alltfo_register_field_type(
 		'quiz',
 		array(
 			'label'       => __( 'Quiz question', 'allterrain-forms' ),
@@ -702,12 +702,12 @@ function atf_register_builtin_field_types() {
 			'icon'        => 'dashicons-awards',
 			'value'       => 'string',
 			'choices'     => true,
-			'supports'    => atf_input_supports( array( 'choices', 'correct', 'points' ) ),
+			'supports'    => alltfo_input_supports( array( 'choices', 'correct', 'points' ) ),
 			'settings'    => array(
 				'correct' => '',
 				'points'  => 1,
 			),
-			'format'      => 'atf_format_choice_value',
+			'format'      => 'alltfo_format_choice_value',
 			'position'    => 30,
 		)
 	);
@@ -722,8 +722,8 @@ function atf_register_builtin_field_types() {
  * @param array $field The field.
  * @return string
  */
-function atf_format_choice_value( $value, $field ) {
-	return '' === $value || null === $value ? '' : atf_choice_label( $value, $field );
+function alltfo_format_choice_value( $value, $field ) {
+	return '' === $value || null === $value ? '' : alltfo_choice_label( $value, $field );
 }
 
 /**
@@ -735,15 +735,15 @@ function atf_format_choice_value( $value, $field ) {
  * @param array $field The field.
  * @return string
  */
-function atf_format_choice_list( $value, $field ) {
+function alltfo_format_choice_list( $value, $field ) {
 	if ( ! is_array( $value ) ) {
-		return '' === $value ? '' : atf_choice_label( $value, $field );
+		return '' === $value ? '' : alltfo_choice_label( $value, $field );
 	}
 
 	$labels = array();
 
 	foreach ( $value as $item ) {
-		$labels[] = atf_choice_label( $item, $field );
+		$labels[] = alltfo_choice_label( $item, $field );
 	}
 
 	return implode( ', ', $labels );
@@ -763,7 +763,7 @@ function atf_format_choice_list( $value, $field ) {
  * @param string $context Destination.
  * @return string
  */
-function atf_format_file_value( $value, $field, $context = 'table' ) {
+function alltfo_format_file_value( $value, $field, $context = 'table' ) {
 	$ids = array_filter( array_map( 'absint', (array) $value ) );
 
 	if ( ! $ids ) {
@@ -797,7 +797,7 @@ function atf_format_file_value( $value, $field, $context = 'table' ) {
  * @param array $field The field.
  * @return string
  */
-function atf_format_likert_value( $value, $field ) {
+function alltfo_format_likert_value( $value, $field ) {
 	if ( ! is_array( $value ) ) {
 		return '';
 	}
@@ -815,7 +815,7 @@ function atf_format_likert_value( $value, $field ) {
 			}
 		}
 
-		$lines[] = $label . ': ' . atf_choice_label( $answer, $field );
+		$lines[] = $label . ': ' . alltfo_choice_label( $answer, $field );
 	}
 
 	return implode( "\n", $lines );
@@ -830,7 +830,7 @@ function atf_format_likert_value( $value, $field ) {
  * @param array $field The field.
  * @return string
  */
-function atf_format_total_value( $value, $field ) {
+function alltfo_format_total_value( $value, $field ) {
 	if ( '' === $value || null === $value ) {
 		return '';
 	}
@@ -857,7 +857,7 @@ function atf_format_total_value( $value, $field ) {
  * @param array $field The repeater field.
  * @return array Sanitised rows.
  */
-function atf_sanitize_repeater_value( $raw, $field ) {
+function alltfo_sanitize_repeater_value( $raw, $field ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -884,7 +884,7 @@ function atf_sanitize_repeater_value( $raw, $field ) {
 				continue;
 			}
 
-			$clean[ $key ] = atf_sanitize_field_value( isset( $row[ $key ] ) ? $row[ $key ] : '', $sub );
+			$clean[ $key ] = alltfo_sanitize_field_value( isset( $row[ $key ] ) ? $row[ $key ] : '', $sub );
 		}
 
 		// A row where every field came back empty is a row the visitor added and
@@ -917,12 +917,12 @@ function atf_sanitize_repeater_value( $raw, $field ) {
  * @param string $context Destination.
  * @return string
  */
-function atf_format_repeater_value( $value, $field, $context = 'table' ) {
+function alltfo_format_repeater_value( $value, $field, $context = 'table' ) {
 	if ( ! is_array( $value ) || ! $value ) {
 		return '';
 	}
 
-	$item_label = atf_repeater_item_label( $field );
+	$item_label = alltfo_repeater_item_label( $field );
 
 	if ( 'table' === $context ) {
 		if ( isset( $field['itemLabel'] ) && '' !== $field['itemLabel'] ) {
@@ -948,7 +948,7 @@ function atf_format_repeater_value( $value, $field, $context = 'table' ) {
 			}
 
 			$label   = isset( $sub['label'] ) && '' !== $sub['label'] ? $sub['label'] : $key;
-			$parts[] = $label . ': ' . atf_format_field_value( $row[ $key ], $sub, $context );
+			$parts[] = $label . ': ' . alltfo_format_field_value( $row[ $key ], $sub, $context );
 		}
 
 		/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's values. */
@@ -969,7 +969,7 @@ function atf_format_repeater_value( $value, $field, $context = 'table' ) {
  * @param array $field The repeater field.
  * @return string
  */
-function atf_repeater_item_label( $field ) {
+function alltfo_repeater_item_label( $field ) {
 	return isset( $field['itemLabel'] ) && '' !== $field['itemLabel']
 		? (string) $field['itemLabel']
 		: __( 'Row', 'allterrain-forms' );
@@ -984,7 +984,7 @@ function atf_repeater_item_label( $field ) {
  * @param array $field The field.
  * @return true|WP_Error
  */
-function atf_validate_date_value( $value, $field ) {
+function alltfo_validate_date_value( $value, $field ) {
 	if ( '' === $value ) {
 		return true;
 	}
@@ -993,15 +993,15 @@ function atf_validate_date_value( $value, $field ) {
 
 	if ( ! $date || $date->format( 'Y-m-d' ) !== (string) $value ) {
 		return new WP_Error(
-			'atf_invalid_date',
-			atf_field_message( $field, 'invalid', __( 'That is not a date we recognise.', 'allterrain-forms' ) )
+			'alltfo_invalid_date',
+			alltfo_field_message( $field, 'invalid', __( 'That is not a date we recognise.', 'allterrain-forms' ) )
 		);
 	}
 
 	if ( ! empty( $field['minDate'] ) && $value < $field['minDate'] ) {
 		return new WP_Error(
-			'atf_date_too_early',
-			atf_field_message(
+			'alltfo_date_too_early',
+			alltfo_field_message(
 				$field,
 				'min',
 				/* translators: %s: the earliest allowed date. */
@@ -1012,8 +1012,8 @@ function atf_validate_date_value( $value, $field ) {
 
 	if ( ! empty( $field['maxDate'] ) && $value > $field['maxDate'] ) {
 		return new WP_Error(
-			'atf_date_too_late',
-			atf_field_message(
+			'alltfo_date_too_late',
+			alltfo_field_message(
 				$field,
 				'max',
 				/* translators: %s: the latest allowed date. */
@@ -1034,7 +1034,7 @@ function atf_validate_date_value( $value, $field ) {
  * @param array $field The field.
  * @return true|WP_Error
  */
-function atf_validate_date_range( $value, $field ) {
+function alltfo_validate_date_range( $value, $field ) {
 	$from = isset( $value['from'] ) ? (string) $value['from'] : '';
 	$to   = isset( $value['to'] ) ? (string) $value['to'] : '';
 
@@ -1044,8 +1044,8 @@ function atf_validate_date_range( $value, $field ) {
 
 	if ( $from > $to ) {
 		return new WP_Error(
-			'atf_range_backwards',
-			atf_field_message( $field, 'invalid', __( 'The end date comes before the start date.', 'allterrain-forms' ) )
+			'alltfo_range_backwards',
+			alltfo_field_message( $field, 'invalid', __( 'The end date comes before the start date.', 'allterrain-forms' ) )
 		);
 	}
 
@@ -1067,7 +1067,7 @@ function atf_validate_date_range( $value, $field ) {
  * @param string $default Wording to use when the field has no override.
  * @return string
  */
-function atf_field_message( $field, $key, $default ) {
+function alltfo_field_message( $field, $key, $default ) {
 	if ( isset( $field['messages'][ $key ] ) && '' !== trim( (string) $field['messages'][ $key ] ) ) {
 		return (string) $field['messages'][ $key ];
 	}
@@ -1104,7 +1104,7 @@ function atf_field_message( $field, $key, $default ) {
  * @param string $value The submitted value.
  * @return bool
  */
-function atf_looks_like_a_url( $value ) {
+function alltfo_looks_like_a_url( $value ) {
 	$value = trim( (string) $value );
 
 	if ( '' === $value || ! filter_var( $value, FILTER_VALIDATE_URL ) ) {
@@ -1128,7 +1128,7 @@ function atf_looks_like_a_url( $value ) {
 	 *
 	 * @param string[] $schemes Accepted schemes.
 	 */
-	$schemes = apply_filters( 'atf_url_schemes', array( 'http', 'https' ) );
+	$schemes = apply_filters( 'alltfo_url_schemes', array( 'http', 'https' ) );
 
 	if ( ! in_array( strtolower( $parts['scheme'] ), $schemes, true ) ) {
 		return false;

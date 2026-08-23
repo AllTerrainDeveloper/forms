@@ -16,7 +16,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
+class ALLTFO_Test_Requires_Openstation extends WP_UnitTestCase {
 
 	/**
 	 * The plugin declares the dependency WordPress enforces.
@@ -26,7 +26,7 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	 * this plugin has to do is say the words where core reads them.
 	 */
 	public function test_header_declares_the_dependency() {
-		$header = file_get_contents( ATF_FILE, false, null, 0, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading our own plugin header in a test.
+		$header = file_get_contents( ALLTFO_FILE, false, null, 0, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading our own plugin header in a test.
 
 		$this->assertMatchesRegularExpression( '/^ \* Requires Plugins:\s+desktop-mode$/m', $header );
 	}
@@ -37,13 +37,13 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	 * The suite runs without OpenStation, which is exactly the scenario the
 	 * notice exists for.
 	 *
-	 * @covers ::atf_shell_missing_notice
+	 * @covers ::alltfo_shell_missing_notice
 	 */
 	public function test_notice_shows_without_the_shell() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		ob_start();
-		atf_shell_missing_notice();
+		alltfo_shell_missing_notice();
 		$notice = ob_get_clean();
 
 		$this->assertStringContainsString( 'OpenStation', $notice );
@@ -54,13 +54,13 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	/**
 	 * Somebody who cannot install plugins is not nagged about one.
 	 *
-	 * @covers ::atf_shell_missing_notice
+	 * @covers ::alltfo_shell_missing_notice
 	 */
 	public function test_notice_is_silent_for_non_admins() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 
 		ob_start();
-		atf_shell_missing_notice();
+		alltfo_shell_missing_notice();
 
 		$this->assertSame( '', ob_get_clean() );
 	}
@@ -68,10 +68,10 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	/**
 	 * The notice is wired to `admin_notices`, not just defined.
 	 *
-	 * @covers ::atf_shell_missing_notice
+	 * @covers ::alltfo_shell_missing_notice
 	 */
 	public function test_notice_is_hooked() {
-		$this->assertSame( 10, has_action( 'admin_notices', 'atf_shell_missing_notice' ) );
+		$this->assertSame( 10, has_action( 'admin_notices', 'alltfo_shell_missing_notice' ) );
 	}
 
 	/**
@@ -82,14 +82,14 @@ class ATF_Test_Requires_Openstation extends WP_UnitTestCase {
 	 * to read it. The page says what is missing instead of quietly mounting a
 	 * lesser builder.
 	 *
-	 * @covers ::atf_render_admin_shell
+	 * @covers ::alltfo_render_admin_shell
 	 */
 	public function test_admin_surfaces_are_gated_without_the_shell() {
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		ob_start();
-		atf_render_builder_page();
+		alltfo_render_builder_page();
 		$page = ob_get_clean();
 
 		$this->assertStringContainsString( 'OpenStation desktop app', $page );

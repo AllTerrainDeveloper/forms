@@ -11,7 +11,7 @@
  * The one thing it costs is that entries are rows in `wp_posts` alongside
  * content, and a site taking a hundred thousand submissions will feel that. The
  * mitigation is that entries are `exclude_from_search`, not publicly queryable,
- * and always fetched through `atf_query_entries()`, which filters on an indexed
+ * and always fetched through `alltfo_query_entries()`, which filters on an indexed
  * meta key. If a site ever outgrows this, the swap is behind that one function.
  *
  * @package AllTerrain_Forms
@@ -19,9 +19,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'init', 'atf_register_post_types', 5 );
-add_action( 'init', 'atf_register_post_statuses', 5 );
-add_action( 'init', 'atf_register_meta', 6 );
+add_action( 'init', 'alltfo_register_post_types', 5 );
+add_action( 'init', 'alltfo_register_post_statuses', 5 );
+add_action( 'init', 'alltfo_register_meta', 6 );
 
 /**
  * Registers the three post types.
@@ -33,9 +33,9 @@ add_action( 'init', 'atf_register_meta', 6 );
  *
  * @return void
  */
-function atf_register_post_types() {
+function alltfo_register_post_types() {
 	register_post_type(
-		ATF_FORM_TYPE,
+		ALLTFO_FORM_TYPE,
 		array(
 			'labels'              => array(
 				'name'          => __( 'Forms', 'allterrain-forms' ),
@@ -49,9 +49,9 @@ function atf_register_post_types() {
 			'show_ui'             => false,
 			'show_in_menu'        => false,
 			'show_in_rest'        => true,
-			'rest_base'           => 'atf-forms',
+			'rest_base'           => 'alltfo-forms',
 			'supports'            => array( 'title', 'excerpt', 'revisions', 'author' ),
-			'capability_type'     => array( 'atf_form', 'atf_forms' ),
+			'capability_type'     => array( 'alltfo_form', 'alltfo_forms' ),
 			'map_meta_cap'        => true,
 			'exclude_from_search' => true,
 			'has_archive'         => false,
@@ -61,7 +61,7 @@ function atf_register_post_types() {
 	);
 
 	register_post_type(
-		ATF_ENTRY_TYPE,
+		ALLTFO_ENTRY_TYPE,
 		array(
 			'labels'              => array(
 				'name'          => __( 'Entries', 'allterrain-forms' ),
@@ -77,14 +77,14 @@ function atf_register_post_types() {
 			// names, addresses, answers to survey questions -- and core's
 			// generic `/wp/v2/` handler would expose all of it to anyone who can
 			// read a post. Entries are served only by this plugin's own routes,
-			// which check `atf_read_entries` and run every value back through
+			// which check `alltfo_read_entries` and run every value back through
 			// the field type that produced it.
 			'show_in_rest'        => false,
 			// Comments are on so that entry notes are ordinary comments: the
 			// Comments screen moderates them, `current_user_can( 'moderate_comments' )`
 			// governs them, and nothing here has to reimplement a thread.
 			'supports'            => array( 'title', 'comments', 'author' ),
-			'capability_type'     => array( 'atf_entry', 'atf_entries' ),
+			'capability_type'     => array( 'alltfo_entry', 'alltfo_entries' ),
 			'map_meta_cap'        => true,
 			'exclude_from_search' => true,
 			'has_archive'         => false,
@@ -94,7 +94,7 @@ function atf_register_post_types() {
 	);
 
 	register_post_type(
-		ATF_THEME_TYPE,
+		ALLTFO_THEME_TYPE,
 		array(
 			'labels'              => array(
 				'name'          => __( 'Form Themes', 'allterrain-forms' ),
@@ -104,9 +104,9 @@ function atf_register_post_types() {
 			'show_ui'             => false,
 			'show_in_menu'        => false,
 			'show_in_rest'        => true,
-			'rest_base'           => 'atf-themes',
+			'rest_base'           => 'alltfo-themes',
 			'supports'            => array( 'title', 'revisions' ),
-			'capability_type'     => array( 'atf_form', 'atf_forms' ),
+			'capability_type'     => array( 'alltfo_form', 'alltfo_forms' ),
 			'map_meta_cap'        => true,
 			'exclude_from_search' => true,
 			'has_archive'         => false,
@@ -131,24 +131,24 @@ function atf_register_post_types() {
  *
  * @return void
  */
-function atf_register_post_statuses() {
+function alltfo_register_post_statuses() {
 	$statuses = array(
-		ATF_STATUS_UNREAD  => array(
+		ALLTFO_STATUS_UNREAD  => array(
 			/* translators: %s: number of entries. */
 			'label_count' => _n_noop( 'Unread <span class="count">(%s)</span>', 'Unread <span class="count">(%s)</span>', 'allterrain-forms' ),
 			'label'       => _x( 'Unread', 'entry status', 'allterrain-forms' ),
 		),
-		ATF_STATUS_READ    => array(
+		ALLTFO_STATUS_READ    => array(
 			/* translators: %s: number of entries. */
 			'label_count' => _n_noop( 'Read <span class="count">(%s)</span>', 'Read <span class="count">(%s)</span>', 'allterrain-forms' ),
 			'label'       => _x( 'Read', 'entry status', 'allterrain-forms' ),
 		),
-		ATF_STATUS_SPAM    => array(
+		ALLTFO_STATUS_SPAM    => array(
 			/* translators: %s: number of entries. */
 			'label_count' => _n_noop( 'Spam <span class="count">(%s)</span>', 'Spam <span class="count">(%s)</span>', 'allterrain-forms' ),
 			'label'       => _x( 'Spam', 'entry status', 'allterrain-forms' ),
 		),
-		ATF_STATUS_PARTIAL => array(
+		ALLTFO_STATUS_PARTIAL => array(
 			/* translators: %s: number of entries. */
 			'label_count' => _n_noop( 'Incomplete <span class="count">(%s)</span>', 'Incomplete <span class="count">(%s)</span>', 'allterrain-forms' ),
 			'label'       => _x( 'Incomplete', 'entry status', 'allterrain-forms' ),
@@ -164,7 +164,7 @@ function atf_register_post_statuses() {
 				'public'                    => false,
 				'internal'                  => true,
 				'exclude_from_search'       => true,
-				'show_in_admin_all_list'    => ATF_STATUS_SPAM !== $status && ATF_STATUS_PARTIAL !== $status,
+				'show_in_admin_all_list'    => ALLTFO_STATUS_SPAM !== $status && ALLTFO_STATUS_PARTIAL !== $status,
 				'show_in_admin_status_list' => true,
 			)
 		);
@@ -174,7 +174,7 @@ function atf_register_post_statuses() {
 	// point of archiving is that the form leaves every everyday list; it keeps
 	// its own row in the status list so nothing archived is unfindable.
 	register_post_status(
-		ATF_STATUS_ARCHIVED,
+		ALLTFO_STATUS_ARCHIVED,
 		array(
 			'label'                     => _x( 'Archived', 'form status', 'allterrain-forms' ),
 			/* translators: %s: number of forms. */
@@ -195,25 +195,25 @@ function atf_register_post_statuses() {
  * schemas and submitted values are read and written through this plugin's own
  * routes, which know how to normalise a schema and how to run a value back
  * through the field type that produced it. Core's generic meta endpoint knows
- * neither, and exposing a raw `_atf_values` blob over `/wp/v2/` would hand every
+ * neither, and exposing a raw `_alltfo_values` blob over `/wp/v2/` would hand every
  * submission to anyone who can read a post.
  *
  * @since 0.1.0
  *
  * @return void
  */
-function atf_register_meta() {
+function alltfo_register_meta() {
 	$forms_editable = static function () {
-		return current_user_can( 'atf_edit_forms' );
+		return current_user_can( 'alltfo_edit_forms' );
 	};
 
 	$entries_readable = static function () {
-		return current_user_can( 'atf_read_entries' );
+		return current_user_can( 'alltfo_read_entries' );
 	};
 
 	register_post_meta(
-		ATF_FORM_TYPE,
-		ATF_META_SCHEMA,
+		ALLTFO_FORM_TYPE,
+		ALLTFO_META_SCHEMA,
 		array(
 			'type'          => 'string',
 			'single'        => true,
@@ -224,8 +224,8 @@ function atf_register_meta() {
 	);
 
 	register_post_meta(
-		ATF_FORM_TYPE,
-		ATF_META_STATS,
+		ALLTFO_FORM_TYPE,
+		ALLTFO_META_STATS,
 		array(
 			'type'          => 'string',
 			'single'        => true,
@@ -236,8 +236,8 @@ function atf_register_meta() {
 	);
 
 	register_post_meta(
-		ATF_FORM_TYPE,
-		ATF_META_TECH,
+		ALLTFO_FORM_TYPE,
+		ALLTFO_META_TECH,
 		array(
 			'type'          => 'string',
 			'single'        => true,
@@ -247,9 +247,9 @@ function atf_register_meta() {
 		)
 	);
 
-	foreach ( array( ATF_META_VALUES, ATF_META_CONTEXT, ATF_META_RESUME ) as $key ) {
+	foreach ( array( ALLTFO_META_VALUES, ALLTFO_META_CONTEXT, ALLTFO_META_RESUME ) as $key ) {
 		register_post_meta(
-			ATF_ENTRY_TYPE,
+			ALLTFO_ENTRY_TYPE,
 			$key,
 			array(
 				'type'          => 'string',
@@ -262,8 +262,8 @@ function atf_register_meta() {
 	}
 
 	register_post_meta(
-		ATF_ENTRY_TYPE,
-		ATF_META_FORM,
+		ALLTFO_ENTRY_TYPE,
+		ALLTFO_META_FORM,
 		array(
 			'type'          => 'integer',
 			'single'        => true,
@@ -274,8 +274,8 @@ function atf_register_meta() {
 	);
 
 	register_post_meta(
-		ATF_THEME_TYPE,
-		ATF_META_TOKENS,
+		ALLTFO_THEME_TYPE,
+		ALLTFO_META_TOKENS,
 		array(
 			'type'          => 'string',
 			'single'        => true,
@@ -300,27 +300,27 @@ function atf_register_meta() {
  *
  * @return array<string, string[]> Role slug => capabilities.
  */
-function atf_capability_map() {
-	$editor = array( 'atf_edit_forms', 'atf_read_entries', 'atf_delete_entries' );
+function alltfo_capability_map() {
+	$editor = array( 'alltfo_edit_forms', 'alltfo_read_entries', 'alltfo_delete_entries' );
 
 	$map = array(
-		'administrator' => array_merge( $editor, array( 'atf_manage_settings' ) ),
+		'administrator' => array_merge( $editor, array( 'alltfo_manage_settings' ) ),
 		'editor'        => $editor,
 	);
 
 	/**
 	 * Filters which roles hold which of the plugin's capabilities.
 	 *
-	 * Applied at activation and whenever `atf_add_capabilities()` runs. Changing
+	 * Applied at activation and whenever `alltfo_add_capabilities()` runs. Changing
 	 * it on an already-activated site has no effect until capabilities are
 	 * re-applied, because roles are stored in the database, not computed per
-	 * request -- call `atf_add_capabilities()` after filtering to apply it.
+	 * request -- call `alltfo_add_capabilities()` after filtering to apply it.
 	 *
 	 * @since 0.1.0
 	 *
 	 * @param array<string, string[]> $map Role slug => list of capabilities.
 	 */
-	return apply_filters( 'atf_capability_map', $map );
+	return apply_filters( 'alltfo_capability_map', $map );
 }
 
 /**
@@ -328,7 +328,7 @@ function atf_capability_map() {
  *
  * Also grants the primitive capabilities `map_meta_cap` needs to resolve
  * `edit_post` and friends for the three post types. Without them an editor can
- * hold `atf_edit_forms` and still be refused by `current_user_can( 'edit_post', $form_id )`,
+ * hold `alltfo_edit_forms` and still be refused by `current_user_can( 'edit_post', $form_id )`,
  * because that check goes through the post type's own `edit_posts` capability
  * and never sees ours.
  *
@@ -336,23 +336,23 @@ function atf_capability_map() {
  *
  * @return void
  */
-function atf_add_capabilities() {
+function alltfo_add_capabilities() {
 	$primitives = array(
-		'edit_atf_forms',
-		'edit_others_atf_forms',
-		'publish_atf_forms',
-		'read_private_atf_forms',
-		'delete_atf_forms',
-		'delete_others_atf_forms',
-		'edit_atf_entries',
-		'edit_others_atf_entries',
-		'publish_atf_entries',
-		'read_private_atf_entries',
-		'delete_atf_entries',
-		'delete_others_atf_entries',
+		'edit_alltfo_forms',
+		'edit_others_alltfo_forms',
+		'publish_alltfo_forms',
+		'read_private_alltfo_forms',
+		'delete_alltfo_forms',
+		'delete_others_alltfo_forms',
+		'edit_alltfo_entries',
+		'edit_others_alltfo_entries',
+		'publish_alltfo_entries',
+		'read_private_alltfo_entries',
+		'delete_alltfo_entries',
+		'delete_others_alltfo_entries',
 	);
 
-	foreach ( atf_capability_map() as $role_slug => $caps ) {
+	foreach ( alltfo_capability_map() as $role_slug => $caps ) {
 		$role = get_role( $role_slug );
 
 		if ( ! $role ) {
@@ -372,8 +372,8 @@ function atf_add_capabilities() {
  *
  * @return bool
  */
-function atf_can_edit_forms() {
-	return current_user_can( 'atf_edit_forms' );
+function alltfo_can_edit_forms() {
+	return current_user_can( 'alltfo_edit_forms' );
 }
 
 /**
@@ -384,8 +384,8 @@ function atf_can_edit_forms() {
  * @param int $form_id Optional. Restrict the question to one form.
  * @return bool
  */
-function atf_can_read_entries( $form_id = 0 ) {
-	$can = current_user_can( 'atf_read_entries' );
+function alltfo_can_read_entries( $form_id = 0 ) {
+	$can = current_user_can( 'alltfo_read_entries' );
 
 	/**
 	 * Filters whether the current user may read entries.
@@ -398,7 +398,7 @@ function atf_can_read_entries( $form_id = 0 ) {
 	 * @param bool $can     Whether reading is allowed.
 	 * @param int  $form_id Form the question is about, or 0 for "any".
 	 */
-	return (bool) apply_filters( 'atf_can_read_entries', $can, (int) $form_id );
+	return (bool) apply_filters( 'alltfo_can_read_entries', $can, (int) $form_id );
 }
 
 /**
@@ -425,8 +425,8 @@ function atf_can_read_entries( $form_id = 0 ) {
  *                            want it; a list of somebody's submissions does not.
  * @return string[] Status slugs.
  */
-function atf_entry_statuses( $include_trash = true ) {
-	$statuses = array( ATF_STATUS_UNREAD, ATF_STATUS_READ, ATF_STATUS_SPAM, ATF_STATUS_PARTIAL );
+function alltfo_entry_statuses( $include_trash = true ) {
+	$statuses = array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ, ALLTFO_STATUS_SPAM, ALLTFO_STATUS_PARTIAL );
 
 	if ( $include_trash ) {
 		$statuses[] = 'trash';
@@ -440,5 +440,5 @@ function atf_entry_statuses( $include_trash = true ) {
 	 * @param string[] $statuses      Status slugs.
 	 * @param bool     $include_trash Whether the trash was asked for.
 	 */
-	return apply_filters( 'atf_entry_statuses', $statuses, $include_trash );
+	return apply_filters( 'alltfo_entry_statuses', $statuses, $include_trash );
 }

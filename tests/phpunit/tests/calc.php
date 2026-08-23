@@ -21,13 +21,13 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Calc extends WP_UnitTestCase {
+class ALLTFO_Test_Calc extends WP_UnitTestCase {
 
 	/**
 	 * The shared conformance table.
 	 *
 	 * @dataProvider data_formulas
-	 * @covers ::atf_calculate
+	 * @covers ::alltfo_calculate
 	 *
 	 * @param string     $formula The formula.
 	 * @param array      $values  Field values.
@@ -36,7 +36,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	 */
 	public function test_calculate( $formula, $values, $fields, $result ) {
 		$schema = $fields ? array( 'fields' => $fields ) : array();
-		$got    = atf_calculate( $formula, $values, $schema );
+		$got    = alltfo_calculate( $formula, $values, $schema );
 
 		if ( null === $result ) {
 			$this->assertNull( $got, sprintf( 'Expected "%s" to be refused.', $formula ) );
@@ -56,7 +56,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	public function data_formulas() {
 		$cases = array();
 
-		foreach ( atf_test_fixture( 'calc-cases' )['cases'] as $index => $case ) {
+		foreach ( alltfo_test_fixture( 'calc-cases' )['cases'] as $index => $case ) {
 			$cases[ 'formula ' . $index . ': ' . $case['formula'] ] = array(
 				$case['formula'],
 				$case['values'],
@@ -72,12 +72,12 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	 * Nothing that is not arithmetic evaluates.
 	 *
 	 * @dataProvider data_attacks
-	 * @covers ::atf_calculate
+	 * @covers ::alltfo_calculate
 	 *
 	 * @param string $formula A formula that must be refused.
 	 */
 	public function test_refuses_code( $formula ) {
-		$this->assertNull( atf_calculate( $formula, array() ) );
+		$this->assertNull( alltfo_calculate( $formula, array() ) );
 	}
 
 	/**
@@ -113,19 +113,19 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	/**
 	 * A formula long enough to be a denial of service is refused outright.
 	 *
-	 * @covers ::atf_calculate
+	 * @covers ::alltfo_calculate
 	 */
 	public function test_refuses_enormous_formula() {
-		$this->assertNull( atf_calculate( str_repeat( '1+', 1200 ) . '1', array() ) );
+		$this->assertNull( alltfo_calculate( str_repeat( '1+', 1200 ) . '1', array() ) );
 	}
 
 	/**
 	 * Only whitelisted functions exist.
 	 *
-	 * @covers ::atf_calc_functions
+	 * @covers ::alltfo_calc_functions
 	 */
 	public function test_function_whitelist_is_pure() {
-		$allowed = array_keys( atf_calc_functions() );
+		$allowed = array_keys( alltfo_calc_functions() );
 
 		sort( $allowed );
 
@@ -139,10 +139,10 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	/**
 	 * Calculated fields are filled in across a schema, in order.
 	 *
-	 * @covers ::atf_apply_calculations
+	 * @covers ::alltfo_apply_calculations
 	 */
 	public function test_apply_calculations_chains() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -168,7 +168,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_apply_calculations( $schema, array( 'f1' => 100 ) );
+		$values = alltfo_apply_calculations( $schema, array( 'f1' => 100 ) );
 
 		$this->assertEquals( 200, $values['sub'] );
 		$this->assertEquals( 40, $values['vat'] );
@@ -178,10 +178,10 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	/**
 	 * A choice's price is what it contributes to a total.
 	 *
-	 * @covers ::atf_calc_numeric_value
+	 * @covers ::alltfo_calc_numeric_value
 	 */
 	public function test_choice_price_feeds_the_total() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -213,7 +213,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_apply_calculations(
+		$values = alltfo_apply_calculations(
 			$schema,
 			array(
 				'f1' => 'large',
@@ -229,10 +229,10 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	 *
 	 * A client that submits a total of 1p for a 50-pound order must be ignored.
 	 *
-	 * @covers ::atf_apply_calculations
+	 * @covers ::alltfo_apply_calculations
 	 */
 	public function test_client_total_is_overwritten() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -248,7 +248,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_apply_calculations(
+		$values = alltfo_apply_calculations(
 			$schema,
 			array(
 				'qty'   => 2,
@@ -266,10 +266,10 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 	 * Otherwise a visitor who can make the formula fail gets to name their own
 	 * total, which is the exact tampering the recomputation exists to stop.
 	 *
-	 * @covers ::atf_apply_calculations
+	 * @covers ::alltfo_apply_calculations
 	 */
 	public function test_failed_formula_discards_client_total() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -285,7 +285,7 @@ class ATF_Test_Calc extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_apply_calculations(
+		$values = alltfo_apply_calculations(
 			$schema,
 			array(
 				'qty'   => 2,

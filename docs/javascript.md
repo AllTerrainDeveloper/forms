@@ -36,7 +36,7 @@ The nonce is empty when nobody is logged in, deliberately: it is per-user and
 therefore uncacheable, and a page cache would otherwise serve one visitor's nonce
 to everybody.
 
-Filter it with [`atf_script_config`](hooks-reference.md#atf_script_config--filter--stable).
+Filter it with [`alltfo_script_config`](hooks-reference.md#alltfo_script_config--filter--stable).
 
 ---
 
@@ -76,7 +76,7 @@ wp.os.ready( () => {
 } );
 ```
 
-`data.entry` is the same shape `atf_prepare_entry()` returns: `id`, `formId`,
+`data.entry` is the same shape `alltfo_prepare_entry()` returns: `id`, `formId`,
 `formTitle`, `title`, `status`, `date`, `values`, `fields[]`, `starred`, `quiz`.
 
 ### What the builder accepts
@@ -93,17 +93,17 @@ option's picture.
 
 ## Events
 
-### `atf-submitted`
+### `alltfo-submitted`
 
 Fired on `document` after a successful AJAX submission.
 
 ```javascript
-document.addEventListener( 'atf-submitted', ( event ) => {
+document.addEventListener( 'alltfo-submitted', ( event ) => {
 	const { formId, entryId } = event.detail;
 } );
 ```
 
-### `atf-refresh`
+### `alltfo-refresh`
 
 Fired **at** the bundle, not by it. Dispatch it when a form arrives in the DOM
 after first paint — a modal, an AJAX-loaded page, a block preview — and every
@@ -111,7 +111,7 @@ unenhanced form on the page is enhanced. Idempotent: forms already booted are
 skipped.
 
 ```javascript
-document.dispatchEvent( new CustomEvent( 'atf-refresh' ) );
+document.dispatchEvent( new CustomEvent( 'alltfo-refresh' ) );
 ```
 
 ### OpenStation events the bundles listen for
@@ -122,7 +122,7 @@ bundle has already run, so this is what triggers a mount into it.
 `os.drag.start` / `os.drag.move` / `os.drag.end` — used to paint the drag source,
 and to position the canvas's insertion marker.
 
-`os.atf_entry.changed` — a cross-window broadcast the entries window and the
+`os.alltfo_entry.changed` — a cross-window broadcast the entries window and the
 widget subscribe to, so a new submission appears without a refresh.
 
 ---
@@ -149,7 +149,7 @@ wp.os.registerTitleBarButton( {
 Pressing it saves any unsaved work first — the preview is a render of the
 *stored* form, so previewing without saving would quietly show the last saved
 version and look like the builder had lost the edit — then opens
-`?atf_preview_form=<id>` as a paired window.
+`?alltfo_preview_form=<id>` as a paired window.
 
 Saving again refreshes that window rather than stacking a second copy, which is
 what makes the builder-and-preview-side-by-side loop work.
@@ -163,29 +163,29 @@ in a tab.
 ## The REST API
 
 Namespace `allterrain-forms/v1`. Everything but two routes requires
-`atf_edit_forms` or `atf_read_entries`.
+`alltfo_edit_forms` or `alltfo_read_entries`.
 
 | Route | Method | Needs |
 |---|---|---|
 | `/submit` | POST | **public** |
 | `/track` | POST | **public** |
-| `/config` | GET | `atf_edit_forms` |
-| `/forms` | GET, POST | `atf_edit_forms` |
-| `/forms/<id>` | GET, POST, DELETE | `atf_edit_forms` |
-| `/forms/<id>/duplicate` | POST | `atf_edit_forms` |
-| `/forms/<id>/preview` | POST | `atf_edit_forms` |
-| `/forms/<id>/merge-tags` | GET | `atf_edit_forms` |
-| `/forms/<id>/analytics` | GET | `atf_read_entries` |
-| `/entries` | GET | `atf_read_entries` |
-| `/entries/<id>` | GET, POST, DELETE | `atf_read_entries` / `atf_delete_entries` |
-| `/entries/export` | GET | `atf_read_entries` |
-| `/themes` | GET, POST | `atf_edit_forms` |
-| `/themes/<id>` | DELETE | `atf_edit_forms` |
-| `/demo` | GET, POST, DELETE | `atf_edit_forms` **and** developer mode |
+| `/config` | GET | `alltfo_edit_forms` |
+| `/forms` | GET, POST | `alltfo_edit_forms` |
+| `/forms/<id>` | GET, POST, DELETE | `alltfo_edit_forms` |
+| `/forms/<id>/duplicate` | POST | `alltfo_edit_forms` |
+| `/forms/<id>/preview` | POST | `alltfo_edit_forms` |
+| `/forms/<id>/merge-tags` | GET | `alltfo_edit_forms` |
+| `/forms/<id>/analytics` | GET | `alltfo_read_entries` |
+| `/entries` | GET | `alltfo_read_entries` |
+| `/entries/<id>` | GET, POST, DELETE | `alltfo_read_entries` / `alltfo_delete_entries` |
+| `/entries/export` | GET | `alltfo_read_entries` |
+| `/themes` | GET, POST | `alltfo_edit_forms` |
+| `/themes/<id>` | DELETE | `alltfo_edit_forms` |
+| `/demo` | GET, POST, DELETE | `alltfo_edit_forms` **and** developer mode |
 
 `/config` returns every registered field type with its `supports`, its
 `settings` defaults, and — for a composite — the `parts` it can be told to
-show, resolved through `atf_name_parts` / `atf_address_parts`. The builder
+show, resolved through `alltfo_name_parts` / `alltfo_address_parts`. The builder
 draws its controls from that, so a field type registered by a plugin gets the
 same inspector the built-ins do without shipping any JavaScript.
 
@@ -194,7 +194,7 @@ same inspector the built-ins do without shipping any JavaScript.
 reaches zero — and `DELETE` removes every generated form and entry. It answers
 **404 when developer mode is off**, which is why the window asks before drawing
 the panel rather than drawing it and letting the buttons fail. A user without
-`atf_edit_forms` gets the authorisation code instead, so a client can tell "not
+`alltfo_edit_forms` gets the authorisation code instead, so a client can tell "not
 allowed" from "switched off".
 
 Every submission it makes goes through the ordinary pipeline, and everything it
@@ -242,8 +242,8 @@ logic-cases.json ──┬── tests/vitest/logic.test.ts
 A case added to one language is a case added to both. 113 shared cases.
 
 **The server remains the authority.** Nothing the browser decides is trusted:
-`atf_visible_fields()` recomputes visibility from the submitted values,
-`atf_apply_calculations()` recomputes every total, and validation only ever runs
+`alltfo_visible_fields()` recomputes visibility from the submitted values,
+`alltfo_apply_calculations()` recomputes every total, and validation only ever runs
 against those.
 
 ### The calculation evaluator
@@ -254,7 +254,7 @@ The only things that can come out are numbers.
 
 Functions are a whitelist — `min`, `max`, `sum`, `avg`, `round`, `ceil`, `floor`,
 `abs`, `sqrt`, `pow` — and that whitelist is the security boundary. Anything
-added through `atf_calc_functions` must be pure and numeric.
+added through `alltfo_calc_functions` must be pure and numeric.
 
 References resolve before tokenising: `{field}` becomes a numeric literal,
 `{repeater}` becomes its row count, and `{repeater.sub}` becomes either one

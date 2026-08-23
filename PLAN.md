@@ -61,14 +61,14 @@ build step. Themes are token sets; the renderer only ever reads tokens.
 
 | Thing | Storage | Why |
 |---|---|---|
-| Form | post type `atf_form` | Schema (fields + settings) as JSON in `_atf_schema`. Revisions give version history free. |
-| Entry | post type `atf_entry` | One post per submission. Values in `_atf_values`. Trash, search, privacy tools free. |
+| Form | post type `alltfo_form` | Schema (fields + settings) as JSON in `_alltfo_schema`. Revisions give version history free. |
+| Entry | post type `alltfo_entry` | One post per submission. Values in `_alltfo_values`. Trash, search, privacy tools free. |
 | Entry note | `comment` on the entry post | The Comments screen already moderates these. |
-| Theme | post type `atf_theme` | Custom themes are user data. Built-ins are code-registered and not posts. |
-| Entry status | post status (`atf-unread`, `atf-read`, `atf-spam`) | Counts in the list table come free. |
+| Theme | post type `alltfo_theme` | Custom themes are user data. Built-ins are code-registered and not posts. |
+| Entry status | post status (`alltfo-unread`, `alltfo-read`, `alltfo-spam`) | Counts in the list table come free. |
 
 Post-type keys stay ≤ 20 characters (`register_post_type()` rejects longer), so
-`atf_` rather than `allterrain-forms-`.
+`alltfo_` rather than `allterrain-forms-`.
 
 ## 3. Field types (the palette)
 
@@ -84,7 +84,7 @@ country, repeater (a group of fields the user can add rows to)
 **Special** — consent / GDPR checkbox, total (calculated), hidden computed,
 honeypot (auto, never rendered in the palette)
 
-Every type is a `Field_Type` registration — `atf_register_field_type()` — so a
+Every type is a `Field_Type` registration — `alltfo_register_field_type()` — so a
 third-party plugin adds one without touching this codebase.
 
 ## 4. Feature checklist (the "all premium, free" list)
@@ -119,7 +119,7 @@ third-party plugin adds one without touching this codebase.
 - [x] Calculations: arithmetic over field values, referenced by merge tag, with a safe expression evaluator (no `eval`)
 - [x] Multi-page forms with a progress bar, step validation, and back/next
 - [x] Save and continue later — resume link shown and copyable. **E-mailing it
-      is left to `atf_partial_saved`**: which address to send it to is a
+      is left to `alltfo_partial_saved`**: which address to send it to is a
       per-form question, and guessing it wrongly sends somebody's draft to a
       stranger
 - [x] Prefill from URL parameters, the logged-in user, the site and the date.
@@ -149,7 +149,7 @@ third-party plugin adds one without touching this codebase.
       person wrote, grouped with the submitter, the submission, the form and the
       site — each row showing what it resolves to on this site. Under the box,
       the text with the tags filled in. The catalogue is served from PHP
-      (`atf_merge_tag_catalogue`, `/forms/<id>/merge-tags`) so it cannot drift
+      (`alltfo_merge_tag_catalogue`, `/forms/<id>/merge-tags`) so it cannot drift
       from what actually resolves, and the suite asserts every advertised tag
       does.
 - [x] **Pre-fill asked in plain language.** The field inspector's "Pre-fill
@@ -163,7 +163,7 @@ third-party plugin adds one without touching this codebase.
       rest. The common cases need no tags at all.
 - [x] Webhooks (POST the entry as JSON to any URL, with a signing secret)
 - [x] Actions on submit: create a post, register a user, update user meta
-- [x] `atf_entry_created` action so any plugin can hook the pipeline
+- [x] `alltfo_entry_created` action so any plugin can hook the pipeline
 
 ### Managing
 - [x] Entries window: table, search, filter by field value, date range, status
@@ -224,8 +224,8 @@ The ten built-ins:
 
 No-code expansion: **Theme Studio** is a native window with a control per token
 and a live preview. Duplicate a built-in, move sliders, name it, save — it
-becomes an `atf_theme` post, selectable everywhere a built-in is, exportable as
-JSON, importable on another site. `atf_themes` / `atf_theme_tokens` filters for
+becomes an `alltfo_theme` post, selectable everywhere a built-in is, exportable as
+JSON, importable on another site. `alltfo_themes` / `alltfo_theme_tokens` filters for
 developers who *do* want code.
 
 ## 6. OpenStation surfaces
@@ -259,7 +259,7 @@ allterrain-forms.php          bootstrap, constants
 includes/
   shell-api.php               function_exists() gate over the shell
   openstation.php             window / icon / widget / command registration
-  post-types.php              atf_form, atf_entry, atf_theme, statuses, caps
+  post-types.php              alltfo_form, alltfo_entry, alltfo_theme, statuses, caps
   fields/                     the field-type registry + one file per group
   schema.php                  form schema normalise + validate
   render.php                  server-side form renderer (accessible HTML)

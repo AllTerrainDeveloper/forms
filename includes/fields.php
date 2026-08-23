@@ -6,7 +6,7 @@
  * party adds -- is one registration in this table. Nothing downstream special-cases
  * a type by name: the renderer asks the registry how to draw it, the validator
  * asks how to check it, the CSV exporter asks how to flatten it. A new field type
- * is `atf_register_field_type()` and nothing else.
+ * is `alltfo_register_field_type()` and nothing else.
  *
  * That discipline is what makes the palette extensible. A plugin that wants a
  * "Stripe payment" field or a "postcode lookup" field registers one and it
@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * @param array<string, array>|null $set Internal. Replaces the whole table.
  * @return array<string, array> The registry.
  */
-function &atf_field_type_store( $set = null ) {
+function &alltfo_field_type_store( $set = null ) {
 	static $types = array();
 
 	if ( null !== $set ) {
@@ -70,16 +70,16 @@ function &atf_field_type_store( $set = null ) {
  * }
  * @return true|WP_Error True on success, `WP_Error` when the definition is unusable.
  */
-function atf_register_field_type( $type, $args = array() ) {
+function alltfo_register_field_type( $type, $args = array() ) {
 	$type = sanitize_key( $type );
 
 	if ( '' === $type ) {
-		return new WP_Error( 'atf_invalid_type', __( 'A field type needs a slug.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_invalid_type', __( 'A field type needs a slug.', 'allterrain-forms' ) );
 	}
 
 	if ( empty( $args['label'] ) ) {
 		return new WP_Error(
-			'atf_missing_label',
+			'alltfo_missing_label',
 			/* translators: %s: field type slug. */
 			sprintf( __( 'Field type "%s" needs a label.', 'allterrain-forms' ), $type )
 		);
@@ -118,9 +118,9 @@ function atf_register_field_type( $type, $args = array() ) {
 	 * @param array  $definition The normalised definition.
 	 * @param string $type       Type slug.
 	 */
-	$definition = apply_filters( 'atf_register_field_type', $definition, $type );
+	$definition = apply_filters( 'alltfo_register_field_type', $definition, $type );
 
-	$types          = &atf_field_type_store();
+	$types          = &alltfo_field_type_store();
 	$types[ $type ] = $definition;
 
 	return true;
@@ -139,8 +139,8 @@ function atf_register_field_type( $type, $args = array() ) {
  * @param string $type Type slug.
  * @return bool True when a type was removed.
  */
-function atf_unregister_field_type( $type ) {
-	$types = &atf_field_type_store();
+function alltfo_unregister_field_type( $type ) {
+	$types = &alltfo_field_type_store();
 	$type  = sanitize_key( $type );
 
 	if ( ! isset( $types[ $type ] ) ) {
@@ -159,10 +159,10 @@ function atf_unregister_field_type( $type ) {
  *
  * @return array<string, array> Type slug => definition, sorted by group then position.
  */
-function atf_get_field_types() {
-	atf_boot_field_types();
+function alltfo_get_field_types() {
+	alltfo_boot_field_types();
 
-	$types = atf_field_type_store();
+	$types = alltfo_field_type_store();
 
 	uasort(
 		$types,
@@ -186,7 +186,7 @@ function atf_get_field_types() {
 	 *
 	 * @param array<string, array> $types Type slug => definition.
 	 */
-	return apply_filters( 'atf_field_types', $types );
+	return apply_filters( 'alltfo_field_types', $types );
 }
 
 /**
@@ -197,8 +197,8 @@ function atf_get_field_types() {
  * @param string $type Type slug.
  * @return array|null The definition, or null when nothing is registered under that slug.
  */
-function atf_get_field_type( $type ) {
-	$types = atf_get_field_types();
+function alltfo_get_field_type( $type ) {
+	$types = alltfo_get_field_types();
 	$type  = sanitize_key( (string) $type );
 
 	return isset( $types[ $type ] ) ? $types[ $type ] : null;
@@ -212,14 +212,14 @@ function atf_get_field_type( $type ) {
  * `init` in tests. A guard flag rather than `did_action()` so it holds in a unit
  * test that never bootstraps the action system.
  *
- * `atf_register_field_types` fires afterwards so a plugin can add to the palette
- * even if it loaded too late for `atf_loaded`.
+ * `alltfo_register_field_types` fires afterwards so a plugin can add to the palette
+ * even if it loaded too late for `alltfo_loaded`.
  *
  * @since 0.1.0
  *
  * @return void
  */
-function atf_boot_field_types() {
+function alltfo_boot_field_types() {
 	static $booted = false;
 
 	if ( $booted ) {
@@ -228,16 +228,16 @@ function atf_boot_field_types() {
 
 	$booted = true;
 
-	atf_register_builtin_field_types();
+	alltfo_register_builtin_field_types();
 
 	/**
 	 * Fires after the built-in field types are registered.
 	 *
-	 * The last safe moment to call `atf_register_field_type()`.
+	 * The last safe moment to call `alltfo_register_field_type()`.
 	 *
 	 * @since 0.1.0
 	 */
-	do_action( 'atf_register_field_types' );
+	do_action( 'alltfo_register_field_types' );
 }
 
 /**
@@ -247,7 +247,7 @@ function atf_boot_field_types() {
  *
  * @return array<string, string> Group slug => label.
  */
-function atf_field_groups() {
+function alltfo_field_groups() {
 	$groups = array(
 		'text'     => __( 'Text', 'allterrain-forms' ),
 		'choice'   => __( 'Choice', 'allterrain-forms' ),
@@ -267,7 +267,7 @@ function atf_field_groups() {
 	 *
 	 * @param array<string, string> $groups Group slug => label.
 	 */
-	return apply_filters( 'atf_field_groups', $groups );
+	return apply_filters( 'alltfo_field_groups', $groups );
 }
 
 /**
@@ -281,8 +281,8 @@ function atf_field_groups() {
  * @param array $field One field from a form schema.
  * @return bool True when the field produces a value.
  */
-function atf_field_is_input( $field ) {
-	$definition = atf_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
+function alltfo_field_is_input( $field ) {
+	$definition = alltfo_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
 
 	// An unknown type is treated as an input. A form that used to have a
 	// "postcode lookup" field whose plugin has been deactivated still has that
@@ -303,8 +303,8 @@ function atf_field_is_input( $field ) {
  * @param array $field One field from a form schema.
  * @return string One of string|text|number|bool|array|file|files|object.
  */
-function atf_field_value_type( $field ) {
-	$definition = atf_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
+function alltfo_field_value_type( $field ) {
+	$definition = alltfo_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
 
 	return $definition ? (string) $definition['value'] : 'string';
 }
@@ -324,8 +324,8 @@ function atf_field_value_type( $field ) {
  * @param array $field The field it was submitted for.
  * @return mixed The sanitised value, in the shape the field type declares.
  */
-function atf_sanitize_field_value( $raw, $field ) {
-	$definition = atf_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
+function alltfo_sanitize_field_value( $raw, $field ) {
+	$definition = alltfo_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
 
 	if ( $definition && is_callable( $definition['sanitize'] ) ) {
 		return call_user_func( $definition['sanitize'], $raw, $field );
@@ -385,7 +385,7 @@ function atf_sanitize_field_value( $raw, $field ) {
 		case 'file':
 		case 'files':
 			// Files never arrive as values -- they arrive in `$_FILES` and are
-			// turned into attachment ids by `atf_handle_uploads()` long before
+			// turned into attachment ids by `alltfo_handle_uploads()` long before
 			// this runs. Anything reaching here claiming to be a file is a
 			// forged field, and the only safe reading is a list of ids.
 			$raw = is_array( $raw ) ? $raw : array( $raw );
@@ -412,8 +412,8 @@ function atf_sanitize_field_value( $raw, $field ) {
  * @param string $context Where it is going: `email`, `csv`, `table`, `detail`.
  * @return string Plain text.
  */
-function atf_format_field_value( $value, $field, $context = 'table' ) {
-	$definition = atf_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
+function alltfo_format_field_value( $value, $field, $context = 'table' ) {
+	$definition = alltfo_get_field_type( isset( $field['type'] ) ? $field['type'] : '' );
 
 	if ( $definition && is_callable( $definition['format'] ) ) {
 		return (string) call_user_func( $definition['format'], $value, $field, $context );
@@ -460,7 +460,7 @@ function atf_format_field_value( $value, $field, $context = 'table' ) {
  * @param array  $field The field.
  * @return string The label, or the value when no choice matches.
  */
-function atf_choice_label( $value, $field ) {
+function alltfo_choice_label( $value, $field ) {
 	$choices = isset( $field['choices'] ) && is_array( $field['choices'] ) ? $field['choices'] : array();
 
 	foreach ( $choices as $choice ) {
@@ -485,11 +485,11 @@ function atf_choice_label( $value, $field ) {
  * @param string $type The field type slug.
  * @return array<int, array<string, string>> Part key and label, in render order.
  */
-function atf_field_type_parts( $type ) {
+function alltfo_field_type_parts( $type ) {
 	if ( 'name' === $type ) {
-		$parts = atf_name_parts();
+		$parts = alltfo_name_parts();
 	} elseif ( 'address' === $type ) {
-		$parts = atf_address_parts();
+		$parts = alltfo_address_parts();
 	} else {
 		return array();
 	}

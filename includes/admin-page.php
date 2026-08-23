@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'admin_menu', 'atf_register_admin_pages' );
+add_action( 'admin_menu', 'alltfo_register_admin_pages' );
 
 /**
  * Registers the menu.
@@ -27,12 +27,12 @@ add_action( 'admin_menu', 'atf_register_admin_pages' );
  *
  * @return void
  */
-function atf_register_admin_pages() {
-	if ( ! atf_can_edit_forms() && ! atf_can_read_entries() ) {
+function alltfo_register_admin_pages() {
+	if ( ! alltfo_can_edit_forms() && ! alltfo_can_read_entries() ) {
 		return;
 	}
 
-	$capability = atf_can_edit_forms() ? 'atf_edit_forms' : 'atf_read_entries';
+	$capability = alltfo_can_edit_forms() ? 'alltfo_edit_forms' : 'alltfo_read_entries';
 
 	// With the desktop shell up, the dock tile in `dock.ts` is the way in and it
 	// opens the native windows directly. Leaving the admin menu registered as
@@ -44,11 +44,11 @@ function atf_register_admin_pages() {
 	// The pages stay reachable by URL, registered under a `null` parent, so a
 	// bookmark still resolves and the handoff still fires. Switch the shell off
 	// and the ordinary menu comes back.
-	if ( atf_shell_is_active() ) {
-		atf_register_hidden_page( __( 'AllTerrain Forms', 'allterrain-forms' ), $capability, 'allterrain-forms', 'atf_render_builder_page' );
-		atf_register_hidden_page( __( 'Entries', 'allterrain-forms' ), 'atf_read_entries', 'allterrain-forms-entries', 'atf_render_entries_page' );
-		atf_register_hidden_page( __( 'Analytics', 'allterrain-forms' ), 'atf_read_entries', 'allterrain-forms-analytics', 'atf_render_analytics_page' );
-		atf_register_hidden_page( __( 'Theme Studio', 'allterrain-forms' ), 'atf_edit_forms', 'allterrain-forms-themes', 'atf_render_theme_studio_page' );
+	if ( alltfo_shell_is_active() ) {
+		alltfo_register_hidden_page( __( 'AllTerrain Forms', 'allterrain-forms' ), $capability, 'allterrain-forms', 'alltfo_render_builder_page' );
+		alltfo_register_hidden_page( __( 'Entries', 'allterrain-forms' ), 'alltfo_read_entries', 'allterrain-forms-entries', 'alltfo_render_entries_page' );
+		alltfo_register_hidden_page( __( 'Analytics', 'allterrain-forms' ), 'alltfo_read_entries', 'allterrain-forms-analytics', 'alltfo_render_analytics_page' );
+		alltfo_register_hidden_page( __( 'Theme Studio', 'allterrain-forms' ), 'alltfo_edit_forms', 'allterrain-forms-themes', 'alltfo_render_theme_studio_page' );
 
 		return;
 	}
@@ -58,7 +58,7 @@ function atf_register_admin_pages() {
 		__( 'AllTerrain Forms', 'allterrain-forms' ),
 		$capability,
 		'allterrain-forms',
-		'atf_render_builder_page',
+		'alltfo_render_builder_page',
 		'dashicons-feedback',
 		26
 	);
@@ -69,34 +69,34 @@ function atf_register_admin_pages() {
 		__( 'All forms', 'allterrain-forms' ),
 		$capability,
 		'allterrain-forms',
-		'atf_render_builder_page'
+		'alltfo_render_builder_page'
 	);
 
 	add_submenu_page(
 		'allterrain-forms',
 		__( 'Entries', 'allterrain-forms' ),
 		__( 'Entries', 'allterrain-forms' ),
-		'atf_read_entries',
+		'alltfo_read_entries',
 		'allterrain-forms-entries',
-		'atf_render_entries_page'
+		'alltfo_render_entries_page'
 	);
 
 	add_submenu_page(
 		'allterrain-forms',
 		__( 'Analytics', 'allterrain-forms' ),
 		__( 'Analytics', 'allterrain-forms' ),
-		'atf_read_entries',
+		'alltfo_read_entries',
 		'allterrain-forms-analytics',
-		'atf_render_analytics_page'
+		'alltfo_render_analytics_page'
 	);
 
 	add_submenu_page(
 		'allterrain-forms',
 		__( 'Theme Studio', 'allterrain-forms' ),
 		__( 'Themes', 'allterrain-forms' ),
-		'atf_edit_forms',
+		'alltfo_edit_forms',
 		'allterrain-forms-themes',
-		'atf_render_theme_studio_page'
+		'alltfo_render_theme_studio_page'
 	);
 }
 
@@ -122,7 +122,7 @@ function atf_register_admin_pages() {
  * @param callable $callback   Renders the page.
  * @return void
  */
-function atf_register_hidden_page( $title, $capability, $slug, $callback ) {
+function alltfo_register_hidden_page( $title, $capability, $slug, $callback ) {
 	$hook = add_submenu_page( null, $title, '', $capability, $slug, $callback );
 
 	if ( ! $hook ) {
@@ -138,7 +138,7 @@ function atf_register_hidden_page( $title, $capability, $slug, $callback ) {
 	);
 }
 
-add_action( 'admin_enqueue_scripts', 'atf_enqueue_admin_page_assets' );
+add_action( 'admin_enqueue_scripts', 'alltfo_enqueue_admin_page_assets' );
 
 /**
  * Loads the right bundle for the page being viewed.
@@ -151,7 +151,7 @@ add_action( 'admin_enqueue_scripts', 'atf_enqueue_admin_page_assets' );
  * @param string $hook_suffix The current admin page.
  * @return void
  */
-function atf_enqueue_admin_page_assets( $hook_suffix ) {
+function alltfo_enqueue_admin_page_assets( $hook_suffix ) {
 	$pages = array(
 		'toplevel_page_allterrain-forms'        => 'allterrain-forms-builder',
 		'forms_page_allterrain-forms-entries'   => 'allterrain-forms-entries',
@@ -195,8 +195,8 @@ function atf_enqueue_admin_page_assets( $hook_suffix ) {
  *
  * @return void
  */
-function atf_render_builder_page() {
-	atf_render_admin_shell( 'atf_render_builder_template', __( 'AllTerrain Forms', 'allterrain-forms' ), 'allterrain-forms' );
+function alltfo_render_builder_page() {
+	alltfo_render_admin_shell( 'alltfo_render_builder_template', __( 'AllTerrain Forms', 'allterrain-forms' ), 'allterrain-forms' );
 }
 
 /**
@@ -206,8 +206,8 @@ function atf_render_builder_page() {
  *
  * @return void
  */
-function atf_render_entries_page() {
-	atf_render_admin_shell( 'atf_render_entries_template', __( 'AllTerrain Forms — Entries', 'allterrain-forms' ), 'allterrain-forms-entries' );
+function alltfo_render_entries_page() {
+	alltfo_render_admin_shell( 'alltfo_render_entries_template', __( 'AllTerrain Forms — Entries', 'allterrain-forms' ), 'allterrain-forms-entries' );
 }
 
 /**
@@ -217,8 +217,8 @@ function atf_render_entries_page() {
  *
  * @return void
  */
-function atf_render_analytics_page() {
-	atf_render_admin_shell( 'atf_render_analytics_template', __( 'AllTerrain Forms — Analytics', 'allterrain-forms' ), 'allterrain-forms-analytics' );
+function alltfo_render_analytics_page() {
+	alltfo_render_admin_shell( 'alltfo_render_analytics_template', __( 'AllTerrain Forms — Analytics', 'allterrain-forms' ), 'allterrain-forms-analytics' );
 }
 
 /**
@@ -228,8 +228,8 @@ function atf_render_analytics_page() {
  *
  * @return void
  */
-function atf_render_theme_studio_page() {
-	atf_render_admin_shell( 'atf_render_theme_studio_template', __( 'AllTerrain Forms — Theme Studio', 'allterrain-forms' ), 'allterrain-forms-themes' );
+function alltfo_render_theme_studio_page() {
+	alltfo_render_admin_shell( 'alltfo_render_theme_studio_template', __( 'AllTerrain Forms — Theme Studio', 'allterrain-forms' ), 'allterrain-forms-themes' );
 }
 
 /**
@@ -248,10 +248,10 @@ function atf_render_theme_studio_page() {
  *                            always the experience.
  * @return void
  */
-function atf_render_admin_shell( $template, $title, $window_id = '' ) {
+function alltfo_render_admin_shell( $template, $title, $window_id = '' ) {
 	echo '<div class="wrap atf-admin">';
 
-	if ( ! atf_shell_is_chromeless() ) {
+	if ( ! alltfo_shell_is_chromeless() ) {
 		printf( '<h1 class="wp-heading-inline">%s</h1>', esc_html( $title ) );
 	}
 
@@ -262,7 +262,7 @@ function atf_render_admin_shell( $template, $title, $window_id = '' ) {
 	// same answer, stated politely, rather than a quietly lesser builder that
 	// misrepresents what this plugin is. Import stays available -- it has no
 	// `$window_id` -- and published forms keep rendering for visitors.
-	if ( '' !== $window_id && ! atf_shell_has( 'register_window' ) ) {
+	if ( '' !== $window_id && ! alltfo_shell_has( 'register_window' ) ) {
 		printf(
 			'<div class="atf-admin__pointer"><p>%1$s</p><p><a class="button button-primary" href="%2$s">%3$s</a></p></div>',
 			esc_html__( 'This tool is an OpenStation desktop app, and OpenStation is not running on this site. Published forms keep working for your visitors in the meantime.', 'allterrain-forms' ),
@@ -289,7 +289,7 @@ function atf_render_admin_shell( $template, $title, $window_id = '' ) {
 	// page hands off instead: it renders a pointer, and the script opens the
 	// real window. Reaching the URL directly therefore lands you in the window
 	// rather than in a copy of it.
-	if ( atf_shell_is_active() && '' !== $window_id ) {
+	if ( alltfo_shell_is_active() && '' !== $window_id ) {
 		printf(
 			'<div class="atf-admin__pointer" data-atf-handoff="%1$s"><p>%2$s</p>'
 			. '<p><button type="button" class="button button-primary" data-atf-open-window="%1$s">%3$s</button></p></div>',

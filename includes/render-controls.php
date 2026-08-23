@@ -25,66 +25,66 @@ defined( 'ABSPATH' ) || exit;
  *
  * @param array $field   The field.
  * @param mixed $value   Its current value.
- * @param array $context The render context from `atf_render_field()`.
+ * @param array $context The render context from `alltfo_render_field()`.
  * @return string
  */
-function atf_render_field_control( $field, $value, $context ) {
+function alltfo_render_field_control( $field, $value, $context ) {
 	switch ( $field['type'] ) {
 
 		case 'textarea':
-			return atf_render_label( $field, $context['id'] ) . sprintf(
+			return alltfo_render_label( $field, $context['id'] ) . sprintf(
 				'<textarea class="atf-input atf-textarea"%s rows="%d">%s</textarea>',
-				atf_control_attributes( $field, $context ),
+				alltfo_control_attributes( $field, $context ),
 				isset( $field['rows'] ) ? absint( $field['rows'] ) : 5,
 				esc_textarea( (string) $value )
 			);
 
 		case 'select':
-			return atf_render_select( $field, $value, $context );
+			return alltfo_render_select( $field, $value, $context );
 
 		case 'multiselect':
-			return atf_render_multiselect( $field, $value, $context );
+			return alltfo_render_multiselect( $field, $value, $context );
 
 		case 'radio':
 		case 'quiz':
-			return atf_render_choice_group( $field, $value, $context, 'radio' );
+			return alltfo_render_choice_group( $field, $value, $context, 'radio' );
 
 		case 'checkboxes':
-			return atf_render_choice_group( $field, $value, $context, 'checkbox' );
+			return alltfo_render_choice_group( $field, $value, $context, 'checkbox' );
 
 		case 'image_choice':
-			return atf_render_image_choice( $field, $value, $context );
+			return alltfo_render_image_choice( $field, $value, $context );
 
 		case 'switch':
 		case 'consent':
-			return atf_render_single_checkbox( $field, $value, $context );
+			return alltfo_render_single_checkbox( $field, $value, $context );
 
 		case 'rating':
-			return atf_render_rating( $field, $value, $context );
+			return alltfo_render_rating( $field, $value, $context );
 
 		case 'scale':
-			return atf_render_scale( $field, $value, $context );
+			return alltfo_render_scale( $field, $value, $context );
 
 		case 'likert':
-			return atf_render_likert( $field, $value, $context );
+			return alltfo_render_likert( $field, $value, $context );
 
 		case 'range':
-			return atf_render_range( $field, $value, $context );
+			return alltfo_render_range( $field, $value, $context );
 
 		case 'file':
-			return atf_render_file( $field, $value, $context );
+			return alltfo_render_file( $field, $value, $context );
 
 		case 'signature':
-			return atf_render_signature( $field, $value, $context );
+			return alltfo_render_signature( $field, $value, $context );
 
 		case 'name':
-			return atf_render_composite( $field, $value, $context, atf_name_parts() );
+			return alltfo_render_composite( $field, $value, $context, alltfo_name_parts() );
 
 		case 'address':
-			return atf_render_composite( $field, $value, $context, atf_address_parts() );
+			return alltfo_render_composite( $field, $value, $context, alltfo_address_parts() );
 
 		case 'date_range':
-			return atf_render_composite(
+			return alltfo_render_composite(
 				$field,
 				$value,
 				$context,
@@ -101,13 +101,13 @@ function atf_render_field_control( $field, $value, $context ) {
 			);
 
 		case 'country':
-			return atf_render_country( $field, $value, $context );
+			return alltfo_render_country( $field, $value, $context );
 
 		case 'repeater':
-			return atf_render_repeater( $field, $value, $context );
+			return alltfo_render_repeater( $field, $value, $context );
 
 		case 'total':
-			return atf_render_total( $field, $value, $context );
+			return alltfo_render_total( $field, $value, $context );
 
 		case 'hidden':
 			return sprintf(
@@ -143,7 +143,7 @@ function atf_render_field_control( $field, $value, $context ) {
 			);
 
 		case 'page_break':
-			// Consumed by `atf_schema_pages()` before rendering ever reaches a
+			// Consumed by `alltfo_schema_pages()` before rendering ever reaches a
 			// break, so arriving here means a break inside a repeater or some
 			// other nesting that cannot paginate. Rendering nothing is right.
 			return '';
@@ -159,7 +159,7 @@ function atf_render_field_control( $field, $value, $context ) {
 		case 'color':
 		case 'text':
 		default:
-			return atf_render_text_input( $field, $value, $context );
+			return alltfo_render_text_input( $field, $value, $context );
 	}
 }
 
@@ -173,7 +173,7 @@ function atf_render_field_control( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_text_input( $field, $value, $context ) {
+function alltfo_render_text_input( $field, $value, $context ) {
 	$types = array(
 		'email'    => 'email',
 		'url'      => 'url',
@@ -187,7 +187,7 @@ function atf_render_text_input( $field, $value, $context ) {
 	);
 
 	$type       = isset( $types[ $field['type'] ] ) ? $types[ $field['type'] ] : 'text';
-	$attributes = atf_control_attributes( $field, $context );
+	$attributes = alltfo_control_attributes( $field, $context );
 
 	// The date bounds are `min`/`max` in HTML but named `minDate`/`maxDate` in
 	// the schema, because a date field also has a numeric `min` in the shared
@@ -203,7 +203,7 @@ function atf_render_text_input( $field, $value, $context ) {
 		}
 	}
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<input type="%s" class="atf-input"%s value="%s" data-atf-input>',
 		esc_attr( $type ),
 		$attributes,
@@ -221,7 +221,7 @@ function atf_render_text_input( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_select( $field, $value, $context ) {
+function alltfo_render_select( $field, $value, $context ) {
 	$options = '';
 
 	// A placeholder option is `value=""` and `disabled` only when the field is
@@ -244,9 +244,9 @@ function atf_render_select( $field, $value, $context ) {
 		);
 	}
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<select class="atf-input atf-select"%s data-atf-input>%s</select>',
-		atf_control_attributes( $field, $context ),
+		alltfo_control_attributes( $field, $context ),
 		$options
 	);
 }
@@ -261,7 +261,7 @@ function atf_render_select( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_multiselect( $field, $value, $context ) {
+function alltfo_render_multiselect( $field, $value, $context ) {
 	$selected = array_map( 'strval', (array) $value );
 	$options  = '';
 
@@ -279,10 +279,10 @@ function atf_render_multiselect( $field, $value, $context ) {
 	$attributes = str_replace(
 		sprintf( 'name="%s"', esc_attr( 'atf[' . $field['id'] . ']' ) ),
 		sprintf( 'name="%s"', esc_attr( 'atf[' . $field['id'] . '][]' ) ),
-		atf_control_attributes( $field, $context )
+		alltfo_control_attributes( $field, $context )
 	);
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<select class="atf-input atf-select atf-multiselect" multiple%s data-atf-input>%s</select>',
 		$attributes,
 		$options
@@ -300,7 +300,7 @@ function atf_render_multiselect( $field, $value, $context ) {
  * @param string $type    `radio` or `checkbox`.
  * @return string
  */
-function atf_render_choice_group( $field, $value, $context, $type ) {
+function alltfo_render_choice_group( $field, $value, $context, $type ) {
 	$multiple = 'checkbox' === $type;
 	$selected = array_map( 'strval', (array) $value );
 	$name     = 'atf[' . $field['id'] . ']' . ( $multiple ? '[]' : '' );
@@ -316,7 +316,7 @@ function atf_render_choice_group( $field, $value, $context, $type ) {
 		$described
 	);
 
-	$out .= atf_render_label( $field, $context['id'], 'legend' );
+	$out .= alltfo_render_label( $field, $context['id'], 'legend' );
 	$out .= '<div class="atf-choices__list">';
 
 	foreach ( $field['choices'] as $index => $choice ) {
@@ -352,7 +352,7 @@ function atf_render_choice_group( $field, $value, $context, $type ) {
 			esc_attr( $other_id ),
 			esc_attr( $name ),
 			esc_html__( 'Other', 'allterrain-forms' ),
-			esc_attr( 'atf_other[' . $field['id'] . ']' ),
+			esc_attr( 'alltfo_other[' . $field['id'] . ']' ),
 			esc_attr__( 'Please specify', 'allterrain-forms' )
 		);
 	}
@@ -370,7 +370,7 @@ function atf_render_choice_group( $field, $value, $context, $type ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_image_choice( $field, $value, $context ) {
+function alltfo_render_image_choice( $field, $value, $context ) {
 	$multiple = ! empty( $field['multiple'] );
 	$type     = $multiple ? 'checkbox' : 'radio';
 	$selected = array_map( 'strval', (array) $value );
@@ -378,7 +378,7 @@ function atf_render_image_choice( $field, $value, $context ) {
 	$columns  = isset( $field['columns'] ) ? max( 1, min( 6, absint( $field['columns'] ) ) ) : 3;
 
 	$out  = sprintf( '<fieldset class="atf-images" style="--atf-image-columns:%d">', $columns );
-	$out .= atf_render_label( $field, $context['id'], 'legend' );
+	$out .= alltfo_render_label( $field, $context['id'], 'legend' );
 	$out .= '<div class="atf-images__grid">';
 
 	foreach ( $field['choices'] as $index => $choice ) {
@@ -419,12 +419,12 @@ function atf_render_image_choice( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_single_checkbox( $field, $value, $context ) {
+function alltfo_render_single_checkbox( $field, $value, $context ) {
 	$text = 'consent' === $field['type'] && ! empty( $field['consentText'] )
 		? $field['consentText']
 		: $field['label'];
 
-	$attributes = atf_control_attributes( $field, $context );
+	$attributes = alltfo_control_attributes( $field, $context );
 
 	// A Toggle is drawn as a switch and a Consent as a tick box. They behave
 	// identically — both are one checkbox — but they say different things: a
@@ -461,12 +461,12 @@ function atf_render_single_checkbox( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_rating( $field, $value, $context ) {
+function alltfo_render_rating( $field, $value, $context ) {
 	$max  = isset( $field['max'] ) ? max( 2, min( 10, absint( $field['max'] ) ) ) : 5;
 	$name = 'atf[' . $field['id'] . ']';
 
 	$out  = '<fieldset class="atf-rating">';
-	$out .= atf_render_label( $field, $context['id'], 'legend' );
+	$out .= alltfo_render_label( $field, $context['id'], 'legend' );
 	$out .= '<div class="atf-rating__stars">';
 
 	for ( $i = 1; $i <= $max; $i++ ) {
@@ -504,7 +504,7 @@ function atf_render_rating( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_scale( $field, $value, $context ) {
+function alltfo_render_scale( $field, $value, $context ) {
 	$min  = isset( $field['min'] ) ? (int) $field['min'] : 0;
 	$max  = isset( $field['max'] ) ? (int) $field['max'] : 10;
 	$name = 'atf[' . $field['id'] . ']';
@@ -518,7 +518,7 @@ function atf_render_scale( $field, $value, $context ) {
 	$max = min( $max, $min + 20 );
 
 	$out  = '<fieldset class="atf-scale">';
-	$out .= atf_render_label( $field, $context['id'], 'legend' );
+	$out .= alltfo_render_label( $field, $context['id'], 'legend' );
 	$out .= '<div class="atf-scale__row">';
 
 	for ( $i = $min; $i <= $max; $i++ ) {
@@ -563,17 +563,17 @@ function atf_render_scale( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_likert( $field, $value, $context ) {
+function alltfo_render_likert( $field, $value, $context ) {
 	$rows = isset( $field['rows'] ) && is_array( $field['rows'] ) ? $field['rows'] : array();
 
 	if ( ! $rows || ! $field['choices'] ) {
-		return atf_render_label( $field, $context['id'] );
+		return alltfo_render_label( $field, $context['id'] );
 	}
 
 	$value = is_array( $value ) ? $value : array();
 
 	$out  = '<div class="atf-likert">';
-	$out .= atf_render_label( $field, $context['id'] );
+	$out .= alltfo_render_label( $field, $context['id'] );
 	$out .= sprintf( '<table class="atf-likert__table"><caption class="screen-reader-text">%s</caption><thead><tr><td></td>', esc_html( $field['label'] ) );
 
 	foreach ( $field['choices'] as $choice ) {
@@ -620,15 +620,15 @@ function atf_render_likert( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_range( $field, $value, $context ) {
+function alltfo_render_range( $field, $value, $context ) {
 	$min     = isset( $field['min'] ) ? (float) $field['min'] : 0;
 	$max     = isset( $field['max'] ) ? (float) $field['max'] : 100;
 	$current = '' === $value || null === $value ? $min : (float) $value;
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<div class="atf-range"><input type="range" class="atf-range__input"%s value="%s" data-atf-input>'
 		. '<output class="atf-range__output" for="%s">%s</output></div>',
-		atf_control_attributes( $field, $context ),
+		alltfo_control_attributes( $field, $context ),
 		esc_attr( (string) $current ),
 		esc_attr( $context['id'] ),
 		esc_html( (string) $current )
@@ -645,7 +645,7 @@ function atf_render_range( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_file( $field, $value, $context ) {
+function alltfo_render_file( $field, $value, $context ) {
 	$types    = isset( $field['filetypes'] ) && is_array( $field['filetypes'] ) ? $field['filetypes'] : array();
 	$multiple = isset( $field['maxfiles'] ) && absint( $field['maxfiles'] ) > 1;
 
@@ -670,8 +670,8 @@ function atf_render_file( $field, $value, $context ) {
 
 	// The name is the field id without `atf[…]`, because uploads arrive in
 	// `$_FILES` where PHP's nested-array handling is famously awkward. A flat
-	// name keeps `atf_handle_uploads()` readable.
-	$name = 'atf_file_' . $field['id'] . ( $multiple ? '[]' : '' );
+	// name keeps `alltfo_handle_uploads()` readable.
+	$name = 'alltfo_file_' . $field['id'] . ( $multiple ? '[]' : '' );
 
 	$attributes = sprintf(
 		' id="%s" name="%s"',
@@ -703,7 +703,7 @@ function atf_render_file( $field, $value, $context ) {
 		);
 	}
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<div class="atf-file"><input type="file" class="atf-file__input"%s%s%s data-atf-input>%s</div>',
 		$attributes,
 		$accept,
@@ -728,8 +728,8 @@ function atf_render_file( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_signature( $field, $value, $context ) {
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+function alltfo_render_signature( $field, $value, $context ) {
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<div class="atf-signature" data-atf-signature>'
 		. '<canvas class="atf-signature__pad" width="600" height="200" aria-label="%1$s" role="img"></canvas>'
 		. '<input type="hidden" id="%2$s" name="%3$s" value="%4$s" data-atf-input>'
@@ -743,7 +743,7 @@ function atf_render_signature( $field, $value, $context ) {
 		esc_attr( 'atf[' . $field['id'] . ']' ),
 		esc_attr( (string) $value ),
 		esc_html__( 'Clear', 'allterrain-forms' ),
-		esc_attr( 'atf_typed[' . $field['id'] . ']' ),
+		esc_attr( 'alltfo_typed[' . $field['id'] . ']' ),
 		esc_attr__( 'Type your name to sign', 'allterrain-forms' )
 	);
 }
@@ -759,12 +759,12 @@ function atf_render_signature( $field, $value, $context ) {
  * @param array $parts   Part key => { label, type, autocomplete }.
  * @return string
  */
-function atf_render_composite( $field, $value, $context, $parts ) {
+function alltfo_render_composite( $field, $value, $context, $parts ) {
 	$enabled = isset( $field['parts'] ) && is_array( $field['parts'] ) ? $field['parts'] : array_keys( $parts );
 	$value   = is_array( $value ) ? $value : array();
 
 	$out  = '<fieldset class="atf-composite">';
-	$out .= atf_render_label( $field, $context['id'], 'legend' );
+	$out .= alltfo_render_label( $field, $context['id'], 'legend' );
 	$out .= '<div class="atf-composite__parts">';
 
 	foreach ( $parts as $key => $part ) {
@@ -804,7 +804,7 @@ function atf_render_composite( $field, $value, $context, $parts ) {
  *
  * @return array<string, array>
  */
-function atf_name_parts() {
+function alltfo_name_parts() {
 	/**
 	 * Filters the parts offered by the name field.
 	 *
@@ -813,7 +813,7 @@ function atf_name_parts() {
 	 * @param array<string, array> $parts Part key => { label, autocomplete }.
 	 */
 	return apply_filters(
-		'atf_name_parts',
+		'alltfo_name_parts',
 		array(
 			'prefix' => array(
 				'label'        => __( 'Title', 'allterrain-forms' ),
@@ -846,7 +846,7 @@ function atf_name_parts() {
  *
  * @return array<string, array>
  */
-function atf_address_parts() {
+function alltfo_address_parts() {
 	/**
 	 * Filters the parts offered by the address field.
 	 *
@@ -855,7 +855,7 @@ function atf_address_parts() {
 	 * @param array<string, array> $parts Part key => { label, autocomplete }.
 	 */
 	return apply_filters(
-		'atf_address_parts',
+		'alltfo_address_parts',
 		array(
 			'line1'    => array(
 				'label'        => __( 'Address', 'allterrain-forms' ),
@@ -895,14 +895,14 @@ function atf_address_parts() {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_country( $field, $value, $context ) {
+function alltfo_render_country( $field, $value, $context ) {
 	$options = sprintf(
 		'<option value=""%s>%s</option>',
 		$field['required'] ? ' disabled' : '',
 		esc_html( '' !== $field['placeholder'] ? $field['placeholder'] : __( 'Choose a country', 'allterrain-forms' ) )
 	);
 
-	foreach ( atf_countries() as $code => $name ) {
+	foreach ( alltfo_countries() as $code => $name ) {
 		$options .= sprintf(
 			'<option value="%s"%s>%s</option>',
 			esc_attr( $code ),
@@ -911,9 +911,9 @@ function atf_render_country( $field, $value, $context ) {
 		);
 	}
 
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<select class="atf-input atf-select"%s data-atf-input>%s</select>',
-		atf_control_attributes( $field, $context ),
+		alltfo_control_attributes( $field, $context ),
 		$options
 	);
 }
@@ -932,7 +932,7 @@ function atf_render_country( $field, $value, $context ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_render_repeater( $field, $value, $context ) {
+function alltfo_render_repeater( $field, $value, $context ) {
 	$sub_fields = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
 	$rows       = is_array( $value ) && $value ? $value : array( array() );
 
@@ -941,13 +941,13 @@ function atf_render_repeater( $field, $value, $context ) {
 		esc_attr( $field['id'] ),
 		isset( $field['minRows'] ) ? absint( $field['minRows'] ) : 1,
 		isset( $field['maxRows'] ) ? absint( $field['maxRows'] ) : 10,
-		esc_attr( atf_repeater_item_label( $field ) )
+		esc_attr( alltfo_repeater_item_label( $field ) )
 	);
-	$out .= atf_render_label( $field, $context['id'] );
+	$out .= alltfo_render_label( $field, $context['id'] );
 	$out .= '<div class="atf-repeater__rows">';
 
 	foreach ( $rows as $index => $row ) {
-		$out .= atf_render_repeater_row( $field, $sub_fields, is_array( $row ) ? $row : array(), $index, $context );
+		$out .= alltfo_render_repeater_row( $field, $sub_fields, is_array( $row ) ? $row : array(), $index, $context );
 	}
 
 	$out .= '</div>';
@@ -964,7 +964,7 @@ function atf_render_repeater( $field, $value, $context ) {
 	// visible to a screen reader until it is cloned into place.
 	$out .= sprintf(
 		'<template data-atf-repeater-template>%s</template>',
-		atf_render_repeater_row( $field, $sub_fields, array(), '__INDEX__', $context )
+		alltfo_render_repeater_row( $field, $sub_fields, array(), '__INDEX__', $context )
 	);
 
 	return $out . '</div>';
@@ -982,8 +982,8 @@ function atf_render_repeater( $field, $value, $context ) {
  * @param array      $context    The render context.
  * @return string
  */
-function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) {
-	$item_label = atf_repeater_item_label( $field );
+function alltfo_render_repeater_row( $field, $sub_fields, $row, $index, $context ) {
+	$item_label = alltfo_repeater_item_label( $field );
 
 	// The template row's number is unknowable until it is cloned; the bundle
 	// renumbers every row after each add and remove anyway, so the template
@@ -1039,7 +1039,7 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 		// then its name rewritten to the nested form. Rendering it specially
 		// instead would mean a second implementation of every control that can
 		// appear inside a repeater, and they would drift.
-		$control = atf_render_field_control(
+		$control = alltfo_render_field_control(
 			$sub,
 			isset( $row[ $sub['id'] ] ) ? $row[ $sub['id'] ] : $sub['default'],
 			$sub_context
@@ -1051,7 +1051,7 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
 		// and the composites -- name, address, Likert -- append `[part]`.
 		// Anchoring on the closing quote would leave all of those under the
 		// sub-field's own name, where the rows collide with each other and
-		// `atf_sanitize_repeater_value()` finds nothing it recognises.
+		// `alltfo_sanitize_repeater_value()` finds nothing it recognises.
 		$control = str_replace(
 			'name="' . esc_attr( 'atf[' . $sub['id'] . ']' ),
 			'name="' . esc_attr( 'atf[' . $field['id'] . '][' . $index . '][' . $sub['id'] . ']' ),
@@ -1099,8 +1099,8 @@ function atf_render_repeater_row( $field, $sub_fields, $row, $index, $context ) 
  * @param array $context The render context.
  * @return string
  */
-function atf_render_total( $field, $value, $context ) {
-	return atf_render_label( $field, $context['id'] ) . sprintf(
+function alltfo_render_total( $field, $value, $context ) {
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
 		'<div class="atf-total">%s<input type="text" class="atf-input atf-total__input" id="%s" name="%s" value="%s" readonly'
 		. ' data-atf-total data-atf-formula="%s" data-atf-decimals="%d" data-atf-input></div>',
 		! empty( $field['currency'] ) ? sprintf( '<span class="atf-total__currency" aria-hidden="true">%s</span>', esc_html( $field['currency'] ) ) : '',
@@ -1122,7 +1122,7 @@ function atf_render_total( $field, $value, $context ) {
  *
  * @return array<string, string> Code => name.
  */
-function atf_countries() {
+function alltfo_countries() {
 	$countries = array(
 		'AF' => 'Afghanistan',
 		'AL' => 'Albania',
@@ -1329,5 +1329,5 @@ function atf_countries() {
 	 *
 	 * @param array<string, string> $countries ISO 3166-1 alpha-2 code => name.
 	 */
-	return apply_filters( 'atf_countries', $countries );
+	return apply_filters( 'alltfo_countries', $countries );
 }

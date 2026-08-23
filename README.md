@@ -141,7 +141,7 @@ are also checked for WCAG AA contrast.
 **Layout** — section heading, HTML block, divider, spacer, page break
 **Special** — consent, calculated total, quiz question
 
-Every one of them is a single `atf_register_field_type()` call using exactly the
+Every one of them is a single `alltfo_register_field_type()` call using exactly the
 API a third-party plugin would use. There is no privileged path: if a built-in
 needs something the registry cannot express, the registry gets a feature rather
 than the built-in reaching around it.
@@ -193,7 +193,7 @@ site. Under the box, a "reads as" line with the tags filled in.
 who filled it in (naming your email question), a specific address, or free text
 for the rest. The common cases need no tags at all.
 
-The catalogue is served from PHP — `atf_merge_tag_catalogue()` — so it cannot
+The catalogue is served from PHP — `alltfo_merge_tag_catalogue()` — so it cannot
 drift from what actually resolves, and the suite fails if it ever advertises a tag
 the resolver does not know.
 
@@ -343,7 +343,7 @@ is a complete forms plugin and not the interesting half.
 
 `npm run build` ends by mirroring the built tree into a local WordPress checkout
 if it finds one (`../wordpress-alcazaba` or `../wordpress-develop`). Override with
-`ATF_DEPLOY_TARGET`, or skip with `ATF_SKIP_DEPLOY=1`. It is a convenience, not a
+`ALLTFO_DEPLOY_TARGET`, or skip with `ALLTFO_SKIP_DEPLOY=1`. It is a convenience, not a
 build requirement: on CI it finds nothing, says so, and exits successfully.
 
 ### Releasing
@@ -353,7 +353,7 @@ Four places carry the version and they must agree:
 | Where | What |
 |---|---|
 | `allterrain-forms.php` | the `Version:` header |
-| `allterrain-forms.php` | `ATF_VERSION` |
+| `allterrain-forms.php` | `ALLTFO_VERSION` |
 | `readme.txt` | `Stable tag` |
 | `package.json` | `version` |
 
@@ -411,7 +411,7 @@ match the TypeScript they came from.
 `.wp-env.json` mounts a sibling checkout that does not exist on a runner, and
 wp-env treats a missing mapping as fatal, so both PHP jobs write a
 `.wp-env.override.json` that replaces `mappings` wholesale. Nothing is lost: every
-shell call in this plugin sits behind `atf_shell_has()`, which is simply false
+shell call in this plugin sits behind `alltfo_shell_has()`, which is simply false
 when no shell is installed.
 
 ## Testing

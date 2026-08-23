@@ -17,13 +17,13 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Logic extends WP_UnitTestCase {
+class ALLTFO_Test_Logic extends WP_UnitTestCase {
 
 	/**
 	 * The comparison table.
 	 *
 	 * @dataProvider data_compare
-	 * @covers ::atf_logic_compare
+	 * @covers ::alltfo_logic_compare
 	 *
 	 * @param string $operator The operator.
 	 * @param mixed  $actual   The submitted value.
@@ -33,7 +33,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	public function test_compare( $operator, $actual, $expected, $result ) {
 		$this->assertSame(
 			$result,
-			atf_logic_compare( $operator, $actual, $expected ),
+			alltfo_logic_compare( $operator, $actual, $expected ),
 			sprintf( '%s( %s, %s )', $operator, var_export( $actual, true ), var_export( $expected, true ) )
 		);
 	}
@@ -46,7 +46,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	public function data_compare() {
 		$cases = array();
 
-		foreach ( atf_test_fixture( 'logic-cases' )['compare'] as $index => $case ) {
+		foreach ( alltfo_test_fixture( 'logic-cases' )['compare'] as $index => $case ) {
 			$cases[ 'compare ' . $index ] = array(
 				$case['operator'],
 				$case['actual'],
@@ -62,14 +62,14 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	 * One rule against one value, including the multi-value readings.
 	 *
 	 * @dataProvider data_rules
-	 * @covers ::atf_logic_rule_passes
+	 * @covers ::alltfo_logic_rule_passes
 	 *
 	 * @param array $rule   The rule.
 	 * @param mixed $value  The value.
 	 * @param bool  $result What it must return.
 	 */
 	public function test_rule_passes( $rule, $value, $result ) {
-		$this->assertSame( $result, atf_logic_rule_passes( $rule, $value ) );
+		$this->assertSame( $result, alltfo_logic_rule_passes( $rule, $value ) );
 	}
 
 	/**
@@ -80,7 +80,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	public function data_rules() {
 		$cases = array();
 
-		foreach ( atf_test_fixture( 'logic-cases' )['rule'] as $index => $case ) {
+		foreach ( alltfo_test_fixture( 'logic-cases' )['rule'] as $index => $case ) {
 			$cases[ 'rule ' . $index ] = array( $case['rule'], $case['value'], $case['result'] );
 		}
 
@@ -91,7 +91,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	 * Visibility across a whole schema, including chained logic.
 	 *
 	 * @dataProvider data_visibility
-	 * @covers ::atf_visible_fields
+	 * @covers ::alltfo_visible_fields
 	 *
 	 * @param array      $fields  The schema's fields.
 	 * @param array      $values  Submitted values.
@@ -99,7 +99,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	 *                            asserts that resolution terminates.
 	 */
 	public function test_visible_fields( $fields, $values, $visible ) {
-		$result = atf_visible_fields( array( 'fields' => $fields ), $values );
+		$result = alltfo_visible_fields( array( 'fields' => $fields ), $values );
 
 		if ( null === $visible ) {
 			// A cyclic form has no correct answer. The requirement is that the
@@ -121,7 +121,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	public function data_visibility() {
 		$cases = array();
 
-		foreach ( atf_test_fixture( 'logic-cases' )['visibility'] as $index => $case ) {
+		foreach ( alltfo_test_fixture( 'logic-cases' )['visibility'] as $index => $case ) {
 			$cases[ 'visibility ' . $index ] = array(
 				$case['fields'],
 				$case['values'],
@@ -135,7 +135,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	/**
 	 * A disabled logic block never hides anything.
 	 *
-	 * @covers ::atf_logic_passes
+	 * @covers ::alltfo_logic_passes
 	 */
 	public function test_disabled_logic_always_passes() {
 		$logic = array(
@@ -151,13 +151,13 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 			),
 		);
 
-		$this->assertTrue( atf_logic_passes( $logic, array() ) );
+		$this->assertTrue( alltfo_logic_passes( $logic, array() ) );
 	}
 
 	/**
 	 * A hide action inverts the condition.
 	 *
-	 * @covers ::atf_logic_passes
+	 * @covers ::alltfo_logic_passes
 	 */
 	public function test_hide_inverts() {
 		$logic = array(
@@ -173,8 +173,8 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 			),
 		);
 
-		$this->assertFalse( atf_logic_passes( $logic, array( 'f1' => 'yes' ) ) );
-		$this->assertTrue( atf_logic_passes( $logic, array( 'f1' => 'no' ) ) );
+		$this->assertFalse( alltfo_logic_passes( $logic, array( 'f1' => 'yes' ) ) );
+		$this->assertTrue( alltfo_logic_passes( $logic, array( 'f1' => 'no' ) ) );
 	}
 
 	/**
@@ -183,11 +183,11 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	 * Dropping the rule would silently widen the condition, which is the failure
 	 * that shows a field to everybody when it was meant for one answer.
 	 *
-	 * @covers ::atf_normalize_operator
+	 * @covers ::alltfo_normalize_operator
 	 */
 	public function test_unknown_operator_narrows_rather_than_widens() {
-		$this->assertSame( 'is', atf_normalize_operator( 'definitely_not_an_operator' ) );
-		$this->assertSame( 'is', atf_normalize_operator( array( 'nonsense' ) ) );
+		$this->assertSame( 'is', alltfo_normalize_operator( 'definitely_not_an_operator' ) );
+		$this->assertSame( 'is', alltfo_normalize_operator( array( 'nonsense' ) ) );
 	}
 
 	/**
@@ -196,10 +196,10 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 	 * The single most important interaction in the plugin: without it, a form
 	 * refuses to submit over a question the visitor was never shown.
 	 *
-	 * @covers ::atf_validate_submission
+	 * @covers ::alltfo_validate_submission
 	 */
 	public function test_hidden_required_field_is_not_required() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -241,7 +241,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 		// Hidden: the empty required field must not be an error.
 		$this->assertSame(
 			array(),
-			atf_validate_submission(
+			alltfo_validate_submission(
 				$schema,
 				array(
 					'f1' => 'no',
@@ -251,7 +251,7 @@ class ATF_Test_Logic extends WP_UnitTestCase {
 		);
 
 		// Shown: it must be.
-		$errors = atf_validate_submission(
+		$errors = alltfo_validate_submission(
 			$schema,
 			array(
 				'f1' => 'yes',

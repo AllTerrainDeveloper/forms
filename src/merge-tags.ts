@@ -29,7 +29,7 @@
  * The catalogue is fetched from the server, never assembled here. `merge-tags.php`
  * is what decides what a tag does, and a second list living in the browser is a
  * list that drifts — advertising a tag that resolves to nothing, or missing one a
- * plugin added through `atf_resolve_merge_tag`.
+ * plugin added through `alltfo_resolve_merge_tag`.
  */
 
 import { api } from './api';

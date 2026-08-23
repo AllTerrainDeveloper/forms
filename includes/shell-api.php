@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-const ATF_SHELL_PREFIXES = array( 'openstation_', 'desktop_mode_' );
+const ALLTFO_SHELL_PREFIXES = array( 'openstation_', 'desktop_mode_' );
 
 /**
  * Resolves a shell function to whichever name this install has.
@@ -34,8 +34,8 @@ const ATF_SHELL_PREFIXES = array( 'openstation_', 'desktop_mode_' );
  * @param string $name Bare function name, e.g. `register_window`.
  * @return string The callable name, or an empty string when no shell provides it.
  */
-function atf_shell_function( $name ) {
-	foreach ( ATF_SHELL_PREFIXES as $prefix ) {
+function alltfo_shell_function( $name ) {
+	foreach ( ALLTFO_SHELL_PREFIXES as $prefix ) {
 		if ( function_exists( $prefix . $name ) ) {
 			return $prefix . $name;
 		}
@@ -52,8 +52,8 @@ function atf_shell_function( $name ) {
  * @param string $name Bare function name.
  * @return bool True when some spelling of it exists.
  */
-function atf_shell_has( $name ) {
-	return '' !== atf_shell_function( $name );
+function alltfo_shell_has( $name ) {
+	return '' !== alltfo_shell_function( $name );
 }
 
 /**
@@ -65,8 +65,8 @@ function atf_shell_has( $name ) {
  * @param mixed  ...$args Arguments to pass through.
  * @return mixed The return value, or null when no shell provides it.
  */
-function atf_shell_call( $name, ...$args ) {
-	$fn = atf_shell_function( $name );
+function alltfo_shell_call( $name, ...$args ) {
+	$fn = alltfo_shell_function( $name );
 
 	return $fn ? call_user_func_array( $fn, $args ) : null;
 }
@@ -84,10 +84,10 @@ function atf_shell_call( $name, ...$args ) {
  * @param string $name Bare hook name, e.g. `mode_init`.
  * @return string[] Hook names.
  */
-function atf_shell_hooks( $name ) {
+function alltfo_shell_hooks( $name ) {
 	$hooks = array();
 
-	foreach ( ATF_SHELL_PREFIXES as $prefix ) {
+	foreach ( ALLTFO_SHELL_PREFIXES as $prefix ) {
 		$hooks[] = $prefix . $name;
 	}
 
@@ -97,7 +97,7 @@ function atf_shell_hooks( $name ) {
 /**
  * Determines whether the shell is installed *and* switched on for this user.
  *
- * Two separate questions, and both matter. `atf_shell_has()` answers "is the
+ * Two separate questions, and both matter. `alltfo_shell_has()` answers "is the
  * plugin active"; `openstation_is_enabled()` answers "has this particular user
  * opted in", since the shell is a per-user preference rather than a site-wide
  * one. Only when both hold should the builder present itself as a desktop app
@@ -107,12 +107,12 @@ function atf_shell_hooks( $name ) {
  *
  * @return bool True when the desktop shell is active for the current user.
  */
-function atf_shell_is_active() {
-	if ( ! atf_shell_has( 'register_window' ) || ! atf_shell_has( 'is_enabled' ) ) {
+function alltfo_shell_is_active() {
+	if ( ! alltfo_shell_has( 'register_window' ) || ! alltfo_shell_has( 'is_enabled' ) ) {
 		return false;
 	}
 
-	return (bool) atf_shell_call( 'is_enabled' );
+	return (bool) alltfo_shell_call( 'is_enabled' );
 }
 
 /**
@@ -127,12 +127,12 @@ function atf_shell_is_active() {
  *
  * @return bool True when rendering inside a shell window iframe.
  */
-function atf_shell_is_chromeless() {
-	if ( ! atf_shell_has( 'is_chromeless_request' ) ) {
+function alltfo_shell_is_chromeless() {
+	if ( ! alltfo_shell_has( 'is_chromeless_request' ) ) {
 		return false;
 	}
 
-	return (bool) atf_shell_call( 'is_chromeless_request' );
+	return (bool) alltfo_shell_call( 'is_chromeless_request' );
 }
 
 /**
@@ -149,8 +149,8 @@ function atf_shell_is_chromeless() {
  *
  * @return void
  */
-function atf_shell_missing_notice() {
-	if ( atf_shell_has( 'register_window' ) || ! current_user_can( 'activate_plugins' ) ) {
+function alltfo_shell_missing_notice() {
+	if ( alltfo_shell_has( 'register_window' ) || ! current_user_can( 'activate_plugins' ) ) {
 		return;
 	}
 
@@ -167,4 +167,4 @@ function atf_shell_missing_notice() {
 		)
 	);
 }
-add_action( 'admin_notices', 'atf_shell_missing_notice' );
+add_action( 'admin_notices', 'alltfo_shell_missing_notice' );

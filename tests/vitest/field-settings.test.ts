@@ -39,9 +39,9 @@ function declaredFlags(): string[] {
 	const php = readFileSync( resolve( process.cwd(), 'includes/field-types.php' ), 'utf8' );
 	const flags = new Set< string >();
 
-	// `atf_input_supports()` contributes its common set to almost every type, so
+	// `alltfo_input_supports()` contributes its common set to almost every type, so
 	// its own array is scanned as well as each type's extras.
-	for ( const block of php.matchAll( /'supports'\s*=>\s*(?:atf_input_supports\(\s*)?array\(([^)]*)\)/g ) ) {
+	for ( const block of php.matchAll( /'supports'\s*=>\s*(?:alltfo_input_supports\(\s*)?array\(([^)]*)\)/g ) ) {
 		for ( const flag of block[ 1 ].matchAll( /'([a-z]+)'/g ) ) {
 			flags.add( flag[ 1 ] );
 		}

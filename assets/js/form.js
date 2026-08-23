@@ -1723,7 +1723,7 @@ var allTerrainFormsFront = function(exports) {
       panel.focus();
       panel.scrollIntoView({ behavior: "smooth", block: "center" });
       document.dispatchEvent(
-        new CustomEvent("atf-submitted", {
+        new CustomEvent("alltfo-submitted", {
           detail: { formId: Number(this.form.dataset.atfForm), entryId: result.entry_id },
           bubbles: true
         })
@@ -2011,7 +2011,7 @@ var allTerrainFormsFront = function(exports) {
   } else {
     boot();
   }
-  document.addEventListener("atf-refresh", boot);
+  document.addEventListener("alltfo-refresh", boot);
   exports.AllTerrainForm = AllTerrainForm;
   exports.boot = boot;
   exports.nextRepeaterIndex = nextRepeaterIndex;

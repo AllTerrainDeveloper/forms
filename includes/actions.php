@@ -31,17 +31,17 @@ defined( 'ABSPATH' ) || exit;
  * @param array $request  The raw request, for values never stored (a password).
  * @return void
  */
-function atf_run_actions( $schema, $values, $entry_id, $form_id, $request = array() ) {
+function alltfo_run_actions( $schema, $values, $entry_id, $form_id, $request = array() ) {
 	foreach ( $schema['actions'] as $action ) {
 		if ( empty( $action['enabled'] ) ) {
 			continue;
 		}
 
-		if ( ! atf_logic_conditions_met( $action['logic'], $values, $schema ) ) {
+		if ( ! alltfo_logic_conditions_met( $action['logic'], $values, $schema ) ) {
 			continue;
 		}
 
-		$result = atf_run_action( $action, $schema, $values, $entry_id, $form_id, $request );
+		$result = alltfo_run_action( $action, $schema, $values, $entry_id, $form_id, $request );
 
 		if ( is_wp_error( $result ) && $entry_id ) {
 			// Recorded on the entry rather than thrown, so somebody reading the
@@ -49,7 +49,7 @@ function atf_run_actions( $schema, $values, $entry_id, $form_id, $request = arra
 			// place they would ever think to look.
 			add_post_meta(
 				$entry_id,
-				'_atf_action_error',
+				'_alltfo_action_error',
 				sprintf( '%s: %s', $action['type'], $result->get_error_message() )
 			);
 		}
@@ -69,31 +69,31 @@ function atf_run_actions( $schema, $values, $entry_id, $form_id, $request = arra
  * @param array $request  The raw request.
  * @return mixed|WP_Error
  */
-function atf_run_action( $action, $schema, $values, $entry_id, $form_id, $request ) {
+function alltfo_run_action( $action, $schema, $values, $entry_id, $form_id, $request ) {
 	$context = array(
 		'schema'   => $schema,
 		'values'   => $values,
 		'form_id'  => $form_id,
 		'entry_id' => $entry_id,
-		'entry'    => $entry_id ? atf_prepare_entry( $entry_id ) : array(),
+		'entry'    => $entry_id ? alltfo_prepare_entry( $entry_id ) : array(),
 		'format'   => 'text',
 	);
 
 	switch ( $action['type'] ) {
 		case 'create_post':
-			return atf_action_create_post( $action['settings'], $context );
+			return alltfo_action_create_post( $action['settings'], $context );
 
 		case 'register_user':
-			return atf_action_register_user( $action['settings'], $context, $request );
+			return alltfo_action_register_user( $action['settings'], $context, $request );
 
 		case 'update_user_meta':
-			return atf_action_update_user_meta( $action['settings'], $context );
+			return alltfo_action_update_user_meta( $action['settings'], $context );
 
 		case 'webhook':
-			return atf_action_webhook( $action['settings'], $context );
+			return alltfo_action_webhook( $action['settings'], $context );
 
 		case 'mailpoet':
-			return atf_action_mailpoet( $action, $values );
+			return alltfo_action_mailpoet( $action, $values );
 	}
 
 	/**
@@ -108,7 +108,7 @@ function atf_run_action( $action, $schema, $values, $entry_id, $form_id, $reques
 	 * @param array  $action  The action.
 	 * @param array  $context The merge-tag context.
 	 */
-	return apply_filters( 'atf_run_action', null, $action, $context );
+	return apply_filters( 'alltfo_run_action', null, $action, $context );
 }
 
 /**
@@ -116,7 +116,7 @@ function atf_run_action( $action, $schema, $values, $entry_id, $form_id, $reques
  *
  * The post type is constrained to what the site has explicitly allowed rather
  * than to whatever the schema says. A form's settings are editable by anyone
- * with `atf_edit_forms`, which is a lower bar than "may publish to any post
+ * with `alltfo_edit_forms`, which is a lower bar than "may publish to any post
  * type" -- without this constraint an editor could build a form that publishes
  * to a type they cannot otherwise touch.
  *
@@ -126,7 +126,7 @@ function atf_run_action( $action, $schema, $values, $entry_id, $form_id, $reques
  * @param array $context  The merge-tag context.
  * @return int|WP_Error The new post id.
  */
-function atf_action_create_post( $settings, $context ) {
+function alltfo_action_create_post( $settings, $context ) {
 	$type = isset( $settings['postType'] ) ? sanitize_key( $settings['postType'] ) : 'post';
 
 	/**
@@ -137,10 +137,10 @@ function atf_action_create_post( $settings, $context ) {
 	 * @param string[] $types   Post type slugs.
 	 * @param array    $context The merge-tag context.
 	 */
-	$allowed = apply_filters( 'atf_creatable_post_types', array( 'post', 'page' ), $context );
+	$allowed = apply_filters( 'alltfo_creatable_post_types', array( 'post', 'page' ), $context );
 
 	if ( ! in_array( $type, $allowed, true ) ) {
-		return new WP_Error( 'atf_post_type', __( 'That post type cannot be created from a form.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_post_type', __( 'That post type cannot be created from a form.', 'allterrain-forms' ) );
 	}
 
 	$status = isset( $settings['status'] ) ? sanitize_key( $settings['status'] ) : 'draft';
@@ -161,7 +161,7 @@ function atf_action_create_post( $settings, $context ) {
 		 * @param bool  $allow   Whether immediate publishing is allowed.
 		 * @param array $context The merge-tag context.
 		 */
-		if ( ! apply_filters( 'atf_allow_direct_publish', false, $context ) ) {
+		if ( ! apply_filters( 'alltfo_allow_direct_publish', false, $context ) ) {
 			$status = 'pending';
 		}
 	}
@@ -169,8 +169,8 @@ function atf_action_create_post( $settings, $context ) {
 	$postarr = array(
 		'post_type'    => $type,
 		'post_status'  => $status,
-		'post_title'   => atf_replace_merge_tags( isset( $settings['title'] ) ? $settings['title'] : '', $context ),
-		'post_content' => atf_replace_merge_tags( isset( $settings['content'] ) ? $settings['content'] : '{all_fields}', $context ),
+		'post_title'   => alltfo_replace_merge_tags( isset( $settings['title'] ) ? $settings['title'] : '', $context ),
+		'post_content' => alltfo_replace_merge_tags( isset( $settings['content'] ) ? $settings['content'] : '{all_fields}', $context ),
 		'post_author'  => get_current_user_id(),
 	);
 
@@ -200,12 +200,12 @@ function atf_action_create_post( $settings, $context ) {
 				continue;
 			}
 
-			update_post_meta( $post_id, $key, atf_replace_merge_tags( (string) $template, $context ) );
+			update_post_meta( $post_id, $key, alltfo_replace_merge_tags( (string) $template, $context ) );
 		}
 	}
 
 	if ( $context['entry_id'] ) {
-		update_post_meta( $context['entry_id'], '_atf_created_post', $post_id );
+		update_post_meta( $context['entry_id'], '_alltfo_created_post', $post_id );
 	}
 
 	/**
@@ -216,7 +216,7 @@ function atf_action_create_post( $settings, $context ) {
 	 * @param int   $post_id The new post.
 	 * @param array $context The merge-tag context.
 	 */
-	do_action( 'atf_post_created', $post_id, $context );
+	do_action( 'alltfo_post_created', $post_id, $context );
 
 	return $post_id;
 }
@@ -236,7 +236,7 @@ function atf_action_create_post( $settings, $context ) {
  * @param array $request  The raw request, where a password still exists.
  * @return int|WP_Error The new user id.
  */
-function atf_action_register_user( $settings, $context, $request ) {
+function alltfo_action_register_user( $settings, $context, $request ) {
 	if ( ! get_option( 'users_can_register' ) ) {
 		/**
 		 * Filters whether a form may register users while registration is off.
@@ -246,22 +246,22 @@ function atf_action_register_user( $settings, $context, $request ) {
 		 * @param bool  $allow   Whether to allow it.
 		 * @param array $context The merge-tag context.
 		 */
-		if ( ! apply_filters( 'atf_allow_registration', false, $context ) ) {
-			return new WP_Error( 'atf_registration_closed', __( 'Registration is closed on this site.', 'allterrain-forms' ) );
+		if ( ! apply_filters( 'alltfo_allow_registration', false, $context ) ) {
+			return new WP_Error( 'alltfo_registration_closed', __( 'Registration is closed on this site.', 'allterrain-forms' ) );
 		}
 	}
 
-	$email = atf_replace_merge_tags( isset( $settings['email'] ) ? $settings['email'] : '', $context );
+	$email = alltfo_replace_merge_tags( isset( $settings['email'] ) ? $settings['email'] : '', $context );
 
 	if ( ! is_email( $email ) ) {
-		return new WP_Error( 'atf_registration_email', __( 'A valid email address is needed to register.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_registration_email', __( 'A valid email address is needed to register.', 'allterrain-forms' ) );
 	}
 
 	if ( email_exists( $email ) ) {
-		return new WP_Error( 'atf_registration_exists', __( 'There is already an account with that email address.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_registration_exists', __( 'There is already an account with that email address.', 'allterrain-forms' ) );
 	}
 
-	$login = atf_replace_merge_tags( isset( $settings['login'] ) ? $settings['login'] : '', $context );
+	$login = alltfo_replace_merge_tags( isset( $settings['login'] ) ? $settings['login'] : '', $context );
 	$login = sanitize_user( '' !== $login ? $login : $email, true );
 
 	if ( '' === $login || username_exists( $login ) ) {
@@ -284,7 +284,7 @@ function atf_action_register_user( $settings, $context, $request ) {
 	 * @param string[] $roles   Role slugs.
 	 * @param array    $context The merge-tag context.
 	 */
-	$allowed_roles = apply_filters( 'atf_assignable_roles', array( $default_role ), $context );
+	$allowed_roles = apply_filters( 'alltfo_assignable_roles', array( $default_role ), $context );
 
 	if ( ! in_array( $role, $allowed_roles, true ) ) {
 		$role = $default_role;
@@ -309,8 +309,8 @@ function atf_action_register_user( $settings, $context, $request ) {
 			'user_email' => $email,
 			'user_pass'  => $password,
 			'role'       => $role,
-			'first_name' => atf_replace_merge_tags( isset( $settings['firstName'] ) ? $settings['firstName'] : '', $context ),
-			'last_name'  => atf_replace_merge_tags( isset( $settings['lastName'] ) ? $settings['lastName'] : '', $context ),
+			'first_name' => alltfo_replace_merge_tags( isset( $settings['firstName'] ) ? $settings['firstName'] : '', $context ),
+			'last_name'  => alltfo_replace_merge_tags( isset( $settings['lastName'] ) ? $settings['lastName'] : '', $context ),
 		)
 	);
 
@@ -323,7 +323,7 @@ function atf_action_register_user( $settings, $context, $request ) {
 	}
 
 	if ( $context['entry_id'] ) {
-		update_post_meta( $context['entry_id'], '_atf_created_user', $user_id );
+		update_post_meta( $context['entry_id'], '_alltfo_created_user', $user_id );
 	}
 
 	/**
@@ -334,7 +334,7 @@ function atf_action_register_user( $settings, $context, $request ) {
 	 * @param int   $user_id The new user.
 	 * @param array $context The merge-tag context.
 	 */
-	do_action( 'atf_user_registered', $user_id, $context );
+	do_action( 'alltfo_user_registered', $user_id, $context );
 
 	return $user_id;
 }
@@ -352,11 +352,11 @@ function atf_action_register_user( $settings, $context, $request ) {
  * @param array $context  The merge-tag context.
  * @return true|WP_Error
  */
-function atf_action_update_user_meta( $settings, $context ) {
+function alltfo_action_update_user_meta( $settings, $context ) {
 	$user_id = get_current_user_id();
 
 	if ( ! $user_id ) {
-		return new WP_Error( 'atf_not_logged_in', __( 'Nobody is logged in to update.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_not_logged_in', __( 'Nobody is logged in to update.', 'allterrain-forms' ) );
 	}
 
 	$map = isset( $settings['meta'] ) && is_array( $settings['meta'] ) ? $settings['meta'] : array();
@@ -374,7 +374,7 @@ function atf_action_update_user_meta( $settings, $context ) {
 			continue;
 		}
 
-		update_user_meta( $user_id, $key, atf_replace_merge_tags( (string) $template, $context ) );
+		update_user_meta( $user_id, $key, alltfo_replace_merge_tags( (string) $template, $context ) );
 	}
 
 	return true;
@@ -396,16 +396,16 @@ function atf_action_update_user_meta( $settings, $context ) {
  * @param array $context  The merge-tag context.
  * @return array|WP_Error The response, or the failure.
  */
-function atf_action_webhook( $settings, $context ) {
-	$url = isset( $settings['url'] ) ? esc_url_raw( atf_replace_merge_tags( (string) $settings['url'], $context ) ) : '';
+function alltfo_action_webhook( $settings, $context ) {
+	$url = isset( $settings['url'] ) ? esc_url_raw( alltfo_replace_merge_tags( (string) $settings['url'], $context ) ) : '';
 
 	if ( '' === $url || ! wp_http_validate_url( $url ) ) {
-		return new WP_Error( 'atf_webhook_url', __( 'The webhook URL is not usable.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_webhook_url', __( 'The webhook URL is not usable.', 'allterrain-forms' ) );
 	}
 
 	$fields = array();
 
-	foreach ( atf_input_fields( $context['schema'] ) as $field ) {
+	foreach ( alltfo_input_fields( $context['schema'] ) as $field ) {
 		if ( 'password' === $field['type'] ) {
 			continue;
 		}
@@ -416,7 +416,7 @@ function atf_action_webhook( $settings, $context ) {
 			'label'     => $field['label'],
 			'type'      => $field['type'],
 			'value'     => $value,
-			'formatted' => atf_format_field_value( $value, $field, 'email' ),
+			'formatted' => alltfo_format_field_value( $value, $field, 'email' ),
 		);
 	}
 
@@ -441,7 +441,7 @@ function atf_action_webhook( $settings, $context ) {
 	 * @param array $payload The payload.
 	 * @param array $context The merge-tag context.
 	 */
-	$payload = apply_filters( 'atf_webhook_payload', $payload, $context );
+	$payload = apply_filters( 'alltfo_webhook_payload', $payload, $context );
 
 	$body    = wp_json_encode( $payload );
 	$headers = array( 'Content-Type' => 'application/json' );
@@ -471,7 +471,7 @@ function atf_action_webhook( $settings, $context ) {
 
 	if ( $code < 200 || $code >= 300 ) {
 		return new WP_Error(
-			'atf_webhook_failed',
+			'alltfo_webhook_failed',
 			sprintf(
 				/* translators: %d: HTTP status code. */
 				__( 'The webhook answered with status %d.', 'allterrain-forms' ),

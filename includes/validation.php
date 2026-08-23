@@ -34,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return array<string, string> Field id => error message. Empty when valid.
  */
-function atf_validate_submission( $schema, $values, $context = array() ) {
+function alltfo_validate_submission( $schema, $values, $context = array() ) {
 	$context = wp_parse_args(
 		$context,
 		array(
@@ -44,22 +44,22 @@ function atf_validate_submission( $schema, $values, $context = array() ) {
 	);
 
 	$errors  = array();
-	$visible = atf_visible_fields( $schema, $values );
+	$visible = alltfo_visible_fields( $schema, $values );
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( empty( $visible[ $field['id'] ] ) ) {
 			continue;
 		}
 
 		$value = array_key_exists( $field['id'], $values ) ? $values[ $field['id'] ] : '';
-		$error = atf_validate_field( $field, $value, $schema, $context );
+		$error = alltfo_validate_field( $field, $value, $schema, $context );
 
 		if ( '' !== $error ) {
 			// A repeater's failure also ships control by control -- the subs
 			// first, so a client walking the list in order arrives at the
 			// exact box before it reaches the row-level summary.
 			if ( 'repeater' === $field['type'] && is_array( $value ) ) {
-				$errors = array_merge( $errors, atf_validate_repeater_sub_errors( $field, $value, $schema, $context ) );
+				$errors = array_merge( $errors, alltfo_validate_repeater_sub_errors( $field, $value, $schema, $context ) );
 			}
 
 			$errors[ $field['id'] ] = $error;
@@ -80,7 +80,7 @@ function atf_validate_submission( $schema, $values, $context = array() ) {
 	 * @param array                 $values  The submitted values.
 	 * @param array                 $context Submission context.
 	 */
-	return apply_filters( 'atf_validation_errors', $errors, $schema, $values, $context );
+	return apply_filters( 'alltfo_validation_errors', $errors, $schema, $values, $context );
 }
 
 /**
@@ -94,13 +94,13 @@ function atf_validate_submission( $schema, $values, $context = array() ) {
  * @param array $context Submission context.
  * @return string The error message, or an empty string when the field is fine.
  */
-function atf_validate_field( $field, $value, $schema, $context = array() ) {
-	$empty = atf_value_is_empty( $value );
+function alltfo_validate_field( $field, $value, $schema, $context = array() ) {
+	$empty = alltfo_value_is_empty( $value );
 
 	if ( ! empty( $field['required'] ) && $empty ) {
 		// The consent field has its own idea of what a missing answer means, so
 		// it is allowed to answer first.
-		$definition = atf_get_field_type( $field['type'] );
+		$definition = alltfo_get_field_type( $field['type'] );
 
 		if ( $definition && is_callable( $definition['validate'] ) ) {
 			$result = call_user_func( $definition['validate'], $value, $field, $context );
@@ -110,7 +110,7 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 			}
 		}
 
-		return atf_field_message(
+		return alltfo_field_message(
 			$field,
 			'required',
 			$field['label']
@@ -131,14 +131,14 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 	// same rules a top-level field gets. Without this, "required" on a
 	// sub-field was decoration: the repeater itself had rows, so it passed.
 	if ( 'repeater' === $field['type'] && is_array( $value ) ) {
-		$row_error = atf_validate_repeater_rows( $field, $value, $schema, $context );
+		$row_error = alltfo_validate_repeater_rows( $field, $value, $schema, $context );
 
 		if ( '' !== $row_error ) {
 			return $row_error;
 		}
 	}
 
-	$definition = atf_get_field_type( $field['type'] );
+	$definition = alltfo_get_field_type( $field['type'] );
 
 	if ( $definition && is_callable( $definition['validate'] ) ) {
 		$result = call_user_func( $definition['validate'], $value, $field, $context );
@@ -148,17 +148,17 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 		}
 	}
 
-	$bounds = atf_validate_bounds( $field, $value );
+	$bounds = alltfo_validate_bounds( $field, $value );
 
 	if ( '' !== $bounds ) {
 		return $bounds;
 	}
 
 	if ( ! empty( $field['unique'] ) ) {
-		$duplicate = atf_value_already_submitted( $field, $value, $context );
+		$duplicate = alltfo_value_already_submitted( $field, $value, $context );
 
 		if ( $duplicate ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'unique',
 				__( 'That has already been submitted.', 'allterrain-forms' )
@@ -176,7 +176,7 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
 	 * @param mixed  $value  Its value.
 	 * @param array  $schema The form schema.
 	 */
-	return (string) apply_filters( 'atf_validate_field', '', $field, $value, $schema );
+	return (string) apply_filters( 'alltfo_validate_field', '', $field, $value, $schema );
 }
 
 /**
@@ -194,11 +194,11 @@ function atf_validate_field( $field, $value, $schema, $context = array() ) {
  * @param array $context Submission context.
  * @return string The error message, or an empty string.
  */
-function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
+function alltfo_validate_repeater_rows( $field, $rows, $schema, $context ) {
 	$min = isset( $field['minRows'] ) ? absint( $field['minRows'] ) : 1;
 
 	if ( count( $rows ) < $min ) {
-		return atf_field_message(
+		return alltfo_field_message(
 			$field,
 			'minrows',
 			sprintf(
@@ -210,7 +210,7 @@ function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
 		);
 	}
 
-	$sub_errors = atf_validate_repeater_sub_errors( $field, $rows, $schema, $context );
+	$sub_errors = alltfo_validate_repeater_sub_errors( $field, $rows, $schema, $context );
 
 	if ( ! $sub_errors ) {
 		return '';
@@ -226,7 +226,7 @@ function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
 	return sprintf(
 		/* translators: 1: what one row is called, e.g. "Attendee", 2: row number, 3: the row's error. */
 		__( '%1$s %2$d: %3$s', 'allterrain-forms' ),
-		atf_repeater_item_label( $field ),
+		alltfo_repeater_item_label( $field ),
 		(int) $parts[1] + 1,
 		current( $sub_errors )
 	);
@@ -248,7 +248,7 @@ function atf_validate_repeater_rows( $field, $rows, $schema, $context ) {
  * @param array $context Submission context.
  * @return array<string, string> `"rep.0.age" => message`, in row order.
  */
-function atf_validate_repeater_sub_errors( $field, $rows, $schema, $context ) {
+function alltfo_validate_repeater_sub_errors( $field, $rows, $schema, $context ) {
 	$subs   = isset( $field['fields'] ) && is_array( $field['fields'] ) ? $field['fields'] : array();
 	$errors = array();
 
@@ -262,7 +262,7 @@ function atf_validate_repeater_sub_errors( $field, $rows, $schema, $context ) {
 				continue;
 			}
 
-			$error = atf_validate_field(
+			$error = alltfo_validate_field(
 				$sub,
 				isset( $row[ $sub['id'] ] ) ? $row[ $sub['id'] ] : '',
 				$schema,
@@ -291,14 +291,14 @@ function atf_validate_repeater_sub_errors( $field, $rows, $schema, $context ) {
  * @param mixed $value The value.
  * @return bool
  */
-function atf_value_is_empty( $value ) {
+function alltfo_value_is_empty( $value ) {
 	if ( is_bool( $value ) ) {
 		return ! $value;
 	}
 
 	if ( is_array( $value ) ) {
 		foreach ( $value as $item ) {
-			if ( ! atf_value_is_empty( $item ) ) {
+			if ( ! alltfo_value_is_empty( $item ) ) {
 				return false;
 			}
 		}
@@ -318,12 +318,12 @@ function atf_value_is_empty( $value ) {
  * @param mixed $value Its value.
  * @return string The error message, or an empty string.
  */
-function atf_validate_bounds( $field, $value ) {
+function alltfo_validate_bounds( $field, $value ) {
 	if ( is_string( $value ) ) {
 		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
 
 		if ( isset( $field['minlength'] ) && '' !== $field['minlength'] && $length < (int) $field['minlength'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'min',
 				sprintf(
@@ -335,7 +335,7 @@ function atf_validate_bounds( $field, $value ) {
 		}
 
 		if ( isset( $field['maxlength'] ) && '' !== $field['maxlength'] && $length > (int) $field['maxlength'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'max',
 				sprintf(
@@ -347,7 +347,7 @@ function atf_validate_bounds( $field, $value ) {
 		}
 
 		if ( ! empty( $field['validation'] ) && 'custom' !== $field['validation'] ) {
-			$preset_error = atf_validate_preset( $field, (string) $field['validation'], $value );
+			$preset_error = alltfo_validate_preset( $field, (string) $field['validation'], $value );
 
 			if ( '' !== $preset_error ) {
 				return $preset_error;
@@ -367,14 +367,14 @@ function atf_validate_bounds( $field, $value ) {
 			$matched = @preg_match( $pattern, $value ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- An invalid author-supplied pattern must not fatal a public form.
 
 			if ( 0 === $matched ) {
-				return atf_field_message( $field, 'invalid', __( 'That is not in the expected format.', 'allterrain-forms' ) );
+				return alltfo_field_message( $field, 'invalid', __( 'That is not in the expected format.', 'allterrain-forms' ) );
 			}
 		}
 	}
 
 	if ( is_numeric( $value ) ) {
 		if ( isset( $field['min'] ) && '' !== $field['min'] && (float) $value < (float) $field['min'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'min',
 				/* translators: %s: the smallest allowed number. */
@@ -383,7 +383,7 @@ function atf_validate_bounds( $field, $value ) {
 		}
 
 		if ( isset( $field['max'] ) && '' !== $field['max'] && (float) $value > (float) $field['max'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'max',
 				/* translators: %s: the largest allowed number. */
@@ -403,7 +403,7 @@ function atf_validate_bounds( $field, $value ) {
 		);
 
 		if ( isset( $field['minChoices'] ) && '' !== $field['minChoices'] && $chosen < (int) $field['minChoices'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'min',
 				sprintf(
@@ -415,7 +415,7 @@ function atf_validate_bounds( $field, $value ) {
 		}
 
 		if ( isset( $field['maxChoices'] ) && '' !== $field['maxChoices'] && $chosen > (int) $field['maxChoices'] ) {
-			return atf_field_message(
+			return alltfo_field_message(
 				$field,
 				'max',
 				sprintf(
@@ -443,7 +443,7 @@ function atf_validate_bounds( $field, $value ) {
 			}
 
 			if ( ! in_array( (string) $item, $allowed, true ) ) {
-				return atf_field_message( $field, 'invalid', __( 'That is not one of the available options.', 'allterrain-forms' ) );
+				return alltfo_field_message( $field, 'invalid', __( 'That is not one of the available options.', 'allterrain-forms' ) );
 			}
 		}
 	}
@@ -467,7 +467,7 @@ function atf_validate_bounds( $field, $value ) {
  * @param array $context Submission context.
  * @return bool
  */
-function atf_value_already_submitted( $field, $value, $context ) {
+function alltfo_value_already_submitted( $field, $value, $context ) {
 	$form_id = isset( $context['form_id'] ) ? absint( $context['form_id'] ) : 0;
 
 	if ( ! $form_id ) {
@@ -479,7 +479,7 @@ function atf_value_already_submitted( $field, $value, $context ) {
 	 *
 	 * Raising it makes the check more thorough and every submission slower. A
 	 * site that needs true uniqueness at scale should add a `meta_query`-able
-	 * mirror of the field through `atf_entry_created` and check that instead.
+	 * mirror of the field through `alltfo_entry_created` and check that instead.
 	 *
 	 * @since 0.1.0
 	 *
@@ -487,19 +487,19 @@ function atf_value_already_submitted( $field, $value, $context ) {
 	 * @param array $field   The field being checked.
 	 * @param int   $form_id The form.
 	 */
-	$limit = (int) apply_filters( 'atf_unique_scan_limit', 2000, $field, $form_id );
+	$limit = (int) apply_filters( 'alltfo_unique_scan_limit', 2000, $field, $form_id );
 
 	$query = new WP_Query(
 		array(
-			'post_type'      => ATF_ENTRY_TYPE,
-			'post_status'    => array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+			'post_type'      => ALLTFO_ENTRY_TYPE,
+			'post_status'    => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 			'fields'         => 'ids',
 			'posts_per_page' => $limit,
 			'no_found_rows'  => true,
 			'post__not_in'   => array( absint( $context['entry_id'] ) ),
 			'meta_query'     => array(
 				array(
-					'key'   => ATF_META_FORM,
+					'key'   => ALLTFO_META_FORM,
 					'value' => $form_id,
 				),
 			),
@@ -509,7 +509,7 @@ function atf_value_already_submitted( $field, $value, $context ) {
 	$needle = is_scalar( $value ) ? strtolower( trim( (string) $value ) ) : wp_json_encode( $value );
 
 	foreach ( $query->posts as $entry_id ) {
-		$values = json_decode( (string) get_post_meta( $entry_id, ATF_META_VALUES, true ), true );
+		$values = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_VALUES, true ), true );
 
 		if ( ! is_array( $values ) || ! array_key_exists( $field['id'], $values ) ) {
 			continue;
@@ -542,7 +542,7 @@ function atf_value_already_submitted( $field, $value, $context ) {
  *
  * @return array<string, array{pattern: string, message: string, luhn?: bool}> Preset slug => definition.
  */
-function atf_validation_presets() {
+function alltfo_validation_presets() {
 	$presets = array(
 		'email'        => array(
 			'pattern' => '^[^\s@]+@[^\s@]+\.[^\s@]+$',
@@ -619,7 +619,7 @@ function atf_validation_presets() {
 	 * Filters the validation presets a field's `validation` setting can name.
 	 *
 	 * Adding an entry here makes it enforceable server side; pair it with the
-	 * `atf_builder_config` route if it should be offered in the builder too.
+	 * `alltfo_builder_config` route if it should be offered in the builder too.
 	 * Each entry is an anchored, undelimited pattern compiled with `/u`, a
 	 * default message, and an optional `luhn` flag.
 	 *
@@ -627,7 +627,7 @@ function atf_validation_presets() {
 	 *
 	 * @param array $presets Preset slug => definition.
 	 */
-	return apply_filters( 'atf_validation_presets', $presets );
+	return apply_filters( 'alltfo_validation_presets', $presets );
 }
 
 /**
@@ -644,8 +644,8 @@ function atf_validation_presets() {
  * @param string $value The submitted value.
  * @return string The error message, or an empty string when the value passes.
  */
-function atf_validate_preset( $field, $slug, $value ) {
-	$presets = atf_validation_presets();
+function alltfo_validate_preset( $field, $slug, $value ) {
+	$presets = alltfo_validation_presets();
 
 	if ( ! isset( $presets[ $slug ] ) ) {
 		return '';
@@ -661,13 +661,13 @@ function atf_validate_preset( $field, $slug, $value ) {
 		return '';
 	}
 
-	$passes = 1 === $matched && ( empty( $preset['luhn'] ) || atf_luhn_passes( $value ) );
+	$passes = 1 === $matched && ( empty( $preset['luhn'] ) || alltfo_luhn_passes( $value ) );
 
 	if ( $passes ) {
 		return '';
 	}
 
-	return atf_field_message( $field, 'invalid', (string) $preset['message'] );
+	return alltfo_field_message( $field, 'invalid', (string) $preset['message'] );
 }
 
 /**
@@ -682,7 +682,7 @@ function atf_validate_preset( $field, $slug, $value ) {
  * @param string $value The value as typed.
  * @return bool Whether the checksum holds.
  */
-function atf_luhn_passes( $value ) {
+function alltfo_luhn_passes( $value ) {
 	$digits = preg_replace( '/[^0-9]/', '', (string) $value );
 	$length = strlen( $digits );
 

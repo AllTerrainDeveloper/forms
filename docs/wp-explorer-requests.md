@@ -14,7 +14,7 @@ a file manager.
 | Surface | What we did with it |
 |---|---|
 | `openstation_my_wordpress_entities` | Added a **Forms** section at the root — necessary because every type this plugin registers is `show_ui => false` (it has its own windows), and the Explorer only auto-lists `show_ui` types. |
-| `rest_prepare_atf_form` (core) | Tiles carry vitals — *12 questions · 493 entries · Clean* — instead of a bare title. (Needed `excerpt` added to the type's `supports`; without it core REST omits the field entirely.) |
+| `rest_prepare_alltfo_form` (core) | Tiles carry vitals — *12 questions · 493 entries · Clean* — instead of a bare title. (Needed `excerpt` added to the type's `supports`; without it core REST omits the field entirely.) |
 | `openstation_my_wordpress_preview_actions` | Three capability-gated actions declared — **Open in the form builder**, **View entries**, **Open the report** — with `onSelect` wired via `os.my-wordpress.preview-actions` in `dock.ts`. Registered correctly on both sides, but see ask 0: the pane never renders them. |
 
 ## The asks
@@ -22,7 +22,7 @@ a file manager.
 ### 0. Preview actions never render for a plugin-added section *(bug, with repro)*
 
 Descriptors survive `openstation_my_wordpress_preview_actions` (verified:
-`wp eval 'apply_filters(...)'` lists all three with `sections: ['atf-forms']`),
+`wp eval 'apply_filters(...)'` lists all three with `sections: ['alltfo-forms']`),
 and the JS filter attaches `onSelect` (verified:
 `wp.hooks.applyFilters('os.my-wordpress.preview-actions', …)` returns them
 wired). Yet the right pane and the tile context menu render only the shell's
@@ -76,12 +76,12 @@ Entries are `show_in_rest => false` **by privacy design** — their values are
 whatever the form asked for. The shell's own bridge controller
 (`desktop-mode/v1/post-type/{type}`) exists, but only for types the shell
 itself lists. Ask: a supported way to request a bridged section for a hidden
-type, with a declared capability (`atf_read_entries`) enforced by the bridge —
+type, with a declared capability (`alltfo_read_entries`) enforced by the bridge —
 then submissions could be listed without making them world-REST-readable.
 
 ### 4. Custom post statuses in section queries
 
-Entry statuses are real post statuses (`atf-unread`, `atf-read`, `atf-spam`),
+Entry statuses are real post statuses (`alltfo-unread`, `alltfo-read`, `alltfo-spam`),
 registered `exclude_from_search`. A `wp/v2`-backed section lists `publish`
 only. Ask: let a section descriptor declare `statuses: [...]` that the window
 passes through to its list requests.

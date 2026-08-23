@@ -36,11 +36,11 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-const ATF_DRAG_FIELD = 'allterrain-forms/field';
-const ATF_DRAG_FORM  = 'allterrain-forms/form';
-const ATF_DRAG_ENTRY = 'allterrain-forms/entry';
+const ALLTFO_DRAG_FIELD = 'allterrain-forms/field';
+const ALLTFO_DRAG_FORM  = 'allterrain-forms/form';
+const ALLTFO_DRAG_ENTRY = 'allterrain-forms/entry';
 
-add_action( 'plugins_loaded', 'atf_maybe_init_openstation', 20 );
+add_action( 'plugins_loaded', 'alltfo_maybe_init_openstation', 20 );
 
 /**
  * Wires up the shell integrations, if there is a shell to wire into.
@@ -58,22 +58,22 @@ add_action( 'plugins_loaded', 'atf_maybe_init_openstation', 20 );
  *
  * @return void
  */
-function atf_maybe_init_openstation() {
-	if ( ! atf_shell_has( 'register_window' ) ) {
+function alltfo_maybe_init_openstation() {
+	if ( ! alltfo_shell_has( 'register_window' ) ) {
 		return;
 	}
 
-	add_action( 'init', 'atf_register_shell_surfaces', 20 );
+	add_action( 'init', 'alltfo_register_shell_surfaces', 20 );
 
 	// Registered against both spellings of the hook. Which one fires depends on
 	// the shell's version, and a listener for a hook that never fires costs
 	// nothing -- far less than deciding at boot which shell is present, since
 	// the answer can change between `plugins_loaded` and the hook firing.
-	foreach ( atf_shell_hooks( 'mode_init' ) as $hook ) {
-		add_action( $hook, 'atf_enqueue_in_shell' );
+	foreach ( alltfo_shell_hooks( 'mode_init' ) as $hook ) {
+		add_action( $hook, 'alltfo_enqueue_in_shell' );
 	}
 
-	add_action( 'admin_enqueue_scripts', 'atf_enqueue_shell_styles', 20 );
+	add_action( 'admin_enqueue_scripts', 'alltfo_enqueue_shell_styles', 20 );
 }
 
 /**
@@ -83,23 +83,23 @@ function atf_maybe_init_openstation() {
  *
  * @return void
  */
-function atf_register_shell_surfaces() {
+function alltfo_register_shell_surfaces() {
 	// Either capability is enough to have *something* here: somebody who may
 	// read entries but not build forms still gets the Entries window and its
 	// dock row. Each registration carries its own `capabilities`, so the shell
 	// gates them individually rather than this one check standing in for all
 	// three -- which is what previously denied an entries-only user everything.
-	if ( ! atf_can_edit_forms() && ! atf_can_read_entries() ) {
+	if ( ! alltfo_can_edit_forms() && ! alltfo_can_read_entries() ) {
 		return;
 	}
 
-	$registered = atf_shell_call(
+	$registered = alltfo_shell_call(
 		'register_window',
 		'allterrain-forms',
 		array(
 			'title'        => __( 'AllTerrain Forms', 'allterrain-forms' ),
 			'icon'         => 'dashicons-feedback',
-			'template'     => 'atf_render_builder_template',
+			'template'     => 'alltfo_render_builder_template',
 			'script'       => 'allterrain-forms-builder',
 			'style'        => 'allterrain-forms-builder',
 			'width'        => 1280,
@@ -111,7 +111,7 @@ function atf_register_shell_surfaces() {
 			// three tiles for one plugin is three claims on the same corner of
 			// the user's attention.
 			'placement'    => 'none',
-			'capabilities' => array( 'atf_edit_forms' ),
+			'capabilities' => array( 'alltfo_edit_forms' ),
 		)
 	);
 
@@ -122,13 +122,13 @@ function atf_register_shell_surfaces() {
 	// surfaces that reference the builder by id are skipped.
 	$has_builder = ! is_wp_error( $registered );
 
-	atf_shell_call(
+	alltfo_shell_call(
 		'register_window',
 		'allterrain-forms-entries',
 		array(
 			'title'        => __( 'AllTerrain Forms — Entries', 'allterrain-forms' ),
 			'icon'         => 'dashicons-list-view',
-			'template'     => 'atf_render_entries_template',
+			'template'     => 'alltfo_render_entries_template',
 			'script'       => 'allterrain-forms-entries',
 			'style'        => 'allterrain-forms-builder',
 			'width'        => 1180,
@@ -136,17 +136,17 @@ function atf_register_shell_surfaces() {
 			'min_width'    => 640,
 			'min_height'   => 420,
 			'placement'    => 'none',
-			'capabilities' => array( 'atf_read_entries' ),
+			'capabilities' => array( 'alltfo_read_entries' ),
 		)
 	);
 
-	atf_shell_call(
+	alltfo_shell_call(
 		'register_window',
 		'allterrain-forms-analytics',
 		array(
 			'title'        => __( 'AllTerrain Forms — Analytics', 'allterrain-forms' ),
 			'icon'         => 'dashicons-chart-bar',
-			'template'     => 'atf_render_analytics_template',
+			'template'     => 'alltfo_render_analytics_template',
 			'script'       => 'allterrain-forms-analytics',
 			'style'        => 'allterrain-forms-analytics',
 			'width'        => 1180,
@@ -157,17 +157,17 @@ function atf_register_shell_surfaces() {
 			// Reading a report is reading entries, so this is gated the same way
 			// the entries window is rather than on editing forms. The demo-data
 			// panel inside it is gated separately and more tightly.
-			'capabilities' => array( 'atf_read_entries' ),
+			'capabilities' => array( 'alltfo_read_entries' ),
 		)
 	);
 
-	atf_shell_call(
+	alltfo_shell_call(
 		'register_window',
 		'allterrain-forms-themes',
 		array(
 			'title'        => __( 'AllTerrain Forms — Theme Studio', 'allterrain-forms' ),
 			'icon'         => 'dashicons-art',
-			'template'     => 'atf_render_theme_studio_template',
+			'template'     => 'alltfo_render_theme_studio_template',
 			// The Studio ships inside the builder bundle rather than its own.
 			// It shares the token table, the control renderers and the live
 			// preview with the builder's own theme tab, and a second bundle
@@ -180,17 +180,17 @@ function atf_register_shell_surfaces() {
 			'min_width'    => 680,
 			'min_height'   => 460,
 			'placement'    => 'none',
-			'capabilities' => array( 'atf_edit_forms' ),
+			'capabilities' => array( 'alltfo_edit_forms' ),
 		)
 	);
 
-	atf_shell_call(
+	alltfo_shell_call(
 		'register_window',
 		'allterrain-forms-mailpoet',
 		array(
 			'title'        => __( 'AllTerrain Forms — MailPoet', 'allterrain-forms' ),
 			'icon'         => 'dashicons-email-alt',
-			'template'     => 'atf_render_mailpoet_template',
+			'template'     => 'alltfo_render_mailpoet_template',
 			// Rides the builder bundle for the same reason the Theme Studio
 			// does: it shares the API client and the control helpers, and a
 			// separate bundle for a window opened occasionally would cost more
@@ -202,7 +202,7 @@ function atf_register_shell_surfaces() {
 			'min_width'    => 560,
 			'min_height'   => 440,
 			'placement'    => 'none',
-			'capabilities' => array( 'atf_edit_forms' ),
+			'capabilities' => array( 'alltfo_edit_forms' ),
 		)
 	);
 
@@ -211,12 +211,12 @@ function atf_register_shell_surfaces() {
 	// *script* here is what makes the button paint for a session that was
 	// already open when this plugin was activated -- without it, the button only
 	// appears after a reload, which is exactly when nobody is looking for it.
-	if ( $has_builder && atf_shell_has( 'register_titlebar_button_script' ) ) {
-		atf_shell_call( 'register_titlebar_button_script', 'allterrain-forms-builder' );
+	if ( $has_builder && alltfo_shell_has( 'register_titlebar_button_script' ) ) {
+		alltfo_shell_call( 'register_titlebar_button_script', 'allterrain-forms-builder' );
 	}
 
-	if ( $has_builder && atf_shell_has( 'register_icon' ) ) {
-		atf_shell_call(
+	if ( $has_builder && alltfo_shell_has( 'register_icon' ) ) {
+		alltfo_shell_call(
 			'register_icon',
 			'allterrain-forms',
 			array(
@@ -224,13 +224,13 @@ function atf_register_shell_surfaces() {
 				'icon'         => 'dashicons-feedback',
 				'window'       => 'allterrain-forms',
 				'position'     => 30,
-				'capabilities' => array( 'atf_edit_forms' ),
+				'capabilities' => array( 'alltfo_edit_forms' ),
 			)
 		);
 	}
 
-	if ( atf_shell_has( 'register_widget' ) ) {
-		atf_shell_call(
+	if ( alltfo_shell_has( 'register_widget' ) ) {
+		alltfo_shell_call(
 			'register_widget',
 			'allterrain-forms/recent',
 			array(
@@ -244,12 +244,12 @@ function atf_register_shell_surfaces() {
 				'min_height'     => 200,
 				'default_width'  => 340,
 				'default_height' => 380,
-				'capabilities'   => array( 'atf_read_entries' ),
+				'capabilities'   => array( 'alltfo_read_entries' ),
 			)
 		);
 	}
 
-	if ( atf_shell_has( 'register_command' ) ) {
+	if ( alltfo_shell_has( 'register_command' ) ) {
 		$commands = array(
 			array(
 				'slug'        => 'allterrain-forms',
@@ -275,7 +275,7 @@ function atf_register_shell_surfaces() {
 		);
 
 		foreach ( $commands as $command ) {
-			atf_shell_call( 'register_command', $command );
+			alltfo_shell_call( 'register_command', $command );
 		}
 	}
 }
@@ -292,7 +292,7 @@ function atf_register_shell_surfaces() {
  *
  * @return void
  */
-function atf_render_builder_template() {
+function alltfo_render_builder_template() {
 	?>
 	<div class="atfb" data-atfb-root>
 		<div class="atfb__bar" data-atfb-bar>
@@ -315,7 +315,7 @@ function atf_render_builder_template() {
  *
  * @return void
  */
-function atf_render_entries_template() {
+function alltfo_render_entries_template() {
 	?>
 	<div class="atfe" data-atfe-root>
 		<div class="atfe__bar" data-atfe-bar>
@@ -342,7 +342,7 @@ function atf_render_entries_template() {
  *
  * @return void
  */
-function atf_render_analytics_template() {
+function alltfo_render_analytics_template() {
 	?>
 	<div class="atfa" data-atfa-root>
 		<div class="atfa__bar" data-atfa-bar>
@@ -361,12 +361,12 @@ function atf_render_analytics_template() {
  *
  * @return void
  */
-function atf_render_mailpoet_template() {
+function alltfo_render_mailpoet_template() {
 	?>
 	<div class="atfm" data-atfm-root>
 		<div class="atfm__boot" data-atfm-bar>
 			<span class="atfm__boot-mark">
-				<img src="<?php echo esc_url( atf_mailpoet_symbol_url() ); ?>" alt="" width="34" height="34" />
+				<img src="<?php echo esc_url( alltfo_mailpoet_symbol_url() ); ?>" alt="" width="34" height="34" />
 			</span>
 			<span class="atfm__boot-words"><?php esc_html_e( 'Checking MailPoet…', 'allterrain-forms' ); ?></span>
 		</div>
@@ -382,7 +382,7 @@ function atf_render_mailpoet_template() {
  *
  * @return void
  */
-function atf_render_theme_studio_template() {
+function alltfo_render_theme_studio_template() {
 	?>
 	<div class="atfs" data-atfs-root>
 		<div class="atfs__bar" data-atfs-bar>
@@ -410,8 +410,8 @@ function atf_render_theme_studio_template() {
  *
  * @return void
  */
-function atf_enqueue_in_shell() {
-	if ( ! atf_can_edit_forms() && ! atf_can_read_entries() ) {
+function alltfo_enqueue_in_shell() {
+	if ( ! alltfo_can_edit_forms() && ! alltfo_can_read_entries() ) {
 		return;
 	}
 
@@ -434,12 +434,12 @@ function atf_enqueue_in_shell() {
  *
  * @return void
  */
-function atf_enqueue_shell_styles() {
-	if ( ! atf_shell_is_active() || atf_shell_is_chromeless() ) {
+function alltfo_enqueue_shell_styles() {
+	if ( ! alltfo_shell_is_active() || alltfo_shell_is_chromeless() ) {
 		return;
 	}
 
-	if ( ! atf_can_edit_forms() && ! atf_can_read_entries() ) {
+	if ( ! alltfo_can_edit_forms() && ! alltfo_can_read_entries() ) {
 		return;
 	}
 

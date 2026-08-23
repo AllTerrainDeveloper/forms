@@ -22,8 +22,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'wp_abilities_api_categories_init', 'atf_register_ability_category' );
-add_action( 'wp_abilities_api_init', 'atf_register_abilities' );
+add_action( 'wp_abilities_api_categories_init', 'alltfo_register_ability_category' );
+add_action( 'wp_abilities_api_init', 'alltfo_register_abilities' );
 
 /**
  * Registers the plugin's ability category.
@@ -32,7 +32,7 @@ add_action( 'wp_abilities_api_init', 'atf_register_abilities' );
  *
  * @return void
  */
-function atf_register_ability_category() {
+function alltfo_register_ability_category() {
 	wp_register_ability_category(
 		'allterrain-forms',
 		array(
@@ -54,10 +54,10 @@ function atf_register_ability_category() {
  * @param array $schema The form schema.
  * @return array[]
  */
-function atf_ability_fields( $schema ) {
+function alltfo_ability_fields( $schema ) {
 	$fields = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$distilled = array(
 			'id'       => $field['id'],
 			'type'     => $field['type'],
@@ -95,8 +95,8 @@ function atf_ability_fields( $schema ) {
  * @param WP_Post $post The form post.
  * @return array
  */
-function atf_ability_form( $post ) {
-	$schema = atf_get_form_schema( $post->ID );
+function alltfo_ability_form( $post ) {
+	$schema = alltfo_get_form_schema( $post->ID );
 
 	return array(
 		'id'        => $post->ID,
@@ -104,8 +104,8 @@ function atf_ability_form( $post ) {
 		'status'    => $post->post_status,
 		'theme'     => $schema['settings']['theme'],
 		'shortcode' => sprintf( '[allterrain_form id="%d"]', $post->ID ),
-		'entries'   => atf_count_entries( $post->ID ),
-		'fields'    => atf_ability_fields( $schema ),
+		'entries'   => alltfo_count_entries( $post->ID ),
+		'fields'    => alltfo_ability_fields( $schema ),
 	);
 }
 
@@ -116,19 +116,19 @@ function atf_ability_form( $post ) {
  *
  * @return void
  */
-function atf_register_abilities() {
+function alltfo_register_abilities() {
 	$category = 'allterrain-forms';
 
 	$read_entries = static function () {
-		return atf_can_read_entries();
+		return alltfo_can_read_entries();
 	};
 
 	$edit_forms = static function () {
-		return atf_can_edit_forms();
+		return alltfo_can_edit_forms();
 	};
 
 	$read_anything = static function () {
-		return atf_can_read_entries() || atf_can_edit_forms();
+		return alltfo_can_read_entries() || alltfo_can_edit_forms();
 	};
 
 	wp_register_ability(
@@ -138,7 +138,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Lists every form on the site with its id, title, status, theme, shortcode, entry count and full field list (field ids, types, labels, required flags and choices). Call this first: the ids and field ids it returns are what every other forms ability takes as input.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $read_anything,
-			'execute_callback'    => 'atf_ability_list_forms',
+			'execute_callback'    => 'alltfo_ability_list_forms',
 			'output_schema'       => array(
 				'type'  => 'array',
 				'items' => array( 'type' => 'object' ),
@@ -160,7 +160,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Reads one form: title, status, theme, embed shortcode, entry count, and every question with its field id, type, label, required flag and choices. Use it before submitting to a form or interpreting its entries — values in entries are keyed by these field ids, and choice answers store the choice value, not its label.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $read_anything,
-			'execute_callback'    => 'atf_ability_get_form',
+			'execute_callback'    => 'alltfo_ability_get_form',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -189,7 +189,7 @@ function atf_register_abilities() {
 			'description'         => __( 'The vocabulary for building forms: every registered field type with its slug, label, description, palette group and the shape of value it stores. Read this before create-form so the fields you compose use types that exist.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $edit_forms,
-			'execute_callback'    => 'atf_ability_list_field_types',
+			'execute_callback'    => 'alltfo_ability_list_field_types',
 			'output_schema'       => array(
 				'type'  => 'array',
 				'items' => array( 'type' => 'object' ),
@@ -211,7 +211,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Creates a new form and returns it with its shortcode, ready to paste into any page or post. Pass a title and, optionally, a list of fields — each needs a type (from list-field-types) and a label, and may carry required, hint, placeholder and choices. Field ids are issued automatically; anything unspecified gets a sensible default. Without fields you get the named template (default: blank).', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $edit_forms,
-			'execute_callback'    => 'atf_ability_create_form',
+			'execute_callback'    => 'alltfo_ability_create_form',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -250,7 +250,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Applies one of the installed themes to a form — ten ship built in (clean, midnight, glass, brutal, paper, neon, terminal, soft, editorial, holo) plus any the site has saved. Returns the form with the theme applied. The change is visible wherever the form is embedded, immediately.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $edit_forms,
-			'execute_callback'    => 'atf_ability_set_form_theme',
+			'execute_callback'    => 'alltfo_ability_set_form_theme',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -278,10 +278,10 @@ function atf_register_abilities() {
 		'allterrain-forms/list-entries',
 		array(
 			'label'               => __( 'List entries', 'allterrain-forms' ),
-			'description'         => __( 'Queries a form’s submissions. Each entry returns its answers twice: raw values keyed by field id, and a human-readable line per question with the label resolved — use the readable form for summaries and the raw form for computation. Filter by free-text search, date range (after/before, Y-m-d), status (atf-unread, atf-read, atf-spam) and starred; paginate with page/per_page.', 'allterrain-forms' ),
+			'description'         => __( 'Queries a form’s submissions. Each entry returns its answers twice: raw values keyed by field id, and a human-readable line per question with the label resolved — use the readable form for summaries and the raw form for computation. Filter by free-text search, date range (after/before, Y-m-d), status (alltfo-unread, alltfo-read, alltfo-spam) and starred; paginate with page/per_page.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $read_entries,
-			'execute_callback'    => 'atf_ability_list_entries',
+			'execute_callback'    => 'alltfo_ability_list_entries',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -320,7 +320,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Reads one submission in full: every question with its label, the raw stored value and a formatted human-readable value, plus the submission date and status.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $read_entries,
-			'execute_callback'    => 'atf_ability_get_entry',
+			'execute_callback'    => 'alltfo_ability_get_entry',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -346,7 +346,7 @@ function atf_register_abilities() {
 			'description'         => __( 'Submits answers to a form through the same pipeline a visitor uses: availability, validation, anti-spam, storage, notification emails and confirmations all run. Values are keyed by field id (from get-form); choice fields take the choice value, checkbox groups take an array of them. On validation failure nothing is stored and the per-field errors are returned — fix them and call again.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => '__return_true',
-			'execute_callback'    => 'atf_ability_submit_form',
+			'execute_callback'    => 'alltfo_ability_submit_form',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -377,7 +377,7 @@ function atf_register_abilities() {
 			'description'         => __( 'The analytics for one form as structured data: views, starts, submissions, conversion and completion rates, a 90-day timeline, per-question answer distributions, numeric summaries, and a Net Promoter Score panel where a 0–10 question exists. Pass group_by (a choice field id) to break every question down by how a grouping question was answered. Prefer this over fetching every entry when the job is summarising.', 'allterrain-forms' ),
 			'category'            => $category,
 			'permission_callback' => $read_entries,
-			'execute_callback'    => 'atf_ability_form_report',
+			'execute_callback'    => 'alltfo_ability_form_report',
 			'input_schema'        => array(
 				'type'       => 'object',
 				'properties' => array(
@@ -408,10 +408,10 @@ function atf_register_abilities() {
  *
  * @return array[]
  */
-function atf_ability_list_forms() {
+function alltfo_ability_list_forms() {
 	$posts = get_posts(
 		array(
-			'post_type'        => ATF_FORM_TYPE,
+			'post_type'        => ALLTFO_FORM_TYPE,
 			'post_status'      => array( 'publish', 'draft' ),
 			'numberposts'      => 200,
 			'orderby'          => 'modified',
@@ -420,7 +420,7 @@ function atf_ability_list_forms() {
 		)
 	);
 
-	return array_map( 'atf_ability_form', $posts );
+	return array_map( 'alltfo_ability_form', $posts );
 }
 
 /**
@@ -431,14 +431,14 @@ function atf_ability_list_forms() {
  * @param array $input { form_id: int }.
  * @return array|WP_Error
  */
-function atf_ability_get_form( $input ) {
+function alltfo_ability_get_form( $input ) {
 	$post = get_post( absint( $input['form_id'] ?? 0 ) );
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
 	}
 
-	return atf_ability_form( $post );
+	return alltfo_ability_form( $post );
 }
 
 /**
@@ -448,10 +448,10 @@ function atf_ability_get_form( $input ) {
  *
  * @return array[]
  */
-function atf_ability_list_field_types() {
+function alltfo_ability_list_field_types() {
 	$types = array();
 
-	foreach ( atf_get_field_types() as $slug => $definition ) {
+	foreach ( alltfo_get_field_types() as $slug => $definition ) {
 		$types[] = array(
 			'type'        => $slug,
 			'label'       => $definition['label'],
@@ -477,25 +477,25 @@ function atf_ability_list_field_types() {
  * @param array $input { title: string, template?: string, fields?: array[] }.
  * @return array|WP_Error
  */
-function atf_ability_create_form( $input ) {
+function alltfo_ability_create_form( $input ) {
 	$title    = sanitize_text_field( (string) ( $input['title'] ?? '' ) );
 	$template = sanitize_key( (string) ( $input['template'] ?? '' ) );
 	$fields   = isset( $input['fields'] ) && is_array( $input['fields'] ) ? $input['fields'] : array();
 
-	$form_id = atf_create_form_from_template( '' !== $template ? $template : 'blank', $title );
+	$form_id = alltfo_create_form_from_template( '' !== $template ? $template : 'blank', $title );
 
 	if ( is_wp_error( $form_id ) ) {
 		return $form_id;
 	}
 
 	if ( $fields ) {
-		$schema           = atf_get_form_schema( $form_id );
+		$schema           = alltfo_get_form_schema( $form_id );
 		$schema['fields'] = $fields;
 
-		atf_save_form_schema( $form_id, $schema );
+		alltfo_save_form_schema( $form_id, $schema );
 	}
 
-	return atf_ability_form( get_post( $form_id ) );
+	return alltfo_ability_form( get_post( $form_id ) );
 }
 
 /**
@@ -506,29 +506,29 @@ function atf_ability_create_form( $input ) {
  * @param array $input { form_id: int, theme: string }.
  * @return array|WP_Error
  */
-function atf_ability_set_form_theme( $input ) {
+function alltfo_ability_set_form_theme( $input ) {
 	$post  = get_post( absint( $input['form_id'] ?? 0 ) );
 	$theme = sanitize_key( (string) ( $input['theme'] ?? '' ) );
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
 	}
 
-	// `atf_get_theme()` deliberately never fails — it falls back to Clean so a
+	// `alltfo_get_theme()` deliberately never fails — it falls back to Clean so a
 	// deleted theme cannot break a rendered form. An agent asking for a theme
 	// that does not exist deserves the error, not the fallback.
-	$installed = atf_get_themes();
+	$installed = alltfo_get_themes();
 
 	if ( ! isset( $installed[ $theme ] ) ) {
-		return new WP_Error( 'atf_theme_missing', __( 'That theme is not installed. list-forms shows each form’s current theme; the built-ins are clean, midnight, glass, brutal, paper, neon, terminal, soft, editorial and holo.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_theme_missing', __( 'That theme is not installed. list-forms shows each form’s current theme; the built-ins are clean, midnight, glass, brutal, paper, neon, terminal, soft, editorial and holo.', 'allterrain-forms' ) );
 	}
 
-	$schema                      = atf_get_form_schema( $post->ID );
+	$schema                      = alltfo_get_form_schema( $post->ID );
 	$schema['settings']['theme'] = $theme;
 
-	atf_save_form_schema( $post->ID, $schema );
+	alltfo_save_form_schema( $post->ID, $schema );
 
-	return atf_ability_form( $post );
+	return alltfo_ability_form( $post );
 }
 
 /**
@@ -539,14 +539,14 @@ function atf_ability_set_form_theme( $input ) {
  * @param array $input The query, per the input schema.
  * @return array { entries, total, pages }
  */
-function atf_ability_list_entries( $input ) {
-	return atf_query_entries(
+function alltfo_ability_list_entries( $input ) {
+	return alltfo_query_entries(
 		array(
 			'form_id'  => absint( $input['form_id'] ?? 0 ),
 			'search'   => sanitize_text_field( (string) ( $input['search'] ?? '' ) ),
 			'status'   => isset( $input['status'] ) && is_array( $input['status'] )
 				? array_map( 'sanitize_key', $input['status'] )
-				: array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+				: array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 			'after'    => sanitize_text_field( (string) ( $input['after'] ?? '' ) ),
 			'before'   => sanitize_text_field( (string) ( $input['before'] ?? '' ) ),
 			'starred'  => ! empty( $input['starred'] ),
@@ -564,11 +564,11 @@ function atf_ability_list_entries( $input ) {
  * @param array $input { entry_id: int }.
  * @return array|WP_Error
  */
-function atf_ability_get_entry( $input ) {
-	$entry = atf_prepare_entry( absint( $input['entry_id'] ?? 0 ) );
+function alltfo_ability_get_entry( $input ) {
+	$entry = alltfo_prepare_entry( absint( $input['entry_id'] ?? 0 ) );
 
 	if ( ! $entry ) {
-		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist, or you cannot read it.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_entry_missing', __( 'That entry does not exist, or you cannot read it.', 'allterrain-forms' ) );
 	}
 
 	return $entry;
@@ -590,18 +590,18 @@ function atf_ability_get_entry( $input ) {
  * @param array $input { form_id: int, values: array }.
  * @return array|WP_Error { success, message, entry_id, errors }
  */
-function atf_ability_submit_form( $input ) {
+function alltfo_ability_submit_form( $input ) {
 	$form_id = absint( $input['form_id'] ?? 0 );
 	$values  = isset( $input['values'] ) && is_array( $input['values'] ) ? $input['values'] : array();
 	$issued  = time() - MINUTE_IN_SECONDS;
 
-	$result = atf_process_submission(
+	$result = alltfo_process_submission(
 		$form_id,
 		array(
 			'atf'         => $values,
-			'atf_form_id' => $form_id,
-			'atf_t'       => $issued,
-			'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+			'alltfo_form_id' => $form_id,
+			'alltfo_t'       => $issued,
+			'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 		)
 	);
 
@@ -621,12 +621,12 @@ function atf_ability_submit_form( $input ) {
  * @param array $input { form_id: int, group_by?: string }.
  * @return array|WP_Error
  */
-function atf_ability_form_report( $input ) {
+function alltfo_ability_form_report( $input ) {
 	$post = get_post( absint( $input['form_id'] ?? 0 ) );
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ) );
 	}
 
-	return atf_form_analytics( $post->ID, sanitize_text_field( (string) ( $input['group_by'] ?? '' ) ) );
+	return alltfo_form_analytics( $post->ID, sanitize_text_field( (string) ( $input['group_by'] ?? '' ) ) );
 }

@@ -11,22 +11,22 @@
  * @package AllTerrain_Forms
  */
 
-$atf_tests_dir = getenv( 'WP_TESTS_DIR' );
+$alltfo_tests_dir = getenv( 'WP_TESTS_DIR' );
 
-if ( ! $atf_tests_dir ) {
-	$atf_tests_dir = rtrim( sys_get_temp_dir(), '/\\' ) . '/wordpress-tests-lib';
+if ( ! $alltfo_tests_dir ) {
+	$alltfo_tests_dir = rtrim( sys_get_temp_dir(), '/\\' ) . '/wordpress-tests-lib';
 }
 
-if ( ! file_exists( $atf_tests_dir . '/includes/functions.php' ) ) {
+if ( ! file_exists( $alltfo_tests_dir . '/includes/functions.php' ) ) {
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI output, and this runs before WordPress is loaded, so esc_html() does not exist yet.
-	echo "Could not find the WordPress test library at {$atf_tests_dir}.\n";
+	echo "Could not find the WordPress test library at {$alltfo_tests_dir}.\n";
 	echo "Set WP_TESTS_DIR, or install it with:\n";
 	echo "  bin/install-wp-tests.sh wordpress_test root '' localhost latest\n";
 
 	exit( 1 );
 }
 
-require_once $atf_tests_dir . '/includes/functions.php';
+require_once $alltfo_tests_dir . '/includes/functions.php';
 
 /**
  * Loads the plugin before WordPress finishes booting.
@@ -41,7 +41,7 @@ tests_add_filter(
 	}
 );
 
-require $atf_tests_dir . '/includes/bootstrap.php';
+require $alltfo_tests_dir . '/includes/bootstrap.php';
 
 /**
  * Reads a shared conformance fixture.
@@ -53,7 +53,7 @@ require $atf_tests_dir . '/includes/bootstrap.php';
  * @return array The decoded fixture.
  * @throws RuntimeException When the fixture is missing or does not decode.
  */
-function atf_test_fixture( $name ) {
+function alltfo_test_fixture( $name ) {
 	$path = dirname( __DIR__ ) . '/fixtures/' . $name . '.json';
 
 	if ( ! file_exists( $path ) ) {
@@ -78,16 +78,16 @@ function atf_test_fixture( $name ) {
  * @param string $title  The form's title.
  * @return int The form id.
  */
-function atf_test_form( $schema = array(), $title = 'Test form' ) {
+function alltfo_test_form( $schema = array(), $title = 'Test form' ) {
 	$form_id = wp_insert_post(
 		array(
-			'post_type'   => ATF_FORM_TYPE,
+			'post_type'   => ALLTFO_FORM_TYPE,
 			'post_title'  => $title,
 			'post_status' => 'publish',
 		)
 	);
 
-	atf_save_form_schema( $form_id, $schema );
+	alltfo_save_form_schema( $form_id, $schema );
 
 	return $form_id;
 }

@@ -5,7 +5,7 @@
  * One evaluator, used for everything that can be conditional: whether a field is
  * shown, whether a notification is sent, whether a confirmation is chosen,
  * whether a post-submit action runs. They all carry the same logic shape, so
- * they all come through `atf_logic_passes()`.
+ * they all come through `alltfo_logic_passes()`.
  *
  * **This file has a twin in `src/shared/logic.ts` and the two must agree.** The
  * browser hides and shows fields as the visitor types; the server decides which
@@ -15,7 +15,7 @@
  * `tests/vitest/logic.test.ts` run the same table of cases against both.
  *
  * The server is the authority. The browser's copy is a convenience that must
- * never be trusted: `atf_visible_fields()` recomputes visibility from the
+ * never be trusted: `alltfo_visible_fields()` recomputes visibility from the
  * submitted values, and validation only ever runs against that.
  *
  * @package AllTerrain_Forms
@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  * @param array $schema The form schema, for choice lookups.
  * @return bool True when the conditions are met. A disabled block is always true.
  */
-function atf_logic_conditions_met( $logic, $values, $schema = array() ) {
+function alltfo_logic_conditions_met( $logic, $values, $schema = array() ) {
 	if ( empty( $logic['enabled'] ) || empty( $logic['rules'] ) ) {
 		return true;
 	}
@@ -47,7 +47,7 @@ function atf_logic_conditions_met( $logic, $values, $schema = array() ) {
 	foreach ( $logic['rules'] as $rule ) {
 		$field_id = isset( $rule['field'] ) ? $rule['field'] : '';
 		$value    = array_key_exists( $field_id, $values ) ? $values[ $field_id ] : null;
-		$passed   = atf_logic_rule_passes( $rule, $value, $schema );
+		$passed   = alltfo_logic_rule_passes( $rule, $value, $schema );
 
 		if ( 'any' === $match && $passed ) {
 			return true;
@@ -73,12 +73,12 @@ function atf_logic_conditions_met( $logic, $values, $schema = array() ) {
  * @param array $schema The form schema.
  * @return bool
  */
-function atf_logic_passes( $logic, $values, $schema = array() ) {
+function alltfo_logic_passes( $logic, $values, $schema = array() ) {
 	if ( empty( $logic['enabled'] ) ) {
 		return true;
 	}
 
-	$met = atf_logic_conditions_met( $logic, $values, $schema );
+	$met = alltfo_logic_conditions_met( $logic, $values, $schema );
 
 	return ( isset( $logic['action'] ) && 'hide' === $logic['action'] ) ? ! $met : $met;
 }
@@ -100,7 +100,7 @@ function atf_logic_passes( $logic, $values, $schema = array() ) {
  * @param array $schema The form schema.
  * @return bool
  */
-function atf_logic_rule_passes( $rule, $value, $schema = array() ) {
+function alltfo_logic_rule_passes( $rule, $value, $schema = array() ) {
 	$operator = isset( $rule['operator'] ) ? $rule['operator'] : 'is';
 	$expected = isset( $rule['value'] ) ? (string) $rule['value'] : '';
 
@@ -132,7 +132,7 @@ function atf_logic_rule_passes( $rule, $value, $schema = array() ) {
 		// of them at once.
 		if ( 'is_not' === $operator || 'not_contains' === $operator ) {
 			foreach ( $value as $item ) {
-				if ( ! atf_logic_compare( $operator, $item, $expected ) ) {
+				if ( ! alltfo_logic_compare( $operator, $item, $expected ) ) {
 					return false;
 				}
 			}
@@ -141,7 +141,7 @@ function atf_logic_rule_passes( $rule, $value, $schema = array() ) {
 		}
 
 		foreach ( $value as $item ) {
-			if ( atf_logic_compare( $operator, $item, $expected ) ) {
+			if ( alltfo_logic_compare( $operator, $item, $expected ) ) {
 				return true;
 			}
 		}
@@ -149,7 +149,7 @@ function atf_logic_rule_passes( $rule, $value, $schema = array() ) {
 		return false;
 	}
 
-	return atf_logic_compare( $operator, $value, $expected );
+	return alltfo_logic_compare( $operator, $value, $expected );
 }
 
 /**
@@ -157,12 +157,12 @@ function atf_logic_rule_passes( $rule, $value, $schema = array() ) {
  *
  * @since 0.1.0
  *
- * @param string $operator One of the operators `atf_normalize_operator()` allows.
+ * @param string $operator One of the operators `alltfo_normalize_operator()` allows.
  * @param mixed  $actual   The submitted value.
  * @param string $expected The rule's value.
  * @return bool
  */
-function atf_logic_compare( $operator, $actual, $expected ) {
+function alltfo_logic_compare( $operator, $actual, $expected ) {
 	// A boolean field's value reads as "1" or "" to a rule, because that is what
 	// a checkbox posts and what somebody writing the rule will have typed.
 	if ( is_bool( $actual ) ) {
@@ -248,7 +248,7 @@ function atf_logic_compare( $operator, $actual, $expected ) {
  * @param array $values Field id => submitted value.
  * @return array<string, bool> Field id => visible.
  */
-function atf_visible_fields( $schema, $values ) {
+function alltfo_visible_fields( $schema, $values ) {
 	$fields  = isset( $schema['fields'] ) ? $schema['fields'] : array();
 	$visible = array();
 
@@ -274,7 +274,7 @@ function atf_visible_fields( $schema, $values ) {
 
 		foreach ( $fields as $field ) {
 			$id       = $field['id'];
-			$expected = atf_logic_passes( $field['logic'], $effective, $schema );
+			$expected = alltfo_logic_passes( $field['logic'], $effective, $schema );
 
 			if ( $expected !== $visible[ $id ] ) {
 				$visible[ $id ] = $expected;
@@ -296,7 +296,7 @@ function atf_visible_fields( $schema, $values ) {
 	 * @param array               $schema  The form schema.
 	 * @param array               $values  Submitted values.
 	 */
-	return apply_filters( 'atf_visible_fields', $visible, $schema, $values );
+	return apply_filters( 'alltfo_visible_fields', $visible, $schema, $values );
 }
 
 /**
@@ -309,8 +309,8 @@ function atf_visible_fields( $schema, $values ) {
  * @param array  $values   Submitted values.
  * @return bool
  */
-function atf_field_is_visible( $schema, $field_id, $values ) {
-	$visible = atf_visible_fields( $schema, $values );
+function alltfo_field_is_visible( $schema, $field_id, $values ) {
+	$visible = alltfo_visible_fields( $schema, $values );
 
 	return ! isset( $visible[ $field_id ] ) || $visible[ $field_id ];
 }

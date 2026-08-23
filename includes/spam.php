@@ -33,14 +33,14 @@ defined( 'ABSPATH' ) || exit;
  * @param array $request The raw request, for the honeypot and timing fields.
  * @return array { spam: bool, reason: string }
  */
-function atf_screen_for_spam( $schema, $values, $request ) {
+function alltfo_screen_for_spam( $schema, $values, $request ) {
 	$settings = $schema['settings']['spam'];
 	$verdict  = array(
 		'spam'   => false,
 		'reason' => '',
 	);
 
-	if ( ! empty( $settings['honeypot'] ) && ! empty( $request['atf_website'] ) ) {
+	if ( ! empty( $settings['honeypot'] ) && ! empty( $request['alltfo_website'] ) ) {
 		$verdict = array(
 			'spam'   => true,
 			'reason' => 'honeypot',
@@ -48,7 +48,7 @@ function atf_screen_for_spam( $schema, $values, $request ) {
 	}
 
 	if ( ! $verdict['spam'] && $settings['timeTrap'] > 0 ) {
-		$elapsed = atf_submission_elapsed( $request );
+		$elapsed = alltfo_submission_elapsed( $request );
 
 		// A negative or absent elapsed time means the timestamp was missing or
 		// its signature did not match -- which is what a script that posts a
@@ -61,7 +61,7 @@ function atf_screen_for_spam( $schema, $values, $request ) {
 		}
 	}
 
-	if ( ! $verdict['spam'] && $settings['rateLimit'] > 0 && atf_rate_limit_exceeded( $schema, $settings['rateLimit'] ) ) {
+	if ( ! $verdict['spam'] && $settings['rateLimit'] > 0 && alltfo_rate_limit_exceeded( $schema, $settings['rateLimit'] ) ) {
 		$verdict = array(
 			'spam'   => true,
 			'reason' => 'rate_limit',
@@ -69,7 +69,7 @@ function atf_screen_for_spam( $schema, $values, $request ) {
 	}
 
 	if ( ! $verdict['spam'] && '' !== trim( (string) $settings['blocklist'] ) ) {
-		$hit = atf_blocklist_hit( $settings['blocklist'], $values );
+		$hit = alltfo_blocklist_hit( $settings['blocklist'], $values );
 
 		if ( $hit ) {
 			$verdict = array(
@@ -79,15 +79,15 @@ function atf_screen_for_spam( $schema, $values, $request ) {
 		}
 	}
 
-	if ( ! $verdict['spam'] && ! empty( $settings['challenge'] ) && ! atf_challenge_answered( $request ) ) {
+	if ( ! $verdict['spam'] && ! empty( $settings['challenge'] ) && ! alltfo_challenge_answered( $request ) ) {
 		$verdict = array(
 			'spam'   => true,
 			'reason' => 'challenge',
 		);
 	}
 
-	if ( ! $verdict['spam'] && ! empty( $settings['akismet'] ) && atf_akismet_available() ) {
-		if ( atf_akismet_says_spam( $schema, $values ) ) {
+	if ( ! $verdict['spam'] && ! empty( $settings['akismet'] ) && alltfo_akismet_available() ) {
+		if ( alltfo_akismet_says_spam( $schema, $values ) ) {
 			$verdict = array(
 				'spam'   => true,
 				'reason' => 'akismet',
@@ -109,7 +109,7 @@ function atf_screen_for_spam( $schema, $values, $request ) {
 	 * @param array $values  The submitted values.
 	 * @param array $request The raw request.
 	 */
-	return apply_filters( 'atf_spam_verdict', $verdict, $schema, $values, $request );
+	return apply_filters( 'alltfo_spam_verdict', $verdict, $schema, $values, $request );
 }
 
 /**
@@ -131,7 +131,7 @@ function atf_screen_for_spam( $schema, $values, $request ) {
  * @param int $form_id The form, so a signature cannot be replayed on another.
  * @return array { question: string, answer: int, signature: string }
  */
-function atf_make_challenge( $form_id ) {
+function alltfo_make_challenge( $form_id ) {
 	// Single digits, and addition only. The question is a spam check, not an
 	// arithmetic exam -- anything harder starts excluding people, which is the
 	// exact failure captchas are guilty of.
@@ -148,7 +148,7 @@ function atf_make_challenge( $form_id ) {
 			$right
 		),
 		'answer'    => $answer,
-		'signature' => atf_sign_challenge( $form_id, $answer ),
+		'signature' => alltfo_sign_challenge( $form_id, $answer ),
 	);
 }
 
@@ -169,7 +169,7 @@ function atf_make_challenge( $form_id ) {
  *                        produces it. Defaults to the current hour.
  * @return string
  */
-function atf_sign_challenge( $form_id, $answer, $bucket = '' ) {
+function alltfo_sign_challenge( $form_id, $answer, $bucket = '' ) {
 	if ( '' === $bucket ) {
 		$bucket = gmdate( 'YmdH' );
 	}
@@ -185,10 +185,10 @@ function atf_sign_challenge( $form_id, $answer, $bucket = '' ) {
  * @param array $request The raw request.
  * @return bool
  */
-function atf_challenge_answered( $request ) {
-	$given     = isset( $request['atf_challenge'] ) ? trim( (string) $request['atf_challenge'] ) : '';
-	$signature = isset( $request['atf_challenge_sig'] ) ? (string) $request['atf_challenge_sig'] : '';
-	$form_id   = isset( $request['atf_form_id'] ) ? absint( $request['atf_form_id'] ) : 0;
+function alltfo_challenge_answered( $request ) {
+	$given     = isset( $request['alltfo_challenge'] ) ? trim( (string) $request['alltfo_challenge'] ) : '';
+	$signature = isset( $request['alltfo_challenge_sig'] ) ? (string) $request['alltfo_challenge_sig'] : '';
+	$form_id   = isset( $request['alltfo_form_id'] ) ? absint( $request['alltfo_form_id'] ) : 0;
 
 	if ( '' === $given || '' === $signature || ! is_numeric( $given ) ) {
 		return false;
@@ -202,7 +202,7 @@ function atf_challenge_answered( $request ) {
 	$buckets = array( gmdate( 'YmdH' ), gmdate( 'YmdH', time() - HOUR_IN_SECONDS ) );
 
 	foreach ( $buckets as $bucket ) {
-		if ( hash_equals( atf_sign_challenge( $form_id, (int) $given, $bucket ), $signature ) ) {
+		if ( hash_equals( alltfo_sign_challenge( $form_id, (int) $given, $bucket ), $signature ) ) {
 			return true;
 		}
 	}
@@ -222,20 +222,20 @@ function atf_challenge_answered( $request ) {
  * @param int   $form_id The form.
  * @return string
  */
-function atf_render_challenge( $schema, $form_id ) {
+function alltfo_render_challenge( $schema, $form_id ) {
 	if ( empty( $schema['settings']['spam']['challenge'] ) ) {
 		return '';
 	}
 
-	$challenge = atf_make_challenge( $form_id );
+	$challenge = alltfo_make_challenge( $form_id );
 	$id        = 'atf-challenge-' . $form_id;
 
 	return sprintf(
 		'<div class="atf-field atf-field--full atf-challenge">'
 		. '<label class="atf-label" for="%1$s">%2$s<span class="atf-required" aria-hidden="true">*</span></label>'
-		. '<input type="text" class="atf-input" id="%1$s" name="atf_challenge" inputmode="numeric"'
+		. '<input type="text" class="atf-input" id="%1$s" name="alltfo_challenge" inputmode="numeric"'
 		. ' autocomplete="off" required aria-required="true">'
-		. '<input type="hidden" name="atf_challenge_sig" value="%3$s">'
+		. '<input type="hidden" name="alltfo_challenge_sig" value="%3$s">'
 		. '</div>',
 		esc_attr( $id ),
 		esc_html( $challenge['question'] ),
@@ -254,16 +254,16 @@ function atf_render_challenge( $schema, $form_id ) {
  * @param array $request The raw request.
  * @return int|null Seconds, or null when the timestamp is missing or forged.
  */
-function atf_submission_elapsed( $request ) {
-	$issued    = isset( $request['atf_t'] ) ? absint( $request['atf_t'] ) : 0;
-	$signature = isset( $request['atf_ts'] ) ? (string) $request['atf_ts'] : '';
-	$form_id   = isset( $request['atf_form_id'] ) ? absint( $request['atf_form_id'] ) : 0;
+function alltfo_submission_elapsed( $request ) {
+	$issued    = isset( $request['alltfo_t'] ) ? absint( $request['alltfo_t'] ) : 0;
+	$signature = isset( $request['alltfo_ts'] ) ? (string) $request['alltfo_ts'] : '';
+	$form_id   = isset( $request['alltfo_form_id'] ) ? absint( $request['alltfo_form_id'] ) : 0;
 
 	if ( ! $issued || '' === $signature ) {
 		return null;
 	}
 
-	if ( ! hash_equals( atf_sign_timestamp( $form_id, $issued ), $signature ) ) {
+	if ( ! hash_equals( alltfo_sign_timestamp( $form_id, $issued ), $signature ) ) {
 		return null;
 	}
 
@@ -283,8 +283,8 @@ function atf_submission_elapsed( $request ) {
  * @param int   $limit  Submissions allowed per hour.
  * @return bool
  */
-function atf_rate_limit_exceeded( $schema, $limit ) {
-	return atf_hit_rate_limit( 'submit', $limit );
+function alltfo_rate_limit_exceeded( $schema, $limit ) {
+	return alltfo_hit_rate_limit( 'submit', $limit );
 }
 
 /**
@@ -304,8 +304,8 @@ function atf_rate_limit_exceeded( $schema, $limit ) {
  * @return bool Whether the limit was already reached. Counting the hit and
  *              answering in one step, so a caller cannot forget to increment.
  */
-function atf_hit_rate_limit( $bucket, $limit ) {
-	$ip = atf_client_ip();
+function alltfo_hit_rate_limit( $bucket, $limit ) {
+	$ip = alltfo_client_ip();
 
 	if ( '' === $ip ) {
 		return false;
@@ -318,7 +318,7 @@ function atf_hit_rate_limit( $bucket, $limit ) {
 		return false;
 	}
 
-	$key   = 'atf_rl_' . md5( $bucket . '|' . $ip . '|' . gmdate( 'YmdH' ) );
+	$key   = 'alltfo_rl_' . md5( $bucket . '|' . $ip . '|' . gmdate( 'YmdH' ) );
 	$count = (int) get_transient( $key );
 
 	if ( $count >= $limit ) {
@@ -343,14 +343,14 @@ function atf_hit_rate_limit( $bucket, $limit ) {
  * @param array  $values    The submitted values.
  * @return bool
  */
-function atf_blocklist_hit( $blocklist, $values ) {
+function alltfo_blocklist_hit( $blocklist, $values ) {
 	$terms = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', $blocklist ) ) );
 
 	if ( ! $terms ) {
 		return false;
 	}
 
-	$haystack = strtolower( atf_flatten_values( $values ) );
+	$haystack = strtolower( alltfo_flatten_values( $values ) );
 
 	foreach ( $terms as $term ) {
 		if ( '' !== $term && false !== strpos( $haystack, strtolower( $term ) ) ) {
@@ -369,7 +369,7 @@ function atf_blocklist_hit( $blocklist, $values ) {
  * @param mixed $values The values.
  * @return string
  */
-function atf_flatten_values( $values ) {
+function alltfo_flatten_values( $values ) {
 	if ( is_scalar( $values ) ) {
 		return (string) $values;
 	}
@@ -381,7 +381,7 @@ function atf_flatten_values( $values ) {
 	$parts = array();
 
 	foreach ( $values as $value ) {
-		$parts[] = atf_flatten_values( $value );
+		$parts[] = alltfo_flatten_values( $value );
 	}
 
 	return implode( ' ', $parts );
@@ -394,7 +394,7 @@ function atf_flatten_values( $values ) {
  *
  * @return bool
  */
-function atf_akismet_available() {
+function alltfo_akismet_available() {
 	return class_exists( 'Akismet' ) && method_exists( 'Akismet', 'get_api_key' ) && Akismet::get_api_key();
 }
 
@@ -411,8 +411,8 @@ function atf_akismet_available() {
  * @param array $values The submitted values.
  * @return bool
  */
-function atf_akismet_says_spam( $schema, $values ) {
-	if ( ! atf_akismet_available() ) {
+function alltfo_akismet_says_spam( $schema, $values ) {
+	if ( ! alltfo_akismet_available() ) {
 		return false;
 	}
 
@@ -422,7 +422,7 @@ function atf_akismet_says_spam( $schema, $values ) {
 	// Akismet's accuracy depends heavily on being given the author and their
 	// e-mail, so the first name-ish and the first e-mail field are found rather
 	// than requiring the form's builder to nominate them.
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$value = isset( $values[ $field['id'] ] ) ? $values[ $field['id'] ] : '';
 
 		if ( '' === $email && 'email' === $field['type'] && is_string( $value ) ) {
@@ -444,13 +444,13 @@ function atf_akismet_says_spam( $schema, $values ) {
 
 	$request = array(
 		'blog'                 => get_option( 'home' ),
-		'user_ip'              => atf_client_ip(),
+		'user_ip'              => alltfo_client_ip(),
 		'user_agent'           => isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '',
 		'referrer'             => isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '',
 		'comment_type'         => 'contact-form',
 		'comment_author'       => $author,
 		'comment_author_email' => $email,
-		'comment_content'      => atf_flatten_values( $values ),
+		'comment_content'      => alltfo_flatten_values( $values ),
 		'blog_lang'            => get_locale(),
 		'blog_charset'         => get_option( 'blog_charset' ),
 	);
@@ -473,13 +473,13 @@ function atf_akismet_says_spam( $schema, $values ) {
  * @param string $verdict  `spam` or `ham`.
  * @return void
  */
-function atf_akismet_submit_correction( $entry_id, $verdict ) {
-	if ( ! atf_akismet_available() ) {
+function alltfo_akismet_submit_correction( $entry_id, $verdict ) {
+	if ( ! alltfo_akismet_available() ) {
 		return;
 	}
 
-	$context = json_decode( (string) get_post_meta( $entry_id, ATF_META_CONTEXT, true ), true );
-	$values  = json_decode( (string) get_post_meta( $entry_id, ATF_META_VALUES, true ), true );
+	$context = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_CONTEXT, true ), true );
+	$values  = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_VALUES, true ), true );
 
 	if ( ! is_array( $context ) || ! is_array( $values ) ) {
 		return;
@@ -490,7 +490,7 @@ function atf_akismet_submit_correction( $entry_id, $verdict ) {
 		'user_ip'         => isset( $context['ip'] ) ? $context['ip'] : '',
 		'user_agent'      => isset( $context['userAgent'] ) ? $context['userAgent'] : '',
 		'comment_type'    => 'contact-form',
-		'comment_content' => atf_flatten_values( $values ),
+		'comment_content' => alltfo_flatten_values( $values ),
 	);
 
 	Akismet::http_post( build_query( $request ), 'spam' === $verdict ? 'submit-spam' : 'submit-ham' );

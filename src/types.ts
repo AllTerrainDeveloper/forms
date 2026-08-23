@@ -2,8 +2,8 @@
  * The wire shapes.
  *
  * Each interface here is the TypeScript twin of a PHP structure: `FormSchema`
- * mirrors `atf_normalize_schema()`, `Field` mirrors `atf_normalize_field()`,
- * `Entry` mirrors `atf_prepare_entry()`. When one changes the other has to, and
+ * mirrors `alltfo_normalize_schema()`, `Field` mirrors `alltfo_normalize_field()`,
+ * `Entry` mirrors `alltfo_prepare_entry()`. When one changes the other has to, and
  * the PHPUnit suite asserts the PHP side's keys so the pair cannot drift
  * silently.
  */

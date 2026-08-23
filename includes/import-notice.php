@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  * Per user rather than per site: one administrator dismissing it must not
  * decide for the next, who may be the person who actually built those forms.
  */
-define( 'ATF_IMPORT_NOTICE_META', 'atf_import_notice_dismissed' );
+define( 'ALLTFO_IMPORT_NOTICE_META', 'alltfo_import_notice_dismissed' );
 
 /**
  * Option set the first time anything is imported, from anywhere.
@@ -37,7 +37,7 @@ define( 'ATF_IMPORT_NOTICE_META', 'atf_import_notice_dismissed' );
  * feature has been used once. Somebody with more to bring over knows where the
  * Import page is by then, because they have just been on it.
  */
-define( 'ATF_IMPORTED_OPTION', 'atf_has_imported' );
+define( 'ALLTFO_IMPORTED_OPTION', 'alltfo_has_imported' );
 
 /**
  * Remembers that this site has imported something.
@@ -46,10 +46,10 @@ define( 'ATF_IMPORTED_OPTION', 'atf_has_imported' );
  *
  * @return void
  */
-function atf_remember_import() {
-	update_option( ATF_IMPORTED_OPTION, '1', false );
+function alltfo_remember_import() {
+	update_option( ALLTFO_IMPORTED_OPTION, '1', false );
 }
-add_action( 'atf_form_imported', 'atf_remember_import' );
+add_action( 'alltfo_form_imported', 'alltfo_remember_import' );
 
 /**
  * Whether the current screen is one this notice may appear on.
@@ -58,7 +58,7 @@ add_action( 'atf_form_imported', 'atf_remember_import' );
  *
  * @return bool
  */
-function atf_import_notice_screen() {
+function alltfo_import_notice_screen() {
 	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 
 	// Where an activation lands, and therefore where the offer is worth the
@@ -87,16 +87,16 @@ function atf_import_notice_screen() {
  *
  * @return bool
  */
-function atf_should_show_import_notice() {
-	if ( ! atf_can_edit_forms() ) {
+function alltfo_should_show_import_notice() {
+	if ( ! alltfo_can_edit_forms() ) {
 		return false;
 	}
 
-	if ( get_option( ATF_IMPORTED_OPTION ) ) {
+	if ( get_option( ALLTFO_IMPORTED_OPTION ) ) {
 		return false;
 	}
 
-	if ( get_user_meta( get_current_user_id(), ATF_IMPORT_NOTICE_META, true ) ) {
+	if ( get_user_meta( get_current_user_id(), ALLTFO_IMPORT_NOTICE_META, true ) ) {
 		return false;
 	}
 
@@ -110,11 +110,11 @@ function atf_should_show_import_notice() {
 	 *
 	 * @param bool $show Whether to show it.
 	 */
-	if ( ! apply_filters( 'atf_show_import_notice', true ) ) {
+	if ( ! apply_filters( 'alltfo_show_import_notice', true ) ) {
 		return false;
 	}
 
-	return atf_importable_count() > 0;
+	return alltfo_importable_count() > 0;
 }
 
 /**
@@ -124,13 +124,13 @@ function atf_should_show_import_notice() {
  *
  * @return void
  */
-function atf_render_import_notice() {
-	if ( ! atf_import_notice_screen() || ! atf_should_show_import_notice() ) {
+function alltfo_render_import_notice() {
+	if ( ! alltfo_import_notice_screen() || ! alltfo_should_show_import_notice() ) {
 		return;
 	}
 
-	$total   = atf_importable_count();
-	$sources = atf_importable_forms();
+	$total   = alltfo_importable_count();
+	$sources = alltfo_importable_forms();
 
 	// One source names itself; several are counted out, because "4 forms in
 	// other plugins" leaves somebody wondering which, and the answer is the
@@ -188,14 +188,14 @@ function atf_render_import_notice() {
 		// The whole job, in one button.
 		sprintf(
 			'<form method="post" action="%1$s" style="display: inline;">
-				<input type="hidden" name="action" value="atf_import_form" />
+				<input type="hidden" name="action" value="alltfo_import_form" />
 				<input type="hidden" name="importer" value="all" />
 				<input type="hidden" name="source" value="" />
 				%2$s
 				<button type="submit" class="button button-primary">%3$s</button>
 			</form> ',
 			esc_url( admin_url( 'admin-post.php' ) ),
-			wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			wp_nonce_field( 'alltfo-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 			esc_html(
 				sprintf(
 					/* translators: %d: how many forms would be imported. */
@@ -213,17 +213,17 @@ function atf_render_import_notice() {
 		// the moment the page reloads.
 		sprintf(
 			'<form method="post" action="%1$s" style="display: inline;">
-				<input type="hidden" name="action" value="atf_dismiss_import_notice" />
+				<input type="hidden" name="action" value="alltfo_dismiss_import_notice" />
 				%2$s
 				<button type="submit" class="button-link">%3$s</button>
 			</form>',
 			esc_url( admin_url( 'admin-post.php' ) ),
-			wp_nonce_field( 'atf-dismiss-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			wp_nonce_field( 'alltfo-dismiss-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 			esc_html__( 'Not now', 'allterrain-forms' )
 		)
 	);
 }
-add_action( 'admin_notices', 'atf_render_import_notice' );
+add_action( 'admin_notices', 'alltfo_render_import_notice' );
 
 /**
  * Remembers that this user does not want to be asked again.
@@ -232,12 +232,12 @@ add_action( 'admin_notices', 'atf_render_import_notice' );
  *
  * @return void
  */
-function atf_handle_dismiss_import_notice() {
-	check_admin_referer( 'atf-dismiss-import', '_atf_nonce' );
+function alltfo_handle_dismiss_import_notice() {
+	check_admin_referer( 'alltfo-dismiss-import', '_alltfo_nonce' );
 
-	update_user_meta( get_current_user_id(), ATF_IMPORT_NOTICE_META, '1' );
+	update_user_meta( get_current_user_id(), ALLTFO_IMPORT_NOTICE_META, '1' );
 
 	wp_safe_redirect( wp_get_referer() ? wp_get_referer() : admin_url() );
 	exit;
 }
-add_action( 'admin_post_atf_dismiss_import_notice', 'atf_handle_dismiss_import_notice' );
+add_action( 'admin_post_alltfo_dismiss_import_notice', 'alltfo_handle_dismiss_import_notice' );

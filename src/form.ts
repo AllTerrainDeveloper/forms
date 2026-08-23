@@ -1033,7 +1033,7 @@ class AllTerrainForm {
 		panel.scrollIntoView( { behavior: 'smooth', block: 'center' } );
 
 		document.dispatchEvent(
-			new CustomEvent( 'atf-submitted', {
+			new CustomEvent( 'alltfo-submitted', {
 				detail: { formId: Number( this.form.dataset.atfForm ), entryId: result.entry_id },
 				bubbles: true,
 			} )
@@ -1455,6 +1455,6 @@ if ( document.readyState === 'loading' ) {
 // Forms can arrive after first paint — a block editor preview, an AJAX-loaded
 // page, a modal. Re-booting on this event lets those enhance too, and the
 // per-form guard makes it idempotent.
-document.addEventListener( 'atf-refresh', boot );
+document.addEventListener( 'alltfo-refresh', boot );
 
 export { AllTerrainForm, boot };

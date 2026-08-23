@@ -20,7 +20,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Render extends WP_UnitTestCase {
+class ALLTFO_Test_Render extends WP_UnitTestCase {
 
 	/**
 	 * Renders a one-field form of a given type.
@@ -29,7 +29,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * @return string The rendered HTML.
 	 */
 	private function render_field( $field ) {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array_merge(
@@ -43,13 +43,13 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		return atf_render_form( $form_id );
+		return alltfo_render_form( $form_id );
 	}
 
 	/**
 	 * The form posts, with a method and an action.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_form_is_a_real_form() {
 		$html = $this->render_field( array( 'type' => 'text' ) );
@@ -64,7 +64,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * Every input carries a name the server reads.
 	 *
 	 * @dataProvider data_input_types
-	 * @covers ::atf_render_field_control
+	 * @covers ::alltfo_render_field_control
 	 *
 	 * @param string $type A field type that produces a value.
 	 */
@@ -72,7 +72,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 		$html = $this->render_field( array( 'type' => $type ) );
 
 		$this->assertMatchesRegularExpression(
-			'/name="atf(_file_f1|\[f1\])/',
+			'/name="(alltfo_file_f1|atf\[f1\])/',
 			$html,
 			sprintf( 'A %s field must post under a name the server reads.', $type )
 		);
@@ -86,7 +86,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	public function data_input_types() {
 		$cases = array();
 
-		foreach ( atf_get_field_types() as $slug => $definition ) {
+		foreach ( alltfo_get_field_types() as $slug => $definition ) {
 			if ( empty( $definition['input'] ) ) {
 				continue;
 			}
@@ -101,7 +101,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * Every field type renders without a warning and produces markup.
 	 *
 	 * @dataProvider data_all_types
-	 * @covers ::atf_render_field_control
+	 * @covers ::alltfo_render_field_control
 	 *
 	 * @param string $type Any registered field type.
 	 */
@@ -157,7 +157,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	public function data_all_types() {
 		$cases = array();
 
-		foreach ( array_keys( atf_get_field_types() ) as $slug ) {
+		foreach ( array_keys( alltfo_get_field_types() ) as $slug ) {
 			$cases[ $slug ] = array( $slug );
 		}
 
@@ -167,7 +167,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * A text field's label is bound to its control by id.
 	 *
-	 * @covers ::atf_render_label
+	 * @covers ::alltfo_render_label
 	 */
 	public function test_label_is_bound() {
 		$html = $this->render_field( array( 'type' => 'text' ) );
@@ -186,7 +186,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * bound to none of them.
 	 *
 	 * @dataProvider data_grouped_types
-	 * @covers ::atf_render_choice_group
+	 * @covers ::alltfo_render_choice_group
 	 *
 	 * @param string $type A field type whose control is a group.
 	 */
@@ -233,7 +233,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * A hint is wired to its control with `aria-describedby`.
 	 *
-	 * @covers ::atf_render_field
+	 * @covers ::alltfo_render_field
 	 */
 	public function test_hint_is_described_by() {
 		$html = $this->render_field(
@@ -252,7 +252,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * A required field is marked for assistive technology, not just visually.
 	 *
-	 * @covers ::atf_control_attributes
+	 * @covers ::alltfo_control_attributes
 	 */
 	public function test_required_is_announced() {
 		$html = $this->render_field(
@@ -269,10 +269,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * The error summary can take focus and announces itself.
 	 *
-	 * @covers ::atf_render_error_summary
+	 * @covers ::alltfo_render_error_summary
 	 */
 	public function test_error_summary() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -285,7 +285,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id, array( 'errors' => array( 'f1' => 'This is required.' ) ) );
+		$html = alltfo_render_form( $form_id, array( 'errors' => array( 'f1' => 'This is required.' ) ) );
 
 		$this->assertStringContainsString( 'role="alert"', $html );
 		$this->assertStringContainsString( 'tabindex="-1"', $html );
@@ -300,11 +300,11 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * sub-field, and nobody else — the no-JavaScript render of the same
 	 * marking the bundle does live.
 	 *
-	 * @covers ::atf_render_error_summary
-	 * @covers ::atf_render_repeater_row
+	 * @covers ::alltfo_render_error_summary
+	 * @covers ::alltfo_render_repeater_row
 	 */
 	public function test_repeater_errors_nest_in_the_summary() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -330,7 +330,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form(
+		$html = alltfo_render_form(
 			$form_id,
 			array(
 				'values' => array(
@@ -372,10 +372,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 *
 	 * Without this a conditional field flashes into view before the bundle boots.
 	 *
-	 * @covers ::atf_render_field
+	 * @covers ::alltfo_render_field
 	 */
 	public function test_conditional_field_starts_hidden() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -402,7 +402,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertMatchesRegularExpression( '/data-atf-field="f2"[^>]*hidden/', $html );
 		$this->assertStringContainsString( 'data-atf-logic=', $html );
@@ -411,27 +411,27 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * The honeypot is present, off-screen, and hidden from assistive technology.
 	 *
-	 * @covers ::atf_render_hidden_fields
+	 * @covers ::alltfo_render_hidden_fields
 	 */
 	public function test_honeypot() {
 		$html = $this->render_field( array( 'type' => 'text' ) );
 
-		$this->assertStringContainsString( 'atf_website', $html );
+		$this->assertStringContainsString( 'alltfo_website', $html );
 		$this->assertStringContainsString( 'aria-hidden="true"', $html );
 		$this->assertStringContainsString( 'tabindex="-1"', $html );
-		$this->assertStringNotContainsString( 'name="atf_website" type="hidden"', $html );
+		$this->assertStringNotContainsString( 'name="alltfo_website" type="hidden"', $html );
 	}
 
 	/**
 	 * The signed timestamp is emitted.
 	 *
-	 * @covers ::atf_render_hidden_fields
+	 * @covers ::alltfo_render_hidden_fields
 	 */
 	public function test_timestamp_is_signed() {
 		$html = $this->render_field( array( 'type' => 'text' ) );
 
-		$this->assertMatchesRegularExpression( '/name="atf_t" value="\d+"/', $html );
-		$this->assertMatchesRegularExpression( '/name="atf_ts" value="[a-f0-9]+"/', $html );
+		$this->assertMatchesRegularExpression( '/name="alltfo_t" value="\d+"/', $html );
+		$this->assertMatchesRegularExpression( '/name="alltfo_ts" value="[a-f0-9]+"/', $html );
 	}
 
 	/**
@@ -439,7 +439,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 *
 	 * Without it `$_FILES` arrives empty and nothing says why.
 	 *
-	 * @covers ::atf_has_upload_field
+	 * @covers ::alltfo_has_upload_field
 	 */
 	public function test_upload_form_has_enctype() {
 		$this->assertStringContainsString(
@@ -459,10 +459,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * Duplicate ids would break every `for` and every `aria-describedby` on the
 	 * second copy.
 	 *
-	 * @covers ::atf_next_instance_id
+	 * @covers ::alltfo_next_instance_id
 	 */
 	public function test_two_instances_do_not_collide() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -474,8 +474,8 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		preg_match( '/id="(atf-\d+-\d+)"/', atf_render_form( $form_id ), $first );
-		preg_match( '/id="(atf-\d+-\d+)"/', atf_render_form( $form_id ), $second );
+		preg_match( '/id="(atf-\d+-\d+)"/', alltfo_render_form( $form_id ), $first );
+		preg_match( '/id="(atf-\d+-\d+)"/', alltfo_render_form( $form_id ), $second );
 
 		$this->assertNotSame( $first[1], $second[1] );
 	}
@@ -487,10 +487,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * blocklist and quiz answers. None of it may reach the page source of a
 	 * public form.
 	 *
-	 * @covers ::atf_render_client_schema
+	 * @covers ::alltfo_render_client_schema
 	 */
 	public function test_client_schema_leaks_nothing() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'        => array(
 					array(
@@ -538,7 +538,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertStringContainsString( 'data-atf-schema', $html );
 
@@ -554,10 +554,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * The client schema cannot break out of its script block.
 	 *
-	 * @covers ::atf_render_client_schema
+	 * @covers ::alltfo_render_client_schema
 	 */
 	public function test_client_schema_is_escaped() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -569,7 +569,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertStringNotContainsString( '</script><script>alert(1)', $html );
 	}
@@ -580,10 +580,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * That is the property that keeps the accessibility work done once rather
 	 * than ten times.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_themes_do_not_change_the_markup() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -596,15 +596,15 @@ class ATF_Test_Render extends WP_UnitTestCase {
 		);
 
 		$strip = static function ( $html ) {
-			// The token block and the theme classes are exactly what is meant to
-			// differ; everything else must not.
-			$html = preg_replace( '#<style>.*?</style>#s', '', $html );
+			// The wrapper's token declarations and the theme classes are exactly
+			// what is meant to differ; everything else must not.
+			$html = preg_replace( '/ style="[^"]*"/', '', $html );
 			$html = preg_replace( '/atf-theme-[a-z-]+/', '', $html );
 			$html = preg_replace( '/atf-labels-[a-z]+/', '', $html );
 			$html = preg_replace( '/atf-fields-[a-z]+/', '', $html );
 			$html = preg_replace( '/atf-is-dark/', '', $html );
 			$html = preg_replace( '/atf-\d+-\d+/', 'INSTANCE', $html );
-			$html = preg_replace( '/name="atf_t" value="\d+"/', 'T', $html );
+			$html = preg_replace( '/name="alltfo_t" value="\d+"/', 'T', $html );
 			$html = preg_replace( '/value="[a-f0-9]{32,}"/', 'HASH', $html );
 
 			// Runs of spaces collapsed, because the stripping above leaves them
@@ -618,12 +618,12 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			return $html;
 		};
 
-		$clean = $strip( atf_render_form( $form_id, array( 'theme' => 'clean' ) ) );
+		$clean = $strip( alltfo_render_form( $form_id, array( 'theme' => 'clean' ) ) );
 
-		foreach ( array_keys( atf_builtin_themes() ) as $slug ) {
+		foreach ( array_keys( alltfo_builtin_themes() ) as $slug ) {
 			$this->assertSame(
 				$clean,
-				$strip( atf_render_form( $form_id, array( 'theme' => $slug ) ) ),
+				$strip( alltfo_render_form( $form_id, array( 'theme' => $slug ) ) ),
 				sprintf( 'Theme "%s" changes the markup rather than only the tokens.', $slug )
 			);
 		}
@@ -634,24 +634,24 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 *
 	 * A broken shortcode id must never print an error into a published page.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_missing_form_is_silent_for_visitors() {
 		wp_set_current_user( 0 );
 
-		$this->assertSame( '', atf_render_form( 999999 ) );
+		$this->assertSame( '', alltfo_render_form( 999999 ) );
 	}
 
 	/**
 	 * …but says so to somebody who can fix it.
 	 *
-	 * @covers ::atf_render_form
+	 * @covers ::alltfo_render_form
 	 */
 	public function test_missing_form_is_loud_for_editors() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
-		$this->assertStringContainsString( 'does not exist', atf_render_form( 999999 ) );
+		$this->assertStringContainsString( 'does not exist', alltfo_render_form( 999999 ) );
 	}
 	/**
 	 * The wording on a page break's buttons is the author's.
@@ -662,10 +662,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * was in. Now that the canvas edits them, this is what says the value
 	 * survives normalisation and arrives on the page.
 	 *
-	 * @covers ::atf_render_page
+	 * @covers ::alltfo_render_page
 	 */
 	public function test_page_break_buttons_use_the_authors_words() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -689,7 +689,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertStringContainsString( '>Continue</button>', $html, 'the next button' );
 		$this->assertStringContainsString( '>Go back</button>', $html, 'the back button' );
@@ -702,10 +702,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * The empty string is the stored default, so "falls back" is the ordinary
 	 * case rather than the edge one.
 	 *
-	 * @covers ::atf_render_page
+	 * @covers ::alltfo_render_page
 	 */
 	public function test_page_break_buttons_fall_back() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -724,13 +724,13 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertStringContainsString( '>Next</button>', atf_render_form( $form_id ) );
+		$this->assertStringContainsString( '>Next</button>', alltfo_render_form( $form_id ) );
 	}
 
 	/**
 	 * A repeater's add button says what its author told it to say.
 	 *
-	 * @covers ::atf_render_repeater
+	 * @covers ::alltfo_render_repeater
 	 */
 	public function test_repeater_add_button_uses_the_authors_words() {
 		$html = $this->render_field(
@@ -757,7 +757,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * quote left both of those outside the repeater's namespace, where every
 	 * row wrote over the last and the sanitiser found nothing it recognised.
 	 *
-	 * @covers ::atf_render_repeater_row
+	 * @covers ::alltfo_render_repeater_row
 	 */
 	public function test_repeater_namespaces_bracketed_sub_field_names() {
 		$html = $this->render_field(
@@ -792,11 +792,11 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * with no way to reach it — which is exactly how these three came to be
 	 * write-only for as long as they were.
 	 *
-	 * @covers ::atf_get_field_type
+	 * @covers ::alltfo_get_field_type
 	 */
 	public function test_customisable_wording_is_declared() {
-		$page_break = atf_get_field_type( 'page_break' );
-		$repeater   = atf_get_field_type( 'repeater' );
+		$page_break = alltfo_get_field_type( 'page_break' );
+		$repeater   = alltfo_get_field_type( 'repeater' );
 
 		$this->assertContains( 'nextlabel', $page_break['supports'] );
 		$this->assertContains( 'prevlabel', $page_break['supports'] );
@@ -812,7 +812,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * a value with no control.
 	 *
 	 * @dataProvider data_reachable_settings
-	 * @covers ::atf_render_field
+	 * @covers ::alltfo_render_field
 	 *
 	 * @param array  $field    The field, merged over the defaults.
 	 * @param string $expected A fragment the rendered HTML must contain.
@@ -921,7 +921,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * The assertion the fragment test above cannot make: "contains given-name"
 	 * would pass just as well if every other part were still there.
 	 *
-	 * @covers ::atf_render_composite
+	 * @covers ::alltfo_render_composite
 	 */
 	public function test_unchosen_parts_are_not_rendered() {
 		$html = $this->render_field(
@@ -943,7 +943,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * answerable on an input that has a placeholder at all. The floating-label
 	 * theme rides on it; a space renders as nothing everywhere else.
 	 *
-	 * @covers ::atf_control_attributes
+	 * @covers ::alltfo_control_attributes
 	 */
 	public function test_placeholder_space_is_reserved() {
 		$bare = $this->render_field( array( 'type' => 'text' ) );
@@ -968,10 +968,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	 * these; without them a live total that sums a repeater column shows 0
 	 * until submit, then "corrects" itself — which reads as a broken form.
 	 *
-	 * @covers ::atf_client_field
+	 * @covers ::alltfo_client_field
 	 */
 	public function test_client_schema_includes_repeater_subfields() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -1003,7 +1003,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		preg_match( '/<script type="application\/json" data-atf-schema[^>]*>(.*?)<\/script>/s', $html, $match );
 		$this->assertNotEmpty( $match, 'The client schema block is missing.' );
@@ -1029,10 +1029,10 @@ class ATF_Test_Render extends WP_UnitTestCase {
 	/**
 	 * Repeater rows render as titled cards, numbered from one.
 	 *
-	 * @covers ::atf_render_repeater
+	 * @covers ::alltfo_render_repeater
 	 */
 	public function test_repeater_renders_titled_row_cards() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -1052,7 +1052,7 @@ class ATF_Test_Render extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
 		$this->assertStringContainsString( 'data-atf-item-label="Attendee"', $html );
 		$this->assertStringContainsString( 'Attendee 1', $html );

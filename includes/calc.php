@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string, int> Function name => argument count, or -1 for variadic.
  */
-function atf_calc_functions() {
+function alltfo_calc_functions() {
 	$functions = array(
 		'min'   => -1,
 		'max'   => -1,
@@ -60,7 +60,7 @@ function atf_calc_functions() {
 	 *
 	 * @param array<string, int> $functions Name => arity.
 	 */
-	return apply_filters( 'atf_calc_functions', $functions );
+	return apply_filters( 'alltfo_calc_functions', $functions );
 }
 
 /**
@@ -73,7 +73,7 @@ function atf_calc_functions() {
  * @param array  $schema  The form schema, so choice prices can be looked up.
  * @return float|null The result, or null when the formula cannot be evaluated.
  */
-function atf_calculate( $formula, $values, $schema = array() ) {
+function alltfo_calculate( $formula, $values, $schema = array() ) {
 	$formula = (string) $formula;
 
 	if ( '' === trim( $formula ) ) {
@@ -86,20 +86,20 @@ function atf_calculate( $formula, $values, $schema = array() ) {
 		return null;
 	}
 
-	$resolved = atf_calc_resolve_refs( $formula, $values, $schema );
-	$tokens   = atf_calc_tokenize( $resolved );
+	$resolved = alltfo_calc_resolve_refs( $formula, $values, $schema );
+	$tokens   = alltfo_calc_tokenize( $resolved );
 
 	if ( null === $tokens ) {
 		return null;
 	}
 
-	$postfix = atf_calc_to_postfix( $tokens );
+	$postfix = alltfo_calc_to_postfix( $tokens );
 
 	if ( null === $postfix ) {
 		return null;
 	}
 
-	$result = atf_calc_eval_postfix( $postfix );
+	$result = alltfo_calc_eval_postfix( $postfix );
 
 	if ( null === $result || ! is_finite( $result ) ) {
 		return null;
@@ -114,7 +114,7 @@ function atf_calculate( $formula, $values, $schema = array() ) {
 	 * @param string $formula The formula.
 	 * @param array  $values  The values it was computed from.
 	 */
-	return (float) apply_filters( 'atf_calculation_result', $result, $formula, $values );
+	return (float) apply_filters( 'alltfo_calculation_result', $result, $formula, $values );
 }
 
 /**
@@ -147,7 +147,7 @@ function atf_calculate( $formula, $values, $schema = array() ) {
  * @param array  $schema  The form schema.
  * @return string The formula with references replaced by literals.
  */
-function atf_calc_resolve_refs( $formula, $values, $schema ) {
+function alltfo_calc_resolve_refs( $formula, $values, $schema ) {
 	// Assembled by offset rather than `preg_replace_callback()`, because a
 	// repeater reference resolves differently depending on what surrounds it,
 	// and the callback never learns where in the formula it is standing.
@@ -164,7 +164,7 @@ function atf_calc_resolve_refs( $formula, $values, $schema ) {
 		$sub_id = isset( $match[2] ) && -1 !== $match[2][1] ? $match[2][0] : '';
 
 		$out .= substr( $formula, $cursor, $offset - $cursor );
-		$out .= atf_calc_ref_literal( $formula, $offset, strlen( $whole ), $match[1][0], $sub_id, $values, $schema );
+		$out .= alltfo_calc_ref_literal( $formula, $offset, strlen( $whole ), $match[1][0], $sub_id, $values, $schema );
 
 		$cursor = $offset + strlen( $whole );
 	}
@@ -186,18 +186,18 @@ function atf_calc_resolve_refs( $formula, $values, $schema ) {
  * @param array  $schema   The form schema.
  * @return string A numeric literal, or a parenthesised/comma-separated list of them.
  */
-function atf_calc_ref_literal( $formula, $offset, $length, $field_id, $sub_id, $values, $schema ) {
-	$field = $schema ? atf_find_field( $schema, $field_id ) : null;
+function alltfo_calc_ref_literal( $formula, $offset, $length, $field_id, $sub_id, $values, $schema ) {
+	$field = $schema ? alltfo_find_field( $schema, $field_id ) : null;
 	$value = array_key_exists( $field_id, $values ) ? $values[ $field_id ] : null;
 
 	if ( '' === $sub_id ) {
 		// A repeater referenced whole is its row count; anything else is its
 		// numeric value as before.
 		$number = $field && 'repeater' === $field['type']
-			? (float) count( atf_calc_repeater_rows( $value ) )
-			: atf_calc_numeric_value( $value, $field );
+			? (float) count( alltfo_calc_repeater_rows( $value ) )
+			: alltfo_calc_numeric_value( $value, $field );
 
-		return atf_calc_number_literal( $number );
+		return alltfo_calc_number_literal( $number );
 	}
 
 	$sub = null;
@@ -213,17 +213,17 @@ function atf_calc_ref_literal( $formula, $offset, $length, $field_id, $sub_id, $
 
 	$numbers = array();
 
-	foreach ( atf_calc_repeater_rows( $value ) as $row ) {
-		$numbers[] = atf_calc_numeric_value( isset( $row[ $sub_id ] ) ? $row[ $sub_id ] : '', $sub );
+	foreach ( alltfo_calc_repeater_rows( $value ) as $row ) {
+		$numbers[] = alltfo_calc_numeric_value( isset( $row[ $sub_id ] ) ? $row[ $sub_id ] : '', $sub );
 	}
 
 	if ( ! $numbers ) {
 		return '0';
 	}
 
-	$literals = array_map( 'atf_calc_number_literal', $numbers );
+	$literals = array_map( 'alltfo_calc_number_literal', $numbers );
 
-	if ( atf_calc_ref_spreads( $formula, $offset, $length ) ) {
+	if ( alltfo_calc_ref_spreads( $formula, $offset, $length ) ) {
 		return implode( ', ', $literals );
 	}
 
@@ -246,7 +246,7 @@ function atf_calc_ref_literal( $formula, $offset, $length, $field_id, $sub_id, $
  * @param int    $length  How long the reference is.
  * @return bool
  */
-function atf_calc_ref_spreads( $formula, $offset, $length ) {
+function alltfo_calc_ref_spreads( $formula, $offset, $length ) {
 	$after = ltrim( substr( $formula, $offset + $length ) );
 
 	if ( '' === $after || ')' !== $after[0] ) {
@@ -267,14 +267,14 @@ function atf_calc_ref_spreads( $formula, $offset, $length ) {
  *
  * A row where every answer is empty is a row the visitor added and abandoned;
  * counting it would make `{attendees}` disagree with what the entry stores,
- * because `atf_sanitize_repeater_value()` drops exactly the same rows.
+ * because `alltfo_sanitize_repeater_value()` drops exactly the same rows.
  *
  * @since 0.1.0
  *
  * @param mixed $value The repeater's value.
  * @return array[] Rows with at least one non-empty answer.
  */
-function atf_calc_repeater_rows( $value ) {
+function alltfo_calc_repeater_rows( $value ) {
 	if ( ! is_array( $value ) ) {
 		return array();
 	}
@@ -309,7 +309,7 @@ function atf_calc_repeater_rows( $value ) {
  * @param float $number The number.
  * @return string
  */
-function atf_calc_number_literal( $number ) {
+function alltfo_calc_number_literal( $number ) {
 	$literal = rtrim( rtrim( sprintf( '%.10F', $number ), '0' ), '.' );
 
 	return '' === $literal || '-' === $literal ? '0' : $literal;
@@ -324,7 +324,7 @@ function atf_calc_number_literal( $number ) {
  * @param array|null $field The field it belongs to.
  * @return float
  */
-function atf_calc_numeric_value( $value, $field ) {
+function alltfo_calc_numeric_value( $value, $field ) {
 	if ( is_bool( $value ) ) {
 		return $value ? 1.0 : 0.0;
 	}
@@ -335,7 +335,7 @@ function atf_calc_numeric_value( $value, $field ) {
 		$total = 0.0;
 
 		foreach ( $value as $item ) {
-			$total += atf_calc_numeric_value( $item, $field );
+			$total += alltfo_calc_numeric_value( $item, $field );
 		}
 
 		return $total;
@@ -376,7 +376,7 @@ function atf_calc_numeric_value( $value, $field ) {
  * @param string $formula A formula with no field references left in it.
  * @return array[]|null Tokens, or null when the formula contains something unrecognised.
  */
-function atf_calc_tokenize( $formula ) {
+function alltfo_calc_tokenize( $formula ) {
 	$tokens = array();
 	$length = strlen( $formula );
 	$i      = 0;
@@ -418,7 +418,7 @@ function atf_calc_tokenize( $formula ) {
 
 			$name = strtolower( $name );
 
-			if ( ! isset( atf_calc_functions()[ $name ] ) ) {
+			if ( ! isset( alltfo_calc_functions()[ $name ] ) ) {
 				return null;
 			}
 
@@ -477,7 +477,7 @@ function atf_calc_tokenize( $formula ) {
  * @param string $operator The operator.
  * @return array { precedence: int, right: bool }
  */
-function atf_calc_operator_info( $operator ) {
+function alltfo_calc_operator_info( $operator ) {
 	$table = array(
 		'+' => array(
 			'precedence' => 1,
@@ -527,7 +527,7 @@ function atf_calc_operator_info( $operator ) {
  * @param array $token A token from the operator stack.
  * @return array { precedence: int, right: bool }
  */
-function atf_calc_stack_precedence( $token ) {
+function alltfo_calc_stack_precedence( $token ) {
 	if ( 'unary' === $token['type'] ) {
 		return array(
 			'precedence' => 3,
@@ -535,7 +535,7 @@ function atf_calc_stack_precedence( $token ) {
 		);
 	}
 
-	return atf_calc_operator_info( $token['value'] );
+	return alltfo_calc_operator_info( $token['value'] );
 }
 
 /**
@@ -550,7 +550,7 @@ function atf_calc_stack_precedence( $token ) {
  * @param array[] $tokens Infix tokens.
  * @return array[]|null Postfix tokens, or null when the parentheses do not balance.
  */
-function atf_calc_to_postfix( $tokens ) {
+function alltfo_calc_to_postfix( $tokens ) {
 	$output    = array();
 	$operators = array();
 	$arity     = array();
@@ -585,7 +585,7 @@ function atf_calc_to_postfix( $tokens ) {
 				break;
 
 			case 'operator':
-				$info = atf_calc_operator_info( $token['value'] );
+				$info = alltfo_calc_operator_info( $token['value'] );
 
 				while ( $operators ) {
 					$top = end( $operators );
@@ -594,7 +594,7 @@ function atf_calc_to_postfix( $tokens ) {
 						break;
 					}
 
-					$top_info = atf_calc_stack_precedence( $top );
+					$top_info = alltfo_calc_stack_precedence( $top );
 
 					if ( $top_info['precedence'] > $info['precedence']
 						|| ( $top_info['precedence'] === $info['precedence'] && ! $info['right'] ) ) {
@@ -653,7 +653,7 @@ function atf_calc_to_postfix( $tokens ) {
  * @param array[] $postfix Postfix tokens.
  * @return float|null The result, or null when the expression is malformed.
  */
-function atf_calc_eval_postfix( $postfix ) {
+function alltfo_calc_eval_postfix( $postfix ) {
 	$stack = array();
 
 	foreach ( $postfix as $token ) {
@@ -725,7 +725,7 @@ function atf_calc_eval_postfix( $postfix ) {
 					array_unshift( $args, array_pop( $stack ) );
 				}
 
-				$result = atf_calc_apply_function( $token['value'], $args );
+				$result = alltfo_calc_apply_function( $token['value'], $args );
 
 				if ( null === $result ) {
 					return null;
@@ -751,7 +751,7 @@ function atf_calc_eval_postfix( $postfix ) {
  * @param float[] $args Its arguments.
  * @return float|null
  */
-function atf_calc_apply_function( $name, $args ) {
+function alltfo_calc_apply_function( $name, $args ) {
 	if ( ! $args ) {
 		return null;
 	}
@@ -793,7 +793,7 @@ function atf_calc_apply_function( $name, $args ) {
 	}
 
 	/**
-	 * Applies a calculation function added through `atf_calc_functions`.
+	 * Applies a calculation function added through `alltfo_calc_functions`.
 	 *
 	 * @since 0.1.0
 	 *
@@ -801,7 +801,7 @@ function atf_calc_apply_function( $name, $args ) {
 	 * @param string     $name   Function name.
 	 * @param float[]    $args   Arguments.
 	 */
-	return apply_filters( 'atf_calc_apply_function', null, $name, $args );
+	return apply_filters( 'alltfo_calc_apply_function', null, $name, $args );
 }
 
 /**
@@ -819,7 +819,7 @@ function atf_calc_apply_function( $name, $args ) {
  * @param array $values Field id => value.
  * @return array The values, with every calculated field filled in.
  */
-function atf_apply_calculations( $schema, $values ) {
+function alltfo_apply_calculations( $schema, $values ) {
 	$fields = isset( $schema['fields'] ) ? $schema['fields'] : array();
 
 	foreach ( $fields as $field ) {
@@ -827,7 +827,7 @@ function atf_apply_calculations( $schema, $values ) {
 			continue;
 		}
 
-		$result = atf_calculate( $field['formula'], $values, $schema );
+		$result = alltfo_calculate( $field['formula'], $values, $schema );
 
 		if ( null === $result ) {
 			// A formula that fails must not leave the client-posted value in
