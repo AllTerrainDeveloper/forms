@@ -344,12 +344,25 @@ function alltfo_add_capabilities() {
 		'read_private_alltfo_forms',
 		'delete_alltfo_forms',
 		'delete_others_alltfo_forms',
+		// The `_published_` pair is easy to believe unnecessary — our own
+		// REST routes check `alltfo_edit_forms` and never ask WordPress's
+		// `edit_post`. But anything *outside* the plugin asks the standard
+		// question: `map_meta_cap( 'edit_post' )` on a published form — or a
+		// trashed one that was published, which is every form in the
+		// desktop's Recycle Bin — resolves to `edit_published_alltfo_forms`,
+		// and without it the bin silently hid trashed forms from the very
+		// administrators who put them there. `delete_published_` is the same
+		// story for restore and purge, which check `delete_post`.
+		'edit_published_alltfo_forms',
+		'delete_published_alltfo_forms',
 		'edit_alltfo_entries',
 		'edit_others_alltfo_entries',
 		'publish_alltfo_entries',
 		'read_private_alltfo_entries',
 		'delete_alltfo_entries',
 		'delete_others_alltfo_entries',
+		'edit_published_alltfo_entries',
+		'delete_published_alltfo_entries',
 	);
 
 	foreach ( alltfo_capability_map() as $role_slug => $caps ) {

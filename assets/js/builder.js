@@ -8133,7 +8133,7 @@ ${decls}
               el("h3", { text: "Delete" }),
               el("p", {
                 class: "atfb-hint",
-                text: "Deleting is for a form that should never have existed. It goes to the trash, disappears from every list, and any page still carrying its shortcode shows nothing at all. Its entries stay in Entries. If the form simply had its day, archive it instead — an archived form can come back."
+                text: "Deleting is for a form that should never have existed. It moves to the desktop’s Trash, disappears from every list, and any page still carrying its shortcode shows nothing at all. Its entries stay in Entries, and until the Trash is emptied you can bring it back from there. If the form simply had its day, archive it instead."
               }),
               button("Delete this form", () => void this.deleteCurrentForm(), "danger", "trash")
             ]
@@ -8178,8 +8178,8 @@ ${decls}
      * No save-first, unlike the archive: saving a form on its way to the trash
      * would only preserve edits nobody will ever see. The entries deliberately
      * stay — they are the visitors' words, not the form's — and the server
-     * uses the trash rather than a hard delete, so a wrong click is a support
-     * request, not a loss.
+     * uses the trash rather than a hard delete, so a wrong click ends in the
+     * desktop's Trash window, not in a loss.
      */
     async deleteCurrentForm() {
       if (!this.form) {
@@ -8188,7 +8188,7 @@ ${decls}
       const title = this.form.title || "(untitled)";
       const entries = this.forms.find((form) => form.id === this.form.id)?.entries ?? 0;
       const confirmed = await confirmAction(
-        `Delete “${title}”? It goes to the trash and every page showing it goes blank. ${entries ? `Its ${entries} ${entries === 1 ? "entry stays" : "entries stay"} in Entries. ` : ""}If it might be needed again, archive it instead.`,
+        `Delete “${title}”? Every page showing it goes blank. ${entries ? `Its ${entries} ${entries === 1 ? "entry stays" : "entries stay"} in Entries. ` : ""}It moves to the desktop’s Trash — restore it from there if you change your mind.`,
         "Delete form"
       );
       if (!confirmed) {
@@ -8196,7 +8196,7 @@ ${decls}
       }
       try {
         await api.deleteForm(this.form.id);
-        notify("Form deleted", `${title} is in the trash.`);
+        notify("Form deleted", `${title} moved to the desktop’s Trash.`);
         await this.releaseCurrentForm();
       } catch (error) {
         notify("Could not delete the form", error instanceof Error ? error.message : "", "error");

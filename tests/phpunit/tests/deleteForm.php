@@ -98,6 +98,51 @@ class ALLTFO_Test_Delete_Form extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The form type rides the desktop's Recycle Bin; the entry type does not.
+	 *
+	 * Forms are headless (`show_ui => false`), so the bin only tracks them
+	 * because we opt them in — without it, a deleted form is in the trash
+	 * with no door back out. Entries stay out on purpose: retention trashes
+	 * them in bulk, and a bin full of expired entries buries the one form
+	 * somebody actually wants back.
+	 *
+	 * @covers ::alltfo_recycle_bin_post_types
+	 */
+	public function test_forms_ride_the_recycle_bin_and_entries_do_not() {
+		$types = alltfo_recycle_bin_post_types( array( 'post', 'page' ) );
+
+		$this->assertContains( ALLTFO_FORM_TYPE, $types );
+		$this->assertNotContains( ALLTFO_ENTRY_TYPE, $types );
+		$this->assertContains( 'post', $types, 'The opt-in must add, never replace.' );
+	}
+
+	/**
+	 * WordPress's own meta caps resolve on a trashed form.
+	 *
+	 * The plugin's REST routes check `alltfo_edit_forms` and never ask
+	 * `current_user_can( 'edit_post', … )` — but everything outside the
+	 * plugin does, the desktop's Recycle Bin first among them. A form
+	 * trashed from `publish` resolves `edit_post` to
+	 * `edit_published_alltfo_forms` and `delete_post` to
+	 * `delete_published_alltfo_forms`; if the capability map stops granting
+	 * them, the bin lists trashed forms to nobody and this is the test that
+	 * says so.
+	 *
+	 * @covers ::alltfo_add_capabilities
+	 */
+	public function test_standard_meta_caps_resolve_on_a_trashed_form() {
+		alltfo_add_capabilities();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$seeded = $this->seed();
+
+		wp_trash_post( $seeded['form_id'] );
+
+		$this->assertTrue( current_user_can( 'edit_post', $seeded['form_id'] ), 'The bin lists what you may edit.' );
+		$this->assertTrue( current_user_can( 'delete_post', $seeded['form_id'] ), 'Restore and purge check delete_post.' );
+	}
+
+	/**
 	 * Deleting what does not exist is a 404, not a shrug.
 	 *
 	 * @covers ::alltfo_rest_delete_form
