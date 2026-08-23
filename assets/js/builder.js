@@ -1934,7 +1934,7 @@ var allTerrainFormsBuilder = function(exports) {
         if (pane) {
           pane.scrollTop = scrolled;
         }
-        document.dispatchEvent(new CustomEvent("atf-refresh"));
+        document.dispatchEvent(new CustomEvent("alltfo-refresh"));
       } catch (error) {
         clear(preview);
         preview.append(

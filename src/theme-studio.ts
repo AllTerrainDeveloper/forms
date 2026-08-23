@@ -99,7 +99,7 @@ export function mountThemeControls( options: ThemeControlsOptions ): HTMLElement
 			// The front-end bundle enhances anything unenhanced on the page, so
 			// the preview gets working logic, totals and steps — which is what
 			// makes it a preview rather than a screenshot.
-			document.dispatchEvent( new CustomEvent( 'atf-refresh' ) );
+			document.dispatchEvent( new CustomEvent( 'alltfo-refresh' ) );
 		} catch ( error ) {
 			clear( preview );
 			preview.append(

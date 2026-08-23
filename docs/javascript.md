@@ -93,17 +93,17 @@ option's picture.
 
 ## Events
 
-### `atf-submitted`
+### `alltfo-submitted`
 
 Fired on `document` after a successful AJAX submission.
 
 ```javascript
-document.addEventListener( 'atf-submitted', ( event ) => {
+document.addEventListener( 'alltfo-submitted', ( event ) => {
 	const { formId, entryId } = event.detail;
 } );
 ```
 
-### `atf-refresh`
+### `alltfo-refresh`
 
 Fired **at** the bundle, not by it. Dispatch it when a form arrives in the DOM
 after first paint — a modal, an AJAX-loaded page, a block preview — and every
@@ -111,7 +111,7 @@ unenhanced form on the page is enhanced. Idempotent: forms already booted are
 skipped.
 
 ```javascript
-document.dispatchEvent( new CustomEvent( 'atf-refresh' ) );
+document.dispatchEvent( new CustomEvent( 'alltfo-refresh' ) );
 ```
 
 ### OpenStation events the bundles listen for
