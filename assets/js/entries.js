@@ -141,6 +141,11 @@ var allTerrainFormsEntries = function(exports) {
         this.active = null;
         this.lastEndMs = Date.now();
       };
+      const emit = (name, at) => {
+        document.dispatchEvent(
+          new CustomEvent(name, { detail: { payload, clientX: at?.clientX, clientY: at?.clientY } })
+        );
+      };
       const session = {
         payload,
         isFinished: () => finished,
@@ -150,6 +155,9 @@ var allTerrainFormsEntries = function(exports) {
           }
           finished = true;
           cleanup();
+          if (lifted) {
+            emit("os.drag.end");
+          }
           opts.onCancel?.(reason);
         }
       };
@@ -165,6 +173,7 @@ var allTerrainFormsEntries = function(exports) {
         ghost.style.width = `${rect.width}px`;
         document.body.appendChild(ghost);
         position(event);
+        emit("os.drag.start", event);
       };
       const position = (event) => {
         if (ghost) {
@@ -188,6 +197,7 @@ var allTerrainFormsEntries = function(exports) {
           hovered = next;
           hovered?.onEnter?.(session);
         }
+        emit("os.drag.move", event);
       };
       const onUp = (event) => {
         if (finished) {
@@ -205,8 +215,10 @@ var allTerrainFormsEntries = function(exports) {
         if (target && target.accept(payload)) {
           opts.onCommit?.(target);
           void target.onDrop(session, { clientX: event.clientX, clientY: event.clientY });
+          emit("os.drag.end", event);
           return;
         }
+        emit("os.drag.end", event);
         opts.onCancel?.(target ? "rejected" : "no-target");
       };
       const onCancel = () => session.cancel("pointercancel");
@@ -303,11 +315,14 @@ var allTerrainFormsEntries = function(exports) {
       const payload = event.detail?.payload;
       return payload && payloadTypes.includes(payload.type) ? payload.source : null;
     };
+    const preventSelection = (event) => event.preventDefault();
     const onStart = (event) => {
       const source = sourceOf(event);
       if (source) {
         source.classList.add("atf-is-dragging");
         document.body.classList.add("atf-drag-active");
+        window.getSelection()?.removeAllRanges();
+        document.addEventListener("selectstart", preventSelection);
       }
     };
     const onEnd = (event) => {
@@ -315,6 +330,7 @@ var allTerrainFormsEntries = function(exports) {
       if (source) {
         source.classList.remove("atf-is-dragging");
         document.body.classList.remove("atf-drag-active");
+        document.removeEventListener("selectstart", preventSelection);
       }
     };
     document.addEventListener("os.drag.start", onStart);
@@ -322,10 +338,23 @@ var allTerrainFormsEntries = function(exports) {
     return () => {
       document.removeEventListener("os.drag.start", onStart);
       document.removeEventListener("os.drag.end", onEnd);
+      document.removeEventListener("selectstart", preventSelection);
     };
   }
+  const SCOPE_CLASSES = ["atfb", "atfe", "atfs", "atfm"];
   function buildPayload(type, source, data, origin, ghost) {
     const rect = source.getBoundingClientRect();
+    if (!ghost) {
+      const scope = SCOPE_CLASSES.find((cls) => source.closest(`.${cls}`));
+      if (scope) {
+        const clone = source.cloneNode(true);
+        clone.style.transition = "";
+        clone.style.transform = "";
+        ghost = document.createElement("div");
+        ghost.className = `${scope} atf-ghost-scope`;
+        ghost.appendChild(clone);
+      }
+    }
     if (ghost) {
       ghost.style.width = `${Math.round(rect.width)}px`;
       ghost.style.maxWidth = `${Math.round(rect.width)}px`;
