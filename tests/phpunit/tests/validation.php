@@ -15,7 +15,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Validation extends WP_UnitTestCase {
+class ALLTFO_Test_Validation extends WP_UnitTestCase {
 
 	/**
 	 * Zero is an answer.
@@ -26,13 +26,13 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * score.
 	 *
 	 * @dataProvider data_emptiness
-	 * @covers ::atf_value_is_empty
+	 * @covers ::alltfo_value_is_empty
 	 *
 	 * @param mixed $value The value.
 	 * @param bool  $empty Whether it counts as unanswered.
 	 */
 	public function test_emptiness( $value, $empty ) {
-		$this->assertSame( $empty, atf_value_is_empty( $value ), var_export( $value, true ) );
+		$this->assertSame( $empty, alltfo_value_is_empty( $value ), var_export( $value, true ) );
 	}
 
 	/**
@@ -73,10 +73,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A required field that was not answered is an error.
 	 *
-	 * @covers ::atf_validate_submission
+	 * @covers ::alltfo_validate_submission
 	 */
 	public function test_required_fields() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -93,7 +93,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission(
+		$errors = alltfo_validate_submission(
 			$schema,
 			array(
 				'f1' => '',
@@ -106,7 +106,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 
 		$this->assertSame(
 			array(),
-			atf_validate_submission(
+			alltfo_validate_submission(
 				$schema,
 				array(
 					'f1' => 'Ada',
@@ -119,10 +119,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A required field answered with zero passes.
 	 *
-	 * @covers ::atf_validate_submission
+	 * @covers ::alltfo_validate_submission
 	 */
 	public function test_required_field_accepts_zero() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -135,16 +135,16 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( array(), atf_validate_submission( $schema, array( 'f1' => 0 ) ) );
+		$this->assertSame( array(), alltfo_validate_submission( $schema, array( 'f1' => 0 ) ) );
 	}
 
 	/**
 	 * Email and URL fields check their format.
 	 *
-	 * @covers ::atf_validate_field
+	 * @covers ::alltfo_validate_field
 	 */
 	public function test_format_validation() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -159,7 +159,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission(
+		$errors = alltfo_validate_submission(
 			$schema,
 			array(
 				'e' => 'not-an-email',
@@ -172,7 +172,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 
 		$this->assertSame(
 			array(),
-			atf_validate_submission(
+			alltfo_validate_submission(
 				$schema,
 				array(
 					'e' => 'ada@example.com',
@@ -188,10 +188,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * This is a security check, not a usability one: without it a "role"
 	 * dropdown can be posted with any value at all.
 	 *
-	 * @covers ::atf_validate_bounds
+	 * @covers ::alltfo_validate_bounds
 	 */
 	public function test_choices_are_a_whitelist() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -212,19 +212,19 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission( $schema, array( 'role' => 'administrator' ) );
+		$errors = alltfo_validate_submission( $schema, array( 'role' => 'administrator' ) );
 
 		$this->assertArrayHasKey( 'role', $errors );
-		$this->assertSame( array(), atf_validate_submission( $schema, array( 'role' => 'writer' ) ) );
+		$this->assertSame( array(), alltfo_validate_submission( $schema, array( 'role' => 'writer' ) ) );
 	}
 
 	/**
 	 * A forged value in a multi-choice field is refused too.
 	 *
-	 * @covers ::atf_validate_bounds
+	 * @covers ::alltfo_validate_bounds
 	 */
 	public function test_multi_choice_whitelist() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -243,7 +243,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 
 		$this->assertArrayHasKey(
 			'extras',
-			atf_validate_submission( $schema, array( 'extras' => array( 'wrap', 'free-everything' ) ) )
+			alltfo_validate_submission( $schema, array( 'extras' => array( 'wrap', 'free-everything' ) ) )
 		);
 	}
 
@@ -255,10 +255,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * a list could never anticipate the answer. Without the exemption every
 	 * legitimate "Other" answer was refused as a forged request.
 	 *
-	 * @covers ::atf_validate_bounds
+	 * @covers ::alltfo_validate_bounds
 	 */
 	public function test_other_answers_pass_the_whitelist() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -277,23 +277,23 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 		);
 
 		// The full pipeline: the marker posted beside the typed text.
-		$values = atf_apply_other_values(
+		$values = alltfo_apply_other_values(
 			$schema,
 			array( 'colour' => '__other__' ),
-			array( 'atf_other' => array( 'colour' => 'Purple' ) )
+			array( 'alltfo_other' => array( 'colour' => 'Purple' ) )
 		);
 
 		$this->assertSame( 'Purple', $values['colour'] );
-		$this->assertSame( array(), atf_validate_submission( $schema, $values ) );
+		$this->assertSame( array(), alltfo_validate_submission( $schema, $values ) );
 	}
 
 	/**
 	 * Length and numeric bounds are enforced.
 	 *
-	 * @covers ::atf_validate_bounds
+	 * @covers ::alltfo_validate_bounds
 	 */
 	public function test_bounds() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -312,13 +312,13 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertArrayHasKey( 't', atf_validate_submission( $schema, array( 't' => 'ab' ) ) );
-		$this->assertArrayHasKey( 't', atf_validate_submission( $schema, array( 't' => 'abcdef' ) ) );
-		$this->assertArrayNotHasKey( 't', atf_validate_submission( $schema, array( 't' => 'abcd' ) ) );
+		$this->assertArrayHasKey( 't', alltfo_validate_submission( $schema, array( 't' => 'ab' ) ) );
+		$this->assertArrayHasKey( 't', alltfo_validate_submission( $schema, array( 't' => 'abcdef' ) ) );
+		$this->assertArrayNotHasKey( 't', alltfo_validate_submission( $schema, array( 't' => 'abcd' ) ) );
 
-		$this->assertArrayHasKey( 'n', atf_validate_submission( $schema, array( 'n' => 0 ) ) );
-		$this->assertArrayHasKey( 'n', atf_validate_submission( $schema, array( 'n' => 11 ) ) );
-		$this->assertArrayNotHasKey( 'n', atf_validate_submission( $schema, array( 'n' => 5 ) ) );
+		$this->assertArrayHasKey( 'n', alltfo_validate_submission( $schema, array( 'n' => 0 ) ) );
+		$this->assertArrayHasKey( 'n', alltfo_validate_submission( $schema, array( 'n' => 11 ) ) );
+		$this->assertArrayNotHasKey( 'n', alltfo_validate_submission( $schema, array( 'n' => 5 ) ) );
 	}
 
 	/**
@@ -328,10 +328,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * for it is the wrong answer — and a PHP warning on every public submission
 	 * is a worse one.
 	 *
-	 * @covers ::atf_validate_bounds
+	 * @covers ::alltfo_validate_bounds
 	 */
 	public function test_broken_pattern_does_not_block_the_visitor() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -343,16 +343,16 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( array(), atf_validate_submission( $schema, array( 'f1' => 'anything' ) ) );
+		$this->assertSame( array(), alltfo_validate_submission( $schema, array( 'f1' => 'anything' ) ) );
 	}
 
 	/**
 	 * A consent field that is not ticked says so in its own terms.
 	 *
-	 * @covers ::atf_validate_field
+	 * @covers ::alltfo_validate_field
 	 */
 	public function test_consent_has_its_own_message() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -364,7 +364,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission( $schema, array( 'c' => false ) );
+		$errors = alltfo_validate_submission( $schema, array( 'c' => false ) );
 
 		$this->assertArrayHasKey( 'c', $errors );
 		$this->assertStringContainsString( 'agreed to', $errors['c'] );
@@ -373,10 +373,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A field's own message overrides the default wording.
 	 *
-	 * @covers ::atf_field_message
+	 * @covers ::alltfo_field_message
 	 */
 	public function test_custom_messages() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -394,12 +394,12 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 
 		$this->assertSame(
 			'We need your email to write back.',
-			atf_validate_submission( $schema, array( 'f1' => '' ) )['f1']
+			alltfo_validate_submission( $schema, array( 'f1' => '' ) )['f1']
 		);
 
 		$this->assertSame(
 			'That address has a typo in it.',
-			atf_validate_submission( $schema, array( 'f1' => 'nope' ) )['f1']
+			alltfo_validate_submission( $schema, array( 'f1' => 'nope' ) )['f1']
 		);
 	}
 
@@ -408,36 +408,36 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * Values are sanitised through their own field type.
 	 *
-	 * @covers ::atf_sanitize_field_value
+	 * @covers ::alltfo_sanitize_field_value
 	 */
 	public function test_sanitising_by_type() {
 		$this->assertSame(
 			'Hello',
-			atf_sanitize_field_value( '<b>Hello</b>', array( 'type' => 'text' ) )
+			alltfo_sanitize_field_value( '<b>Hello</b>', array( 'type' => 'text' ) )
 		);
 
 		$this->assertStringContainsString(
 			"\n",
-			atf_sanitize_field_value( "Line one\nLine two", array( 'type' => 'textarea' ) ),
+			alltfo_sanitize_field_value( "Line one\nLine two", array( 'type' => 'textarea' ) ),
 			'A paragraph field must keep its line breaks.'
 		);
 
 		$this->assertSame(
 			'ada@example.com',
-			atf_sanitize_field_value( ' ada@example.com ', array( 'type' => 'email' ) )
+			alltfo_sanitize_field_value( ' ada@example.com ', array( 'type' => 'email' ) )
 		);
 
-		$this->assertSame( 5, atf_sanitize_field_value( '5', array( 'type' => 'number' ) ) );
+		$this->assertSame( 5, alltfo_sanitize_field_value( '5', array( 'type' => 'number' ) ) );
 
 		$this->assertSame(
 			'',
-			atf_sanitize_field_value( '', array( 'type' => 'number' ) ),
+			alltfo_sanitize_field_value( '', array( 'type' => 'number' ) ),
 			'An unanswered number stays empty rather than becoming zero.'
 		);
 
 		$this->assertSame(
 			'',
-			atf_sanitize_field_value( 'not a number', array( 'type' => 'number' ) )
+			alltfo_sanitize_field_value( 'not a number', array( 'type' => 'number' ) )
 		);
 	}
 
@@ -446,13 +446,13 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 *
 	 * That shape is exactly what a request-forgery probe looks like.
 	 *
-	 * @covers ::atf_sanitize_field_value
+	 * @covers ::alltfo_sanitize_field_value
 	 */
 	public function test_wrong_shapes_are_coerced() {
-		$this->assertSame( '', atf_sanitize_field_value( array( 'x' ), array( 'type' => 'text' ) ) );
-		$this->assertSame( '', atf_sanitize_field_value( array( 1, 2 ), array( 'type' => 'number' ) ) );
-		$this->assertSame( array( 'x' ), atf_sanitize_field_value( 'x', array( 'type' => 'checkboxes' ) ) );
-		$this->assertSame( array(), atf_sanitize_field_value( 'x', array( 'type' => 'name' ) ) );
+		$this->assertSame( '', alltfo_sanitize_field_value( array( 'x' ), array( 'type' => 'text' ) ) );
+		$this->assertSame( '', alltfo_sanitize_field_value( array( 1, 2 ), array( 'type' => 'number' ) ) );
+		$this->assertSame( array( 'x' ), alltfo_sanitize_field_value( 'x', array( 'type' => 'checkboxes' ) ) );
+		$this->assertSame( array(), alltfo_sanitize_field_value( 'x', array( 'type' => 'name' ) ) );
 	}
 
 	/**
@@ -462,7 +462,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * string path coerces an array to '' -- which silently lost every
 	 * selection a visitor made.
 	 *
-	 * @covers ::atf_sanitize_field_value
+	 * @covers ::alltfo_sanitize_field_value
 	 */
 	public function test_image_choice_shape_follows_the_multiple_flag() {
 		$single = array( 'type' => 'image_choice' );
@@ -471,28 +471,28 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			'multiple' => true,
 		);
 
-		$this->assertSame( 'a', atf_sanitize_field_value( 'a', $single ) );
-		$this->assertSame( '', atf_sanitize_field_value( array( 'a', 'b' ), $single ), 'An array where one value belongs is a forged request.' );
+		$this->assertSame( 'a', alltfo_sanitize_field_value( 'a', $single ) );
+		$this->assertSame( '', alltfo_sanitize_field_value( array( 'a', 'b' ), $single ), 'An array where one value belongs is a forged request.' );
 
-		$this->assertSame( array( 'a', 'b' ), atf_sanitize_field_value( array( 'a', 'b' ), $multi ) );
-		$this->assertSame( array( 'a' ), atf_sanitize_field_value( 'a', $multi ), 'A lone value still stores as a list when multiple is on.' );
-		$this->assertSame( array(), atf_sanitize_field_value( '', $multi ) );
+		$this->assertSame( array( 'a', 'b' ), alltfo_sanitize_field_value( array( 'a', 'b' ), $multi ) );
+		$this->assertSame( array( 'a' ), alltfo_sanitize_field_value( 'a', $multi ), 'A lone value still stores as a list when multiple is on.' );
+		$this->assertSame( array(), alltfo_sanitize_field_value( '', $multi ) );
 	}
 
 	/**
 	 * A signature that is not an image data URI is discarded.
 	 *
-	 * @covers ::atf_register_builtin_field_types
+	 * @covers ::alltfo_register_builtin_field_types
 	 */
 	public function test_signature_must_be_an_image_data_uri() {
 		$field = array( 'type' => 'signature' );
 
-		$this->assertSame( '', atf_sanitize_field_value( 'javascript:alert(1)', $field ) );
-		$this->assertSame( '', atf_sanitize_field_value( 'data:text/html;base64,PHNjcmlwdD4=', $field ) );
+		$this->assertSame( '', alltfo_sanitize_field_value( 'javascript:alert(1)', $field ) );
+		$this->assertSame( '', alltfo_sanitize_field_value( 'data:text/html;base64,PHNjcmlwdD4=', $field ) );
 
 		$valid = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
 
-		$this->assertSame( $valid, atf_sanitize_field_value( $valid, $field ) );
+		$this->assertSame( $valid, alltfo_sanitize_field_value( $valid, $field ) );
 	}
 
 	/**
@@ -500,10 +500,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 *
 	 * Otherwise a forged body could claim an attachment id it does not own.
 	 *
-	 * @covers ::atf_sanitize_submission
+	 * @covers ::alltfo_sanitize_submission
 	 */
 	public function test_file_values_are_not_read_from_the_body() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -514,7 +514,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_sanitize_submission( $schema, array( 'cv' => array( 999999 ) ) );
+		$values = alltfo_sanitize_submission( $schema, array( 'cv' => array( 999999 ) ) );
 
 		$this->assertArrayNotHasKey( 'cv', $values );
 	}
@@ -522,10 +522,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A key no field asked for is never read.
 	 *
-	 * @covers ::atf_sanitize_submission
+	 * @covers ::alltfo_sanitize_submission
 	 */
 	public function test_unknown_keys_are_ignored() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -536,7 +536,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$values = atf_sanitize_submission(
+		$values = alltfo_sanitize_submission(
 			$schema,
 			array(
 				'f1'            => 'kept',
@@ -551,10 +551,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A repeater keeps only rows with something in them.
 	 *
-	 * @covers ::atf_sanitize_repeater_value
+	 * @covers ::alltfo_sanitize_repeater_value
 	 */
 	public function test_repeater_drops_blank_rows() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'      => 'rep',
 				'type'    => 'repeater',
@@ -568,7 +568,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$rows = atf_sanitize_field_value(
+		$rows = alltfo_sanitize_field_value(
 			array(
 				array( 'role' => 'Engineer' ),
 				array( 'role' => '' ),
@@ -588,10 +588,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * A request carrying more rows than the form offers is forged, and there is
 	 * nothing to tell the visitor.
 	 *
-	 * @covers ::atf_sanitize_repeater_value
+	 * @covers ::alltfo_sanitize_repeater_value
 	 */
 	public function test_repeater_clamps_row_count() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'      => 'rep',
 				'type'    => 'repeater',
@@ -605,7 +605,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$rows = atf_sanitize_field_value(
+		$rows = alltfo_sanitize_field_value(
 			array(
 				array( 'role' => 'a' ),
 				array( 'role' => 'b' ),
@@ -630,14 +630,14 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * whatever hostname the visitor had typed.
 	 *
 	 * @dataProvider data_urls
-	 * @covers ::atf_looks_like_a_url
+	 * @covers ::alltfo_looks_like_a_url
 	 *
 	 * @param string $value    The submitted value.
 	 * @param bool   $expected Whether it should be accepted.
 	 * @param string $why      What the case is about.
 	 */
 	public function test_url_shape( $value, $expected, $why ) {
-		$this->assertSame( $expected, atf_looks_like_a_url( $value ), $why );
+		$this->assertSame( $expected, alltfo_looks_like_a_url( $value ), $why );
 	}
 
 	/**
@@ -669,10 +669,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * A required sub-field inside a repeater rejects the row that skipped it.
 	 *
-	 * @covers ::atf_validate_repeater_rows
+	 * @covers ::alltfo_validate_repeater_rows
 	 */
 	public function test_repeater_required_subfield_names_the_row() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -698,7 +698,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission(
+		$errors = alltfo_validate_submission(
 			$schema,
 			array(
 				'att' => array(
@@ -726,10 +726,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * than every box in every row — the bug this pins was a repeater error
 	 * painting the whole card red with no way to see which answer it meant.
 	 *
-	 * @covers ::atf_validate_repeater_sub_errors
+	 * @covers ::alltfo_validate_repeater_sub_errors
 	 */
 	public function test_repeater_failure_names_the_exact_control() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -755,7 +755,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission(
+		$errors = alltfo_validate_submission(
 			$schema,
 			array(
 				'att' => array(
@@ -784,7 +784,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	/**
 	 * Two failing controls are both named, each under its own key.
 	 *
-	 * @covers ::atf_validate_repeater_sub_errors
+	 * @covers ::alltfo_validate_repeater_sub_errors
 	 */
 	public function test_repeater_marks_every_failing_control() {
 		$field = array(
@@ -806,9 +806,9 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			),
 		);
 
-		$schema = atf_normalize_schema( array( 'fields' => array( $field ) ) );
+		$schema = alltfo_normalize_schema( array( 'fields' => array( $field ) ) );
 
-		$errors = atf_validate_repeater_sub_errors(
+		$errors = alltfo_validate_repeater_sub_errors(
 			$schema['fields'][0],
 			array(
 				array(
@@ -827,10 +827,10 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 	 * A row that passes its sub-fields' bounds passes, and one that does not
 	 * fails with the bound's own message.
 	 *
-	 * @covers ::atf_validate_repeater_rows
+	 * @covers ::alltfo_validate_repeater_rows
 	 */
 	public function test_repeater_rows_enforce_bounds() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -850,20 +850,20 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$fine = atf_validate_submission( $schema, array( 'att' => array( array( 'age' => '30' ) ) ) );
+		$fine = alltfo_validate_submission( $schema, array( 'att' => array( array( 'age' => '30' ) ) ) );
 		$this->assertArrayNotHasKey( 'att', $fine );
 
-		$errors = atf_validate_submission( $schema, array( 'att' => array( array( 'age' => '200' ) ) ) );
+		$errors = alltfo_validate_submission( $schema, array( 'att' => array( array( 'age' => '200' ) ) ) );
 		$this->assertArrayHasKey( 'att', $errors );
 	}
 
 	/**
 	 * Fewer rows than `minRows` is an error the visitor can act on.
 	 *
-	 * @covers ::atf_validate_repeater_rows
+	 * @covers ::alltfo_validate_repeater_rows
 	 */
 	public function test_repeater_enforces_min_rows() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -882,7 +882,7 @@ class ATF_Test_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$errors = atf_validate_submission( $schema, array( 'att' => array( array( 'name' => 'Ana' ) ) ) );
+		$errors = alltfo_validate_submission( $schema, array( 'att' => array( array( 'name' => 'Ana' ) ) ) );
 
 		$this->assertArrayHasKey( 'att', $errors );
 		$this->assertStringContainsString( 'at least 2', $errors['att'] );

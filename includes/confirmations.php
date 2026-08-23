@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string, array{label: string, description: string, icon: string}>
  */
-function atf_success_styles() {
+function alltfo_success_styles() {
 	$styles = array(
 		'plain'      => array(
 			'label'       => __( 'Plain', 'allterrain-forms' ),
@@ -87,7 +87,7 @@ function atf_success_styles() {
 	 *
 	 * @param array $styles Style key => { label, description, icon }.
 	 */
-	return apply_filters( 'atf_success_styles', $styles );
+	return apply_filters( 'alltfo_success_styles', $styles );
 }
 
 /**
@@ -101,13 +101,13 @@ function atf_success_styles() {
  * @param int   $form_id  The form.
  * @return array { type: string, message: string, url: string, success: array }
  */
-function atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
+function alltfo_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
 	$context = array(
 		'schema'   => $schema,
 		'values'   => $values,
 		'form_id'  => $form_id,
 		'entry_id' => $entry_id,
-		'entry'    => $entry_id ? atf_prepare_entry( $entry_id ) : array(),
+		'entry'    => $entry_id ? alltfo_prepare_entry( $entry_id ) : array(),
 		'format'   => 'html',
 	);
 
@@ -118,21 +118,21 @@ function atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
 			continue;
 		}
 
-		if ( atf_logic_conditions_met( $confirmation['logic'], $values, $schema ) ) {
+		if ( alltfo_logic_conditions_met( $confirmation['logic'], $values, $schema ) ) {
 			$chosen = $confirmation;
 			break;
 		}
 	}
 
 	if ( ! $chosen ) {
-		$chosen = atf_default_confirmation();
+		$chosen = alltfo_default_confirmation();
 	}
 
 	$resolved = array(
 		'type'    => $chosen['type'],
 		'message' => '',
 		'url'     => '',
-		'success' => atf_resolve_success_screen( $chosen, $context ),
+		'success' => alltfo_resolve_success_screen( $chosen, $context ),
 	);
 
 	if ( 'message' === $chosen['type'] ) {
@@ -140,9 +140,9 @@ function atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
 			? $chosen['message']
 			: __( 'Thank you. Your submission has been received.', 'allterrain-forms' );
 
-		$resolved['message'] = atf_replace_merge_tags( $message, $context );
+		$resolved['message'] = alltfo_replace_merge_tags( $message, $context );
 	} else {
-		$resolved['url'] = atf_confirmation_url( $chosen, $context );
+		$resolved['url'] = alltfo_confirmation_url( $chosen, $context );
 
 		// A redirect with nowhere to go would leave the visitor looking at a
 		// form that appears to have done nothing. Falling back to a message is
@@ -163,7 +163,7 @@ function atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
 	 * @param array $values   The accepted values.
 	 * @param int   $entry_id The stored entry.
 	 */
-	return apply_filters( 'atf_confirmation', $resolved, $schema, $values, $entry_id );
+	return apply_filters( 'alltfo_confirmation', $resolved, $schema, $values, $entry_id );
 }
 
 /**
@@ -173,7 +173,7 @@ function atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
  *
  * @return array
  */
-function atf_default_confirmation() {
+function alltfo_default_confirmation() {
 	/**
 	 * Filters the confirmation used when a form configures none.
 	 *
@@ -182,7 +182,7 @@ function atf_default_confirmation() {
 	 * @param array $confirmation The default confirmation.
 	 */
 	return apply_filters(
-		'atf_default_confirmation',
+		'alltfo_default_confirmation',
 		array(
 			'id'      => 'default',
 			'enabled' => true,
@@ -192,7 +192,7 @@ function atf_default_confirmation() {
 			'url'     => '',
 			'pageId'  => 0,
 			'query'   => '',
-			'success' => atf_normalize_success_screen( array() ),
+			'success' => alltfo_normalize_success_screen( array() ),
 			'logic'   => array(
 				'enabled' => false,
 				'action'  => 'show',
@@ -207,7 +207,7 @@ function atf_default_confirmation() {
  * Resolves a confirmation's success screen for the visitor in front of it.
  *
  * Normalised again on the way out -- the confirmation may have arrived from
- * `atf_default_confirmation()` or a filter rather than from a stored schema --
+ * `alltfo_default_confirmation()` or a filter rather than from a stored schema --
  * and the two visitor-facing strings get their merge tags replaced, so a title
  * can greet somebody by name just like the message can.
  *
@@ -217,15 +217,15 @@ function atf_default_confirmation() {
  * @param array $context      The merge-tag context.
  * @return array The success screen config.
  */
-function atf_resolve_success_screen( $confirmation, $context ) {
-	$success = atf_normalize_success_screen(
+function alltfo_resolve_success_screen( $confirmation, $context ) {
+	$success = alltfo_normalize_success_screen(
 		isset( $confirmation['success'] ) && is_array( $confirmation['success'] ) ? $confirmation['success'] : array()
 	);
 
 	$text_context = array_merge( $context, array( 'format' => 'text' ) );
 
-	$success['title']       = atf_replace_merge_tags( $success['title'], $text_context );
-	$success['buttonLabel'] = atf_replace_merge_tags( $success['buttonLabel'], $text_context );
+	$success['title']       = alltfo_replace_merge_tags( $success['title'], $text_context );
+	$success['buttonLabel'] = alltfo_replace_merge_tags( $success['buttonLabel'], $text_context );
 
 	return $success;
 }
@@ -245,8 +245,8 @@ function atf_resolve_success_screen( $confirmation, $context ) {
  * @param array  $success The resolved success screen config.
  * @return string
  */
-function atf_success_screen_html( $message, $success ) {
-	$success = atf_normalize_success_screen( is_array( $success ) ? $success : array() );
+function alltfo_success_screen_html( $message, $success ) {
+	$success = alltfo_normalize_success_screen( is_array( $success ) ? $success : array() );
 
 	if ( 'plain' === $success['style'] ) {
 		return sprintf(
@@ -255,7 +255,7 @@ function atf_success_screen_html( $message, $success ) {
 		);
 	}
 
-	$styles = atf_success_styles();
+	$styles = alltfo_success_styles();
 	$icon   = '' !== $success['icon']
 		? $success['icon']
 		: ( isset( $styles[ $success['style'] ]['icon'] ) ? $styles[ $success['style'] ]['icon'] : '' );
@@ -318,7 +318,7 @@ function atf_success_screen_html( $message, $success ) {
  * @param array $context      The merge-tag context.
  * @return string An absolute URL, or an empty string.
  */
-function atf_confirmation_url( $confirmation, $context ) {
+function alltfo_confirmation_url( $confirmation, $context ) {
 	$url = '';
 
 	if ( 'page' === $confirmation['type'] && $confirmation['pageId'] ) {
@@ -326,7 +326,7 @@ function atf_confirmation_url( $confirmation, $context ) {
 	}
 
 	if ( 'redirect' === $confirmation['type'] ) {
-		$url = atf_replace_merge_tags( $confirmation['url'], array_merge( $context, array( 'format' => 'text' ) ) );
+		$url = alltfo_replace_merge_tags( $confirmation['url'], array_merge( $context, array( 'format' => 'text' ) ) );
 	}
 
 	if ( '' === $url ) {
@@ -334,7 +334,7 @@ function atf_confirmation_url( $confirmation, $context ) {
 	}
 
 	if ( '' !== $confirmation['query'] ) {
-		$query = atf_replace_merge_tags( $confirmation['query'], array_merge( $context, array( 'format' => 'text' ) ) );
+		$query = alltfo_replace_merge_tags( $confirmation['query'], array_merge( $context, array( 'format' => 'text' ) ) );
 		$pairs = array();
 
 		parse_str( $query, $pairs );
@@ -358,7 +358,7 @@ function atf_confirmation_url( $confirmation, $context ) {
 	}
 
 	// Control characters out; the host check happens at redirect time in
-	// `atf_redirect_to_confirmation()`.
+	// `alltfo_redirect_to_confirmation()`.
 	return wp_sanitize_redirect( $url );
 }
 
@@ -368,7 +368,7 @@ function atf_confirmation_url( $confirmation, $context ) {
  * `wp_safe_redirect()` refuses any host but this one, which is the correct
  * default and the wrong answer here: sending a visitor to a payment provider or
  * an external thank-you page is a legitimate thing for a form to do, and it is
- * configured by somebody who already holds `atf_edit_forms`.
+ * configured by somebody who already holds `alltfo_edit_forms`.
  *
  * So the target's host is allowed explicitly, for this one redirect, and the
  * safe redirect still runs. That keeps the protection that matters -- a URL
@@ -382,7 +382,7 @@ function atf_confirmation_url( $confirmation, $context ) {
  * @param string $url The confirmation URL.
  * @return void
  */
-function atf_redirect_to_confirmation( $url ) {
+function alltfo_redirect_to_confirmation( $url ) {
 	$host = wp_parse_url( $url, PHP_URL_HOST );
 
 	$allow = static function ( $hosts ) use ( $host ) {

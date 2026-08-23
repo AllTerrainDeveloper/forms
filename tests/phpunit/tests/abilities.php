@@ -15,7 +15,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Abilities extends WP_UnitTestCase {
+class ALLTFO_Test_Abilities extends WP_UnitTestCase {
 
 	/**
 	 * Skips the class on a WordPress without the Abilities API.
@@ -27,7 +27,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 			$this->markTestSkipped( 'The Abilities API is not available on this WordPress.' );
 		}
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
 
@@ -92,7 +92,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * Every ability is registered, in the plugin's own category.
 	 *
-	 * @covers ::atf_register_abilities
+	 * @covers ::alltfo_register_abilities
 	 */
 	public function test_the_set_is_registered() {
 		$names = array(
@@ -118,8 +118,8 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	 * Ids are minted, the shortcode is returned, and the fields come back in
 	 * the distilled shape every other ability speaks.
 	 *
-	 * @covers ::atf_ability_create_form
-	 * @covers ::atf_ability_form
+	 * @covers ::alltfo_ability_create_form
+	 * @covers ::alltfo_ability_form
 	 */
 	public function test_create_form_builds_something_usable() {
 		$form_id = $this->make_form();
@@ -137,7 +137,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * The vocabulary lists real, usable types.
 	 *
-	 * @covers ::atf_ability_list_field_types
+	 * @covers ::alltfo_ability_list_field_types
 	 */
 	public function test_field_type_vocabulary() {
 		$types = $this->run_ability( 'allterrain-forms/list-field-types' );
@@ -151,7 +151,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * Submitting runs the real pipeline: validation refuses, then stores.
 	 *
-	 * @covers ::atf_ability_submit_form
+	 * @covers ::alltfo_ability_submit_form
 	 */
 	public function test_submit_form_validates_then_stores() {
 		$form_id = $this->make_form();
@@ -170,7 +170,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 
 		$this->assertFalse( $refused['success'] );
 		$this->assertArrayHasKey( $name_id, $refused['errors'] );
-		$this->assertSame( 0, atf_count_entries( $form_id ) );
+		$this->assertSame( 0, alltfo_count_entries( $form_id ) );
 
 		$accepted = $this->run_ability(
 			'allterrain-forms/submit-form',
@@ -185,14 +185,14 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 
 		$this->assertTrue( $accepted['success'] );
 		$this->assertGreaterThan( 0, $accepted['entry_id'] );
-		$this->assertSame( 1, atf_count_entries( $form_id ) );
+		$this->assertSame( 1, alltfo_count_entries( $form_id ) );
 	}
 
 	/**
 	 * Entries come back readable, and one entry comes back whole.
 	 *
-	 * @covers ::atf_ability_list_entries
-	 * @covers ::atf_ability_get_entry
+	 * @covers ::alltfo_ability_list_entries
+	 * @covers ::alltfo_ability_get_entry
 	 */
 	public function test_entries_are_readable() {
 		$form_id = $this->make_form();
@@ -223,7 +223,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * The theme ability applies real themes and refuses invented ones.
 	 *
-	 * @covers ::atf_ability_set_form_theme
+	 * @covers ::alltfo_ability_set_form_theme
 	 */
 	public function test_set_form_theme() {
 		$form_id = $this->make_form();
@@ -252,7 +252,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * The report summarises without fetching entries.
 	 *
-	 * @covers ::atf_ability_form_report
+	 * @covers ::alltfo_ability_form_report
 	 */
 	public function test_form_report() {
 		$form_id = $this->make_form();
@@ -275,7 +275,7 @@ class ATF_Test_Abilities extends WP_UnitTestCase {
 	/**
 	 * Capability gates hold: a subscriber can neither build nor read.
 	 *
-	 * @covers ::atf_register_abilities
+	 * @covers ::alltfo_register_abilities
 	 */
 	public function test_subscriber_is_refused() {
 		$form_id = $this->make_form();

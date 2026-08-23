@@ -981,7 +981,7 @@ var allTerrainFormsAnalytics = function(exports) {
     }
   }
   let mounted = null;
-  document.addEventListener("atf-open-analytics-form", (event) => {
+  document.addEventListener("alltfo-open-analytics-form", (event) => {
     const formId = Number(event.detail?.formId ?? 0);
     if (!formId) {
       return;
@@ -999,7 +999,7 @@ var allTerrainFormsAnalytics = function(exports) {
     void mounted.start();
   }
   let wantsDemo = false;
-  document.addEventListener("atf-open-demo-panel", () => {
+  document.addEventListener("alltfo-open-demo-panel", () => {
     wantsDemo = true;
     window.setTimeout(() => {
       mounted?.revealDemo();

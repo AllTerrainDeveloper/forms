@@ -19,14 +19,14 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
+class ALLTFO_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 	/**
 	 * Every status an imported entry can land in.
 	 *
 	 * @var string[]
 	 */
-	const ENTRY_STATUSES = array( 'atf-unread', 'atf-read', 'atf-spam' );
+	const ENTRY_STATUSES = array( 'alltfo-unread', 'alltfo-read', 'alltfo-spam' );
 
 	/**
 	 * The WPForms form post id.
@@ -55,7 +55,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 			)
 		);
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
 
@@ -155,7 +155,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	 * @return int
 	 */
 	protected function import_form() {
-		return atf_import_source_form( 'wpforms', (string) $this->wpf_id );
+		return alltfo_import_source_form( 'wpforms', (string) $this->wpf_id );
 	}
 
 	/**
@@ -167,12 +167,12 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	protected function entries( $form_id ) {
 		return get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
 				'post_status'    => self::ENTRY_STATUSES,
 				'posts_per_page' => -1,
 				'orderby'        => 'date',
 				'order'          => 'ASC',
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -181,10 +181,10 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	/**
 	 * The recomputed map mints the same ids the conversion did — gaps included.
 	 *
-	 * @covers ::atf_wpforms_map
+	 * @covers ::alltfo_wpforms_map
 	 */
 	public function test_map_matches_conversion() {
-		$map = atf_wpforms_map( $this->document() );
+		$map = alltfo_wpforms_map( $this->document() );
 
 		$this->assertSame( 'f1', $map['0'] );
 		$this->assertSame( 'f4', $map['3'] );
@@ -195,9 +195,9 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	/**
 	 * Every stored shape arrives as the shape its new field stores.
 	 *
-	 * @covers ::atf_wpforms_import_entries
-	 * @covers ::atf_wpforms_entry_values
-	 * @covers ::atf_wpforms_entry_value
+	 * @covers ::alltfo_wpforms_import_entries
+	 * @covers ::alltfo_wpforms_entry_values
+	 * @covers ::alltfo_wpforms_entry_value
 	 */
 	public function test_shapes_survive_the_trip() {
 		$this->add_entry(
@@ -240,7 +240,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 		);
 
 		$form_id = $this->import_form();
-		$result  = atf_import_form_entries( $form_id );
+		$result  = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 1, $result['imported'] );
 
@@ -248,8 +248,8 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $entries );
 
-		$map    = atf_form_import_map( $form_id );
-		$values = json_decode( get_post_meta( $entries[0]->ID, ATF_META_VALUES, true ), true );
+		$map    = alltfo_form_import_map( $form_id );
+		$values = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_VALUES, true ), true );
 
 		$this->assertSame(
 			array(
@@ -273,7 +273,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 		$this->assertSame( '2025-03-04 09:15:00', $entries[0]->post_date_gmt );
 
-		$context = json_decode( get_post_meta( $entries[0]->ID, ATF_META_CONTEXT, true ), true );
+		$context = json_decode( get_post_meta( $entries[0]->ID, ALLTFO_META_CONTEXT, true ), true );
 
 		$this->assertSame( '203.0.113.11', $context['ip'] );
 		$this->assertSame( 'wpforms', $context['imported'] );
@@ -285,8 +285,8 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	 * `partial` and `abandoned` are forms nobody ever sent — importing them
 	 * would put entries on the screen that no visitor believes they submitted.
 	 *
-	 * @covers ::atf_wpforms_import_entries
-	 * @covers ::atf_wpforms_entry_count
+	 * @covers ::alltfo_wpforms_import_entries
+	 * @covers ::alltfo_wpforms_entry_count
 	 */
 	public function test_statuses_sort_themselves() {
 		$answer = static function ( $email ) {
@@ -308,19 +308,19 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 		$form_id = $this->import_form();
 
-		$this->assertSame( 3, atf_wpforms_entry_count( (string) $this->wpf_id, $form_id ) );
+		$this->assertSame( 3, alltfo_wpforms_entry_count( (string) $this->wpf_id, $form_id ) );
 
-		$result = atf_import_form_entries( $form_id );
+		$result = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 3, $result['imported'] );
 		$this->assertTrue( $result['done'] );
 
 		$spam = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				'post_status'    => ATF_STATUS_SPAM,
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				'post_status'    => ALLTFO_STATUS_SPAM,
 				'posts_per_page' => -1,
-				'meta_key'       => ATF_META_FORM,
+				'meta_key'       => ALLTFO_META_FORM,
 				'meta_value'     => $form_id,
 			)
 		);
@@ -331,7 +331,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	/**
 	 * Running it twice imports nothing twice.
 	 *
-	 * @covers ::atf_wpforms_import_entries
+	 * @covers ::alltfo_wpforms_import_entries
 	 */
 	public function test_second_run_imports_nothing_new() {
 		$this->add_entry(
@@ -347,10 +347,10 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 		$form_id = $this->import_form();
 
-		$first = atf_import_form_entries( $form_id );
+		$first = alltfo_import_form_entries( $form_id );
 		$this->assertSame( 1, $first['imported'] );
 
-		$second = atf_import_form_entries( $form_id );
+		$second = alltfo_import_form_entries( $form_id );
 		$this->assertSame( 0, $second['imported'] );
 		$this->assertSame( 1, $second['skipped'] );
 
@@ -360,8 +360,8 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	/**
 	 * A Lite site — no entries table at all — is simply done, not broken.
 	 *
-	 * @covers ::atf_wpforms_import_entries
-	 * @covers ::atf_wpforms_entry_count
+	 * @covers ::alltfo_wpforms_import_entries
+	 * @covers ::alltfo_wpforms_entry_count
 	 */
 	public function test_lite_site_has_nothing_to_bring() {
 		global $wpdb;
@@ -370,9 +370,9 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 
 		$wpdb->query( "DROP TABLE {$wpdb->prefix}wpforms_entries" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Removing the fixture is the scenario.
 
-		$this->assertSame( 0, atf_wpforms_entry_count( (string) $this->wpf_id, $form_id ) );
+		$this->assertSame( 0, alltfo_wpforms_entry_count( (string) $this->wpf_id, $form_id ) );
 
-		$result = atf_import_form_entries( $form_id );
+		$result = alltfo_import_form_entries( $form_id );
 
 		$this->assertSame( 0, $result['imported'] );
 		$this->assertTrue( $result['done'] );
@@ -381,7 +381,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 	/**
 	 * The source table is never touched.
 	 *
-	 * @covers ::atf_wpforms_import_entries
+	 * @covers ::alltfo_wpforms_import_entries
 	 */
 	public function test_source_is_left_alone() {
 		global $wpdb;
@@ -398,7 +398,7 @@ class ATF_Test_Importers_Entries_Wpforms extends WP_UnitTestCase {
 		);
 
 		$form_id = $this->import_form();
-		atf_import_form_entries( $form_id );
+		alltfo_import_form_entries( $form_id );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Asserting against the fixture.
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT status, fields FROM {$wpdb->prefix}wpforms_entries WHERE entry_id = %d", $entry_id ) );

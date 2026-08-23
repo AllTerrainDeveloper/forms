@@ -16,7 +16,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Import_Notice extends WP_UnitTestCase {
+class ALLTFO_Test_Import_Notice extends WP_UnitTestCase {
 
 	/**
 	 * An administrator, and no memory of a previous survey.
@@ -24,18 +24,18 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
-		atf_forget_importable_forms();
-		delete_option( ATF_IMPORTED_OPTION );
+		alltfo_forget_importable_forms();
+		delete_option( ALLTFO_IMPORTED_OPTION );
 	}
 
 	/**
 	 * Leaves nothing cached for the next test.
 	 */
 	public function tear_down() {
-		atf_forget_importable_forms();
+		alltfo_forget_importable_forms();
 
 		parent::tear_down();
 	}
@@ -90,67 +90,67 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 	/**
 	 * Nothing to import is the answer on an ordinary site.
 	 *
-	 * @covers ::atf_importable_forms
-	 * @covers ::atf_should_show_import_notice
+	 * @covers ::alltfo_importable_forms
+	 * @covers ::alltfo_should_show_import_notice
 	 */
 	public function test_a_site_with_no_other_forms_is_not_offered_an_import() {
-		$this->assertSame( array(), atf_importable_forms() );
-		$this->assertSame( 0, atf_importable_count() );
-		$this->assertFalse( atf_should_show_import_notice() );
+		$this->assertSame( array(), alltfo_importable_forms() );
+		$this->assertSame( 0, alltfo_importable_count() );
+		$this->assertFalse( alltfo_should_show_import_notice() );
 	}
 
 	/**
 	 * Each source is counted, and named.
 	 *
-	 * @covers ::atf_importable_forms
-	 * @covers ::atf_importable_count
+	 * @covers ::alltfo_importable_forms
+	 * @covers ::alltfo_importable_count
 	 */
 	public function test_every_source_is_found_and_counted() {
 		$this->cf7_form( 'Contact' );
 		$this->cf7_form( 'Careers' );
 		$this->wpforms_form( 'Newsletter' );
 
-		$found = atf_importable_forms();
+		$found = alltfo_importable_forms();
 
 		$this->assertSame( array( 'contact-form-7', 'wpforms' ), array_keys( $found ) );
 		$this->assertSame( 2, $found['contact-form-7']['count'] );
 		$this->assertSame( 'Contact Form 7', $found['contact-form-7']['label'] );
 		$this->assertSame( 1, $found['wpforms']['count'] );
-		$this->assertSame( 3, atf_importable_count() );
+		$this->assertSame( 3, alltfo_importable_count() );
 	}
 
 	/**
 	 * The survey is cached, and forgotten when it could be wrong.
 	 *
-	 * @covers ::atf_importable_forms
-	 * @covers ::atf_forget_importable_forms
+	 * @covers ::alltfo_importable_forms
+	 * @covers ::alltfo_forget_importable_forms
 	 */
 	public function test_the_survey_is_cached_until_something_changes() {
 		$this->cf7_form( 'Contact' );
 
-		$this->assertSame( 1, atf_importable_count() );
+		$this->assertSame( 1, alltfo_importable_count() );
 
 		// A second form does not appear while the answer is still cached --
 		// which is the point of the cache, and why anything that could change
 		// the answer has to drop it.
 		$this->cf7_form( 'Careers' );
-		$this->assertSame( 1, atf_importable_count() );
+		$this->assertSame( 1, alltfo_importable_count() );
 
-		atf_forget_importable_forms();
-		$this->assertSame( 2, atf_importable_count() );
+		alltfo_forget_importable_forms();
+		$this->assertSame( 2, alltfo_importable_count() );
 	}
 
 	/**
 	 * One click imports every form from every source.
 	 *
-	 * @covers ::atf_import_all
+	 * @covers ::alltfo_import_all
 	 */
 	public function test_import_all_takes_everything() {
 		$this->cf7_form( 'Contact' );
 		$this->cf7_form( 'Careers' );
 		$this->wpforms_form( 'Newsletter' );
 
-		$result = atf_import_all();
+		$result = alltfo_import_all();
 
 		$this->assertSame( 3, $result['imported'] );
 		$this->assertSame( 0, $result['failed'] );
@@ -158,7 +158,7 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 		$titles = wp_list_pluck(
 			get_posts(
 				array(
-					'post_type'      => ATF_FORM_TYPE,
+					'post_type'      => ALLTFO_FORM_TYPE,
 					'post_status'    => 'any',
 					'posts_per_page' => 10,
 				)
@@ -178,74 +178,74 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 	/**
 	 * The offer is made when there is something to offer.
 	 *
-	 * @covers ::atf_should_show_import_notice
+	 * @covers ::alltfo_should_show_import_notice
 	 */
 	public function test_the_offer_is_made_when_forms_are_found() {
 		$this->cf7_form( 'Contact' );
 
-		$this->assertTrue( atf_should_show_import_notice() );
+		$this->assertTrue( alltfo_should_show_import_notice() );
 	}
 
 	/**
 	 * "Not now" is remembered, and only for the person who said it.
 	 *
-	 * @covers ::atf_should_show_import_notice
+	 * @covers ::alltfo_should_show_import_notice
 	 */
 	public function test_not_now_is_remembered_per_user() {
 		$this->cf7_form( 'Contact' );
 
-		update_user_meta( get_current_user_id(), ATF_IMPORT_NOTICE_META, '1' );
-		$this->assertFalse( atf_should_show_import_notice() );
+		update_user_meta( get_current_user_id(), ALLTFO_IMPORT_NOTICE_META, '1' );
+		$this->assertFalse( alltfo_should_show_import_notice() );
 
 		// Somebody else's dismissal is not this person's answer.
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		$this->assertTrue( atf_should_show_import_notice() );
+		$this->assertTrue( alltfo_should_show_import_notice() );
 	}
 
 	/**
 	 * Once anything has been imported the plugin stops asking.
 	 *
-	 * @covers ::atf_should_show_import_notice
-	 * @covers ::atf_remember_import
+	 * @covers ::alltfo_should_show_import_notice
+	 * @covers ::alltfo_remember_import
 	 */
 	public function test_it_stops_asking_after_the_first_import() {
 		$this->cf7_form( 'Contact' );
 		$this->cf7_form( 'Careers' );
 
-		$this->assertTrue( atf_should_show_import_notice() );
+		$this->assertTrue( alltfo_should_show_import_notice() );
 
-		atf_import_source_form( 'contact-form-7', (string) $this->cf7_form( 'Another' ) );
+		alltfo_import_source_form( 'contact-form-7', (string) $this->cf7_form( 'Another' ) );
 
 		// A form is left unimported, and it still stops -- the notice exists to
 		// introduce the importer, and the Import page does the rest.
-		$this->assertNotEmpty( get_option( ATF_IMPORTED_OPTION ) );
-		$this->assertFalse( atf_should_show_import_notice() );
+		$this->assertNotEmpty( get_option( ALLTFO_IMPORTED_OPTION ) );
+		$this->assertFalse( alltfo_should_show_import_notice() );
 	}
 
 	/**
 	 * Somebody who cannot build forms is never offered the import.
 	 *
-	 * @covers ::atf_should_show_import_notice
+	 * @covers ::alltfo_should_show_import_notice
 	 */
 	public function test_the_offer_needs_the_capability() {
 		$this->cf7_form( 'Contact' );
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$this->assertFalse( atf_should_show_import_notice() );
+		$this->assertFalse( alltfo_should_show_import_notice() );
 	}
 
 	/**
 	 * A site can turn the offer off for everybody, once.
 	 *
-	 * @covers ::atf_should_show_import_notice
+	 * @covers ::alltfo_should_show_import_notice
 	 */
 	public function test_a_filter_can_switch_the_offer_off() {
 		$this->cf7_form( 'Contact' );
 
-		add_filter( 'atf_show_import_notice', '__return_false' );
+		add_filter( 'alltfo_show_import_notice', '__return_false' );
 
-		$this->assertFalse( atf_should_show_import_notice() );
+		$this->assertFalse( alltfo_should_show_import_notice() );
 	}
 
 	/**
@@ -254,7 +254,7 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 	 * "4 forms in other plugins" leaves somebody wondering which, and which is
 	 * the reason they would click.
 	 *
-	 * @covers ::atf_render_import_notice
+	 * @covers ::alltfo_render_import_notice
 	 */
 	public function test_it_names_a_single_source_and_itemises_several() {
 		// The renderer bails on a screen it does not belong to, so put it on
@@ -265,17 +265,17 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 		$this->cf7_form( 'Careers' );
 
 		ob_start();
-		atf_render_import_notice();
+		alltfo_render_import_notice();
 		$one = wp_strip_all_tags( ob_get_clean() );
 
 		$this->assertStringContainsString( 'found 2 forms in Contact Form 7', $one );
 		$this->assertStringNotContainsString( 'other plugins', $one );
 
 		$this->wpforms_form( 'Newsletter' );
-		atf_forget_importable_forms();
+		alltfo_forget_importable_forms();
 
 		ob_start();
-		atf_render_import_notice();
+		alltfo_render_import_notice();
 		$several = wp_strip_all_tags( ob_get_clean() );
 
 		$this->assertStringContainsString( 'found 3 forms in other plugins', $several );
@@ -289,21 +289,21 @@ class ATF_Test_Import_Notice extends WP_UnitTestCase {
 	/**
 	 * The notice keeps off screens it has no business on.
 	 *
-	 * @covers ::atf_import_notice_screen
+	 * @covers ::alltfo_import_notice_screen
 	 */
 	public function test_it_only_appears_where_it_belongs() {
 		$GLOBALS['hook_suffix'] = 'plugins.php';
 		set_current_screen( 'plugins' );
-		$this->assertTrue( atf_import_notice_screen(), 'Where an activation lands.' );
+		$this->assertTrue( alltfo_import_notice_screen(), 'Where an activation lands.' );
 
 		set_current_screen( 'edit-post' );
-		$this->assertFalse( atf_import_notice_screen(), 'An unrelated screen.' );
+		$this->assertFalse( alltfo_import_notice_screen(), 'An unrelated screen.' );
 
 		$_GET['page'] = 'allterrain-forms';
-		$this->assertTrue( atf_import_notice_screen(), 'The builder.' );
+		$this->assertTrue( alltfo_import_notice_screen(), 'The builder.' );
 
 		$_GET['page'] = 'allterrain-forms-import';
-		$this->assertFalse( atf_import_notice_screen(), 'The page it would point at.' );
+		$this->assertFalse( alltfo_import_notice_screen(), 'The page it would point at.' );
 
 		unset( $_GET['page'] );
 	}

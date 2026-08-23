@@ -904,7 +904,7 @@ class AnalyticsWindow {
 let mounted: AnalyticsWindow | null = null;
 
 // WP Explorer deep-link: open the report on one form.
-document.addEventListener( 'atf-open-analytics-form', ( event ) => {
+document.addEventListener( 'alltfo-open-analytics-form', ( event ) => {
 	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
 
 	if ( ! formId ) {
@@ -934,7 +934,7 @@ export function mountAnalytics(): void {
 // once the content has loaded rather than dropped.
 let wantsDemo = false;
 
-document.addEventListener( 'atf-open-demo-panel', () => {
+document.addEventListener( 'alltfo-open-demo-panel', () => {
 	wantsDemo = true;
 
 	window.setTimeout( () => {

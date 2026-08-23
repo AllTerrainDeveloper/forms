@@ -7,8 +7,8 @@
  * and moving sliders.
  *
  * The control list is **not** hard-coded here. It comes from `/config`, which
- * derives it from `atf_theme_token_defaults()` — so a plugin that adds a token
- * through the `atf_theme_tokens` filter gets an editor for it without touching
+ * derives it from `alltfo_theme_token_defaults()` — so a plugin that adds a token
+ * through the `alltfo_theme_tokens` filter gets an editor for it without touching
  * this file. That is what makes the "expandable without code" promise true for
  * the editor as well as the renderer.
  *

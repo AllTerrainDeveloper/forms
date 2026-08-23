@@ -1754,7 +1754,7 @@ export class Builder {
 	 * The sources are a closed set, so they are offered as a list. The stored
 	 * value is still the same string — a form built before this opens in whichever
 	 * mode its value already matches, and a plugin adding a source through
-	 * `atf_resolve_prefill` still works via Advanced.
+	 * `alltfo_resolve_prefill` still works via Advanced.
 	 */
 	private prefillControl( field: Field, update: ( key: string, value: unknown ) => void ): HTMLElement {
 		// `query:` keeps its parameter name in a separate box, so the only thing
@@ -1803,7 +1803,7 @@ export class Builder {
 					),
 					el( 'p', {
 						class: 'atfb-row__hint',
-						text: 'For a source another plugin has added through atf_resolve_prefill.',
+						text: 'For a source another plugin has added through alltfo_resolve_prefill.',
 					} )
 				);
 			}
@@ -3635,8 +3635,8 @@ export class Builder {
 	/**
 	 * Which parts of a name or an address to ask for.
 	 *
-	 * The available parts come from the server, because `atf_name_parts` and
-	 * `atf_address_parts` are both filterable — a builder with the list baked in
+	 * The available parts come from the server, because `alltfo_name_parts` and
+	 * `alltfo_address_parts` are both filterable — a builder with the list baked in
 	 * would offer five while the form drew seven.
 	 *
 	 * Order follows the server's, not the order they were ticked, so the tick
@@ -4423,7 +4423,7 @@ export class Builder {
 	 *
 	 * Fields decide their own visibility through `renderLogicSection`; these
 	 * two decide whether they *fire* — the same `Logic` block without the
-	 * show/hide half, evaluated by `atf_logic_conditions_met()` on submit.
+	 * show/hide half, evaluated by `alltfo_logic_conditions_met()` on submit.
 	 * The copy above the confirmations list has promised "the first one whose
 	 * conditions match" since the list existed; this is the editor that
 	 * promise was missing.
@@ -4642,11 +4642,11 @@ export class Builder {
 	 *
 	 * The values come from the server's own renderer rather than being resolved
 	 * again here. A form's theme is a base theme plus per-form overrides plus
-	 * whatever `atf_theme_tokens` filters did to it, and a second resolver in
+	 * whatever `alltfo_theme_tokens` filters did to it, and a second resolver in
 	 * TypeScript would be a second answer to "what colour is this" — the same
 	 * twin-engine problem the logic and calculation code goes to some length to
-	 * avoid. One render is asked for, its `<style>` block is lifted, and its
-	 * selector is repointed at the canvas.
+	 * avoid. One render is asked for, the token declarations are lifted off its
+	 * wrapper's `style` attribute, and they are re-scoped to the canvas.
 	 *
 	 * Failure is silent on purpose: no tokens means the previews render in the
 	 * default theme, which is a worse-looking canvas and a working builder.
@@ -4677,18 +4677,24 @@ export class Builder {
 			// preview's ground from it.
 			this.root.classList.toggle( 'atfb--dark-form', /atf-is-dark/.test( html ) );
 
-			const block = /<style>([\s\S]*?)<\/style>/.exec( html );
+			// The server puts the tokens on the wrapper's own `style` attribute,
+			// scoped to the one instance it rendered. The canvas has many
+			// previews and no wrapper, so the declarations are lifted off the
+			// attribute and re-scoped to the class they all carry.
+			const block = /class="atf-form-wrap"[^>]*\sstyle="([^"]*)"/.exec( html );
 
 			if ( ! block ) {
 				return;
 			}
 
-			// The server scopes the block to the instance it rendered
-			// (`#atf-12-1`, the wrapper). The canvas has many previews and no
-			// instance, so the scope becomes the class they all carry.
-			const css = block[ 1 ].replace( /#atf-[\d-]+/g, '.atfb .atfb-preview' );
+			// `esc_attr()` on the server entity-encodes the attribute; the only
+			// entities a sanitised token value can actually contain are these.
+			const decls = block[ 1 ]
+				.replace( /&quot;/g, '"' )
+				.replace( /&#0?39;/g, "'" )
+				.replace( /&amp;/g, '&' );
 
-			this.canvasTheme.textContent = css;
+			this.canvasTheme.textContent = `.atfb .atfb-preview {\n${ decls }\n}`;
 
 			if ( ! this.canvasTheme.isConnected ) {
 				this.root.append( this.canvasTheme );
@@ -5716,7 +5722,7 @@ let mountedRoot: HTMLElement | null = null;
 // WP Explorer's actions open this window and then say which form they meant.
 // The window may still be mounting when the event lands, so the ask waits the
 // same beat the analytics demo-panel deep link does.
-document.addEventListener( 'atf-open-form', ( event ) => {
+document.addEventListener( 'alltfo-open-form', ( event ) => {
 	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
 
 	if ( ! formId ) {

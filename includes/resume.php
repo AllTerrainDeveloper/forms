@@ -9,7 +9,7 @@
  * the difference between a completed application and an empty afternoon.
  *
  * The design here is deliberately anonymous. A partial submission is stored as
- * an entry in the `atf-partial` status, addressed by a **random token** that is
+ * an entry in the `alltfo-partial` status, addressed by a **random token** that is
  * never derived from anything about the person. No account is needed, no cookie
  * is set, and nothing links two partials together. The token is the only key.
  *
@@ -25,7 +25,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** The query flag that resumes a form. */
-const ATF_RESUME_QUERY = 'atf_resume';
+const ALLTFO_RESUME_QUERY = 'alltfo_resume';
 
 /**
  * Saves a partial submission and returns the way back to it.
@@ -42,35 +42,35 @@ const ATF_RESUME_QUERY = 'atf_resume';
  * @param string $token   An existing token to update, or empty to mint one.
  * @return array|WP_Error { token, url, expires } or why not.
  */
-function atf_save_partial( $form_id, $raw, $token = '' ) {
+function alltfo_save_partial( $form_id, $raw, $token = '' ) {
 	$form_id = absint( $form_id );
-	$schema  = atf_get_form_schema( $form_id );
+	$schema  = alltfo_get_form_schema( $form_id );
 
 	if ( empty( $schema['settings']['resume']['enabled'] ) ) {
 		return new WP_Error(
-			'atf_resume_disabled',
+			'alltfo_resume_disabled',
 			__( 'This form does not offer saving for later.', 'allterrain-forms' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$availability = atf_form_availability( $form_id, $schema );
+	$availability = alltfo_form_availability( $form_id, $schema );
 
 	if ( ! $availability['open'] ) {
-		return new WP_Error( 'atf_form_closed', $availability['message'], array( 'status' => 403 ) );
+		return new WP_Error( 'alltfo_form_closed', $availability['message'], array( 'status' => 403 ) );
 	}
 
-	$values = atf_sanitize_submission( $schema, is_array( $raw ) ? $raw : array() );
+	$values = alltfo_sanitize_submission( $schema, is_array( $raw ) ? $raw : array() );
 	$days   = max( 1, (int) $schema['settings']['resume']['days'] );
 	$expiry = time() + ( $days * DAY_IN_SECONDS );
 
-	$existing = '' !== $token ? atf_find_partial( $token ) : null;
+	$existing = '' !== $token ? alltfo_find_partial( $token ) : null;
 
 	// A token minted on one form must not update another form's partial -- it
 	// would overwrite a stranger-to-this-form's answers and rebrand their entry.
 	// A mismatched token is treated as no token at all, so the save still
 	// succeeds, as a fresh partial for this form, subject to the cap below.
-	if ( $existing && absint( get_post_meta( $existing->ID, ATF_META_FORM, true ) ) !== $form_id ) {
+	if ( $existing && absint( get_post_meta( $existing->ID, ALLTFO_META_FORM, true ) ) !== $form_id ) {
 		$existing = null;
 	}
 
@@ -84,7 +84,7 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 		// the raw request value. The lookup tolerates decoration around a token
 		// -- whitespace, a stray quote -- that must not be stored, because a
 		// corrupted stored token would fail every later lookup.
-		$resume = json_decode( (string) get_post_meta( $existing->ID, ATF_META_RESUME, true ), true );
+		$resume = json_decode( (string) get_post_meta( $existing->ID, ALLTFO_META_RESUME, true ), true );
 		$token  = isset( $resume['token'] ) ? (string) $resume['token'] : $token;
 	} else {
 		// The `/resume` route is public, and a tokenless save writes a new row
@@ -104,11 +104,11 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 		 * @param int $limit   New partials allowed per IP per hour. Default 30.
 		 * @param int $form_id The form being saved.
 		 */
-		$limit = (int) apply_filters( 'atf_partial_rate_limit', 30, $form_id );
+		$limit = (int) apply_filters( 'alltfo_partial_rate_limit', 30, $form_id );
 
-		if ( $limit > 0 && atf_hit_rate_limit( 'partial', $limit ) ) {
+		if ( $limit > 0 && alltfo_hit_rate_limit( 'partial', $limit ) ) {
 			return new WP_Error(
-				'atf_partial_rate_limited',
+				'alltfo_partial_rate_limited',
 				__( 'Too many saved forms from this connection. Please try again later.', 'allterrain-forms' ),
 				array( 'status' => 429 )
 			);
@@ -121,13 +121,13 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 
 		$entry_id = wp_insert_post(
 			array(
-				'post_type'   => ATF_ENTRY_TYPE,
+				'post_type'   => ALLTFO_ENTRY_TYPE,
 				'post_title'  => sprintf(
 					/* translators: %s: the form's title. */
 					__( 'Incomplete — %s', 'allterrain-forms' ),
 					get_the_title( $form_id )
 				),
-				'post_status' => ATF_STATUS_PARTIAL,
+				'post_status' => ALLTFO_STATUS_PARTIAL,
 				'post_author' => get_current_user_id(),
 			),
 			true
@@ -137,13 +137,13 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 			return $entry_id;
 		}
 
-		update_post_meta( $entry_id, ATF_META_FORM, $form_id );
+		update_post_meta( $entry_id, ALLTFO_META_FORM, $form_id );
 	}
 
-	update_post_meta( $entry_id, ATF_META_VALUES, wp_slash( wp_json_encode( $values ) ) );
+	update_post_meta( $entry_id, ALLTFO_META_VALUES, wp_slash( wp_json_encode( $values ) ) );
 	update_post_meta(
 		$entry_id,
-		ATF_META_RESUME,
+		ALLTFO_META_RESUME,
 		wp_slash(
 			wp_json_encode(
 				array(
@@ -155,7 +155,7 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 		)
 	);
 
-	$url = add_query_arg( ATF_RESUME_QUERY, $token, atf_form_action_url() );
+	$url = add_query_arg( ALLTFO_RESUME_QUERY, $token, alltfo_form_action_url() );
 
 	/**
 	 * Fires after a partial submission is saved.
@@ -170,7 +170,7 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
 	 * @param string $url      The resume link.
 	 * @param array  $values   What has been filled in so far.
 	 */
-	do_action( 'atf_partial_saved', $entry_id, $form_id, $url, $values );
+	do_action( 'alltfo_partial_saved', $entry_id, $form_id, $url, $values );
 
 	return array(
 		'token'   => $token,
@@ -192,7 +192,7 @@ function atf_save_partial( $form_id, $raw, $token = '' ) {
  * @param string $token The token.
  * @return WP_Post|null The partial entry, or null when it is unknown or expired.
  */
-function atf_find_partial( $token ) {
+function alltfo_find_partial( $token ) {
 	$token = preg_replace( '/[^a-zA-Z0-9]/', '', (string) $token );
 
 	if ( strlen( $token ) < 16 ) {
@@ -201,13 +201,13 @@ function atf_find_partial( $token ) {
 
 	$found = get_posts(
 		array(
-			'post_type'        => ATF_ENTRY_TYPE,
-			'post_status'      => ATF_STATUS_PARTIAL,
+			'post_type'        => ALLTFO_ENTRY_TYPE,
+			'post_status'      => ALLTFO_STATUS_PARTIAL,
 			'numberposts'      => 1,
 			'suppress_filters' => false,
 			'meta_query'       => array(
 				array(
-					'key'     => ATF_META_RESUME,
+					'key'     => ALLTFO_META_RESUME,
 					'value'   => '"' . $token . '"',
 					'compare' => 'LIKE',
 				),
@@ -220,7 +220,7 @@ function atf_find_partial( $token ) {
 	}
 
 	$post   = $found[0];
-	$resume = json_decode( (string) get_post_meta( $post->ID, ATF_META_RESUME, true ), true );
+	$resume = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_RESUME, true ), true );
 
 	if ( ! is_array( $resume ) || empty( $resume['token'] ) ) {
 		return null;
@@ -247,17 +247,17 @@ function atf_find_partial( $token ) {
  * @param string $token The token from the URL.
  * @return array { form_id: int, values: array, token: string } or an empty array.
  */
-function atf_resume_values( $token ) {
-	$post = atf_find_partial( $token );
+function alltfo_resume_values( $token ) {
+	$post = alltfo_find_partial( $token );
 
 	if ( ! $post ) {
 		return array();
 	}
 
-	$values = json_decode( (string) get_post_meta( $post->ID, ATF_META_VALUES, true ), true );
+	$values = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_VALUES, true ), true );
 
 	return array(
-		'form_id' => (int) get_post_meta( $post->ID, ATF_META_FORM, true ),
+		'form_id' => (int) get_post_meta( $post->ID, ALLTFO_META_FORM, true ),
 		'values'  => is_array( $values ) ? $values : array(),
 		'token'   => $token,
 		'entry'   => $post->ID,
@@ -267,7 +267,7 @@ function atf_resume_values( $token ) {
 /**
  * Deletes the partial a completed submission came from.
  *
- * Hooked on `atf_entry_created`, so finishing a form clears the half-finished
+ * Hooked on `alltfo_entry_created`, so finishing a form clears the half-finished
  * copy of it. Without this the entries list carries a permanent shadow of every
  * application that was ever saved and then completed, and the resume link keeps
  * working long after it means anything.
@@ -279,22 +279,22 @@ function atf_resume_values( $token ) {
  * @param array $values   The accepted values.
  * @return void
  */
-function atf_clear_partial_on_submit( $entry_id, $form_id, $values ) {
+function alltfo_clear_partial_on_submit( $entry_id, $form_id, $values ) {
 	// The token travels in the submission that finishes the form, which is the
 	// only thing tying the two together -- the partial is anonymous by design.
 	// `$_POST` only covers the no-JavaScript form post; a REST submission with
 	// a JSON body never fills the superglobal, so the pipeline also clears from
-	// the parsed request in `atf_process_submission()`. Both run; whichever is
+	// the parsed request in `alltfo_process_submission()`. Both run; whichever is
 	// second finds nothing to delete.
 	// phpcs:disable WordPress.Security.NonceVerification.Missing -- The submission's own nonce was verified before this action fired.
-	$token = isset( $_POST[ ATF_RESUME_QUERY ] )
-		? sanitize_text_field( wp_unslash( $_POST[ ATF_RESUME_QUERY ] ) )
+	$token = isset( $_POST[ ALLTFO_RESUME_QUERY ] )
+		? sanitize_text_field( wp_unslash( $_POST[ ALLTFO_RESUME_QUERY ] ) )
 		: '';
 	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-	atf_clear_partial( $token );
+	alltfo_clear_partial( $token );
 }
-add_action( 'atf_entry_created', 'atf_clear_partial_on_submit', 10, 3 );
+add_action( 'alltfo_entry_created', 'alltfo_clear_partial_on_submit', 10, 3 );
 
 /**
  * Deletes the partial behind a resume token.
@@ -307,14 +307,14 @@ add_action( 'atf_entry_created', 'atf_clear_partial_on_submit', 10, 3 );
  * @param string $token The token.
  * @return void
  */
-function atf_clear_partial( $token ) {
+function alltfo_clear_partial( $token ) {
 	$token = sanitize_text_field( (string) $token );
 
 	if ( '' === $token ) {
 		return;
 	}
 
-	$partial = atf_find_partial( $token );
+	$partial = alltfo_find_partial( $token );
 
 	if ( $partial ) {
 		wp_delete_post( $partial->ID, true );
@@ -332,11 +332,11 @@ function atf_clear_partial( $token ) {
  *
  * @return int How many were removed.
  */
-function atf_expire_partials() {
+function alltfo_expire_partials() {
 	$partials = get_posts(
 		array(
-			'post_type'        => ATF_ENTRY_TYPE,
-			'post_status'      => ATF_STATUS_PARTIAL,
+			'post_type'        => ALLTFO_ENTRY_TYPE,
+			'post_status'      => ALLTFO_STATUS_PARTIAL,
 			'numberposts'      => 200,
 			'fields'           => 'ids',
 			'suppress_filters' => false,
@@ -346,7 +346,7 @@ function atf_expire_partials() {
 	$removed = 0;
 
 	foreach ( $partials as $entry_id ) {
-		$resume = json_decode( (string) get_post_meta( $entry_id, ATF_META_RESUME, true ), true );
+		$resume = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_RESUME, true ), true );
 
 		// A partial with no expiry recorded is malformed, and leaving it forever
 		// would mean somebody's half-typed answers outliving every policy on the
@@ -359,13 +359,13 @@ function atf_expire_partials() {
 			continue;
 		}
 
-		atf_delete_entry_completely( $entry_id );
+		alltfo_delete_entry_completely( $entry_id );
 		++$removed;
 	}
 
 	return $removed;
 }
-add_action( 'atf_apply_retention', 'atf_expire_partials' );
+add_action( 'alltfo_apply_retention', 'alltfo_expire_partials' );
 
 /**
  * The button that saves a form for later.
@@ -380,7 +380,7 @@ add_action( 'atf_apply_retention', 'atf_expire_partials' );
  * @param string $token  The token this form was resumed from, if any.
  * @return string
  */
-function atf_render_resume_button( $schema, $token = '' ) {
+function alltfo_render_resume_button( $schema, $token = '' ) {
 	if ( empty( $schema['settings']['resume']['enabled'] ) ) {
 		return '';
 	}
@@ -389,7 +389,7 @@ function atf_render_resume_button( $schema, $token = '' ) {
 		'<button type="button" class="atf-button atf-button--ghost atf-resume" data-atf-resume>%s</button>'
 		. '<input type="hidden" name="%s" value="%s" data-atf-resume-token>',
 		esc_html__( 'Save and continue later', 'allterrain-forms' ),
-		esc_attr( ATF_RESUME_QUERY ),
+		esc_attr( ALLTFO_RESUME_QUERY ),
 		esc_attr( $token )
 	);
 }

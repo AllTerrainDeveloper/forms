@@ -17,9 +17,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'wp_privacy_personal_data_exporters', 'atf_register_exporter' );
-add_filter( 'wp_privacy_personal_data_erasers', 'atf_register_eraser' );
-add_action( 'admin_init', 'atf_register_privacy_policy_text' );
+add_filter( 'wp_privacy_personal_data_exporters', 'alltfo_register_exporter' );
+add_filter( 'wp_privacy_personal_data_erasers', 'alltfo_register_eraser' );
+add_action( 'admin_init', 'alltfo_register_privacy_policy_text' );
 
 /**
  * Registers the entries exporter.
@@ -29,10 +29,10 @@ add_action( 'admin_init', 'atf_register_privacy_policy_text' );
  * @param array $exporters Registered exporters.
  * @return array
  */
-function atf_register_exporter( $exporters ) {
+function alltfo_register_exporter( $exporters ) {
 	$exporters['allterrain-forms'] = array(
 		'exporter_friendly_name' => __( 'Form submissions', 'allterrain-forms' ),
-		'callback'               => 'atf_export_personal_data',
+		'callback'               => 'alltfo_export_personal_data',
 	);
 
 	return $exporters;
@@ -46,10 +46,10 @@ function atf_register_exporter( $exporters ) {
  * @param array $erasers Registered erasers.
  * @return array
  */
-function atf_register_eraser( $erasers ) {
+function alltfo_register_eraser( $erasers ) {
 	$erasers['allterrain-forms'] = array(
 		'eraser_friendly_name' => __( 'Form submissions', 'allterrain-forms' ),
-		'callback'             => 'atf_erase_personal_data',
+		'callback'             => 'alltfo_erase_personal_data',
 	);
 
 	return $erasers;
@@ -69,16 +69,16 @@ function atf_register_eraser( $erasers ) {
  * @param int    $page  One-based page.
  * @return array { entries: WP_Post[], done: bool }
  */
-function atf_find_entries_for_email( $email, $page = 1 ) {
+function alltfo_find_entries_for_email( $email, $page = 1 ) {
 	$per_page = 50;
 	$user     = get_user_by( 'email', $email );
 
 	$args = array(
-		'post_type'      => ATF_ENTRY_TYPE,
+		'post_type'      => ALLTFO_ENTRY_TYPE,
 		// Named, not `'any'`: entry statuses are all `exclude_from_search`, which
 		// `'any'` skips. An export that returns nothing and an erasure that erases
 		// nothing both look like success.
-		'post_status'    => atf_entry_statuses(),
+		'post_status'    => alltfo_entry_statuses(),
 		'posts_per_page' => $per_page,
 		'paged'          => max( 1, (int) $page ),
 		'orderby'        => 'ID',
@@ -90,7 +90,7 @@ function atf_find_entries_for_email( $email, $page = 1 ) {
 	// request is rare and runs in the background.
 	$meta = array(
 		array(
-			'key'     => ATF_META_VALUES,
+			'key'     => ALLTFO_META_VALUES,
 			'value'   => $email,
 			'compare' => 'LIKE',
 		),
@@ -99,7 +99,7 @@ function atf_find_entries_for_email( $email, $page = 1 ) {
 	if ( $user ) {
 		$meta['relation'] = 'OR';
 		$meta[]           = array(
-			'key'     => ATF_META_CONTEXT,
+			'key'     => ALLTFO_META_CONTEXT,
 			'value'   => '"userId":' . $user->ID . ',',
 			'compare' => 'LIKE',
 		);
@@ -124,15 +124,15 @@ function atf_find_entries_for_email( $email, $page = 1 ) {
  * @param int    $page  One-based page.
  * @return array The exporter's response.
  */
-function atf_export_personal_data( $email, $page = 1 ) {
-	$found = atf_find_entries_for_email( $email, $page );
+function alltfo_export_personal_data( $email, $page = 1 ) {
+	$found = alltfo_find_entries_for_email( $email, $page );
 	$items = array();
 
 	foreach ( $found['entries'] as $post ) {
-		$form_id = (int) get_post_meta( $post->ID, ATF_META_FORM, true );
-		$schema  = atf_get_form_schema( $form_id );
-		$values  = json_decode( (string) get_post_meta( $post->ID, ATF_META_VALUES, true ), true );
-		$context = json_decode( (string) get_post_meta( $post->ID, ATF_META_CONTEXT, true ), true );
+		$form_id = (int) get_post_meta( $post->ID, ALLTFO_META_FORM, true );
+		$schema  = alltfo_get_form_schema( $form_id );
+		$values  = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_VALUES, true ), true );
+		$context = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_CONTEXT, true ), true );
 
 		$values  = is_array( $values ) ? $values : array();
 		$context = is_array( $context ) ? $context : array();
@@ -148,13 +148,13 @@ function atf_export_personal_data( $email, $page = 1 ) {
 			),
 		);
 
-		foreach ( atf_input_fields( $schema ) as $field ) {
+		foreach ( alltfo_input_fields( $schema ) as $field ) {
 			if ( 'password' === $field['type'] ) {
 				continue;
 			}
 
 			$value = isset( $values[ $field['id'] ] ) ? $values[ $field['id'] ] : '';
-			$text  = atf_format_field_value( $value, $field, 'email' );
+			$text  = alltfo_format_field_value( $value, $field, 'email' );
 
 			if ( '' === trim( $text ) ) {
 				continue;
@@ -202,14 +202,14 @@ function atf_export_personal_data( $email, $page = 1 ) {
  * @param int    $page  One-based page.
  * @return array The eraser's response.
  */
-function atf_erase_personal_data( $email, $page = 1 ) {
+function alltfo_erase_personal_data( $email, $page = 1 ) {
 	// Always page 1: each pass deletes what it finds, so the next pass finds the
 	// next batch at the same offset. Paging forward would skip half of them.
-	$found   = atf_find_entries_for_email( $email, 1 );
+	$found   = alltfo_find_entries_for_email( $email, 1 );
 	$removed = 0;
 
 	foreach ( $found['entries'] as $post ) {
-		atf_delete_entry_completely( $post->ID );
+		alltfo_delete_entry_completely( $post->ID );
 		++$removed;
 	}
 
@@ -232,7 +232,7 @@ function atf_erase_personal_data( $email, $page = 1 ) {
  *
  * @return void
  */
-function atf_register_privacy_policy_text() {
+function alltfo_register_privacy_policy_text() {
 	if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
 		return;
 	}

@@ -26,19 +26,19 @@ defined( 'ABSPATH' ) || exit;
  * @param array[] $importers Importer id => definition.
  * @return array[]
  */
-function atf_register_wpforms_importer( $importers ) {
+function alltfo_register_wpforms_importer( $importers ) {
 	$importers['wpforms'] = array(
 		'label'          => __( 'WPForms', 'allterrain-forms' ),
-		'available'      => 'atf_wpforms_available',
-		'forms'          => 'atf_wpforms_forms',
-		'import'         => 'atf_wpforms_import',
-		'entries'        => 'atf_wpforms_entry_count',
-		'import_entries' => 'atf_wpforms_import_entries',
+		'available'      => 'alltfo_wpforms_available',
+		'forms'          => 'alltfo_wpforms_forms',
+		'import'         => 'alltfo_wpforms_import',
+		'entries'        => 'alltfo_wpforms_entry_count',
+		'import_entries' => 'alltfo_wpforms_import_entries',
 	);
 
 	return $importers;
 }
-add_filter( 'atf_importers', 'atf_register_wpforms_importer' );
+add_filter( 'alltfo_importers', 'alltfo_register_wpforms_importer' );
 
 /**
  * Whether any WPForms forms exist on this site.
@@ -47,8 +47,8 @@ add_filter( 'atf_importers', 'atf_register_wpforms_importer' );
  *
  * @return bool
  */
-function atf_wpforms_available() {
-	return (bool) atf_wpforms_forms();
+function alltfo_wpforms_available() {
+	return (bool) alltfo_wpforms_forms();
 }
 
 /**
@@ -58,7 +58,7 @@ function atf_wpforms_available() {
  *
  * @return array
  */
-function atf_wpforms_forms() {
+function alltfo_wpforms_forms() {
 	$posts = get_posts(
 		array(
 			'post_type'      => 'wpforms',
@@ -87,25 +87,25 @@ function atf_wpforms_forms() {
  * @param string $source_id The WPForms post id.
  * @return int|WP_Error The new form's id.
  */
-function atf_wpforms_import( $source_id ) {
+function alltfo_wpforms_import( $source_id ) {
 	$post = get_post( absint( $source_id ) );
 
 	if ( ! $post || 'wpforms' !== $post->post_type ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
 	$data = json_decode( (string) $post->post_content, true );
 
 	if ( ! is_array( $data ) ) {
-		return new WP_Error( 'atf_import_unreadable', __( 'That form could not be read.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_unreadable', __( 'That form could not be read.', 'allterrain-forms' ) );
 	}
 
-	$schema = atf_wpforms_convert( $data );
+	$schema = alltfo_wpforms_convert( $data );
 	$title  = '' !== $post->post_title
 		? $post->post_title
 		: ( isset( $data['settings']['form_title'] ) ? (string) $data['settings']['form_title'] : '' );
 
-	return atf_create_imported_form( $title, $schema, 'wpforms', (string) $post->ID, atf_wpforms_map( $data ) );
+	return alltfo_create_imported_form( $title, $schema, 'wpforms', (string) $post->ID, alltfo_wpforms_map( $data ) );
 }
 
 /**
@@ -117,9 +117,9 @@ function atf_wpforms_import( $source_id ) {
  * @since 0.2.0
  *
  * @param array $data The decoded `post_content`.
- * @return array A raw schema, ready for `atf_normalize_schema()`.
+ * @return array A raw schema, ready for `alltfo_normalize_schema()`.
  */
-function atf_wpforms_convert( $data ) {
+function alltfo_wpforms_convert( $data ) {
 	$source_fields = isset( $data['fields'] ) && is_array( $data['fields'] ) ? $data['fields'] : array();
 	$settings      = isset( $data['settings'] ) && is_array( $data['settings'] ) ? $data['settings'] : array();
 
@@ -141,14 +141,14 @@ function atf_wpforms_convert( $data ) {
 			continue;
 		}
 
-		$field = atf_wpforms_field( $source, $map[ (string) $source['id'] ], $map );
+		$field = alltfo_wpforms_field( $source, $map[ (string) $source['id'] ], $map );
 
 		if ( ! $field ) {
 			unset( $map[ (string) $source['id'] ] );
 			continue;
 		}
 
-		if ( 0 === strpos( (string) atf_wpforms_type( $source ), 'payment-' ) && 'total' !== $field['type'] ) {
+		if ( 0 === strpos( (string) alltfo_wpforms_type( $source ), 'payment-' ) && 'total' !== $field['type'] ) {
 			$payments[] = $field['id'];
 		}
 
@@ -182,13 +182,13 @@ function atf_wpforms_convert( $data ) {
 				'name'      => isset( $notification['notification_name'] ) && '' !== $notification['notification_name']
 					? (string) $notification['notification_name']
 					: __( 'Notification', 'allterrain-forms' ),
-				'to'        => atf_wpforms_replace_tags( isset( $notification['email'] ) ? (string) $notification['email'] : '', $map ),
-				'subject'   => atf_wpforms_replace_tags( isset( $notification['subject'] ) ? (string) $notification['subject'] : '', $map ),
-				'message'   => atf_wpforms_replace_tags( isset( $notification['message'] ) ? (string) $notification['message'] : '', $map ),
-				'fromName'  => atf_wpforms_replace_tags( isset( $notification['sender_name'] ) ? (string) $notification['sender_name'] : '', $map ),
-				'fromEmail' => atf_wpforms_replace_tags( isset( $notification['sender_address'] ) ? (string) $notification['sender_address'] : '', $map ),
-				'replyTo'   => atf_wpforms_replace_tags( isset( $notification['replyto'] ) ? (string) $notification['replyto'] : '', $map ),
-				'logic'     => atf_wpforms_logic( $notification, $map ),
+				'to'        => alltfo_wpforms_replace_tags( isset( $notification['email'] ) ? (string) $notification['email'] : '', $map ),
+				'subject'   => alltfo_wpforms_replace_tags( isset( $notification['subject'] ) ? (string) $notification['subject'] : '', $map ),
+				'message'   => alltfo_wpforms_replace_tags( isset( $notification['message'] ) ? (string) $notification['message'] : '', $map ),
+				'fromName'  => alltfo_wpforms_replace_tags( isset( $notification['sender_name'] ) ? (string) $notification['sender_name'] : '', $map ),
+				'fromEmail' => alltfo_wpforms_replace_tags( isset( $notification['sender_address'] ) ? (string) $notification['sender_address'] : '', $map ),
+				'replyTo'   => alltfo_wpforms_replace_tags( isset( $notification['replyto'] ) ? (string) $notification['replyto'] : '', $map ),
+				'logic'     => alltfo_wpforms_logic( $notification, $map ),
 			);
 		}
 	}
@@ -206,10 +206,10 @@ function atf_wpforms_convert( $data ) {
 					? (string) $confirmation['name']
 					: __( 'Confirmation', 'allterrain-forms' ),
 				'type'    => in_array( $type, array( 'message', 'redirect', 'page' ), true ) ? $type : 'message',
-				'message' => atf_wpforms_replace_tags( isset( $confirmation['message'] ) ? (string) $confirmation['message'] : '', $map ),
+				'message' => alltfo_wpforms_replace_tags( isset( $confirmation['message'] ) ? (string) $confirmation['message'] : '', $map ),
 				'url'     => isset( $confirmation['redirect'] ) ? (string) $confirmation['redirect'] : '',
 				'pageId'  => isset( $confirmation['page'] ) ? absint( $confirmation['page'] ) : 0,
-				'logic'   => atf_wpforms_logic( $confirmation, $map ),
+				'logic'   => alltfo_wpforms_logic( $confirmation, $map ),
 			);
 		}
 	}
@@ -225,7 +225,7 @@ function atf_wpforms_convert( $data ) {
  * @param array $source The source field.
  * @return string
  */
-function atf_wpforms_type( $source ) {
+function alltfo_wpforms_type( $source ) {
 	return isset( $source['type'] ) ? strtolower( (string) $source['type'] ) : '';
 }
 
@@ -239,8 +239,8 @@ function atf_wpforms_type( $source ) {
  * @param array  $map    WPForms field id => new field id, for logic rules.
  * @return array|null The field, or null when the source has no equivalent.
  */
-function atf_wpforms_field( $source, $id, $map ) {
-	$type = atf_wpforms_type( $source );
+function alltfo_wpforms_field( $source, $id, $map ) {
+	$type = alltfo_wpforms_type( $source );
 
 	$simple = array(
 		'text'               => 'text',
@@ -277,7 +277,7 @@ function atf_wpforms_field( $source, $id, $map ) {
 		'id'       => $id,
 		'label'    => isset( $source['label'] ) ? (string) $source['label'] : '',
 		'required' => ! empty( $source['required'] ),
-		'logic'    => atf_wpforms_logic( $source, $map ),
+		'logic'    => alltfo_wpforms_logic( $source, $map ),
 	);
 
 	if ( isset( $source['description'] ) && '' !== $source['description'] ) {
@@ -305,7 +305,7 @@ function atf_wpforms_field( $source, $id, $map ) {
 
 		if ( 'gdpr-checkbox' === $type ) {
 			// The consent line is the single choice's label.
-			$choice = atf_wpforms_choices( $source );
+			$choice = alltfo_wpforms_choices( $source );
 
 			if ( isset( $choice[0]['label'] ) && '' !== $choice[0]['label'] ) {
 				$field['consentText'] = $choice[0]['label'];
@@ -343,14 +343,14 @@ function atf_wpforms_field( $source, $id, $map ) {
 
 	if ( isset( $choicey[ $type ] ) ) {
 		$field['type']    = $choicey[ $type ];
-		$field['choices'] = atf_wpforms_choices( $source );
+		$field['choices'] = alltfo_wpforms_choices( $source );
 
 		if ( 'select' === $type && ! empty( $source['multiple'] ) ) {
 			$field['type'] = 'multiselect';
 		}
 
 		if ( 'likert_scale' === $type ) {
-			$field['rows'] = atf_wpforms_likert_rows( $source );
+			$field['rows'] = alltfo_wpforms_likert_rows( $source );
 		}
 
 		return $field;
@@ -429,9 +429,9 @@ function atf_wpforms_field( $source, $id, $map ) {
  * @param array $source The source field.
  * @return array[]
  */
-function atf_wpforms_choices( $source ) {
+function alltfo_wpforms_choices( $source ) {
 	$raw     = isset( $source['choices'] ) && is_array( $source['choices'] ) ? $source['choices'] : array();
-	$payment = 0 === strpos( atf_wpforms_type( $source ), 'payment-' );
+	$payment = 0 === strpos( alltfo_wpforms_type( $source ), 'payment-' );
 	$choices = array();
 
 	foreach ( $raw as $choice ) {
@@ -475,7 +475,7 @@ function atf_wpforms_choices( $source ) {
  * @param array $source The source field.
  * @return string[]
  */
-function atf_wpforms_likert_rows( $source ) {
+function alltfo_wpforms_likert_rows( $source ) {
 	$rows = array();
 
 	if ( isset( $source['rows'] ) && is_array( $source['rows'] ) ) {
@@ -506,7 +506,7 @@ function atf_wpforms_likert_rows( $source ) {
  * @param array $map    WPForms field id => new field id.
  * @return array The logic block, disabled when there was none.
  */
-function atf_wpforms_logic( $source, $map ) {
+function alltfo_wpforms_logic( $source, $map ) {
 	if ( empty( $source['conditional_logic'] ) || empty( $source['conditionals'] ) || ! is_array( $source['conditionals'] ) ) {
 		return array( 'enabled' => false );
 	}
@@ -605,7 +605,7 @@ function atf_wpforms_logic( $source, $map ) {
  * @param array  $map  WPForms field id => new field id.
  * @return string
  */
-function atf_wpforms_replace_tags( $text, $map ) {
+function alltfo_wpforms_replace_tags( $text, $map ) {
 	$specials = array(
 		'{all_fields}'                => '{all_fields}',
 		'{admin_email}'               => '{admin_email}',
@@ -640,7 +640,7 @@ function atf_wpforms_replace_tags( $text, $map ) {
 /**
  * The WPForms field id => new field id map for one form, recomputed.
  *
- * The same two passes `atf_wpforms_convert()` runs, minus building the schema:
+ * The same two passes `alltfo_wpforms_convert()` runs, minus building the schema:
  * every field is minted an id first, then the ones with no equivalent are
  * dropped — in that order, or the ids would shift and stop matching the ones
  * the conversion minted. Recomputed rather than threaded out of the converter
@@ -652,7 +652,7 @@ function atf_wpforms_replace_tags( $text, $map ) {
  * @param array $data The decoded `post_content`.
  * @return array WPForms field id => new field id.
  */
-function atf_wpforms_map( $data ) {
+function alltfo_wpforms_map( $data ) {
 	$source_fields = isset( $data['fields'] ) && is_array( $data['fields'] ) ? $data['fields'] : array();
 
 	$map  = array();
@@ -669,7 +669,7 @@ function atf_wpforms_map( $data ) {
 			continue;
 		}
 
-		if ( ! atf_wpforms_field( $source, $map[ (string) $source['id'] ], $map ) ) {
+		if ( ! alltfo_wpforms_field( $source, $map[ (string) $source['id'] ], $map ) ) {
 			unset( $map[ (string) $source['id'] ] );
 		}
 	}
@@ -689,7 +689,7 @@ function atf_wpforms_map( $data ) {
  *
  * @return bool
  */
-function atf_wpforms_entries_available() {
+function alltfo_wpforms_entries_available() {
 	global $wpdb;
 
 	$table = $wpdb->prefix . 'wpforms_entries';
@@ -710,7 +710,7 @@ function atf_wpforms_entries_available() {
  *
  * @return string[]
  */
-function atf_wpforms_entry_excluded_statuses() {
+function alltfo_wpforms_entry_excluded_statuses() {
 	return array( 'trash', 'partial', 'abandoned' );
 }
 
@@ -723,16 +723,16 @@ function atf_wpforms_entry_excluded_statuses() {
  * @param int    $form_id   The AllTerrain form the entries would land on.
  * @return int
  */
-function atf_wpforms_entry_count( $source_id, $form_id = 0 ) {
+function alltfo_wpforms_entry_count( $source_id, $form_id = 0 ) {
 	global $wpdb;
 
 	$source_id = absint( $source_id );
 
-	if ( ! $source_id || ! atf_wpforms_entries_available() ) {
+	if ( ! $source_id || ! alltfo_wpforms_entries_available() ) {
 		return 0;
 	}
 
-	$excluded     = atf_wpforms_entry_excluded_statuses();
+	$excluded     = alltfo_wpforms_entry_excluded_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $excluded ), '%s' ) );
 
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
@@ -748,7 +748,7 @@ function atf_wpforms_entry_count( $source_id, $form_id = 0 ) {
 		return $total;
 	}
 
-	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+	return max( 0, $total - count( alltfo_imported_entry_keys( (int) $form_id ) ) );
 }
 
 /**
@@ -764,17 +764,17 @@ function atf_wpforms_entry_count( $source_id, $form_id = 0 ) {
  * @param int    $limit     How many to attempt in this pass.
  * @return array|WP_Error { imported, skipped, done, remaining }.
  */
-function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
+function alltfo_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
 	global $wpdb;
 
 	$source_id = absint( $source_id );
 	$form_id   = (int) $form_id;
 
 	if ( ! $source_id ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
-	if ( ! atf_wpforms_entries_available() ) {
+	if ( ! alltfo_wpforms_entries_available() ) {
 		return array(
 			'imported'  => 0,
 			'skipped'   => 0,
@@ -783,14 +783,14 @@ function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
 		);
 	}
 
-	$fields = atf_wpforms_entry_fields( $form_id );
+	$fields = alltfo_wpforms_entry_fields( $form_id );
 
 	if ( is_wp_error( $fields ) ) {
 		return $fields;
 	}
 
-	$seen         = atf_imported_entry_keys( $form_id );
-	$excluded     = atf_wpforms_entry_excluded_statuses();
+	$seen         = alltfo_imported_entry_keys( $form_id );
+	$excluded     = alltfo_wpforms_entry_excluded_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $excluded ), '%s' ) );
 
 	// The page is larger than the limit because records already imported are
@@ -816,15 +816,15 @@ function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
 			break;
 		}
 
-		if ( isset( $seen[ atf_entry_source_key( 'wpforms', $row->entry_id ) ] ) ) {
+		if ( isset( $seen[ alltfo_entry_source_key( 'wpforms', $row->entry_id ) ] ) ) {
 			++$skipped;
 			continue;
 		}
 
-		$result = atf_import_entry(
+		$result = alltfo_import_entry(
 			$form_id,
 			array(
-				'values'       => atf_wpforms_entry_values( (string) $row->fields, $fields ),
+				'values'       => alltfo_wpforms_entry_values( (string) $row->fields, $fields ),
 				'importer'     => 'wpforms',
 				'record'       => (string) $row->entry_id,
 				'submitted_at' => (int) strtotime( $row->date . ' UTC' ),
@@ -838,7 +838,7 @@ function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
 			// A single unreadable record must not strand the rest of the
 			// migration, but an error that would repeat on every one of them
 			// is worth stopping for.
-			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+			if ( in_array( $result->get_error_code(), array( 'alltfo_no_schema', 'alltfo_no_import_map' ), true ) ) {
 				return $result;
 			}
 
@@ -849,7 +849,7 @@ function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
 		++$imported;
 	}
 
-	$remaining = atf_wpforms_entry_count( (string) $source_id, $form_id );
+	$remaining = alltfo_wpforms_entry_count( (string) $source_id, $form_id );
 
 	return array(
 		'imported'  => $imported,
@@ -872,25 +872,25 @@ function atf_wpforms_import_entries( $source_id, $form_id, $limit = 100 ) {
  * @param int $form_id The AllTerrain form.
  * @return array|WP_Error WPForms field id => normalised field.
  */
-function atf_wpforms_entry_fields( $form_id ) {
-	$schema = atf_get_form_schema( $form_id );
+function alltfo_wpforms_entry_fields( $form_id ) {
+	$schema = alltfo_get_form_schema( $form_id );
 
 	if ( ! $schema ) {
-		return new WP_Error( 'atf_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
 	}
 
-	$map = atf_form_import_map( $form_id );
+	$map = alltfo_form_import_map( $form_id );
 
 	if ( ! $map ) {
 		return new WP_Error(
-			'atf_no_import_map',
+			'alltfo_no_import_map',
 			__( 'That form has no field map, so its stored submissions cannot be read. Import the form again to record one.', 'allterrain-forms' )
 		);
 	}
 
 	$by_id = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$by_id[ $field['id'] ] = $field;
 	}
 
@@ -919,7 +919,7 @@ function atf_wpforms_entry_fields( $form_id ) {
  * @param array  $fields WPForms field id => the imported field it became.
  * @return array WPForms field id => value, shaped for the target field.
  */
-function atf_wpforms_entry_values( $stored, $fields ) {
+function alltfo_wpforms_entry_values( $stored, $fields ) {
 	$decoded = json_decode( (string) $stored, true );
 
 	if ( ! is_array( $decoded ) ) {
@@ -933,7 +933,7 @@ function atf_wpforms_entry_values( $stored, $fields ) {
 			continue;
 		}
 
-		$value = atf_wpforms_entry_value( $decoded[ $source_id ], $field );
+		$value = alltfo_wpforms_entry_value( $decoded[ $source_id ], $field );
 
 		if ( null !== $value ) {
 			$values[ $source_id ] = $value;
@@ -952,7 +952,7 @@ function atf_wpforms_entry_values( $stored, $fields ) {
  * @param array $field  The imported field the value now belongs to.
  * @return mixed The assembled value, or null when the field holds nothing here.
  */
-function atf_wpforms_entry_value( $answer, $field ) {
+function alltfo_wpforms_entry_value( $answer, $field ) {
 	switch ( $field['type'] ) {
 		case 'name':
 			$parts = array(

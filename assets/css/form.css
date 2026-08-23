@@ -3,7 +3,7 @@
  *
  * Every value in this file that a theme could plausibly want to change is read
  * from a custom property, and every one of those properties is declared in
- * `atf_theme_token_defaults()`. That is the contract the whole theme system
+ * `alltfo_theme_token_defaults()`. That is the contract the whole theme system
  * rests on: a theme is a token map, so a rule with a hard-coded colour or radius
  * is a rule no theme can reach, and the PHPUnit suite asserts in both directions
  * that this file and the token table agree.
@@ -213,7 +213,7 @@
    Two sub-cases inside the floatable set:
    - Text-shaped inputs lift on focus or once they hold a value, told apart by
      `:placeholder-shown` — the reserved single-space placeholder in
-     `atf_control_attributes()` is what makes that selector answerable.
+     `alltfo_control_attributes()` is what makes that selector answerable.
    - Selects and date/time inputs always display something, so
      `:placeholder-shown` never matches and their label is simply always
      lifted — which is the only honest float for a control that is never

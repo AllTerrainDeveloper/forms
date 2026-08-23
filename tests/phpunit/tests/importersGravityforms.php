@@ -17,7 +17,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
+class ALLTFO_Test_Importers_GravityForms extends WP_UnitTestCase {
 
 	/**
 	 * A display_meta document, as Gravity stores a contact form.
@@ -105,11 +105,11 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * The contact form converts field for field.
 	 *
-	 * @covers ::atf_gf_convert
-	 * @covers ::atf_gf_field
+	 * @covers ::alltfo_gf_convert
+	 * @covers ::alltfo_gf_field
 	 */
 	public function test_contact_display_meta_converts() {
-		$schema = atf_normalize_schema( atf_gf_convert( $this->contact_display_meta() ) );
+		$schema = alltfo_normalize_schema( alltfo_gf_convert( $this->contact_display_meta() ) );
 
 		$this->assertSame( array( 'name', 'email', 'radio', 'textarea', 'consent' ), wp_list_pluck( $schema['fields'], 'type' ) );
 		$this->assertSame( array( 'first', 'last' ), $schema['fields'][0]['parts'] );
@@ -128,10 +128,10 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * Name parts follow Gravity's input numbering, hidden parts excluded.
 	 *
-	 * @covers ::atf_gf_name_parts
+	 * @covers ::alltfo_gf_name_parts
 	 */
 	public function test_name_parts() {
-		$parts = atf_gf_name_parts(
+		$parts = alltfo_gf_name_parts(
 			array(
 				'inputs' => array(
 					array(
@@ -155,10 +155,10 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * A List field becomes a repeater whose sub-fields are the columns.
 	 *
-	 * @covers ::atf_gf_field
+	 * @covers ::alltfo_gf_field
 	 */
 	public function test_list_becomes_a_repeater() {
-		$fields = atf_gf_convert(
+		$fields = alltfo_gf_convert(
 			array(
 				'fields' => array(
 					array(
@@ -191,12 +191,12 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * Products keep their prices and the total keeps calculating.
 	 *
-	 * @covers ::atf_gf_field
-	 * @covers ::atf_gf_choices
-	 * @covers ::atf_gf_price
+	 * @covers ::alltfo_gf_field
+	 * @covers ::alltfo_gf_choices
+	 * @covers ::alltfo_gf_price
 	 */
 	public function test_products_and_total() {
-		$schema = atf_gf_convert(
+		$schema = alltfo_gf_convert(
 			array(
 				'fields' => array(
 					array(
@@ -249,8 +249,8 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 
 		$this->assertSame( '{f1} + {f2}', $fields[2]['formula'] );
 
-		$values = atf_apply_calculations(
-			atf_normalize_schema( $schema ),
+		$values = alltfo_apply_calculations(
+			alltfo_normalize_schema( $schema ),
 			array(
 				'f1' => 'VIP',
 				'f2' => array( 'Parking' ),
@@ -263,12 +263,12 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * Notifications and confirmations convert, merge tags included.
 	 *
-	 * @covers ::atf_gf_convert
-	 * @covers ::atf_gf_replace_tags
+	 * @covers ::alltfo_gf_convert
+	 * @covers ::alltfo_gf_replace_tags
 	 */
 	public function test_notifications_and_confirmations() {
-		$schema = atf_normalize_schema(
-			atf_gf_convert(
+		$schema = alltfo_normalize_schema(
+			alltfo_gf_convert(
 				$this->contact_display_meta(),
 				array(
 					array(
@@ -327,18 +327,18 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 	/**
 	 * The whole trip, through the real tables.
 	 *
-	 * @covers ::atf_gf_import
-	 * @covers ::atf_gf_forms
-	 * @covers ::atf_gf_available
+	 * @covers ::alltfo_gf_import
+	 * @covers ::alltfo_gf_forms
+	 * @covers ::alltfo_gf_available
 	 */
 	public function test_gravityforms_import_end_to_end() {
 		global $wpdb;
 
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		// Without the tables the importer reports itself unavailable.
-		$this->assertFalse( atf_gf_available() );
+		$this->assertFalse( alltfo_gf_available() );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Creating another plugin's tables is the fixture.
 		$wpdb->query( "CREATE TABLE {$wpdb->prefix}gf_form ( id mediumint(8) unsigned NOT NULL auto_increment, title varchar(150) NOT NULL, is_trash tinyint(1) NOT NULL default 0, PRIMARY KEY (id) )" );
@@ -381,15 +381,15 @@ class ATF_Test_Importers_GravityForms extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertTrue( atf_gf_available() );
-		$this->assertSame( array( (string) $form_id => 'Contact us' ), atf_gf_forms() );
+		$this->assertTrue( alltfo_gf_available() );
+		$this->assertSame( array( (string) $form_id => 'Contact us' ), alltfo_gf_forms() );
 
-		$new_id = atf_import_source_form( 'gravityforms', (string) $form_id );
+		$new_id = alltfo_import_source_form( 'gravityforms', (string) $form_id );
 
 		$this->assertIsInt( $new_id );
 		$this->assertSame( 'Contact us', get_post( $new_id )->post_title );
 
-		$schema = atf_get_form_schema( $new_id );
+		$schema = alltfo_get_form_schema( $new_id );
 
 		$this->assertCount( 5, $schema['fields'] );
 		$this->assertSame( '{admin_email}', $schema['notifications'][0]['to'] );

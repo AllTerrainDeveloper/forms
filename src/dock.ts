@@ -226,7 +226,7 @@ export function submenuFor( config: RuntimeConfig | undefined ): SubmenuRow[] {
 				// The analytics window listens for this and scrolls its developer
 				// panel into view, so the row lands somewhere that answers it
 				// rather than at the top of a report.
-				document.dispatchEvent( new CustomEvent( 'atf-open-demo-panel' ) );
+				document.dispatchEvent( new CustomEvent( 'alltfo-open-demo-panel' ) );
 			},
 			windowId: ANALYTICS,
 		} );
@@ -330,9 +330,9 @@ function registerExplorerActions(): void {
 	}
 
 	const targets: Record< string, { windowId: string; surface: string; event: string } > = {
-		'allterrain-forms/open-builder': { windowId: BUILDER, surface: 'builder', event: 'atf-open-form' },
-		'allterrain-forms/open-entries': { windowId: ENTRIES, surface: 'entries', event: 'atf-open-entries-form' },
-		'allterrain-forms/open-analytics': { windowId: ANALYTICS, surface: 'analytics', event: 'atf-open-analytics-form' },
+		'allterrain-forms/open-builder': { windowId: BUILDER, surface: 'builder', event: 'alltfo-open-form' },
+		'allterrain-forms/open-entries': { windowId: ENTRIES, surface: 'entries', event: 'alltfo-open-entries-form' },
+		'allterrain-forms/open-analytics': { windowId: ANALYTICS, surface: 'analytics', event: 'alltfo-open-analytics-form' },
 	};
 
 	hooks.addFilter( 'os.my-wordpress.preview-actions', 'allterrain-forms/explorer', ( actions: unknown[] ) =>
@@ -373,7 +373,7 @@ function registerFormsKind(): void {
 	const mw = ( window as unknown as { wp?: { os?: { myWordpress?: { registerEntityKind?: ( kind: string, renderer: unknown ) => void } } } } )
 		.wp?.os?.myWordpress;
 
-	mw?.registerEntityKind?.( 'atf-form', renderFormsKind );
+	mw?.registerEntityKind?.( 'alltfo-form', renderFormsKind );
 }
 
 registerExplorerActions();

@@ -1,4 +1,4 @@
-=== AllTerrain Forms – Contact Form, Drag & Drop Form Builder, Surveys, Quizzes, Multi-Step Forms & Conditional Logic ===
+=== AllTerrain Forms ===
 Contributors: allterraindeveloper
 Tags: contact form, form builder, survey, quiz, conditional logic
 Requires at least: 6.9
@@ -13,7 +13,7 @@ Drag & drop contact form builder with conditional logic, multi-step forms, file 
 
 == Description ==
 
-**The best contact form plugin is the one that doesn't sell you the rest of itself.** AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever.
+AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever.
 
 Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.
 Save and resume. Entry management with CSV export. Webhooks. Form analytics
@@ -79,7 +79,7 @@ JSON. Unread counts, a spam folder, and bulk actions included.
 Send conditional notification emails with CC, BCC, reply-to and attachments.
 Show a message, redirect, or send visitors to a page — conditionally, per
 answer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and hook
-`atf_entry_created` for anything else.
+`alltfo_entry_created` for anything else.
 
 = Grows your MailPoet lists =
 

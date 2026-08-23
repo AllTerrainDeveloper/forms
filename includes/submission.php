@@ -2,7 +2,7 @@
 /**
  * The submission pipeline.
  *
- * One function, `atf_process_submission()`, and every route into the plugin ends
+ * One function, `alltfo_process_submission()`, and every route into the plugin ends
  * at it: the REST endpoint the bundle posts to, the plain `POST` a form makes
  * with JavaScript off, and any programmatic call. There is exactly one place
  * where a submission is accepted, which is the only way to be sure the AJAX path
@@ -47,15 +47,15 @@ defined( 'ABSPATH' ) || exit;
  *     @type array  $confirmation The resolved confirmation.
  * }
  */
-function atf_process_submission( $form_id, $request, $files = array() ) {
+function alltfo_process_submission( $form_id, $request, $files = array() ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ATF_FORM_TYPE !== $form->post_type ) {
-		return atf_submission_failure( __( 'That form does not exist.', 'allterrain-forms' ) );
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
+		return alltfo_submission_failure( __( 'That form does not exist.', 'allterrain-forms' ) );
 	}
 
-	$schema = atf_get_form_schema( $form_id );
+	$schema = alltfo_get_form_schema( $form_id );
 
 	/**
 	 * Fires before a submission is processed.
@@ -66,56 +66,56 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	 * @param array $request The raw request.
 	 * @param array $schema  The form schema.
 	 */
-	do_action( 'atf_before_submission', $form_id, $request, $schema );
+	do_action( 'alltfo_before_submission', $form_id, $request, $schema );
 
-	$availability = atf_form_availability( $form_id, $schema );
+	$availability = alltfo_form_availability( $form_id, $schema );
 
 	if ( ! $availability['open'] ) {
-		return atf_submission_failure( $availability['message'] );
+		return alltfo_submission_failure( $availability['message'] );
 	}
 
 	// A preview never stores anything, never e-mails anyone and never counts.
 	// The builder's preview posts through this same pipeline so that what it
 	// shows is what a visitor would get -- including the validation errors.
-	$is_preview = ! empty( $request['atf_preview'] ) && atf_can_edit_forms();
+	$is_preview = ! empty( $request['alltfo_preview'] ) && alltfo_can_edit_forms();
 
 	$raw    = isset( $request['atf'] ) && is_array( $request['atf'] ) ? $request['atf'] : array();
-	$values = atf_sanitize_submission( $schema, $raw );
+	$values = alltfo_sanitize_submission( $schema, $raw );
 
-	$uploads = atf_handle_uploads( $schema, $files, $form_id );
+	$uploads = alltfo_handle_uploads( $schema, $files, $form_id );
 
 	if ( $uploads['errors'] ) {
 		// Fields whose uploads succeeded before another field's failed do not
 		// keep their attachments: the submission as a whole was refused, and an
 		// attachment with no entry to belong to is an orphan nothing can find.
 		foreach ( $uploads['values'] as $ids ) {
-			atf_delete_upload_attachments( $ids );
+			alltfo_delete_upload_attachments( $ids );
 		}
 
-		return atf_submission_failure( atf_generic_error_message(), $uploads['errors'] );
+		return alltfo_submission_failure( alltfo_generic_error_message(), $uploads['errors'] );
 	}
 
 	foreach ( $uploads['values'] as $field_id => $ids ) {
 		$values[ $field_id ] = $ids;
 	}
 
-	$values = atf_apply_other_values( $schema, $values, $request );
-	$values = atf_apply_calculations( $schema, $values );
+	$values = alltfo_apply_other_values( $schema, $values, $request );
+	$values = alltfo_apply_calculations( $schema, $values );
 
-	$errors = atf_validate_submission( $schema, $values, array( 'form_id' => $form_id ) );
+	$errors = alltfo_validate_submission( $schema, $values, array( 'form_id' => $form_id ) );
 
 	if ( $errors ) {
 		// The uploads were stored before validation ran -- they had to be, a
 		// broken file fails a submission too -- so a refused submission has to
 		// take them back out or every failed attempt leaves files behind.
 		foreach ( $uploads['values'] as $ids ) {
-			atf_delete_upload_attachments( $ids );
+			alltfo_delete_upload_attachments( $ids );
 		}
 
-		return atf_submission_failure( atf_generic_error_message(), $errors );
+		return alltfo_submission_failure( alltfo_generic_error_message(), $errors );
 	}
 
-	$spam = atf_screen_for_spam( $schema, $values, $request );
+	$spam = alltfo_screen_for_spam( $schema, $values, $request );
 
 	if ( $is_preview ) {
 		return array(
@@ -123,7 +123,7 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 			'errors'       => array(),
 			'message'      => '',
 			'entry_id'     => 0,
-			'confirmation' => atf_resolve_confirmation( $schema, $values, 0, $form_id ),
+			'confirmation' => alltfo_resolve_confirmation( $schema, $values, 0, $form_id ),
 			'preview'      => true,
 		);
 	}
@@ -131,10 +131,10 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	$entry_id = 0;
 
 	if ( ! empty( $schema['settings']['storage']['entries'] ) ) {
-		$entry_id = atf_store_entry( $form_id, $schema, $values, $spam );
+		$entry_id = alltfo_store_entry( $form_id, $schema, $values, $spam );
 
 		if ( is_wp_error( $entry_id ) ) {
-			return atf_submission_failure( $entry_id->get_error_message() );
+			return alltfo_submission_failure( $entry_id->get_error_message() );
 		}
 	}
 
@@ -153,18 +153,18 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 		 * @param int   $form_id  The form.
 		 * @param array $spam     { spam, reason }.
 		 */
-		do_action( 'atf_submission_spam', $entry_id, $form_id, $spam );
+		do_action( 'alltfo_submission_spam', $entry_id, $form_id, $spam );
 
 		return array(
 			'success'      => true,
 			'errors'       => array(),
 			'message'      => '',
 			'entry_id'     => $entry_id,
-			'confirmation' => atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ),
+			'confirmation' => alltfo_resolve_confirmation( $schema, $values, $entry_id, $form_id ),
 		);
 	}
 
-	atf_record_submission( $form_id );
+	alltfo_record_submission( $form_id );
 
 	/**
 	 * Fires once a submission has been accepted and stored.
@@ -180,26 +180,26 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
 	 * @param array $values   The accepted values.
 	 * @param array $schema   The form schema.
 	 */
-	do_action( 'atf_entry_created', $entry_id, $form_id, $values, $schema );
+	do_action( 'alltfo_entry_created', $entry_id, $form_id, $values, $schema );
 
 	// The resume token travels in the submission that finishes a saved form.
 	// It is read from the parsed `$request` here rather than from `$_POST`,
 	// because a REST submission with a JSON body never populates the
-	// superglobal -- the `$_POST` path in `atf_clear_partial_on_submit()`
+	// superglobal -- the `$_POST` path in `alltfo_clear_partial_on_submit()`
 	// only ever saw the no-JavaScript form post.
-	if ( function_exists( 'atf_clear_partial' ) && ! empty( $request[ ATF_RESUME_QUERY ] ) ) {
-		atf_clear_partial( (string) $request[ ATF_RESUME_QUERY ] );
+	if ( function_exists( 'alltfo_clear_partial' ) && ! empty( $request[ ALLTFO_RESUME_QUERY ] ) ) {
+		alltfo_clear_partial( (string) $request[ ALLTFO_RESUME_QUERY ] );
 	}
 
-	atf_run_actions( $schema, $values, $entry_id, $form_id, $request );
-	atf_send_notifications( $schema, $values, $entry_id, $form_id );
+	alltfo_run_actions( $schema, $values, $entry_id, $form_id, $request );
+	alltfo_send_notifications( $schema, $values, $entry_id, $form_id );
 
 	return array(
 		'success'      => true,
 		'errors'       => array(),
 		'message'      => '',
 		'entry_id'     => $entry_id,
-		'confirmation' => atf_resolve_confirmation( $schema, $values, $entry_id, $form_id ),
+		'confirmation' => alltfo_resolve_confirmation( $schema, $values, $entry_id, $form_id ),
 	);
 }
 
@@ -216,10 +216,10 @@ function atf_process_submission( $form_id, $request, $files = array() ) {
  * @param array $raw    The `atf` slice of the request.
  * @return array Field id => sanitised value.
  */
-function atf_sanitize_submission( $schema, $raw ) {
+function alltfo_sanitize_submission( $schema, $raw ) {
 	$values = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		// A file field's value never comes from the request body -- it is built
 		// from `$_FILES` by the upload handler. Reading it here would let a
 		// forged body claim an attachment id it does not own.
@@ -229,7 +229,7 @@ function atf_sanitize_submission( $schema, $raw ) {
 
 		$submitted = array_key_exists( $field['id'], $raw ) ? $raw[ $field['id'] ] : '';
 
-		$values[ $field['id'] ] = atf_sanitize_field_value( $submitted, $field );
+		$values[ $field['id'] ] = alltfo_sanitize_field_value( $submitted, $field );
 	}
 
 	/**
@@ -241,7 +241,7 @@ function atf_sanitize_submission( $schema, $raw ) {
 	 * @param array $schema The form schema.
 	 * @param array $raw    The raw request slice.
 	 */
-	return apply_filters( 'atf_sanitized_values', $values, $schema, $raw );
+	return apply_filters( 'alltfo_sanitized_values', $values, $schema, $raw );
 }
 
 /**
@@ -249,7 +249,7 @@ function atf_sanitize_submission( $schema, $raw ) {
  *
  * The choice group posts `__other__` as its value and the free-text box posts
  * separately, so the two are rejoined here, before validation. The choice
- * whitelist in `atf_validate_bounds()` is skipped for fields with "Other"
+ * whitelist in `alltfo_validate_bounds()` is skipped for fields with "Other"
  * enabled, because once the marker has been replaced the visitor's free text
  * is a legitimate answer no list could anticipate.
  *
@@ -260,14 +260,14 @@ function atf_sanitize_submission( $schema, $raw ) {
  * @param array $request The raw request.
  * @return array The values, with `__other__` resolved.
  */
-function atf_apply_other_values( $schema, $values, $request ) {
-	$other = isset( $request['atf_other'] ) && is_array( $request['atf_other'] ) ? $request['atf_other'] : array();
+function alltfo_apply_other_values( $schema, $values, $request ) {
+	$other = isset( $request['alltfo_other'] ) && is_array( $request['alltfo_other'] ) ? $request['alltfo_other'] : array();
 
 	if ( ! $other ) {
 		return $values;
 	}
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( empty( $field['other'] ) || ! isset( $other[ $field['id'] ] ) ) {
 			continue;
 		}
@@ -309,13 +309,13 @@ function atf_apply_other_values( $schema, $values, $request ) {
  * @param array $spam    The spam verdict.
  * @return int|WP_Error The entry id.
  */
-function atf_store_entry( $form_id, $schema, $values, $spam = array() ) {
+function alltfo_store_entry( $form_id, $schema, $values, $spam = array() ) {
 	$storage = $schema['settings']['storage'];
 
 	// A password never reaches storage. The registration action has already read
 	// it out of the in-memory values by this point; what is written here is the
 	// version with every password field blanked.
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( 'password' === $field['type'] ) {
 			unset( $values[ $field['id'] ] );
 		}
@@ -323,9 +323,9 @@ function atf_store_entry( $form_id, $schema, $values, $spam = array() ) {
 
 	$entry_id = wp_insert_post(
 		array(
-			'post_type'    => ATF_ENTRY_TYPE,
-			'post_title'   => atf_entry_title( $schema, $values, $form_id ),
-			'post_status'  => ! empty( $spam['spam'] ) ? ATF_STATUS_SPAM : ATF_STATUS_UNREAD,
+			'post_type'    => ALLTFO_ENTRY_TYPE,
+			'post_title'   => alltfo_entry_title( $schema, $values, $form_id ),
+			'post_status'  => ! empty( $spam['spam'] ) ? ALLTFO_STATUS_SPAM : ALLTFO_STATUS_UNREAD,
 			'post_author'  => get_current_user_id(),
 			'post_content' => '',
 		),
@@ -336,7 +336,7 @@ function atf_store_entry( $form_id, $schema, $values, $spam = array() ) {
 		return $entry_id;
 	}
 
-	$ip = $storage['ip'] ? atf_client_ip() : '';
+	$ip = $storage['ip'] ? alltfo_client_ip() : '';
 
 	if ( $ip && $storage['anonymise'] ) {
 		$ip = wp_privacy_anonymize_ip( $ip );
@@ -354,18 +354,18 @@ function atf_store_entry( $form_id, $schema, $values, $spam = array() ) {
 	);
 
 	if ( ! empty( $schema['settings']['quiz']['enabled'] ) ) {
-		$context['quiz'] = atf_score_quiz( $schema, $values );
+		$context['quiz'] = alltfo_score_quiz( $schema, $values );
 	}
 
-	update_post_meta( $entry_id, ATF_META_FORM, $form_id );
-	update_post_meta( $entry_id, ATF_META_VALUES, wp_slash( wp_json_encode( $values ) ) );
-	update_post_meta( $entry_id, ATF_META_CONTEXT, wp_slash( wp_json_encode( $context ) ) );
+	update_post_meta( $entry_id, ALLTFO_META_FORM, $form_id );
+	update_post_meta( $entry_id, ALLTFO_META_VALUES, wp_slash( wp_json_encode( $values ) ) );
+	update_post_meta( $entry_id, ALLTFO_META_CONTEXT, wp_slash( wp_json_encode( $context ) ) );
 
 	// Files uploaded with this submission are parented to the entry, so deleting
 	// the entry takes them with it and the media library shows what they belong
 	// to rather than a wall of orphans.
 	foreach ( $values as $field_id => $value ) {
-		$field = atf_find_field( $schema, $field_id );
+		$field = alltfo_find_field( $schema, $field_id );
 
 		if ( ! $field || 'file' !== $field['type'] ) {
 			continue;
@@ -397,13 +397,13 @@ function atf_store_entry( $form_id, $schema, $values, $spam = array() ) {
  * @param int   $form_id The form.
  * @return string
  */
-function atf_entry_title( $schema, $values, $form_id ) {
-	foreach ( atf_input_fields( $schema ) as $field ) {
+function alltfo_entry_title( $schema, $values, $form_id ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( ! in_array( $field['type'], array( 'text', 'email', 'name' ), true ) ) {
 			continue;
 		}
 
-		$text = atf_format_field_value(
+		$text = alltfo_format_field_value(
 			isset( $values[ $field['id'] ] ) ? $values[ $field['id'] ] : '',
 			$field,
 			'table'
@@ -431,7 +431,7 @@ function atf_entry_title( $schema, $values, $form_id ) {
  * @param array  $errors  Field id => message.
  * @return array
  */
-function atf_submission_failure( $message, $errors = array() ) {
+function alltfo_submission_failure( $message, $errors = array() ) {
 	return array(
 		'success'      => false,
 		'errors'       => $errors,
@@ -448,7 +448,7 @@ function atf_submission_failure( $message, $errors = array() ) {
  *
  * @return string
  */
-function atf_generic_error_message() {
+function alltfo_generic_error_message() {
 	/**
 	 * Filters the message shown when a submission fails validation.
 	 *
@@ -457,7 +457,7 @@ function atf_generic_error_message() {
 	 * @param string $message The message.
 	 */
 	return (string) apply_filters(
-		'atf_validation_message',
+		'alltfo_validation_message',
 		__( 'Please check the form and try again.', 'allterrain-forms' )
 	);
 }
@@ -474,35 +474,35 @@ function atf_generic_error_message() {
  *
  * @return void
  */
-function atf_handle_post_submission() {
-	if ( is_admin() || ! isset( $_POST['atf_form_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce is checked below, once the form it belongs to is known.
+function alltfo_handle_post_submission() {
+	if ( is_admin() || ! isset( $_POST['alltfo_form_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce is checked below, once the form it belongs to is known.
 		return;
 	}
 
-	$form_id = absint( $_POST['atf_form_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- As above.
+	$form_id = absint( $_POST['alltfo_form_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- As above.
 
 	if ( ! $form_id ) {
 		return;
 	}
 
-	$nonce = isset( $_POST['atf_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['atf_nonce'] ) ) : '';
+	$nonce = isset( $_POST['alltfo_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['alltfo_nonce'] ) ) : '';
 
-	if ( ! wp_verify_nonce( $nonce, 'atf_submit_' . $form_id ) ) {
+	if ( ! wp_verify_nonce( $nonce, 'alltfo_submit_' . $form_id ) ) {
 		// An expired nonce is the common case here -- a form left open in a tab
 		// overnight -- so it is reported as something to retry rather than as an
 		// attack.
-		atf_stash_result(
+		alltfo_stash_result(
 			$form_id,
-			atf_submission_failure( __( 'This form expired. Please reload the page and try again.', 'allterrain-forms' ) )
+			alltfo_submission_failure( __( 'This form expired. Please reload the page and try again.', 'allterrain-forms' ) )
 		);
 
 		return;
 	}
 
-	$request = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Every value is sanitised through its own field type in `atf_sanitize_submission()`.
-	$files   = isset( $_FILES ) ? $_FILES : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated in full by `atf_handle_uploads()`.
+	$request = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Every value is sanitised through its own field type in `alltfo_sanitize_submission()`.
+	$files   = isset( $_FILES ) ? $_FILES : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated in full by `alltfo_handle_uploads()`.
 
-	$result = atf_process_submission( $form_id, $request, $files );
+	$result = alltfo_process_submission( $form_id, $request, $files );
 
 	// A redirect confirmation has to happen before anything is printed, which is
 	// the whole reason this runs on `wp` and not at render time.
@@ -510,13 +510,13 @@ function atf_handle_post_submission() {
 		$url = isset( $result['confirmation']['url'] ) ? $result['confirmation']['url'] : '';
 
 		if ( '' !== $url ) {
-			atf_redirect_to_confirmation( $url );
+			alltfo_redirect_to_confirmation( $url );
 		}
 	}
 
-	atf_stash_result( $form_id, $result, $request );
+	alltfo_stash_result( $form_id, $result, $request );
 }
-add_action( 'wp', 'atf_handle_post_submission' );
+add_action( 'wp', 'alltfo_handle_post_submission' );
 
 /**
  * Remembers a submission's result for the shortcode to render.
@@ -528,7 +528,7 @@ add_action( 'wp', 'atf_handle_post_submission' );
  * @param array $request The request, so a failed form can be re-filled.
  * @return array|null The stashed result when reading.
  */
-function atf_stash_result( $form_id = 0, $result = null, $request = array() ) {
+function alltfo_stash_result( $form_id = 0, $result = null, $request = array() ) {
 	static $results = array();
 
 	if ( null !== $result ) {

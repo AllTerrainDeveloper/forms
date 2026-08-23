@@ -46,14 +46,14 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return string The form's HTML.
  */
-function atf_render_form( $form_id, $args = array() ) {
+function alltfo_render_form( $form_id, $args = array() ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ATF_FORM_TYPE !== $form->post_type ) {
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
 		// Silent for visitors, loud for the person who can fix it. A broken
 		// shortcode id should never print an error into a published page.
-		if ( atf_can_edit_forms() ) {
+		if ( alltfo_can_edit_forms() ) {
 			return sprintf(
 				'<p class="atf-notice atf-notice--error">%s</p>',
 				esc_html__( 'AllTerrain Forms: that form does not exist.', 'allterrain-forms' )
@@ -76,17 +76,16 @@ function atf_render_form( $form_id, $args = array() ) {
 		)
 	);
 
-	$schema   = atf_get_form_schema( $form_id );
+	$schema   = alltfo_get_form_schema( $form_id );
 	$settings = $schema['settings'];
 
 	$theme_slug = '' !== $args['theme'] ? $args['theme'] : $settings['theme'];
-	$tokens     = atf_resolve_tokens( $theme_slug, $settings['themeOverrides'] );
+	$tokens     = alltfo_resolve_tokens( $theme_slug, $settings['themeOverrides'] );
 
 	// A unique instance id, not the form id: the same form can legitimately be
 	// on a page twice, and duplicate DOM ids would break every `for` attribute
 	// and every `aria-describedby` on the second copy.
-	$instance = atf_next_instance_id( $form_id );
-	$scope    = '#' . $instance;
+	$instance = alltfo_next_instance_id( $form_id );
 
 	$classes = array(
 		'atf-form',
@@ -95,7 +94,7 @@ function atf_render_form( $form_id, $args = array() ) {
 		'atf-fields-' . sanitize_html_class( $tokens['field-style'] ),
 	);
 
-	if ( ! empty( atf_get_theme( $theme_slug )['dark'] ) ) {
+	if ( ! empty( alltfo_get_theme( $theme_slug )['dark'] ) ) {
 		$classes[] = 'atf-is-dark';
 	}
 
@@ -108,34 +107,25 @@ function atf_render_form( $form_id, $args = array() ) {
 	 * @param int      $form_id The form.
 	 * @param array    $schema  The form schema.
 	 */
-	$classes = apply_filters( 'atf_form_classes', $classes, $form_id, $schema );
+	$classes = apply_filters( 'alltfo_form_classes', $classes, $form_id, $schema );
+
+	// The theme's tokens ride the wrapper's own `style` attribute — no `<style>`
+	// tag, nothing global, and scoping comes free because custom properties
+	// inherit from the wrapper into everything the renderer emits.
+	//
+	// The wrapper and not the `<form>`, because the title is rendered *outside*
+	// the form — it is the heading for the thing, not a part of it — and tokens
+	// declared any deeper never reached it: every one of its `var( --atf-* )`
+	// values was invalid, which takes the whole declaration with it, so the
+	// title wore the site theme's `h2` and its bottom margin resolved to
+	// nothing, leaving it sitting on top of the step indicator.
+	$style = alltfo_tokens_to_declarations( $tokens );
 
 	$out = sprintf(
-		'<div class="atf-form-wrap" id="%s">',
-		esc_attr( $instance )
+		'<div class="atf-form-wrap" id="%s"%s>',
+		esc_attr( $instance ),
+		'' !== $style ? sprintf( ' style="%s"', esc_attr( $style ) ) : ''
 	);
-
-	// Scoped to the wrapper, not to the form.
-	//
-	// The title is rendered *outside* the `<form>` — it is the heading for the
-	// thing, not a part of it — so tokens declared on `.atf-form` never reached
-	// it. Every one of its `var( --atf-* )` values was therefore invalid, which
-	// takes the whole declaration with it: the title has been wearing the site
-	// theme's `h2` rather than the form's, and its bottom margin resolved to
-	// nothing, leaving it sitting on top of the step indicator.
-	//
-	// The wrapper carries the instance id already, so scoping there costs nothing
-	// and covers everything the renderer emits for this form.
-	$css = atf_tokens_to_css( $scope, $tokens );
-
-	if ( '' !== $css ) {
-		// Inline rather than enqueued, because the tokens depend on which form
-		// is on the page and a stylesheet cannot know that. `wp_strip_all_tags()`
-		// on top of the token sanitiser is belt and braces: nothing containing a
-		// `<` survives `atf_sanitize_tokens()`, and a `</style>` inside a style
-		// block is the one mistake that would matter.
-		$out .= sprintf( '<style>%s</style>', wp_strip_all_tags( $css ) );
-	}
 
 	if ( 'show' === $args['title'] ) {
 		$out .= sprintf( '<h2 class="atf-form__title">%s</h2>', esc_html( get_the_title( $form ) ) );
@@ -148,13 +138,13 @@ function atf_render_form( $form_id, $args = array() ) {
 		$out .= sprintf(
 			'<div class="%s">%s</div></div>',
 			esc_attr( implode( ' ', $classes ) ),
-			atf_success_screen_html( $args['message'], isset( $args['success'] ) ? $args['success'] : array() )
+			alltfo_success_screen_html( $args['message'], isset( $args['success'] ) ? $args['success'] : array() )
 		);
 
 		return $out;
 	}
 
-	$gate = atf_form_availability( $form_id, $schema );
+	$gate = alltfo_form_availability( $form_id, $schema );
 
 	if ( ! $gate['open'] ) {
 		$out .= sprintf(
@@ -167,7 +157,7 @@ function atf_render_form( $form_id, $args = array() ) {
 	}
 
 	if ( ! $args['preview'] ) {
-		atf_record_view( $form_id );
+		alltfo_record_view( $form_id );
 	}
 
 	// A resume link beats the field defaults but loses to anything the caller
@@ -175,8 +165,8 @@ function atf_render_form( $form_id, $args = array() ) {
 	// with what was just typed rather than with what was saved yesterday.
 	$resume_token = '';
 
-	if ( isset( $_GET[ ATF_RESUME_QUERY ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The token itself is the credential; it is verified by `atf_resume_values()`.
-		$resumed = atf_resume_values( sanitize_text_field( wp_unslash( $_GET[ ATF_RESUME_QUERY ] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- As above.
+	if ( isset( $_GET[ ALLTFO_RESUME_QUERY ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The token itself is the credential; it is verified by `alltfo_resume_values()`.
+		$resumed = alltfo_resume_values( sanitize_text_field( wp_unslash( $_GET[ ALLTFO_RESUME_QUERY ] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- As above.
 
 		if ( $resumed && $resumed['form_id'] === $form_id ) {
 			$resume_token   = $resumed['token'];
@@ -184,27 +174,27 @@ function atf_render_form( $form_id, $args = array() ) {
 		}
 	}
 
-	$values = atf_prefill_values( $schema, $args['values'] );
+	$values = alltfo_prefill_values( $schema, $args['values'] );
 
 	$out .= sprintf(
 		'<form class="%s" method="post" action="%s" novalidate data-atf-form="%d" data-atf-instance="%s"%s%s>',
 		esc_attr( implode( ' ', $classes ) ),
-		esc_url( atf_form_action_url() ),
+		esc_url( alltfo_form_action_url() ),
 		$form_id,
 		esc_attr( $instance ),
 		$args['preview'] ? ' data-atf-preview="1"' : '',
-		atf_has_upload_field( $schema ) ? ' enctype="multipart/form-data"' : ''
+		alltfo_has_upload_field( $schema ) ? ' enctype="multipart/form-data"' : ''
 	);
 
-	$out .= atf_render_hidden_fields( $form_id, $schema, $args['preview'], $instance );
-	$out .= atf_render_client_schema( $schema, $instance );
-	$out .= atf_render_error_summary( $args['errors'], $schema, $instance );
+	$out .= alltfo_render_hidden_fields( $form_id, $schema, $args['preview'], $instance );
+	$out .= alltfo_render_client_schema( $schema, $instance );
+	$out .= alltfo_render_error_summary( $args['errors'], $schema, $instance );
 
-	$pages = atf_schema_pages( $schema );
+	$pages = alltfo_schema_pages( $schema );
 	$multi = count( $pages ) > 1;
 
 	if ( $multi ) {
-		$out .= atf_render_progress( $pages, $settings );
+		$out .= alltfo_render_progress( $pages, $settings );
 	}
 
 	foreach ( $pages as $index => $page ) {
@@ -215,23 +205,23 @@ function atf_render_form( $form_id, $args = array() ) {
 		// same break whose Next brought the visitor here.
 		$arrived_by = $index > 0 && isset( $pages[ $index - 1 ]['break'] ) ? $pages[ $index - 1 ]['break'] : null;
 
-		$out .= atf_render_page( $page, $index, count( $pages ), $schema, $values, $args['errors'], $instance, $arrived_by );
+		$out .= alltfo_render_page( $page, $index, count( $pages ), $schema, $values, $args['errors'], $instance, $arrived_by );
 	}
 
 	// After the last page, so a multi-page form asks its question at the end
 	// rather than making the visitor answer arithmetic before they have seen
 	// what the form is for.
-	$out .= atf_render_challenge( $schema, $form_id );
+	$out .= alltfo_render_challenge( $schema, $form_id );
 
 	if ( ! $multi ) {
-		$out .= atf_render_submit( $settings, true, atf_render_resume_button( $schema, $resume_token ) );
-	} elseif ( '' !== atf_render_resume_button( $schema, $resume_token ) ) {
+		$out .= alltfo_render_submit( $settings, true, alltfo_render_resume_button( $schema, $resume_token ) );
+	} elseif ( '' !== alltfo_render_resume_button( $schema, $resume_token ) ) {
 		// On a multi-page form the submit button lives on the last page, but
 		// "save for later" has to be reachable from every one of them -- that is
 		// the whole point of it. So it sits outside the pages entirely.
 		$out .= sprintf(
 			'<div class="atf-actions atf-actions--resume">%s</div>',
-			atf_render_resume_button( $schema, $resume_token )
+			alltfo_render_resume_button( $schema, $resume_token )
 		);
 	}
 
@@ -246,7 +236,7 @@ function atf_render_form( $form_id, $args = array() ) {
 	 * @param int    $form_id The form.
 	 * @param array  $schema  The form schema.
 	 */
-	return apply_filters( 'atf_rendered_form', $out, $form_id, $schema );
+	return apply_filters( 'alltfo_rendered_form', $out, $form_id, $schema );
 }
 
 /**
@@ -257,7 +247,7 @@ function atf_render_form( $form_id, $args = array() ) {
  * @param int $form_id The form.
  * @return string An id safe for an `id` attribute.
  */
-function atf_next_instance_id( $form_id ) {
+function alltfo_next_instance_id( $form_id ) {
 	static $counts = array();
 
 	$counts[ $form_id ] = isset( $counts[ $form_id ] ) ? $counts[ $form_id ] + 1 : 1;
@@ -276,7 +266,7 @@ function atf_next_instance_id( $form_id ) {
  *
  * @return string
  */
-function atf_form_action_url() {
+function alltfo_form_action_url() {
 	$url = '';
 
 	if ( isset( $_SERVER['REQUEST_URI'] ) ) {
@@ -291,7 +281,7 @@ function atf_form_action_url() {
  *
  * The honeypot is here rather than in the field loop because it must never be a
  * field: it has no label in the palette, no place in the schema, and no entry
- * column. Its name is deliberately plausible (`atf_website`) because bots fill
+ * column. Its name is deliberately plausible (`alltfo_website`) because bots fill
  * anything that looks like a real field and skip anything called `honeypot`.
  * `tabindex="-1"` and `aria-hidden` keep it away from keyboard and screen-reader
  * users, and it is hidden in CSS rather than with `type="hidden"` -- a hidden
@@ -305,25 +295,25 @@ function atf_form_action_url() {
  * @param string $instance The render's DOM id prefix.
  * @return string
  */
-function atf_render_hidden_fields( $form_id, $schema, $preview = false, $instance = '' ) {
-	$out = sprintf( '<input type="hidden" name="atf_form_id" value="%d">', $form_id );
+function alltfo_render_hidden_fields( $form_id, $schema, $preview = false, $instance = '' ) {
+	$out = sprintf( '<input type="hidden" name="alltfo_form_id" value="%d">', $form_id );
 
 	// A nonce on a public front-end form is not CSRF protection -- there is no
 	// session to protect and the form is meant to be submitted by strangers. It
 	// is here because it makes replaying a captured request past the nonce
 	// lifetime fail, which raises the cost of the crudest spam scripts.
 	$out .= sprintf(
-		'<input type="hidden" name="atf_nonce" value="%s">',
-		esc_attr( wp_create_nonce( 'atf_submit_' . $form_id ) )
+		'<input type="hidden" name="alltfo_nonce" value="%s">',
+		esc_attr( wp_create_nonce( 'alltfo_submit_' . $form_id ) )
 	);
 
 	// Signed rather than raw, so the time trap cannot be defeated by posting an
 	// older timestamp than the one that was served.
 	$issued = time();
-	$out   .= sprintf( '<input type="hidden" name="atf_t" value="%d">', $issued );
+	$out   .= sprintf( '<input type="hidden" name="alltfo_t" value="%d">', $issued );
 	$out   .= sprintf(
-		'<input type="hidden" name="atf_ts" value="%s">',
-		esc_attr( atf_sign_timestamp( $form_id, $issued ) )
+		'<input type="hidden" name="alltfo_ts" value="%s">',
+		esc_attr( alltfo_sign_timestamp( $form_id, $issued ) )
 	);
 
 	if ( ! empty( $schema['settings']['spam']['honeypot'] ) ) {
@@ -336,12 +326,12 @@ function atf_render_hidden_fields( $form_id, $schema, $preview = false, $instanc
 			. '<label for="' . esc_attr( $hp_id ) . '">'
 			. esc_html__( 'Leave this field empty', 'allterrain-forms' )
 			. '</label>'
-			. '<input type="text" id="' . esc_attr( $hp_id ) . '" name="atf_website" value="" tabindex="-1" autocomplete="off">'
+			. '<input type="text" id="' . esc_attr( $hp_id ) . '" name="alltfo_website" value="" tabindex="-1" autocomplete="off">'
 			. '</div>';
 	}
 
 	if ( $preview ) {
-		$out .= '<input type="hidden" name="atf_preview" value="1">';
+		$out .= '<input type="hidden" name="alltfo_preview" value="1">';
 	}
 
 	return $out;
@@ -356,7 +346,7 @@ function atf_render_hidden_fields( $form_id, $schema, $preview = false, $instanc
  * @param int $issued  Unix timestamp the form was rendered at.
  * @return string The signature.
  */
-function atf_sign_timestamp( $form_id, $issued ) {
+function alltfo_sign_timestamp( $form_id, $issued ) {
 	return wp_hash( 'atf|' . $form_id . '|' . $issued );
 }
 
@@ -382,11 +372,11 @@ function atf_sign_timestamp( $form_id, $issued ) {
  * @param string $instance The render's DOM id prefix.
  * @return string A JSON script tag.
  */
-function atf_render_client_schema( $schema, $instance ) {
+function alltfo_render_client_schema( $schema, $instance ) {
 	$fields = array();
 
 	foreach ( isset( $schema['fields'] ) ? $schema['fields'] : array() as $field ) {
-		$fields[] = atf_client_field( $field );
+		$fields[] = alltfo_client_field( $field );
 	}
 
 	$payload = array(
@@ -408,7 +398,7 @@ function atf_render_client_schema( $schema, $instance ) {
 	 * @param array $payload The client schema.
 	 * @param array $schema  The full schema.
 	 */
-	$payload = apply_filters( 'atf_client_schema', $payload, $schema );
+	$payload = apply_filters( 'alltfo_client_schema', $payload, $schema );
 
 	return sprintf(
 		'<script type="application/json" data-atf-schema id="%s-schema">%s</script>',
@@ -432,7 +422,7 @@ function atf_render_client_schema( $schema, $instance ) {
  * @param array $field A normalised field.
  * @return array What the front-end bundle needs to know about it.
  */
-function atf_client_field( $field ) {
+function alltfo_client_field( $field ) {
 	$client = array(
 		'id'       => $field['id'],
 		'type'     => $field['type'],
@@ -468,7 +458,7 @@ function atf_client_field( $field ) {
 		$client['fields'] = array();
 
 		foreach ( $field['fields'] as $sub ) {
-			$client['fields'][] = atf_client_field( $sub );
+			$client['fields'][] = alltfo_client_field( $sub );
 		}
 	}
 
@@ -490,7 +480,7 @@ function atf_client_field( $field ) {
  * @param string $instance The render's DOM id prefix.
  * @return string
  */
-function atf_render_error_summary( $errors, $schema, $instance ) {
+function alltfo_render_error_summary( $errors, $schema, $instance ) {
 	if ( ! $errors ) {
 		// Rendered empty rather than omitted, so the bundle has somewhere to put
 		// client-side errors without building the region at the moment focus
@@ -510,7 +500,7 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
 	foreach ( $errors as $field_id => $message ) {
 		$parts = explode( '.', (string) $field_id );
 
-		if ( 3 === count( $parts ) && atf_find_field( $schema, $parts[0] ) ) {
+		if ( 3 === count( $parts ) && alltfo_find_field( $schema, $parts[0] ) ) {
 			$nested[ $parts[0] ][] = array(
 				'row' => (int) $parts[1],
 				'sub' => $parts[2],
@@ -526,7 +516,7 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
 	$items = '';
 
 	foreach ( $top as $field_id => $message ) {
-		$field = atf_find_field( $schema, $field_id );
+		$field = alltfo_find_field( $schema, $field_id );
 		$label = $field && '' !== $field['label'] ? $field['label'] : '';
 
 		// A repeater with named boxes heads its own indented group: the
@@ -550,7 +540,7 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
 				$row_name  = sprintf(
 					/* translators: 1: what one row is called, e.g. "Attendee", 2: row number. */
 					__( '%1$s %2$d', 'allterrain-forms' ),
-					atf_repeater_item_label( $field ),
+					alltfo_repeater_item_label( $field ),
 					$entry['row'] + 1
 				);
 
@@ -603,7 +593,7 @@ function atf_render_error_summary( $errors, $schema, $instance ) {
  * @param array   $settings The form settings.
  * @return string
  */
-function atf_render_progress( $pages, $settings ) {
+function alltfo_render_progress( $pages, $settings ) {
 	$style = isset( $settings['progressBar'] ) ? $settings['progressBar'] : 'steps';
 
 	if ( 'none' === $style ) {
@@ -669,7 +659,7 @@ function atf_render_progress( $pages, $settings ) {
  *                           the first page, which has nothing to go back to.
  * @return string
  */
-function atf_render_page( $page, $index, $total, $schema, $values, $errors, $instance, $arrived_by = null ) {
+function alltfo_render_page( $page, $index, $total, $schema, $values, $errors, $instance, $arrived_by = null ) {
 	$multi = $total > 1;
 
 	$out = sprintf(
@@ -685,7 +675,7 @@ function atf_render_page( $page, $index, $total, $schema, $values, $errors, $ins
 	$out .= '<div class="atf-fields">';
 
 	foreach ( $page['fields'] as $field ) {
-		$out .= atf_render_field( $field, $schema, $values, $errors, $instance );
+		$out .= alltfo_render_field( $field, $schema, $values, $errors, $instance );
 	}
 
 	$out .= '</div>';
@@ -714,7 +704,7 @@ function atf_render_page( $page, $index, $total, $schema, $values, $errors, $ins
 				esc_html( $next )
 			);
 		} else {
-			$out .= atf_render_submit( $schema['settings'], false );
+			$out .= alltfo_render_submit( $schema['settings'], false );
 		}
 
 		$out .= '</div>';
@@ -733,7 +723,7 @@ function atf_render_page( $page, $index, $total, $schema, $values, $errors, $ins
  * @param string $extra    Markup placed beside the button, inside the row.
  * @return string
  */
-function atf_render_submit( $settings, $wrap = true, $extra = '' ) {
+function alltfo_render_submit( $settings, $wrap = true, $extra = '' ) {
 	$label = '' !== $settings['submitLabel'] ? $settings['submitLabel'] : __( 'Send', 'allterrain-forms' );
 
 	$button = sprintf(
@@ -770,8 +760,8 @@ function atf_render_submit( $settings, $wrap = true, $extra = '' ) {
  * @param string $instance The render's DOM id prefix.
  * @return string
  */
-function atf_render_field( $field, $schema, $values, $errors, $instance ) {
-	$definition = atf_get_field_type( $field['type'] );
+function alltfo_render_field( $field, $schema, $values, $errors, $instance ) {
+	$definition = alltfo_get_field_type( $field['type'] );
 
 	/**
 	 * Short-circuits the rendering of one field.
@@ -785,7 +775,7 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
 	 * @param array       $schema The form schema.
 	 * @param array       $values Current values.
 	 */
-	$short_circuit = apply_filters( 'atf_pre_render_field', null, $field, $schema, $values );
+	$short_circuit = apply_filters( 'alltfo_pre_render_field', null, $field, $schema, $values );
 
 	if ( null !== $short_circuit ) {
 		return (string) $short_circuit;
@@ -794,7 +784,7 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
 	$id      = $instance . '-' . $field['id'];
 	$value   = isset( $values[ $field['id'] ] ) ? $values[ $field['id'] ] : $field['default'];
 	$error   = isset( $errors[ $field['id'] ] ) ? $errors[ $field['id'] ] : '';
-	$visible = atf_field_is_visible( $schema, $field['id'], $values );
+	$visible = alltfo_field_is_visible( $schema, $field['id'], $values );
 
 	$classes = array(
 		'atf-field',
@@ -858,7 +848,7 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
 	if ( $definition && is_callable( $definition['render'] ) ) {
 		$out .= (string) call_user_func( $definition['render'], $field, $value, $context );
 	} else {
-		$out .= atf_render_field_control( $field, $value, $context );
+		$out .= alltfo_render_field_control( $field, $value, $context );
 	}
 
 	if ( '' !== $field['hint'] ) {
@@ -888,7 +878,7 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
 	 * @param mixed  $value  Its current value.
 	 * @param array  $schema The form schema.
 	 */
-	return apply_filters( 'atf_rendered_field', $out, $field, $value, $schema );
+	return apply_filters( 'alltfo_rendered_field', $out, $field, $value, $schema );
 }
 
 /**
@@ -906,7 +896,7 @@ function atf_render_field( $field, $schema, $values, $errors, $instance ) {
  * @param string $tag   `label` for a real control, `legend` inside a fieldset.
  * @return string
  */
-function atf_render_label( $field, $id, $tag = 'label' ) {
+function alltfo_render_label( $field, $id, $tag = 'label' ) {
 	if ( '' === $field['label'] ) {
 		return '';
 	}
@@ -936,7 +926,7 @@ function atf_render_label( $field, $id, $tag = 'label' ) {
  * @param array $context The render context.
  * @return string
  */
-function atf_control_attributes( $field, $context ) {
+function alltfo_control_attributes( $field, $context ) {
 	$attributes = sprintf(
 		' id="%s" name="%s"',
 		esc_attr( $context['id'] ),
@@ -982,7 +972,7 @@ function atf_control_attributes( $field, $context ) {
 
 	// An autocomplete token turns a form into one the browser can fill, which is
 	// both a usability win and a WCAG 1.3.5 requirement.
-	$autocomplete = atf_autocomplete_token( $field );
+	$autocomplete = alltfo_autocomplete_token( $field );
 
 	if ( '' !== $autocomplete ) {
 		$attributes .= sprintf( ' autocomplete="%s"', esc_attr( $autocomplete ) );
@@ -999,7 +989,7 @@ function atf_control_attributes( $field, $context ) {
  * @param array $field The field.
  * @return string A token, or an empty string.
  */
-function atf_autocomplete_token( $field ) {
+function alltfo_autocomplete_token( $field ) {
 	$by_type = array(
 		'email'    => 'email',
 		'tel'      => 'tel',
@@ -1020,5 +1010,5 @@ function atf_autocomplete_token( $field ) {
 	 * @param string $token The token, or an empty string.
 	 * @param array  $field The field.
 	 */
-	return (string) apply_filters( 'atf_autocomplete_token', '', $field );
+	return (string) apply_filters( 'alltfo_autocomplete_token', '', $field );
 }

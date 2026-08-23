@@ -24,7 +24,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'plugins_loaded', 'atf_explorer_register' );
+add_action( 'plugins_loaded', 'alltfo_explorer_register' );
 
 /**
  * Hooks into whichever spelling of the shell is installed.
@@ -33,16 +33,16 @@ add_action( 'plugins_loaded', 'atf_explorer_register' );
  *
  * @return void
  */
-function atf_explorer_register() {
-	foreach ( atf_shell_hooks( 'my_wordpress_entities' ) as $hook ) {
-		add_filter( $hook, 'atf_explorer_entities' );
+function alltfo_explorer_register() {
+	foreach ( alltfo_shell_hooks( 'my_wordpress_entities' ) as $hook ) {
+		add_filter( $hook, 'alltfo_explorer_entities' );
 	}
 
-	foreach ( atf_shell_hooks( 'my_wordpress_preview_actions' ) as $hook ) {
-		add_filter( $hook, 'atf_explorer_preview_actions' );
+	foreach ( alltfo_shell_hooks( 'my_wordpress_preview_actions' ) as $hook ) {
+		add_filter( $hook, 'alltfo_explorer_preview_actions' );
 	}
 
-	add_filter( 'rest_prepare_atf_form', 'atf_explorer_form_excerpt', 10, 2 );
+	add_filter( 'rest_prepare_alltfo_form', 'alltfo_explorer_form_excerpt', 10, 2 );
 }
 
 /**
@@ -53,21 +53,21 @@ function atf_explorer_register() {
  * @param array[] $entities Section descriptors.
  * @return array[]
  */
-function atf_explorer_entities( $entities ) {
-	if ( ! atf_can_edit_forms() && ! atf_can_read_entries() ) {
+function alltfo_explorer_entities( $entities ) {
+	if ( ! alltfo_can_edit_forms() && ! alltfo_can_read_entries() ) {
 		return $entities;
 	}
 
 	$entities[] = array(
-		'id'         => 'atf-forms',
+		'id'         => 'alltfo-forms',
 		'label'      => __( 'Forms', 'allterrain-forms' ),
 		'icon'       => 'dashicons-feedback',
-		'restPath'   => 'wp/v2/atf-forms',
+		'restPath'   => 'wp/v2/alltfo-forms',
 		// A plugin-registered kind: `dock.ts` registers the renderer via
 		// `wp.os.myWordpress.registerEntityKind()`, so the whole section body
 		// — tiles, stat cards, the scaled live preview — is this plugin's.
-		'kind'       => 'atf-form',
-		'post_type'  => ATF_FORM_TYPE,
+		'kind'       => 'alltfo-form',
+		'post_type'  => ALLTFO_FORM_TYPE,
 		// A form has no featured image, and leaving thumbnails on makes the
 		// list request embed media on every tile and get nothing back.
 		'thumbnails' => false,
@@ -89,15 +89,15 @@ function atf_explorer_entities( $entities ) {
  * @param array[] $actions Registered preview actions.
  * @return array[]
  */
-function atf_explorer_preview_actions( $actions ) {
+function alltfo_explorer_preview_actions( $actions ) {
 	$actions[] = array(
 		'id'         => 'allterrain-forms/open-builder',
 		'label'      => __( 'Open in the form builder', 'allterrain-forms' ),
 		'icon'       => 'dashicons-feedback',
-		'capability' => 'atf_edit_forms',
+		'capability' => 'alltfo_edit_forms',
 		// Scoped by post type as well as section id, per the Explorer's
 		// matching rules — the type matches wherever its section came from.
-		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
+		'sections'   => array( 'alltfo-forms', ALLTFO_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 
@@ -105,8 +105,8 @@ function atf_explorer_preview_actions( $actions ) {
 		'id'         => 'allterrain-forms/open-entries',
 		'label'      => __( 'View entries', 'allterrain-forms' ),
 		'icon'       => 'dashicons-list-view',
-		'capability' => 'atf_read_entries',
-		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
+		'capability' => 'alltfo_read_entries',
+		'sections'   => array( 'alltfo-forms', ALLTFO_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 
@@ -114,8 +114,8 @@ function atf_explorer_preview_actions( $actions ) {
 		'id'         => 'allterrain-forms/open-analytics',
 		'label'      => __( 'Open the report', 'allterrain-forms' ),
 		'icon'       => 'dashicons-chart-bar',
-		'capability' => 'atf_read_entries',
-		'sections'   => array( 'atf-forms', ATF_FORM_TYPE ),
+		'capability' => 'alltfo_read_entries',
+		'sections'   => array( 'alltfo-forms', ALLTFO_FORM_TYPE ),
 		'script'     => 'allterrain-forms-dock',
 	);
 
@@ -129,7 +129,7 @@ function atf_explorer_preview_actions( $actions ) {
  * form has to say. The excerpt becomes its vitals — questions, answers, theme
  * — so the grid reads like an inventory rather than a list of names.
  *
- * On every `wp/v2/atf-forms` response, not only the Explorer's: a REST
+ * On every `wp/v2/alltfo-forms` response, not only the Explorer's: a REST
  * consumer that asked for an excerpt gets a truthful one either way, and the
  * form has no hand-written excerpt to overwrite.
  *
@@ -139,17 +139,17 @@ function atf_explorer_preview_actions( $actions ) {
  * @param WP_Post          $post     The form.
  * @return WP_REST_Response
  */
-function atf_explorer_form_excerpt( $response, $post ) {
+function alltfo_explorer_form_excerpt( $response, $post ) {
 	if ( ! isset( $response->data['excerpt'] ) || ! is_array( $response->data['excerpt'] ) ) {
 		return $response;
 	}
 
-	$schema  = atf_get_form_schema( $post->ID );
-	$themes  = atf_get_themes();
+	$schema  = alltfo_get_form_schema( $post->ID );
+	$themes  = alltfo_get_themes();
 	$slug    = $schema['settings']['theme'];
 	$theme   = isset( $themes[ $slug ]['label'] ) ? $themes[ $slug ]['label'] : $slug;
-	$fields  = count( atf_input_fields( $schema ) );
-	$entries = atf_count_entries( $post->ID );
+	$fields  = count( alltfo_input_fields( $schema ) );
+	$entries = alltfo_count_entries( $post->ID );
 
 	$vitals = sprintf(
 		/* translators: 1: question count, 2: entry count, 3: theme name. */

@@ -143,7 +143,7 @@ class EntriesWindow {
 
 		if ( shell?.subscribe ) {
 			this.teardowns.push(
-				shell.subscribe( 'os.atf_entry.changed', () => {
+				shell.subscribe( 'os.alltfo_entry.changed', () => {
 					// The shell has no window-closed broadcast, so a closed
 					// window is discovered here: its root has left the document,
 					// and the only right response is to let go of the
@@ -204,9 +204,9 @@ class EntriesWindow {
 				this.status,
 				[
 					{ value: 'inbox', label: 'All' },
-					{ value: 'atf-unread', label: 'Unread' },
-					{ value: 'atf-read', label: 'Read' },
-					{ value: 'atf-spam', label: 'Spam' },
+					{ value: 'alltfo-unread', label: 'Unread' },
+					{ value: 'alltfo-read', label: 'Read' },
+					{ value: 'alltfo-spam', label: 'Spam' },
 				],
 				( value ) => {
 					this.status = value;
@@ -426,9 +426,9 @@ class EntriesWindow {
 					attrs: { role: 'status' },
 					text: count ? `${ count } selected` : 'Select',
 				} ),
-				count ? button( 'Read', () => void this.bulk( 'atf-read' ) ) : null,
-				count ? button( 'Unread', () => void this.bulk( 'atf-unread' ) ) : null,
-				count ? button( 'Spam', () => void this.bulk( 'atf-spam' ) ) : null,
+				count ? button( 'Read', () => void this.bulk( 'alltfo-read' ) ) : null,
+				count ? button( 'Unread', () => void this.bulk( 'alltfo-unread' ) ) : null,
+				count ? button( 'Spam', () => void this.bulk( 'alltfo-spam' ) ) : null,
 				count && runtime?.canEdit ? button( 'Delete', () => void this.bulkDelete(), 'danger' ) : null,
 			],
 		} );
@@ -488,7 +488,7 @@ class EntriesWindow {
 
 	/** One row, draggable. */
 	private renderRow( entry: Entry ): HTMLElement {
-		const unread = entry.status === 'atf-unread';
+		const unread = entry.status === 'alltfo-unread';
 
 		const row = el( 'div', {
 			class: `atfe__row${ unread ? ' is-unread' : '' }${ this.selected?.id === entry.id ? ' is-selected' : '' }`,
@@ -698,12 +698,12 @@ class EntriesWindow {
 				class: 'atfe__actions',
 				children: [
 					button(
-						entry.status === 'atf-spam' ? 'Not spam' : 'Mark as spam',
-						() => void this.setStatus( entry, entry.status === 'atf-spam' ? 'atf-read' : 'atf-spam' )
+						entry.status === 'alltfo-spam' ? 'Not spam' : 'Mark as spam',
+						() => void this.setStatus( entry, entry.status === 'alltfo-spam' ? 'alltfo-read' : 'alltfo-spam' )
 					),
 					button(
-						entry.status === 'atf-unread' ? 'Mark read' : 'Mark unread',
-						() => void this.setStatus( entry, entry.status === 'atf-unread' ? 'atf-read' : 'atf-unread' )
+						entry.status === 'alltfo-unread' ? 'Mark read' : 'Mark unread',
+						() => void this.setStatus( entry, entry.status === 'alltfo-unread' ? 'alltfo-read' : 'alltfo-unread' )
 					),
 					entry.canDelete ? button( 'Delete', () => void this.remove( entry ), 'danger' ) : null,
 				],
@@ -797,7 +797,7 @@ class EntriesWindow {
 let mountedEntries: EntriesWindow | null = null;
 
 // WP Explorer deep-link: open on one form's entries.
-document.addEventListener( 'atf-open-entries-form', ( event ) => {
+document.addEventListener( 'alltfo-open-entries-form', ( event ) => {
 	const formId = Number( ( event as CustomEvent ).detail?.formId ?? 0 );
 
 	if ( ! formId ) {

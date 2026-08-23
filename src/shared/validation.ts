@@ -7,7 +7,7 @@
  * preset asks the question they can answer: *what should the answer look
  * like?* An email address. A phone number. A ZIP code.
  *
- * The table here is the browser's half of a twin: `atf_validation_presets()`
+ * The table here is the browser's half of a twin: `alltfo_validation_presets()`
  * in `includes/validation.php` carries the same slugs and the same patterns,
  * and `tests/fixtures/validation-cases.json` is read by both suites so the two
  * cannot drift apart silently. The browser check is a courtesy — instant, as

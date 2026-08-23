@@ -667,7 +667,7 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 								// entries are stored against the value.
 								//
 								// Mirrors verbatim rather than slugifying, which is the
-								// convention the inspector and `atf_normalize_choices()`
+								// convention the inspector and `alltfo_normalize_choices()`
 								// already use; two spellings of "the value follows the
 								// label" would disagree the moment you used both panes.
 								const mirroring = ! target.value || target.value === target.label;
@@ -711,7 +711,7 @@ function optionList( field: Field, handlers: PreviewHandlers ): HTMLElement {
 					event.stopPropagation();
 					handlers.restructure( ( live ) => {
 						// Named rather than blank, and that is not cosmetic:
-						// `atf_normalize_choices()` drops a choice whose label and
+						// `alltfo_normalize_choices()` drops a choice whose label and
 						// value are both empty, and the schema is normalised on every
 						// save. A blank new option therefore looked fine, and then
 						// disappeared a couple of seconds later when the autosave

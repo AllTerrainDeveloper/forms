@@ -14,40 +14,40 @@ note in the changelog. *Experimental* means it may.
 
 ## Lifecycle
 
-### `atf_loaded` — Action — *Stable*
+### `alltfo_loaded` — Action — *Stable*
 
 ```php
-do_action( 'atf_loaded' );
+do_action( 'alltfo_loaded' );
 ```
 
 Fires on `plugins_loaded` at 20, once the plugin's registries are open. The place
-to call `atf_register_field_type()` and `atf_register_theme()`.
+to call `alltfo_register_field_type()` and `alltfo_register_theme()`.
 
-### `atf_register_field_types` — Action — *Stable*
+### `alltfo_register_field_types` — Action — *Stable*
 
 ```php
-do_action( 'atf_register_field_types' );
+do_action( 'alltfo_register_field_types' );
 ```
 
 Fires after the built-in field types are registered, the first time the registry
-is read. The last safe moment to add a field type — later than `atf_loaded`, so
+is read. The last safe moment to add a field type — later than `alltfo_loaded`, so
 it also catches a plugin that loaded after this one.
 
 ---
 
 ## Field types
 
-### `atf_register_field_type` — Filter — *Stable*
+### `alltfo_register_field_type` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_register_field_type', array $definition, string $type );
+apply_filters( 'alltfo_register_field_type', array $definition, string $type );
 ```
 
 A type's definition as it is registered. Lets a site add a setting to a built-in
 without unregistering and re-registering it.
 
 ```php
-add_filter( 'atf_register_field_type', function ( $definition, $type ) {
+add_filter( 'alltfo_register_field_type', function ( $definition, $type ) {
 	if ( 'textarea' === $type ) {
 		$definition['settings']['counter'] = true;
 	}
@@ -56,30 +56,30 @@ add_filter( 'atf_register_field_type', function ( $definition, $type ) {
 }, 10, 2 );
 ```
 
-### `atf_field_types` — Filter — *Stable*
+### `alltfo_field_types` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_field_types', array $types );
+apply_filters( 'alltfo_field_types', array $types );
 ```
 
 The whole table, just before it is used. The place to remove types wholesale — a
 site that never wants file uploads drops the type here and it disappears from the
 palette, the validator and the renderer at once.
 
-### `atf_field_groups` — Filter — *Stable*
+### `alltfo_field_groups` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_field_groups', array $groups );
+apply_filters( 'alltfo_field_groups', array $groups );
 ```
 
 The palette's groups, as `slug => label`. A plugin adding several related types
 can give them a group rather than scattering them through `advanced`.
 
-### `atf_name_parts` / `atf_address_parts` — Filters — *Stable*
+### `alltfo_name_parts` / `alltfo_address_parts` — Filters — *Stable*
 
 ```php
-apply_filters( 'atf_name_parts', array $parts );
-apply_filters( 'atf_address_parts', array $parts );
+apply_filters( 'alltfo_name_parts', array $parts );
+apply_filters( 'alltfo_address_parts', array $parts );
 ```
 
 The sub-fields a composite offers, as `key => array( 'label' => …, 'autocomplete' => … )`.
@@ -89,18 +89,18 @@ returns the resolved list as each type's `parts`, so the tick boxes offering
 which parts to ask for are your filtered set rather than a copy of the
 defaults. Add a part here and it appears in the builder without further work.
 
-### `atf_countries` — Filter — *Stable*
+### `alltfo_countries` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_countries', array $countries );
+apply_filters( 'alltfo_countries', array $countries );
 ```
 
 ISO 3166-1 alpha-2 code => name. Replace for localised names or a subset.
 
-### `atf_autocomplete_token` — Filter — *Stable*
+### `alltfo_autocomplete_token` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_autocomplete_token', string $token, array $field );
+apply_filters( 'alltfo_autocomplete_token', string $token, array $field );
 ```
 
 The `autocomplete` attribute for a field. Filling this in is a WCAG 1.3.5
@@ -110,64 +110,64 @@ requirement as well as a usability win.
 
 ## Schema
 
-### `atf_default_schema` — Filter — *Stable*
+### `alltfo_default_schema` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_default_schema', array $schema );
+apply_filters( 'alltfo_default_schema', array $schema );
 ```
 
 What a brand-new form starts from. A site that always wants a particular theme,
 or IP storage off, sets it here once rather than on every form.
 
-### `atf_normalize_schema` — Filter — *Stable*
+### `alltfo_normalize_schema` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_normalize_schema', array $schema, mixed $raw );
+apply_filters( 'alltfo_normalize_schema', array $schema, mixed $raw );
 ```
 
 Runs on every read *and* every write, so anything added here is present
 everywhere — the renderer, the validator, the builder and the export.
 
-### `atf_normalize_field` — Filter — *Stable*
+### `alltfo_normalize_field` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_normalize_field', array $field, mixed $raw );
+apply_filters( 'alltfo_normalize_field', array $field, mixed $raw );
 ```
 
-### `atf_schema_saved` — Action — *Stable*
+### `alltfo_schema_saved` — Action — *Stable*
 
 ```php
-do_action( 'atf_schema_saved', int $form_id, array $schema );
+do_action( 'alltfo_schema_saved', int $form_id, array $schema );
 ```
 
-### `atf_form_created` / `atf_form_deleted` — Actions — *Stable*
+### `alltfo_form_created` / `alltfo_form_deleted` — Actions — *Stable*
 
 ```php
-do_action( 'atf_form_created', int $form_id, string $template_slug );
-do_action( 'atf_form_deleted', int $form_id );
+do_action( 'alltfo_form_created', int $form_id, string $template_slug );
+do_action( 'alltfo_form_deleted', int $form_id );
 ```
 
-### `atf_form_archived` / `atf_form_unarchived` — Actions — *Stable*
+### `alltfo_form_archived` / `alltfo_form_unarchived` — Actions — *Stable*
 
 ```php
-do_action( 'atf_form_archived', int $form_id );
-do_action( 'atf_form_unarchived', int $form_id );
+do_action( 'alltfo_form_archived', int $form_id );
+do_action( 'alltfo_form_unarchived', int $form_id );
 ```
 
 Archiving retires a form and everything that belongs to it in one move: the
-form's post status becomes `atf-archived` (its previous status is kept, so a
-draft comes back a draft), each of its entries is marked with `_atf_archived`
+form's post status becomes `alltfo-archived` (its previous status is kept, so a
+draft comes back a draft), each of its entries is marked with `_alltfo_archived`
 so the all-forms entry list and export skip them, and its stats — post meta on
-the form — go wherever the form goes. `atf_form_availability()` reports an
+the form — go wherever the form goes. `alltfo_form_availability()` reports an
 archived form as closed with reason `archived`, for editors too, so it neither
 renders nor accepts submissions until it is restored. Fired after the move
-completes in each direction; the helpers are `atf_archive_form()`,
-`atf_unarchive_form()` and `atf_form_is_archived()`.
+completes in each direction; the helpers are `alltfo_archive_form()`,
+`alltfo_unarchive_form()` and `alltfo_form_is_archived()`.
 
-### `atf_form_templates` — Filter — *Stable*
+### `alltfo_form_templates` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_form_templates', array $templates );
+apply_filters( 'alltfo_form_templates', array $templates );
 ```
 
 `slug => array( 'label', 'description', 'icon', 'schema' )`. A template *is* a
@@ -178,32 +178,32 @@ a template by exporting its schema and adding it here.
 
 ## Rendering
 
-### `atf_form_classes` — Filter — *Stable*
+### `alltfo_form_classes` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_form_classes', array $classes, int $form_id, array $schema );
+apply_filters( 'alltfo_form_classes', array $classes, int $form_id, array $schema );
 ```
 
-### `atf_pre_render_field` — Filter — *Stable*
+### `alltfo_pre_render_field` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_pre_render_field', ?string $html, array $field, array $schema, array $values );
+apply_filters( 'alltfo_pre_render_field', ?string $html, array $field, array $schema, array $values );
 ```
 
 Returning a string replaces the field's markup entirely. Return `null` to render
 normally.
 
-### `atf_rendered_field` / `atf_rendered_form` — Filters — *Stable*
+### `alltfo_rendered_field` / `alltfo_rendered_form` — Filters — *Stable*
 
 ```php
-apply_filters( 'atf_rendered_field', string $html, array $field, mixed $value, array $schema );
-apply_filters( 'atf_rendered_form',  string $html, int $form_id, array $schema );
+apply_filters( 'alltfo_rendered_field', string $html, array $field, mixed $value, array $schema );
+apply_filters( 'alltfo_rendered_form',  string $html, int $form_id, array $schema );
 ```
 
-### `atf_client_schema` — Filter — *Stable*
+### `alltfo_client_schema` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_client_schema', array $payload, array $schema );
+apply_filters( 'alltfo_client_schema', array $payload, array $schema );
 ```
 
 The slice of the schema handed to the front-end bundle, printed as JSON in the
@@ -214,14 +214,14 @@ page.
 > recipients, webhook secrets, the spam blocklist and quiz answers. Treat it as
 > public.
 
-### `atf_prefill_values` / `atf_resolve_prefill` — Filters — *Stable*
+### `alltfo_prefill_values` / `alltfo_resolve_prefill` — Filters — *Stable*
 
 ```php
-apply_filters( 'atf_prefill_values', array $values, array $schema );
-apply_filters( 'atf_resolve_prefill', string $value, string $source, array $field );
+apply_filters( 'alltfo_prefill_values', array $values, array $schema );
+apply_filters( 'alltfo_resolve_prefill', string $value, string $source, array $field );
 ```
 
-`atf_resolve_prefill` resolves a source this plugin does not know. The built-in
+`alltfo_resolve_prefill` resolves a source this plugin does not know. The built-in
 sources are a closed set, because the builder offers them as a list rather than
 as a text box:
 
@@ -250,10 +250,10 @@ else (advanced)** in the picker, since the list is built from the built-ins.
 
 ## Availability
 
-### `atf_form_availability` — Filter — *Stable*
+### `alltfo_form_availability` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_form_availability', array $open, int $form_id, array $schema );
+apply_filters( 'alltfo_form_availability', array $open, int $form_id, array $schema );
 ```
 
 `array( 'open' => bool, 'reason' => string, 'message' => string )`.
@@ -265,10 +265,10 @@ it safe to add a condition without also having to guard the handler.
 
 ## Validation
 
-### `atf_url_schemes` — Filter — *Stable*
+### `alltfo_url_schemes` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_url_schemes', array $schemes );
+apply_filters( 'alltfo_url_schemes', array $schemes );
 ```
 
 Which URL schemes a **Website** field accepts. `http` and `https` by default.
@@ -284,10 +284,10 @@ If you add a scheme, add one people can safely follow. `javascript:` and `data:`
 both parse as valid URLs, and the value ends up in an `href` in a notification
 email and on the entries screen.
 
-### `atf_validation_presets` — Filter — *Experimental*
+### `alltfo_validation_presets` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_validation_presets', array $presets );
+apply_filters( 'alltfo_validation_presets', array $presets );
 ```
 
 The named answer shapes a field's `validation` setting can point at — `email`,
@@ -296,7 +296,7 @@ slug and carries an anchored, undelimited pattern compiled with `/u`, a default
 `message`, and an optional `luhn` flag for checksum-checked digits:
 
 ```php
-add_filter( 'atf_validation_presets', function ( $presets ) {
+add_filter( 'alltfo_validation_presets', function ( $presets ) {
 	$presets['booking_code'] = array(
 		'pattern' => '^BK-[0-9]{6}$',
 		'message' => __( 'Booking codes look like BK-123456.', 'my-plugin' ),
@@ -313,10 +313,10 @@ but not offered in the builder UI or pre-checked as the visitor types — set
 `field.validation` to your slug programmatically, or ask us for a registration
 API if you need the full round trip.
 
-### `atf_validation_errors` — Filter — *Stable*
+### `alltfo_validation_errors` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_validation_errors', array $errors, array $schema, array $values, array $context );
+apply_filters( 'alltfo_validation_errors', array $errors, array $schema, array $values, array $context );
 ```
 
 Field id => message. Where a site adds a cross-field rule — "the end date must be
@@ -329,52 +329,52 @@ drops all-empty rows), followed by a row-level summary under the repeater's own
 id ("Attendee 2: Age is required."). The dotted keys are what let the front end
 mark the exact box; ids cannot contain dots, so the shape parses unambiguously.
 
-### `atf_validate_field` — Filter — *Stable*
+### `alltfo_validate_field` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_validate_field', string $error, array $field, mixed $value, array $schema );
+apply_filters( 'alltfo_validate_field', string $error, array $field, mixed $value, array $schema );
 ```
 
-### `atf_validation_message` — Filter — *Stable*
+### `alltfo_validation_message` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_validation_message', string $message );
+apply_filters( 'alltfo_validation_message', string $message );
 ```
 
 The form-level message shown above a form that failed validation.
 
-### `atf_unique_scan_limit` — Filter — *Stable*
+### `alltfo_unique_scan_limit` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_unique_scan_limit', int $limit, array $field, int $form_id );
+apply_filters( 'alltfo_unique_scan_limit', int $limit, array $field, int $form_id );
 ```
 
 How many past entries a uniqueness check scans. Raising it makes the check more
 thorough and every submission slower.
 
-### `atf_sanitized_values` — Filter — *Stable*
+### `alltfo_sanitized_values` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_sanitized_values', array $values, array $schema, array $raw );
+apply_filters( 'alltfo_sanitized_values', array $values, array $schema, array $raw );
 ```
 
 ---
 
 ## Logic and calculations
 
-### `atf_visible_fields` — Filter — *Stable*
+### `alltfo_visible_fields` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_visible_fields', array $visible, array $schema, array $values );
+apply_filters( 'alltfo_visible_fields', array $visible, array $schema, array $values );
 ```
 
 Field id => bool. **This decides what is validated**, so anything hidden here is
 also not required.
 
-### `atf_calc_functions` — Filter — *Stable*
+### `alltfo_calc_functions` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_calc_functions', array $functions );
+apply_filters( 'alltfo_calc_functions', array $functions );
 ```
 
 Name => arity, or `-1` for variadic.
@@ -384,47 +384,47 @@ Name => arity, or `-1` for variadic.
 > an execution surface for anybody who can edit a form. The whitelist is the
 > security boundary that makes the evaluator safe.
 
-### `atf_calc_apply_function` — Filter — *Stable*
+### `alltfo_calc_apply_function` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_calc_apply_function', ?float $result, string $name, array $args );
+apply_filters( 'alltfo_calc_apply_function', ?float $result, string $name, array $args );
 ```
 
-Implements a function added through `atf_calc_functions`.
+Implements a function added through `alltfo_calc_functions`.
 
-### `atf_calculation_result` — Filter — *Stable*
+### `alltfo_calculation_result` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_calculation_result', float $result, string $formula, array $values );
+apply_filters( 'alltfo_calculation_result', float $result, string $formula, array $values );
 ```
 
 ---
 
 ## Merge tags
 
-### `atf_resolve_merge_tag` — Filter — *Stable*
+### `alltfo_resolve_merge_tag` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_resolve_merge_tag', ?string $value, string $tag, string $argument, array $context );
+apply_filters( 'alltfo_resolve_merge_tag', ?string $value, string $tag, string $argument, array $context );
 ```
 
 Resolves a tag this plugin does not know. Return `null` to leave it alone — an
 unrecognised tag returns *itself* rather than an empty string, so brace-shaped
 text that was never a tag survives.
 
-### `atf_merge_tags_replaced` — Filter — *Stable*
+### `alltfo_merge_tags_replaced` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_merge_tags_replaced', string $text, array $context );
+apply_filters( 'alltfo_merge_tags_replaced', string $text, array $context );
 ```
 
-### `atf_merge_tag_catalogue` — Filter — *Stable*
+### `alltfo_merge_tag_catalogue` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_merge_tag_catalogue', array $groups, int $form_id );
+apply_filters( 'alltfo_merge_tag_catalogue', array $groups, int $form_id );
 ```
 
-The list the builder's **Insert a value** picker shows. `atf_resolve_merge_tag`
+The list the builder's **Insert a value** picker shows. `alltfo_resolve_merge_tag`
 makes a tag *work*; this makes it *findable*. A plugin that adds one and not the
 other has built something nobody will discover.
 
@@ -433,7 +433,7 @@ shown in place of an empty list. Each item needs all four keys:
 
 ```php
 add_filter(
-	'atf_merge_tag_catalogue',
+	'alltfo_merge_tag_catalogue',
 	function ( $groups, $form_id ) {
 		$groups[] = array(
 			'id'    => 'crm',
@@ -460,7 +460,7 @@ add_filter(
 );
 ```
 
-A tag advertised here that `atf_resolve_merge_tag` does not resolve will print as
+A tag advertised here that `alltfo_resolve_merge_tag` does not resolve will print as
 literal braces in somebody's email — an unknown tag returns itself. The plugin's
 own suite asserts that every catalogued tag resolves; a plugin adding tags is
 worth testing the same way.
@@ -469,10 +469,10 @@ worth testing the same way.
 
 ## Spam
 
-### `atf_spam_verdict` — Filter — *Stable*
+### `alltfo_spam_verdict` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_spam_verdict', array $verdict, array $schema, array $values, array $request );
+apply_filters( 'alltfo_spam_verdict', array $verdict, array $schema, array $values, array $request );
 ```
 
 `array( 'spam' => bool, 'reason' => string )`. Returning `spam => true` files the
@@ -483,17 +483,17 @@ The five checks are the honeypot, a **signed** time trap, a per-address rate
 limit, a word blocklist and Akismet. A sixth — an arithmetic challenge — is off
 by default and is the only one that asks the visitor to do anything.
 
-The challenge's answer is signed with `atf_sign_challenge()` and never sent to
+The challenge's answer is signed with `alltfo_sign_challenge()` and never sent to
 the browser. A challenge whose expected answer travels in the page alongside the
 question is decoration. The signature also binds the hour it was issued, and the
 verifier accepts the current and previous hour only — so a rendered form has
 between one and two hours to be submitted, and a harvested (answer, signature)
 pair stops replaying when its hour ages out.
 
-### `atf_client_ip` — Filter — *Stable*
+### `alltfo_client_ip` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_client_ip', string $ip );
+apply_filters( 'alltfo_client_ip', string $ip );
 ```
 
 `REMOTE_ADDR` only, by default. The forwarded-for headers are trivially spoofed
@@ -507,38 +507,38 @@ sending a different one each time.
 
 ## Submission
 
-### `atf_before_submission` — Action — *Stable*
+### `alltfo_before_submission` — Action — *Stable*
 
 ```php
-do_action( 'atf_before_submission', int $form_id, array $request, array $schema );
+do_action( 'alltfo_before_submission', int $form_id, array $request, array $schema );
 ```
 
-### `atf_entry_created` — Action — *Stable*
+### `alltfo_entry_created` — Action — *Stable*
 
 ```php
-do_action( 'atf_entry_created', int $entry_id, int $form_id, array $values, array $schema );
+do_action( 'alltfo_entry_created', int $entry_id, int $form_id, array $values, array $schema );
 ```
 
 **The main integration point.** Actions, notifications and webhooks all hang off
 this, so anything hooked here sees the same entry they do. `$entry_id` is 0 when
 the form is set not to store entries.
 
-### `atf_submission_spam` — Action — *Stable*
+### `alltfo_submission_spam` — Action — *Stable*
 
 ```php
-do_action( 'atf_submission_spam', int $entry_id, int $form_id, array $spam );
+do_action( 'alltfo_submission_spam', int $entry_id, int $form_id, array $spam );
 ```
 
-### `atf_entry_status_changed` — Action — *Stable*
+### `alltfo_entry_status_changed` — Action — *Stable*
 
 ```php
-do_action( 'atf_entry_status_changed', int $entry_id, string $status, string $was );
+do_action( 'alltfo_entry_status_changed', int $entry_id, string $status, string $was );
 ```
 
-### `atf_partial_saved` — Action — *Stable*
+### `alltfo_partial_saved` — Action — *Stable*
 
 ```php
-do_action( 'atf_partial_saved', int $entry_id, int $form_id, string $url, array $values );
+do_action( 'alltfo_partial_saved', int $entry_id, int $form_id, string $url, array $values );
 ```
 
 Fires when somebody saves a half-finished form. The plugin shows the resume link
@@ -547,7 +547,7 @@ send it to is a per-form question and guessing it wrongly sends somebody's draft
 to a stranger.
 
 ```php
-add_action( 'atf_partial_saved', function ( $entry_id, $form_id, $url, $values ) {
+add_action( 'alltfo_partial_saved', function ( $entry_id, $form_id, $url, $values ) {
 	// Only when they have actually given you an address to send it to.
 	$email = $values['f3'] ?? '';
 
@@ -564,10 +564,10 @@ add_action( 'atf_partial_saved', function ( $entry_id, $form_id, $url, $values )
 > The URL is a bearer credential — anyone holding it can read the half-finished
 > answers. Send it only to an address the person themselves typed in.
 
-### `atf_partial_rate_limit` — Filter — *Experimental*
+### `alltfo_partial_rate_limit` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_partial_rate_limit', int $limit, int $form_id );
+apply_filters( 'alltfo_partial_rate_limit', int $limit, int $form_id );
 ```
 
 How many **new** partials one IP address may create per hour through the public
@@ -576,13 +576,13 @@ existing partial are never counted — an update needs a token, and the save tha
 minted the token spent a slot. Logged-in users are exempt for the same reason
 the submission rate limit skips them.
 
-Past the limit the save fails with the `atf_partial_rate_limited` error code
+Past the limit the save fails with the `alltfo_partial_rate_limited` error code
 (HTTP 429).
 
-### `atf_upload_overrides` — Filter — *Experimental*
+### `alltfo_upload_overrides` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_upload_overrides', array $overrides, array $field, int $form_id );
+apply_filters( 'alltfo_upload_overrides', array $overrides, array $field, int $form_id );
 ```
 
 The overrides array handed to Core's `wp_handle_upload()` for a file field's
@@ -594,10 +594,10 @@ form can do it here without reimplementing the upload path.
 
 ## Notifications and confirmations
 
-### `atf_default_notification` — Filter — *Stable*
+### `alltfo_default_notification` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_default_notification', array $notification, int $form_id );
+apply_filters( 'alltfo_default_notification', array $notification, int $form_id );
 ```
 
 What a form with no notifications configured sends. The default is one e-mail to
@@ -605,44 +605,44 @@ the administrator with every answer — because a form that collects an enquiry 
 tells nobody is the most common way a forms plugin fails in production, and it
 fails silently.
 
-### `atf_notification_email` — Filter — *Stable*
+### `alltfo_notification_email` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_notification_email', array $mail, array $notification, array $context );
+apply_filters( 'alltfo_notification_email', array $mail, array $notification, array $context );
 ```
 
 `array( 'to', 'subject', 'message', 'headers', 'attachments' )`. **Returning an
 empty `to` cancels the send.**
 
-### `atf_notification_sent` — Action — *Stable*
+### `alltfo_notification_sent` — Action — *Stable*
 
 ```php
-do_action( 'atf_notification_sent', bool $sent, array $mail, array $notification, array $context );
+do_action( 'alltfo_notification_sent', bool $sent, array $mail, array $notification, array $context );
 ```
 
-### `atf_email_html` — Filter — *Stable*
+### `alltfo_email_html` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_email_html', string $html, string $body, array $context );
+apply_filters( 'alltfo_email_html', string $html, string $body, array $context );
 ```
 
 The complete document a notification is wrapped in.
 
-### `atf_confirmation` / `atf_default_confirmation` — Filters — *Stable*
+### `alltfo_confirmation` / `alltfo_default_confirmation` — Filters — *Stable*
 
 ```php
-apply_filters( 'atf_confirmation', array $resolved, array $schema, array $values, int $entry_id );
-apply_filters( 'atf_default_confirmation', array $confirmation );
+apply_filters( 'alltfo_confirmation', array $resolved, array $schema, array $values, int $entry_id );
+apply_filters( 'alltfo_default_confirmation', array $confirmation );
 ```
 
 `$resolved` is `{ type, message, url, success }`. `success` is the resolved
 success screen — `{ style, title, icon, accent, intensity, showButton,
 buttonLabel }` — with merge tags already replaced in `title` and `buttonLabel`.
 
-### `atf_success_styles` — Filter — *Experimental*
+### `alltfo_success_styles` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_success_styles', array $styles );
+apply_filters( 'alltfo_success_styles', array $styles );
 ```
 
 The success screen styles a message confirmation can wear, keyed by slug —
@@ -655,82 +655,82 @@ renderer to animate; without one the front end shows it as `simple`.
 
 ## Post-submit actions
 
-### `atf_run_action` — Filter — *Stable*
+### `alltfo_run_action` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_run_action', mixed $result, array $action, array $context );
+apply_filters( 'alltfo_run_action', mixed $result, array $action, array $context );
 ```
 
 Runs an action type this plugin does not know — push to a CRM, create a calendar
 event, charge a card. Return a `WP_Error` to have the failure recorded against
 the entry.
 
-### `atf_creatable_post_types` — Filter — *Stable*
+### `alltfo_creatable_post_types` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_creatable_post_types', array $types, array $context );
+apply_filters( 'alltfo_creatable_post_types', array $types, array $context );
 ```
 
 Defaults to `post` and `page`.
 
-> A form's settings are editable by anyone with `atf_edit_forms`, which is a
+> A form's settings are editable by anyone with `alltfo_edit_forms`, which is a
 > lower bar than "may publish to any post type". Without this constraint an
 > editor could build a form that publishes to a type they cannot otherwise touch.
 
-### `atf_allow_direct_publish` — Filter — *Stable*
+### `alltfo_allow_direct_publish` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_allow_direct_publish', bool $allow, array $context );
+apply_filters( 'alltfo_allow_direct_publish', bool $allow, array $context );
 ```
 
 Defaults to **false**: a submission that asks for `publish` is downgraded to
 `pending`. A form that publishes straight to the front page is a defacement
 waiting to happen.
 
-### `atf_assignable_roles` — Filter — *Stable*
+### `alltfo_assignable_roles` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_assignable_roles', array $roles, array $context );
+apply_filters( 'alltfo_assignable_roles', array $roles, array $context );
 ```
 
 Defaults to the site's own default role **and nothing else**.
 
 > Anything added here is a role a stranger can obtain by filling in a form.
 
-### `atf_allow_registration` — Filter — *Stable*
+### `alltfo_allow_registration` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_allow_registration', bool $allow, array $context );
+apply_filters( 'alltfo_allow_registration', bool $allow, array $context );
 ```
 
 Whether a form may register users while `users_can_register` is off. Defaults to
 false.
 
-### `atf_webhook_payload` — Filter — *Stable*
+### `alltfo_webhook_payload` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_webhook_payload', array $payload, array $context );
+apply_filters( 'alltfo_webhook_payload', array $payload, array $context );
 ```
 
-### `atf_post_created` / `atf_user_registered` / `atf_file_uploaded` — Actions — *Stable*
+### `alltfo_post_created` / `alltfo_user_registered` / `alltfo_file_uploaded` — Actions — *Stable*
 
 ```php
-do_action( 'atf_post_created', int $post_id, array $context );
-do_action( 'atf_user_registered', int $user_id, array $context );
-do_action( 'atf_file_uploaded', int $attachment_id, array $field, int $form_id );
+do_action( 'alltfo_post_created', int $post_id, array $context );
+do_action( 'alltfo_user_registered', int $user_id, array $context );
+do_action( 'alltfo_file_uploaded', int $attachment_id, array $field, int $form_id );
 ```
 
 ---
 
 ## Entries, export and analytics
 
-### `atf_entry_statuses` — Filter — *Stable*
+### `alltfo_entry_statuses` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_entry_statuses', array $statuses, bool $include_trash );
+apply_filters( 'alltfo_entry_statuses', array $statuses, bool $include_trash );
 ```
 
-Every status an entry can hold. Use it — and `atf_entry_statuses()` — for any
+Every status an entry can hold. Use it — and `alltfo_entry_statuses()` — for any
 query over entries.
 
 `'post_status' => 'any'` does **not** work here, and the way it fails is the
@@ -744,29 +744,29 @@ a privacy export came back empty for somebody with a dozen submissions.
 ```php
 $entries = get_posts(
 	array(
-		'post_type'   => ATF_ENTRY_TYPE,
-		'post_status' => atf_entry_statuses(),
+		'post_type'   => ALLTFO_ENTRY_TYPE,
+		'post_status' => alltfo_entry_statuses(),
 	)
 );
 ```
 
-### `atf_prepare_entry` — Filter — *Stable*
+### `alltfo_prepare_entry` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_prepare_entry', array $record, WP_Post $post, array $schema );
+apply_filters( 'alltfo_prepare_entry', array $record, WP_Post $post, array $schema );
 ```
 
-### `atf_export_columns` / `atf_export_cell` — Filters — *Stable*
+### `alltfo_export_columns` / `alltfo_export_cell` — Filters — *Stable*
 
 ```php
-apply_filters( 'atf_export_columns', array $columns, array $schema );
-apply_filters( 'atf_export_cell', string $cell, string $key, array $entry );
+apply_filters( 'alltfo_export_columns', array $columns, array $schema );
+apply_filters( 'alltfo_export_cell', string $cell, string $key, array $entry );
 ```
 
-### `atf_form_analytics` — Filter — *Stable*
+### `alltfo_form_analytics` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_form_analytics', array $report, int $form_id );
+apply_filters( 'alltfo_form_analytics', array $report, int $form_id );
 ```
 
 The whole report. Alongside the headline counts and `fields`, it carries:
@@ -782,10 +782,10 @@ The whole report. Alongside the headline counts and `fields`, it carries:
 Each numeric field in `fields` also gains `numbers` (count, mean, median, min,
 max and the full distribution) and, for a 0–10 scale, `nps`.
 
-### `atf_analytics_dimensions` — Filter — *Stable*
+### `alltfo_analytics_dimensions` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_analytics_dimensions', array $dimensions, array $schema );
+apply_filters( 'alltfo_analytics_dimensions', array $dimensions, array $schema );
 ```
 
 The fields a report offers to group by. By default the choice fields with between
@@ -793,10 +793,10 @@ two and twelve options — more than that is not a breakdown, it is the raw data
 with extra steps. Add your own if a field of yours is categorical in a way the
 default rule cannot see.
 
-### `atf_record_view` — Filter — *Stable*
+### `alltfo_record_view` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_record_view', bool $record, int $form_id );
+apply_filters( 'alltfo_record_view', bool $record, int $form_id );
 ```
 
 Views by anyone who can edit forms are never counted, so building and previewing
@@ -804,33 +804,33 @@ does not inflate a form's own conversion rate. Independently of this filter, a
 form whose **Settings → Analytics → Count views and starts** switch is off
 records no views and no starts at all.
 
-### `atf_record_tech` — Filter — *Experimental*
+### `alltfo_record_tech` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_record_tech', bool $record, int $form_id );
+apply_filters( 'alltfo_record_tech', bool $record, int $form_id );
 ```
 
 Whether the current request's device, browser and operating system are added to
-the form's aggregate technology tallies (`_atf_tech` form meta). The tallies
+the form's aggregate technology tallies (`_alltfo_tech` form meta). The tallies
 are counters over coarse classes — "mobile", "chrome", "ios" — never the
 user-agent string and never a per-visitor row, and they already sit behind the
 form's own **Settings → Analytics** switches; this filter is the per-request
 veto for a consent plugin or a geography rule.
 
-### `atf_analytics_sample_size` — Filter — *Stable*
+### `alltfo_analytics_sample_size` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_analytics_sample_size', int $limit, int $form_id );
+apply_filters( 'alltfo_analytics_sample_size', int $limit, int $form_id );
 ```
 
 How many entries a report reads, 500 by default. The cap is what keeps a report
 on a form with a hundred thousand entries answering in a moment; raising it trades
 that for exactness. Spam and partials are never included.
 
-### `atf_developer_mode` — Filter — *Stable*
+### `alltfo_developer_mode` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_developer_mode', bool $enabled, int $user_id );
+apply_filters( 'alltfo_developer_mode', bool $enabled, int $user_id );
 ```
 
 Whether the developer surfaces are shown — currently the demo-data tools in the
@@ -842,30 +842,30 @@ and it is false.
 Switch it on without OpenStation:
 
 ```php
-add_filter( 'atf_developer_mode', function ( $on ) {
+add_filter( 'alltfo_developer_mode', function ( $on ) {
 	return $on || current_user_can( 'manage_options' );
 } );
 ```
 
 **This is not a permission.** Returning true grants nothing on its own: it decides
-what is *shown*, and every route it reveals checks `atf_edit_forms` as well. A
+what is *shown*, and every route it reveals checks `alltfo_edit_forms` as well. A
 preference lives in user meta, so treating it as authorisation would mean anybody
 who can write their own meta could seed a database.
 
-### `atf_retention_applied` — Action — *Stable*
+### `alltfo_retention_applied` — Action — *Stable*
 
 ```php
-do_action( 'atf_retention_applied', int $deleted );
+do_action( 'alltfo_retention_applied', int $deleted );
 ```
 
 ---
 
 ## Importers
 
-### `atf_importers` — Filter — *Experimental*
+### `alltfo_importers` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_importers', array $importers );
+apply_filters( 'alltfo_importers', array $importers );
 ```
 
 The registry behind **Forms → Import**. Each entry is keyed by importer id and
@@ -879,7 +879,7 @@ Importers read the source plugin's *data*, not its API — the moment somebody
 most wants to import is right after deactivating the old plugin.
 
 ```php
-add_filter( 'atf_importers', function ( $importers ) {
+add_filter( 'alltfo_importers', function ( $importers ) {
 	$importers['my-forms'] = array(
 		'label'     => 'My Forms',
 		'available' => fn() => (bool) get_option( 'my_forms' ),
@@ -914,11 +914,11 @@ Lite site is accurately offered nothing).
   `WP_Error`. Called repeatedly until `done`; a form that has been live for years
   is the normal case, not the exceptional one.
 
-Store each one with **`atf_import_entry( $form_id, $args )`**, which handles the
+Store each one with **`alltfo_import_entry( $form_id, $args )`**, which handles the
 parts every source gets wrong the same way:
 
 ```php
-atf_import_entry( $form_id, array(
+alltfo_import_entry( $form_id, array(
 	'values'       => array( 'your-name' => 'Elena Ruiz' ), // keyed by SOURCE field name
 	'importer'     => 'my-forms',
 	'record'       => '4182',        // the source's id for this submission
@@ -944,9 +944,9 @@ Three things it guarantees, each of which is a way migrations normally go wrong:
   is to run it again.
 
 Reading the values requires knowing which source field became which new field.
-`atf_create_imported_form()` takes that map as its fifth argument and keeps it on
+`alltfo_create_imported_form()` takes that map as its fifth argument and keeps it on
 the form; pass it when you import, or the submissions are unreadable afterwards.
-`atf_form_import_source()` and `atf_form_import_map()` read both back.
+`alltfo_form_import_source()` and `alltfo_form_import_map()` read both back.
 
 > **Watch the post statuses.** Both sides of this migration hide records behind
 > `exclude_from_search` — Flamingo's spam status on the way in, every AllTerrain
@@ -954,20 +954,20 @@ the form; pass it when you import, or the submissions are unreadable afterwards.
 > status *not* excluded from search", so it silently omits all of them. Name the
 > statuses explicitly.
 
-### `atf_imported_schema` — Filter — *Experimental*
+### `alltfo_imported_schema` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_imported_schema', array $schema, string $importer_id, string $source_id );
+apply_filters( 'alltfo_imported_schema', array $schema, string $importer_id, string $source_id );
 ```
 
 The converted schema, before it is normalised and saved. The place to correct
 a mapping the converter got wrong for your data — rename a field, add a
 notification — without forking the importer.
 
-### `atf_show_import_notice` — Filter — *Experimental*
+### `alltfo_show_import_notice` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_show_import_notice', bool $show );
+apply_filters( 'alltfo_show_import_notice', bool $show );
 ```
 
 Whether the plugin offers the import at all. When forms are found in another
@@ -977,25 +977,25 @@ every one of them. Return `false` to introduce the importer your own way rather
 than teaching each administrator to dismiss it.
 
 The offer already stops on its own: "Not now" is remembered per user
-(`atf_import_notice_dismissed` user meta), and nothing is offered once anything
-has been imported (`atf_has_imported` option). What the survey found is cached
+(`alltfo_import_notice_dismissed` user meta), and nothing is offered once anything
+has been imported (`alltfo_has_imported` option). What the survey found is cached
 for twelve hours and dropped whenever a form is imported or a plugin is
 activated or deactivated.
 
-### `atf_form_imported` — Action — *Experimental*
+### `alltfo_form_imported` — Action — *Experimental*
 
 ```php
-do_action( 'atf_form_imported', int $form_id, string $importer_id, string $source_id );
+do_action( 'alltfo_form_imported', int $form_id, string $importer_id, string $source_id );
 ```
 
 Fires after a form is imported. The source plugin's data is never modified, so
 importing is safe to repeat — hook here if you need to record the mapping or
 redirect shortcodes.
 
-### `atf_entries_imported` — Action — *Experimental*
+### `alltfo_entries_imported` — Action — *Experimental*
 
 ```php
-do_action( 'atf_entries_imported', int $form_id, array $result, array $source );
+do_action( 'alltfo_entries_imported', int $form_id, array $result, array $source );
 ```
 
 Fires after each pass of importing stored submissions. `$result` is
@@ -1007,10 +1007,10 @@ it several times — check `$result['done']` for the last one.
 
 ## Themes
 
-### `atf_theme_tokens` — Filter — *Stable*
+### `alltfo_theme_tokens` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_theme_tokens', array $tokens );
+apply_filters( 'alltfo_theme_tokens', array $tokens );
 ```
 
 **The token surface itself.** Adding a token here makes it settable by every
@@ -1019,56 +1019,56 @@ theme and by the Theme Studio, which builds its controls from this list.
 > A plugin adding a token is also responsible for the CSS that reads it. The test
 > suite asserts the token table and the stylesheet agree in both directions.
 
-### `atf_theme_token_control` — Filter — *Experimental*
+### `alltfo_theme_token_control` — Filter — *Experimental*
 
 ```php
-apply_filters( 'atf_theme_token_control', array $control, string $token );
+apply_filters( 'alltfo_theme_token_control', array $control, string $token );
 ```
 
 Which control the Theme Studio shows for a token: `color`, `length`, `select` or
 `text`.
 
-### `atf_builtin_themes` — Filter — *Stable*
+### `alltfo_builtin_themes` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_builtin_themes', array $themes );
+apply_filters( 'alltfo_builtin_themes', array $themes );
 ```
 
 Adding a theme here makes it available everywhere a built-in is, without creating
 a post — the right shape for a theme shipped inside another plugin.
 
-### `atf_resolved_tokens` — Filter — *Stable*
+### `alltfo_resolved_tokens` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_resolved_tokens', array $tokens, string $slug, array $overrides );
+apply_filters( 'alltfo_resolved_tokens', array $tokens, string $slug, array $overrides );
 ```
 
 The last word on how a form looks.
 
-### `atf_theme_saved` — Action — *Stable*
+### `alltfo_theme_saved` — Action — *Stable*
 
 ```php
-do_action( 'atf_theme_saved', int $theme_id, array $tokens );
+do_action( 'alltfo_theme_saved', int $theme_id, array $tokens );
 ```
 
 ---
 
 ## Capabilities
 
-### `atf_capability_map` — Filter — *Stable*
+### `alltfo_capability_map` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_capability_map', array $map );
+apply_filters( 'alltfo_capability_map', array $map );
 ```
 
 Role slug => capabilities. Applied at activation and whenever
-`atf_add_capabilities()` runs — roles are stored in the database, not computed
-per request, so call `atf_add_capabilities()` after filtering to apply a change.
+`alltfo_add_capabilities()` runs — roles are stored in the database, not computed
+per request, so call `alltfo_add_capabilities()` after filtering to apply a change.
 
-### `atf_can_read_entries` — Filter — *Stable*
+### `alltfo_can_read_entries` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_can_read_entries', bool $can, int $form_id );
+apply_filters( 'alltfo_can_read_entries', bool $can, int $form_id );
 ```
 
 The seam for per-form permissions: a site can let a department read only the
@@ -1078,10 +1078,10 @@ entries of the forms it owns by returning false for every other id.
 
 ## Assets
 
-### `atf_script_config` — Filter — *Stable*
+### `alltfo_script_config` — Filter — *Stable*
 
 ```php
-apply_filters( 'atf_script_config', array $config );
+apply_filters( 'alltfo_script_config', array $config );
 ```
 
 The blob printed as `window.allTerrainForms`.

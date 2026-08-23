@@ -15,7 +15,7 @@
  *
  * Consent is the load-bearing design decision. The hub UI binds the action to
  * an explicit opt-in field by default, the stored condition is an ordinary
- * logic block `atf_logic_conditions_met()` evaluates like any other, and
+ * logic block `alltfo_logic_conditions_met()` evaluates like any other, and
  * MailPoet's own signup confirmation (double opt-in) runs on top. Subscribing
  * someone who did not ask is the one way this feature can hurt a site's
  * visitors, so every layer leans against it.
@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool
  */
-function atf_mailpoet_active() {
+function alltfo_mailpoet_active() {
 	return class_exists( '\MailPoet\API\API' );
 }
 
@@ -46,8 +46,8 @@ function atf_mailpoet_active() {
  *
  * @return object|null
  */
-function atf_mailpoet_api() {
-	if ( ! atf_mailpoet_active() ) {
+function alltfo_mailpoet_api() {
+	if ( ! alltfo_mailpoet_active() ) {
 		return null;
 	}
 
@@ -69,8 +69,8 @@ function atf_mailpoet_api() {
  *
  * @return array<int, array{id: int, name: string, subscribers: int}>
  */
-function atf_mailpoet_lists() {
-	$api = atf_mailpoet_api();
+function alltfo_mailpoet_lists() {
+	$api = alltfo_mailpoet_api();
 
 	if ( ! $api ) {
 		return array();
@@ -113,8 +113,8 @@ function atf_mailpoet_lists() {
  *
  * @return string
  */
-function atf_mailpoet_logo_url() {
-	return ATF_URL . 'assets/img/mailpoet-logo.png';
+function alltfo_mailpoet_logo_url() {
+	return ALLTFO_URL . 'assets/img/mailpoet-logo.png';
 }
 
 /**
@@ -124,8 +124,8 @@ function atf_mailpoet_logo_url() {
  *
  * @return string
  */
-function atf_mailpoet_symbol_url() {
-	return ATF_URL . 'assets/img/mailpoet-symbol.png';
+function alltfo_mailpoet_symbol_url() {
+	return ALLTFO_URL . 'assets/img/mailpoet-symbol.png';
 }
 
 /**
@@ -135,16 +135,16 @@ function atf_mailpoet_symbol_url() {
  *
  * @return WP_REST_Response
  */
-function atf_rest_mailpoet() {
+function alltfo_rest_mailpoet() {
 	return rest_ensure_response(
 		array(
-			'active'   => atf_mailpoet_active(),
-			'lists'    => atf_mailpoet_lists(),
-			'logo'     => atf_mailpoet_logo_url(),
-			'symbol'   => atf_mailpoet_symbol_url(),
+			'active'   => alltfo_mailpoet_active(),
+			'lists'    => alltfo_mailpoet_lists(),
+			'logo'     => alltfo_mailpoet_logo_url(),
+			'symbol'   => alltfo_mailpoet_symbol_url(),
 			// Where "manage your lists" should send people: MailPoet's own
 			// admin when it is installed, the plugin installer when it is not.
-			'adminUrl' => atf_mailpoet_active()
+			'adminUrl' => alltfo_mailpoet_active()
 				? admin_url( 'admin.php?page=mailpoet-lists' )
 				: admin_url( 'plugin-install.php?s=mailpoet&tab=search&type=term' ),
 		)
@@ -161,7 +161,7 @@ function atf_rest_mailpoet() {
  *     first_name_field string Optional field id for the first name.
  *     last_name_field  string Optional field id for the last name.
  *
- * The conditional gate has already run -- `atf_run_actions()` checks the
+ * The conditional gate has already run -- `alltfo_run_actions()` checks the
  * action's logic block before calling any handler -- so by the time this runs,
  * the visitor has met whatever consent condition the form set.
  *
@@ -175,11 +175,11 @@ function atf_rest_mailpoet() {
  * @param array $values The accepted submission values, keyed by field id.
  * @return true|WP_Error
  */
-function atf_action_mailpoet( $action, $values ) {
-	$api = atf_mailpoet_api();
+function alltfo_action_mailpoet( $action, $values ) {
+	$api = alltfo_mailpoet_api();
 
 	if ( ! $api ) {
-		return new WP_Error( 'atf_mailpoet_inactive', __( 'MailPoet is not active on this site.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_mailpoet_inactive', __( 'MailPoet is not active on this site.', 'allterrain-forms' ) );
 	}
 
 	$settings = isset( $action['settings'] ) && is_array( $action['settings'] ) ? $action['settings'] : array();
@@ -191,14 +191,14 @@ function atf_action_mailpoet( $action, $values ) {
 	}
 
 	if ( ! $lists ) {
-		return new WP_Error( 'atf_mailpoet_no_lists', __( 'No MailPoet list is selected.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_mailpoet_no_lists', __( 'No MailPoet list is selected.', 'allterrain-forms' ) );
 	}
 
 	$email_field = isset( $settings['email_field'] ) ? sanitize_key( $settings['email_field'] ) : '';
 	$email       = $email_field && isset( $values[ $email_field ] ) ? sanitize_email( (string) $values[ $email_field ] ) : '';
 
 	if ( ! is_email( $email ) ) {
-		return new WP_Error( 'atf_mailpoet_no_email', __( 'The submission carried no usable email address.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_mailpoet_no_email', __( 'The submission carried no usable email address.', 'allterrain-forms' ) );
 	}
 
 	$subscriber = array( 'email' => $email );
@@ -238,7 +238,7 @@ function atf_action_mailpoet( $action, $values ) {
 				return true;
 			}
 
-			return new WP_Error( 'atf_mailpoet_refused', $again->getMessage() );
+			return new WP_Error( 'alltfo_mailpoet_refused', $again->getMessage() );
 		}
 	}
 }

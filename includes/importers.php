@@ -14,7 +14,7 @@
  * plugin — exactly when its classes are gone and its posts and tables are not.
  *
  * Each importer is a small array of callbacks registered on the
- * `atf_importers` filter, so a third-party plugin can add its own source
+ * `alltfo_importers` filter, so a third-party plugin can add its own source
  * without touching this file.
  *
  * @package AllTerrain_Forms
@@ -40,7 +40,7 @@ defined( 'ABSPATH' ) || exit;
  *                                    skipped, done } or a WP_Error.
  * }
  */
-function atf_importers() {
+function alltfo_importers() {
 	/**
 	 * Filters the list of form importers.
 	 *
@@ -51,7 +51,7 @@ function atf_importers() {
 	 *
 	 * @param array[] $importers Importer id => definition.
 	 */
-	$importers = apply_filters( 'atf_importers', array() );
+	$importers = apply_filters( 'alltfo_importers', array() );
 
 	$valid = array();
 
@@ -95,9 +95,9 @@ function atf_importers() {
  *
  * @return array[] Importer id => definition.
  */
-function atf_available_importers() {
+function alltfo_available_importers() {
 	return array_filter(
-		atf_importers(),
+		alltfo_importers(),
 		static function ( $importer ) {
 			return (bool) call_user_func( $importer['available'] );
 		}
@@ -113,16 +113,16 @@ function atf_available_importers() {
  * @param string $source_id   The source plugin's id for the form.
  * @return int|WP_Error The new form's id.
  */
-function atf_import_source_form( $importer_id, $source_id ) {
-	if ( ! atf_can_edit_forms() ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot create forms.', 'allterrain-forms' ), array( 'status' => 403 ) );
+function alltfo_import_source_form( $importer_id, $source_id ) {
+	if ( ! alltfo_can_edit_forms() ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot create forms.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
-	$importers   = atf_importers();
+	$importers   = alltfo_importers();
 	$importer_id = sanitize_key( $importer_id );
 
 	if ( ! isset( $importers[ $importer_id ] ) ) {
-		return new WP_Error( 'atf_unknown_importer', __( 'That importer does not exist.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_unknown_importer', __( 'That importer does not exist.', 'allterrain-forms' ) );
 	}
 
 	$form_id = call_user_func( $importers[ $importer_id ]['import'], $source_id );
@@ -137,7 +137,7 @@ function atf_import_source_form( $importer_id, $source_id ) {
 		 * @param string $importer_id The importer that produced it.
 		 * @param string $source_id   The source plugin's id for the form.
 		 */
-		do_action( 'atf_form_imported', $form_id, $importer_id, (string) $source_id );
+		do_action( 'alltfo_form_imported', $form_id, $importer_id, (string) $source_id );
 	}
 
 	return $form_id;
@@ -163,7 +163,7 @@ function atf_import_source_form( $importer_id, $source_id ) {
  *                            nothing here recognises.
  * @return int|WP_Error The new form's id.
  */
-function atf_create_imported_form( $title, $schema, $importer_id, $source_id, $map = array() ) {
+function alltfo_create_imported_form( $title, $schema, $importer_id, $source_id, $map = array() ) {
 	/**
 	 * Filters an imported schema before it is saved.
 	 *
@@ -173,11 +173,11 @@ function atf_create_imported_form( $title, $schema, $importer_id, $source_id, $m
 	 * @param string $importer_id The importer that produced it.
 	 * @param string $source_id   The source plugin's id for the form.
 	 */
-	$schema = apply_filters( 'atf_imported_schema', $schema, $importer_id, (string) $source_id );
+	$schema = apply_filters( 'alltfo_imported_schema', $schema, $importer_id, (string) $source_id );
 
 	$form_id = wp_insert_post(
 		array(
-			'post_type'   => ATF_FORM_TYPE,
+			'post_type'   => ALLTFO_FORM_TYPE,
 			'post_title'  => sanitize_text_field( '' !== $title ? $title : __( 'Imported form', 'allterrain-forms' ) ),
 			'post_status' => 'publish',
 			'post_author' => get_current_user_id(),
@@ -189,11 +189,11 @@ function atf_create_imported_form( $title, $schema, $importer_id, $source_id, $m
 		return $form_id;
 	}
 
-	atf_save_form_schema( $form_id, atf_normalize_schema( $schema ) );
+	alltfo_save_form_schema( $form_id, alltfo_normalize_schema( $schema ) );
 
 	update_post_meta(
 		$form_id,
-		ATF_META_IMPORT_SOURCE,
+		ALLTFO_META_IMPORT_SOURCE,
 		array(
 			'importer' => sanitize_key( $importer_id ),
 			'source'   => (string) $source_id,
@@ -201,7 +201,7 @@ function atf_create_imported_form( $title, $schema, $importer_id, $source_id, $m
 	);
 
 	if ( $map ) {
-		update_post_meta( $form_id, ATF_META_IMPORT_MAP, array_map( 'strval', (array) $map ) );
+		update_post_meta( $form_id, ALLTFO_META_IMPORT_MAP, array_map( 'strval', (array) $map ) );
 	}
 
 	return $form_id;
@@ -214,8 +214,8 @@ function atf_create_imported_form( $title, $schema, $importer_id, $source_id, $m
  * @return array|null { importer: string, source: string }, or null when the
  *                    form was not imported.
  */
-function atf_form_import_source( $form_id ) {
-	$source = get_post_meta( (int) $form_id, ATF_META_IMPORT_SOURCE, true );
+function alltfo_form_import_source( $form_id ) {
+	$source = get_post_meta( (int) $form_id, ALLTFO_META_IMPORT_SOURCE, true );
 
 	if ( ! is_array( $source ) || empty( $source['importer'] ) || ! isset( $source['source'] ) ) {
 		return null;
@@ -233,8 +233,8 @@ function atf_form_import_source( $form_id ) {
  * @param int $form_id The form.
  * @return array Source field name => field id. Empty when unknown.
  */
-function atf_form_import_map( $form_id ) {
-	$map = get_post_meta( (int) $form_id, ATF_META_IMPORT_MAP, true );
+function alltfo_form_import_map( $form_id ) {
+	$map = get_post_meta( (int) $form_id, ALLTFO_META_IMPORT_MAP, true );
 
 	return is_array( $map ) ? $map : array();
 }
@@ -246,22 +246,22 @@ function atf_form_import_map( $form_id ) {
  *
  * @return array[] Form id => { importer, source, label, count }.
  */
-function atf_forms_with_importable_entries() {
-	$importers = atf_importers();
+function alltfo_forms_with_importable_entries() {
+	$importers = alltfo_importers();
 	$forms     = get_posts(
 		array(
-			'post_type'      => ATF_FORM_TYPE,
+			'post_type'      => ALLTFO_FORM_TYPE,
 			'post_status'    => 'any',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
-			'meta_key'       => ATF_META_IMPORT_SOURCE,
+			'meta_key'       => ALLTFO_META_IMPORT_SOURCE,
 		)
 	);
 
 	$found = array();
 
 	foreach ( $forms as $form_id ) {
-		$source = atf_form_import_source( $form_id );
+		$source = alltfo_form_import_source( $form_id );
 
 		if ( ! $source || ! isset( $importers[ $source['importer'] ] ) ) {
 			continue;
@@ -299,7 +299,7 @@ function atf_forms_with_importable_entries() {
  * @param string $record_id   The source plugin's id for the stored submission.
  * @return string
  */
-function atf_entry_source_key( $importer_id, $record_id ) {
+function alltfo_entry_source_key( $importer_id, $record_id ) {
 	return sanitize_key( $importer_id ) . ':' . (string) $record_id;
 }
 
@@ -312,7 +312,7 @@ function atf_entry_source_key( $importer_id, $record_id ) {
  * @param int $form_id The form.
  * @return array Source key => true.
  */
-function atf_imported_entry_keys( $form_id ) {
+function alltfo_imported_entry_keys( $form_id ) {
 	global $wpdb;
 
 	$keys = $wpdb->get_col(
@@ -320,8 +320,8 @@ function atf_imported_entry_keys( $form_id ) {
 			"SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN (
 				SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %d
 			)",
-			ATF_META_ENTRY_SOURCE,
-			ATF_META_FORM,
+			ALLTFO_META_ENTRY_SOURCE,
+			ALLTFO_META_FORM,
 			(int) $form_id
 		)
 	);
@@ -334,7 +334,7 @@ function atf_imported_entry_keys( $form_id ) {
  *
  * # Sanitised, deliberately not validated
  *
- * Values go through `atf_sanitize_submission()`, which coerces each one to the
+ * Values go through `alltfo_sanitize_submission()`, which coerces each one to the
  * shape its field type stores. They do **not** go through validation, and that
  * is the important half: validation enforces today's rules — required fields,
  * choice whitelists, bounds — against answers given years ago, under a form that
@@ -344,7 +344,7 @@ function atf_imported_entry_keys( $form_id ) {
  *
  * # The date is the submission's, not today's
  *
- * `atf_store_entry()` stamps the current time and the current request's IP and
+ * `alltfo_store_entry()` stamps the current time and the current request's IP and
  * user agent, which is right for a real submission and wrong for every one of
  * these. Both are corrected afterwards rather than by duplicating that function,
  * so entry titles, value encoding and file parenting stay in one place.
@@ -363,7 +363,7 @@ function atf_imported_entry_keys( $form_id ) {
  * }
  * @return int|WP_Error The entry id, or an error.
  */
-function atf_import_entry( $form_id, array $args ) {
+function alltfo_import_entry( $form_id, array $args ) {
 	$args = wp_parse_args(
 		$args,
 		array(
@@ -378,17 +378,17 @@ function atf_import_entry( $form_id, array $args ) {
 	);
 
 	$form_id = (int) $form_id;
-	$schema  = atf_get_form_schema( $form_id );
+	$schema  = alltfo_get_form_schema( $form_id );
 
 	if ( ! $schema ) {
-		return new WP_Error( 'atf_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
 	}
 
-	$map = atf_form_import_map( $form_id );
+	$map = alltfo_form_import_map( $form_id );
 
 	if ( ! $map ) {
 		return new WP_Error(
-			'atf_no_import_map',
+			'alltfo_no_import_map',
 			__( 'That form has no field map, so its stored submissions cannot be read. Import the form again to record one.', 'allterrain-forms' )
 		);
 	}
@@ -404,9 +404,9 @@ function atf_import_entry( $form_id, array $args ) {
 		}
 	}
 
-	$values = atf_sanitize_submission( $schema, $raw );
+	$values = alltfo_sanitize_submission( $schema, $raw );
 
-	$entry_id = atf_store_entry(
+	$entry_id = alltfo_store_entry(
 		$form_id,
 		$schema,
 		$values,
@@ -434,7 +434,7 @@ function atf_import_entry( $form_id, array $args ) {
 		);
 	}
 
-	$context = json_decode( (string) get_post_meta( $entry_id, ATF_META_CONTEXT, true ), true );
+	$context = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_CONTEXT, true ), true );
 	$context = is_array( $context ) ? $context : array();
 
 	$context['ip']        = (string) $args['ip'];
@@ -447,8 +447,8 @@ function atf_import_entry( $form_id, array $args ) {
 		$context['submitted'] = gmdate( 'Y-m-d H:i:s', $submitted_at );
 	}
 
-	update_post_meta( $entry_id, ATF_META_CONTEXT, wp_slash( wp_json_encode( $context ) ) );
-	update_post_meta( $entry_id, ATF_META_ENTRY_SOURCE, atf_entry_source_key( $args['importer'], $args['record'] ) );
+	update_post_meta( $entry_id, ALLTFO_META_CONTEXT, wp_slash( wp_json_encode( $context ) ) );
+	update_post_meta( $entry_id, ALLTFO_META_ENTRY_SOURCE, alltfo_entry_source_key( $args['importer'], $args['record'] ) );
 
 	return $entry_id;
 }
@@ -464,22 +464,22 @@ function atf_import_entry( $form_id, array $args ) {
  * @param int $limit   How many to attempt in this pass.
  * @return array|WP_Error { imported, skipped, done, remaining }.
  */
-function atf_import_form_entries( $form_id, $limit = 100 ) {
-	if ( ! atf_can_edit_forms() ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot import submissions.', 'allterrain-forms' ), array( 'status' => 403 ) );
+function alltfo_import_form_entries( $form_id, $limit = 100 ) {
+	if ( ! alltfo_can_edit_forms() ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot import submissions.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
 	$form_id = (int) $form_id;
-	$source  = atf_form_import_source( $form_id );
+	$source  = alltfo_form_import_source( $form_id );
 
 	if ( ! $source ) {
-		return new WP_Error( 'atf_not_imported', __( 'That form was not imported, so it has no submissions to bring across.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_not_imported', __( 'That form was not imported, so it has no submissions to bring across.', 'allterrain-forms' ) );
 	}
 
-	$importers = atf_importers();
+	$importers = alltfo_importers();
 
 	if ( ! isset( $importers[ $source['importer'] ]['import_entries'] ) ) {
-		return new WP_Error( 'atf_no_entry_import', __( 'That source cannot import stored submissions.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_no_entry_import', __( 'That source cannot import stored submissions.', 'allterrain-forms' ) );
 	}
 
 	$result = call_user_func(
@@ -510,7 +510,7 @@ function atf_import_form_entries( $form_id, $limit = 100 ) {
 	 * @param array $result  Counts: imported, skipped, done, remaining.
 	 * @param array $source  Where it came from: importer, source.
 	 */
-	do_action( 'atf_entries_imported', $form_id, $result, $source );
+	do_action( 'alltfo_entries_imported', $form_id, $result, $source );
 
 	return $result;
 }
@@ -530,8 +530,8 @@ function atf_import_form_entries( $form_id, $limit = 100 ) {
  * @return array[] Importer id => { label, count }. A source with no forms is
  *                 left out, so an empty array means there is nothing to offer.
  */
-function atf_importable_forms() {
-	$cached = get_transient( 'atf_importable' );
+function alltfo_importable_forms() {
+	$cached = get_transient( 'alltfo_importable' );
 
 	if ( is_array( $cached ) ) {
 		return $cached;
@@ -539,7 +539,7 @@ function atf_importable_forms() {
 
 	$found = array();
 
-	foreach ( atf_importers() as $id => $importer ) {
+	foreach ( alltfo_importers() as $id => $importer ) {
 		if ( ! call_user_func( $importer['available'] ) ) {
 			continue;
 		}
@@ -554,7 +554,7 @@ function atf_importable_forms() {
 		}
 	}
 
-	set_transient( 'atf_importable', $found, 12 * HOUR_IN_SECONDS );
+	set_transient( 'alltfo_importable', $found, 12 * HOUR_IN_SECONDS );
 
 	return $found;
 }
@@ -566,12 +566,12 @@ function atf_importable_forms() {
  *
  * @return void
  */
-function atf_forget_importable_forms() {
-	delete_transient( 'atf_importable' );
+function alltfo_forget_importable_forms() {
+	delete_transient( 'alltfo_importable' );
 }
-add_action( 'atf_form_imported', 'atf_forget_importable_forms' );
-add_action( 'activated_plugin', 'atf_forget_importable_forms' );
-add_action( 'deactivated_plugin', 'atf_forget_importable_forms' );
+add_action( 'alltfo_form_imported', 'alltfo_forget_importable_forms' );
+add_action( 'activated_plugin', 'alltfo_forget_importable_forms' );
+add_action( 'deactivated_plugin', 'alltfo_forget_importable_forms' );
 
 /**
  * How many forms could be imported, across every source.
@@ -580,10 +580,10 @@ add_action( 'deactivated_plugin', 'atf_forget_importable_forms' );
  *
  * @return int
  */
-function atf_importable_count() {
+function alltfo_importable_count() {
 	$total = 0;
 
-	foreach ( atf_importable_forms() as $source ) {
+	foreach ( alltfo_importable_forms() as $source ) {
 		$total += (int) $source['count'];
 	}
 
@@ -604,18 +604,18 @@ function atf_importable_count() {
  *     @type int $failed   How many could not be.
  * }
  */
-function atf_import_all() {
-	$importers = atf_importers();
+function alltfo_import_all() {
+	$importers = alltfo_importers();
 	$imported  = 0;
 	$failed    = 0;
 
-	foreach ( array_keys( atf_importable_forms() ) as $importer_id ) {
+	foreach ( array_keys( alltfo_importable_forms() ) as $importer_id ) {
 		if ( ! isset( $importers[ $importer_id ] ) ) {
 			continue;
 		}
 
 		foreach ( array_keys( (array) call_user_func( $importers[ $importer_id ]['forms'] ) ) as $source_id ) {
-			if ( is_wp_error( atf_import_source_form( $importer_id, (string) $source_id ) ) ) {
+			if ( is_wp_error( alltfo_import_source_form( $importer_id, (string) $source_id ) ) ) {
 				++$failed;
 			} else {
 				++$imported;
@@ -639,13 +639,13 @@ function atf_import_all() {
  *
  * @return void
  */
-function atf_register_import_page() {
-	if ( ! atf_can_edit_forms() ) {
+function alltfo_register_import_page() {
+	if ( ! alltfo_can_edit_forms() ) {
 		return;
 	}
 
-	if ( atf_shell_is_active() ) {
-		atf_register_hidden_page( __( 'Import forms', 'allterrain-forms' ), 'atf_edit_forms', 'allterrain-forms-import', 'atf_render_import_page' );
+	if ( alltfo_shell_is_active() ) {
+		alltfo_register_hidden_page( __( 'Import forms', 'allterrain-forms' ), 'alltfo_edit_forms', 'allterrain-forms-import', 'alltfo_render_import_page' );
 
 		return;
 	}
@@ -654,12 +654,12 @@ function atf_register_import_page() {
 		'allterrain-forms',
 		__( 'Import forms', 'allterrain-forms' ),
 		__( 'Import', 'allterrain-forms' ),
-		'atf_edit_forms',
+		'alltfo_edit_forms',
 		'allterrain-forms-import',
-		'atf_render_import_page'
+		'alltfo_render_import_page'
 	);
 }
-add_action( 'admin_menu', 'atf_register_import_page', 20 );
+add_action( 'admin_menu', 'alltfo_register_import_page', 20 );
 
 /**
  * Renders the Import page.
@@ -672,8 +672,8 @@ add_action( 'admin_menu', 'atf_register_import_page', 20 );
  *
  * @return void
  */
-function atf_render_import_page() {
-	$available = atf_available_importers();
+function alltfo_render_import_page() {
+	$available = alltfo_available_importers();
 
 	echo '<div class="wrap atf-admin">';
 	printf( '<h1 class="wp-heading-inline">%s</h1>', esc_html__( 'Import forms', 'allterrain-forms' ) );
@@ -681,8 +681,8 @@ function atf_render_import_page() {
 	// The outcome of the redirect that brought us here. Display only — the
 	// import itself was authorised by the nonce checked in the handler.
 	// phpcs:disable WordPress.Security.NonceVerification.Recommended
-	$imported = isset( $_GET['atf_imported'] ) ? absint( $_GET['atf_imported'] ) : 0;
-	$failed   = isset( $_GET['atf_failed'] ) ? absint( $_GET['atf_failed'] ) : 0;
+	$imported = isset( $_GET['alltfo_imported'] ) ? absint( $_GET['alltfo_imported'] ) : 0;
+	$failed   = isset( $_GET['alltfo_failed'] ) ? absint( $_GET['alltfo_failed'] ) : 0;
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	if ( $imported || $failed ) {
@@ -708,10 +708,10 @@ function atf_render_import_page() {
 
 	// The outcome of an entry-import pass. Display only, same as above.
 	// phpcs:disable WordPress.Security.NonceVerification.Recommended
-	$entries      = isset( $_GET['atf_entries'] ) ? absint( $_GET['atf_entries'] ) : 0;
-	$remaining    = isset( $_GET['atf_remaining'] ) ? absint( $_GET['atf_remaining'] ) : 0;
-	$entry_error  = isset( $_GET['atf_entry_error'] ) ? sanitize_key( wp_unslash( $_GET['atf_entry_error'] ) ) : '';
-	$showed_entry = isset( $_GET['atf_entries'] ) || '' !== $entry_error;
+	$entries      = isset( $_GET['alltfo_entries'] ) ? absint( $_GET['alltfo_entries'] ) : 0;
+	$remaining    = isset( $_GET['alltfo_remaining'] ) ? absint( $_GET['alltfo_remaining'] ) : 0;
+	$entry_error  = isset( $_GET['alltfo_entry_error'] ) ? sanitize_key( wp_unslash( $_GET['alltfo_entry_error'] ) ) : '';
+	$showed_entry = isset( $_GET['alltfo_entries'] ) || '' !== $entry_error;
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	if ( '' !== $entry_error ) {
@@ -744,7 +744,7 @@ function atf_render_import_page() {
 		// Sources can vanish while their already-imported forms still have
 		// submissions waiting -- deleting CF7 leaves every Flamingo message
 		// exactly where it was -- so this section comes before the early return.
-		atf_render_entry_import_section();
+		alltfo_render_entry_import_section();
 
 		printf(
 			'<p>%s</p></div>',
@@ -762,19 +762,19 @@ function atf_render_import_page() {
 	// The whole job in one button, above the per-source lists. Somebody
 	// arriving here after switching plugins wants all of it; picking through
 	// the lists is the exception, so it comes second.
-	$total = atf_importable_count();
+	$total = alltfo_importable_count();
 
 	if ( $total > 0 ) {
 		printf(
 			'<form method="post" action="%1$s" style="margin: 16px 0 24px;">
-				<input type="hidden" name="action" value="atf_import_form" />
+				<input type="hidden" name="action" value="alltfo_import_form" />
 				<input type="hidden" name="importer" value="all" />
 				<input type="hidden" name="source" value="" />
 				%2$s
 				<button type="submit" class="button button-primary button-hero">%3$s</button>
 			</form>',
 			esc_url( admin_url( 'admin-post.php' ) ),
-			wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			wp_nonce_field( 'alltfo-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 			esc_html(
 				sprintf(
 					/* translators: %d: total number of forms found across every source. */
@@ -789,7 +789,7 @@ function atf_render_import_page() {
 	// plugin. Offered above the pickers, because somebody who has just imported
 	// their forms is looking at an entries screen that says nothing yet, and
 	// this is the answer to why.
-	atf_render_entry_import_section();
+	alltfo_render_entry_import_section();
 
 	foreach ( $available as $id => $importer ) {
 		$forms = call_user_func( $importer['forms'] );
@@ -807,7 +807,7 @@ function atf_render_import_page() {
 			printf(
 				'<tr><td>%1$s</td><td style="width: 8em; text-align: end;">
 					<form method="post" action="%2$s" style="margin: 0;">
-						<input type="hidden" name="action" value="atf_import_form" />
+						<input type="hidden" name="action" value="alltfo_import_form" />
 						<input type="hidden" name="importer" value="%3$s" />
 						<input type="hidden" name="source" value="%4$s" />
 						%5$s
@@ -818,7 +818,7 @@ function atf_render_import_page() {
 				esc_url( admin_url( 'admin-post.php' ) ),
 				esc_attr( $id ),
 				esc_attr( (string) $source_id ),
-				wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+				wp_nonce_field( 'alltfo-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 				esc_html__( 'Import', 'allterrain-forms' )
 			);
 		}
@@ -827,7 +827,7 @@ function atf_render_import_page() {
 
 		printf(
 			'<form method="post" action="%1$s" style="margin: 12px 0 24px;">
-				<input type="hidden" name="action" value="atf_import_form" />
+				<input type="hidden" name="action" value="alltfo_import_form" />
 				<input type="hidden" name="importer" value="%2$s" />
 				<input type="hidden" name="source" value="" />
 				%3$s
@@ -835,7 +835,7 @@ function atf_render_import_page() {
 			</form>',
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_attr( $id ),
-			wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			wp_nonce_field( 'alltfo-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 			esc_html(
 				sprintf(
 					/* translators: %s: source plugin name. */
@@ -858,8 +858,8 @@ function atf_render_import_page() {
  *
  * @return void
  */
-function atf_render_entry_import_section() {
-	$forms = atf_forms_with_importable_entries();
+function alltfo_render_entry_import_section() {
+	$forms = alltfo_forms_with_importable_entries();
 
 	if ( ! $forms ) {
 		return;
@@ -895,7 +895,7 @@ function atf_render_entry_import_section() {
 		printf(
 			'<tr><td>%1$s<br /><span class="description">%2$s</span></td><td style="width: 12em; text-align: end;">
 				<form method="post" action="%3$s" style="margin: 0;">
-					<input type="hidden" name="action" value="atf_import_entries" />
+					<input type="hidden" name="action" value="alltfo_import_entries" />
 					<input type="hidden" name="form" value="%4$d" />
 					%5$s
 					<button type="submit" class="button">%6$s</button>
@@ -912,7 +912,7 @@ function atf_render_entry_import_section() {
 			),
 			esc_url( admin_url( 'admin-post.php' ) ),
 			(int) $form_id,
-			wp_nonce_field( 'atf-import', '_atf_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
+			wp_nonce_field( 'alltfo-import', '_alltfo_nonce', true, false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_nonce_field() builds escaped markup.
 			esc_html__( 'Bring submissions', 'allterrain-forms' )
 		);
 	}
@@ -930,29 +930,29 @@ function atf_render_entry_import_section() {
  *
  * @return void
  */
-function atf_handle_import_entries_post() {
-	if ( ! atf_can_edit_forms() ) {
+function alltfo_handle_import_entries_post() {
+	if ( ! alltfo_can_edit_forms() ) {
 		wp_die( esc_html__( 'You cannot import submissions.', 'allterrain-forms' ) );
 	}
 
-	check_admin_referer( 'atf-import', '_atf_nonce' );
+	check_admin_referer( 'alltfo-import', '_alltfo_nonce' );
 
 	$form_id = isset( $_POST['form'] ) ? absint( wp_unslash( $_POST['form'] ) ) : 0;
-	$result  = atf_import_form_entries( $form_id, 200 );
+	$result  = alltfo_import_form_entries( $form_id, 200 );
 
 	$args = array( 'page' => 'allterrain-forms-import' );
 
 	if ( is_wp_error( $result ) ) {
-		$args['atf_entry_error'] = $result->get_error_code();
+		$args['alltfo_entry_error'] = $result->get_error_code();
 	} else {
-		$args['atf_entries']   = (int) $result['imported'];
-		$args['atf_remaining'] = (int) $result['remaining'];
+		$args['alltfo_entries']   = (int) $result['imported'];
+		$args['alltfo_remaining'] = (int) $result['remaining'];
 	}
 
 	wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 	exit;
 }
-add_action( 'admin_post_atf_import_entries', 'atf_handle_import_entries_post' );
+add_action( 'admin_post_alltfo_import_entries', 'alltfo_handle_import_entries_post' );
 
 /**
  * Handles the Import page's POST.
@@ -964,16 +964,16 @@ add_action( 'admin_post_atf_import_entries', 'atf_handle_import_entries_post' );
  *
  * @return void
  */
-function atf_handle_import_post() {
-	if ( ! atf_can_edit_forms() ) {
+function alltfo_handle_import_post() {
+	if ( ! alltfo_can_edit_forms() ) {
 		wp_die( esc_html__( 'You cannot create forms.', 'allterrain-forms' ) );
 	}
 
-	check_admin_referer( 'atf-import', '_atf_nonce' );
+	check_admin_referer( 'alltfo-import', '_alltfo_nonce' );
 
 	$importer_id = isset( $_POST['importer'] ) ? sanitize_key( wp_unslash( $_POST['importer'] ) ) : '';
 	$source      = isset( $_POST['source'] ) ? sanitize_text_field( wp_unslash( $_POST['source'] ) ) : '';
-	$importers   = atf_importers();
+	$importers   = alltfo_importers();
 
 	$imported = 0;
 	$failed   = 0;
@@ -982,7 +982,7 @@ function atf_handle_import_post() {
 	// against the registry first, so a third-party importer that calls itself
 	// `all` keeps its own meaning rather than being shadowed by this.
 	if ( 'all' === $importer_id && ! isset( $importers['all'] ) ) {
-		$result   = atf_import_all();
+		$result   = alltfo_import_all();
 		$imported = $result['imported'];
 		$failed   = $result['failed'];
 	} elseif ( isset( $importers[ $importer_id ] ) ) {
@@ -991,7 +991,7 @@ function atf_handle_import_post() {
 			: array_keys( call_user_func( $importers[ $importer_id ]['forms'] ) );
 
 		foreach ( $sources as $source_id ) {
-			$result = atf_import_source_form( $importer_id, (string) $source_id );
+			$result = alltfo_import_source_form( $importer_id, (string) $source_id );
 
 			if ( is_wp_error( $result ) ) {
 				++$failed;
@@ -1005,12 +1005,12 @@ function atf_handle_import_post() {
 		add_query_arg(
 			array(
 				'page'         => 'allterrain-forms-import',
-				'atf_imported' => $imported,
-				'atf_failed'   => $failed,
+				'alltfo_imported' => $imported,
+				'alltfo_failed'   => $failed,
 			),
 			admin_url( 'admin.php' )
 		)
 	);
 	exit;
 }
-add_action( 'admin_post_atf_import_form', 'atf_handle_import_post' );
+add_action( 'admin_post_alltfo_import_form', 'alltfo_handle_import_post' );

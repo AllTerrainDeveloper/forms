@@ -15,7 +15,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
+class ALLTFO_Test_Importers_WPForms extends WP_UnitTestCase {
 
 	/**
 	 * A WPForms document, as Lite's contact template stores one.
@@ -73,10 +73,10 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * The Lite contact template converts field for field.
 	 *
-	 * @covers ::atf_wpforms_convert
+	 * @covers ::alltfo_wpforms_convert
 	 */
 	public function test_contact_document_converts() {
-		$schema = atf_normalize_schema( atf_wpforms_convert( $this->contact_document() ) );
+		$schema = alltfo_normalize_schema( alltfo_wpforms_convert( $this->contact_document() ) );
 
 		$this->assertSame( array( 'name', 'email', 'textarea' ), wp_list_pluck( $schema['fields'], 'type' ) );
 		$this->assertSame( array( 'first', 'last' ), $schema['fields'][0]['parts'] );
@@ -97,10 +97,10 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * A simple-format name is one box, so it becomes a text field.
 	 *
-	 * @covers ::atf_wpforms_field
+	 * @covers ::alltfo_wpforms_field
 	 */
 	public function test_simple_name_becomes_text() {
-		$fields = atf_wpforms_convert(
+		$fields = alltfo_wpforms_convert(
 			array(
 				'fields' => array(
 					array(
@@ -127,11 +127,11 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * Payment choices keep their prices and the total keeps calculating.
 	 *
-	 * @covers ::atf_wpforms_field
-	 * @covers ::atf_wpforms_choices
+	 * @covers ::alltfo_wpforms_field
+	 * @covers ::alltfo_wpforms_choices
 	 */
 	public function test_payment_fields_keep_their_prices() {
-		$schema = atf_wpforms_convert(
+		$schema = alltfo_wpforms_convert(
 			array(
 				'fields' => array(
 					array(
@@ -182,8 +182,8 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 		$this->assertSame( '{f1} + {f2}', $fields[2]['formula'] );
 
 		// The formula computes through the real engine.
-		$values = atf_apply_calculations(
-			atf_normalize_schema( $schema ),
+		$values = alltfo_apply_calculations(
+			alltfo_normalize_schema( $schema ),
 			array(
 				'f1' => 'VIP',
 				'f2' => array( 'Parking' ),
@@ -196,10 +196,10 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * Conditional logic converts, both shapes that translate exactly.
 	 *
-	 * @covers ::atf_wpforms_logic
+	 * @covers ::alltfo_wpforms_logic
 	 */
 	public function test_conditional_logic_converts() {
-		$fields = atf_wpforms_convert(
+		$fields = alltfo_wpforms_convert(
 			array(
 				'fields' => array(
 					array(
@@ -273,10 +273,10 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * Pro and add-on fields have equivalents; the unknown stays visible.
 	 *
-	 * @covers ::atf_wpforms_field
+	 * @covers ::alltfo_wpforms_field
 	 */
 	public function test_pro_field_mapping() {
-		$fields = atf_wpforms_convert(
+		$fields = alltfo_wpforms_convert(
 			array(
 				'fields' => array(
 					array(
@@ -358,10 +358,10 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 	/**
 	 * The whole trip: a wpforms post becomes a working form.
 	 *
-	 * @covers ::atf_wpforms_import
+	 * @covers ::alltfo_wpforms_import
 	 */
 	public function test_wpforms_import_end_to_end() {
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$source = self::factory()->post->create(
@@ -372,12 +372,12 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 			)
 		);
 
-		$form_id = atf_import_source_form( 'wpforms', (string) $source );
+		$form_id = alltfo_import_source_form( 'wpforms', (string) $source );
 
 		$this->assertIsInt( $form_id );
 		$this->assertSame( 'Simple Contact Form', get_post( $form_id )->post_title );
 
-		$schema = atf_get_form_schema( $form_id );
+		$schema = alltfo_get_form_schema( $form_id );
 
 		$this->assertCount( 3, $schema['fields'] );
 		$this->assertSame( '{admin_email}', $schema['notifications'][0]['to'] );
@@ -393,6 +393,6 @@ class ATF_Test_Importers_WPForms extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertWPError( atf_import_source_form( 'wpforms', (string) $broken ) );
+		$this->assertWPError( alltfo_import_source_form( 'wpforms', (string) $broken ) );
 	}
 }

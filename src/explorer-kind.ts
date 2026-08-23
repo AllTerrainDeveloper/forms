@@ -132,7 +132,7 @@ function livePreview( formId: number, title: string, full = false ): HTMLElement
 }
 
 /**
- * Renders the section. Registered as the `atf-form` entity kind.
+ * Renders the section. Registered as the `alltfo-form` entity kind.
  *
  * @param host The Explorer's render host.
  * @return void
@@ -171,7 +171,7 @@ function renderList( host: RenderHost ): void {
 	const openFolder = ( form: FormSummary ) =>
 		host.navigate( {
 			kind: 'detail',
-			entityId: 'atf-forms',
+			entityId: 'alltfo-forms',
 			postId: form.id,
 			postTitle: form.title || `#${ form.id }`,
 		} );
@@ -268,7 +268,7 @@ function renderFolder( host: RenderHost, formId: number, title: string ): void {
 						icon: 'dashicons-feedback',
 						label: form.title || `#${ form.id }`,
 						vitals: `${ form.fields } ${ 1 === form.fields ? 'question' : 'questions' } — open in the builder`,
-						onOpen: () => openWindowOnForm( 'allterrain-forms', 'builder', 'atf-open-form', form.id ),
+						onOpen: () => openWindowOnForm( 'allterrain-forms', 'builder', 'alltfo-open-form', form.id ),
 					} ),
 					// Entries and Report are doors, not depths: the windows are
 					// where those jobs are done, so the tiles take you there.
@@ -276,13 +276,13 @@ function renderFolder( host: RenderHost, formId: number, title: string ): void {
 						icon: 'dashicons-list-view',
 						label: 'Entries',
 						vitals: `${ form.entries } stored`,
-						onOpen: () => openWindowOnForm( 'allterrain-forms-entries', 'entries', 'atf-open-entries-form', form.id ),
+						onOpen: () => openWindowOnForm( 'allterrain-forms-entries', 'entries', 'alltfo-open-entries-form', form.id ),
 					} ),
 					tile( {
 						icon: 'dashicons-chart-bar',
 						label: 'Report',
 						vitals: 'conversion, NPS, answers',
-						onOpen: () => openWindowOnForm( 'allterrain-forms-analytics', 'analytics', 'atf-open-analytics-form', form.id ),
+						onOpen: () => openWindowOnForm( 'allterrain-forms-analytics', 'analytics', 'alltfo-open-analytics-form', form.id ),
 					} ),
 				],
 			} ),

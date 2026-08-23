@@ -10,13 +10,13 @@ Nothing lives in a bespoke table.
 
 | Thing | Storage | Key |
 |---|---|---|
-| Form | post type `atf_form` | schema JSON in `_atf_schema` |
-| Entry | post type `atf_entry` | values in `_atf_values`, context in `_atf_context` |
+| Form | post type `alltfo_form` | schema JSON in `_alltfo_schema` |
+| Entry | post type `alltfo_entry` | values in `_alltfo_values`, context in `_alltfo_context` |
 | Entry note | an ordinary **comment** on the entry post | — |
-| Theme | post type `atf_theme` | tokens in `_atf_tokens` |
-| Entry status | real post statuses | `atf-unread`, `atf-read`, `atf-spam`, `atf-partial` |
-| Uploads | attachments, `post_parent` = the entry | `_atf_upload` |
-| Analytics counters | form meta | views/starts/submissions in `_atf_stats`; aggregate device / browser / OS tallies in `_atf_tech` — coarse classes and counts only, never a user-agent string or a per-visitor row |
+| Theme | post type `alltfo_theme` | tokens in `_alltfo_tokens` |
+| Entry status | real post statuses | `alltfo-unread`, `alltfo-read`, `alltfo-spam`, `alltfo-partial` |
+| Uploads | attachments, `post_parent` = the entry | `_alltfo_upload` |
+| Analytics counters | form meta | views/starts/submissions in `_alltfo_stats`; aggregate device / browser / OS tallies in `_alltfo_tech` — coarse classes and counts only, never a user-agent string or a per-visitor row |
 
 ### Why posts
 
@@ -31,7 +31,7 @@ uploads with it because they are its children.
 Entries are rows in `wp_posts` alongside content, and a site taking a hundred
 thousand submissions will feel that. The mitigations: entries are
 `exclude_from_search`, not publicly queryable, and always fetched through
-`atf_query_entries()`, which filters on an indexed meta key. If a site ever
+`alltfo_query_entries()`, which filters on an indexed meta key. If a site ever
 outgrows this, the swap is behind that one function.
 
 ### Why the schema is one JSON document
@@ -54,7 +54,7 @@ load.
 
 ## The submission pipeline
 
-One function, `atf_process_submission()`, and **every** route ends at it: the
+One function, `alltfo_process_submission()`, and **every** route ends at it: the
 REST endpoint the bundle posts to, the plain `POST` a form makes with JavaScript
 off, and any programmatic call. One place where a submission is accepted is the
 only way to be sure the two paths enforce the same rules.
@@ -86,7 +86,7 @@ costs the site an e-mail rather than a submission.
 
 ### Sanitising walks the schema, not the request
 
-`atf_sanitize_submission()` iterates the form's fields and reads the request for
+`alltfo_sanitize_submission()` iterates the form's fields and reads the request for
 each one. A key no field asked for is never read at all, so a forged
 `atf[administrator]` reaches nothing.
 
@@ -116,7 +116,7 @@ The rendered form is a real `<form>` with a real `action` and `method="post"`.
 Submitted with scripting off it posts, validates on the server, and comes back
 with errors against the right fields and the visitor's answers still in them.
 
-`atf_handle_post_submission()` runs on `wp` — early enough that a redirect
+`alltfo_handle_post_submission()` runs on `wp` — early enough that a redirect
 confirmation can fire before any output — and stashes the result for the
 shortcode to render.
 
@@ -198,8 +198,8 @@ so the analytics have something to be analytics *of*. That is a useful thing and
 dangerous one — it writes hundreds of entries into a live database — so it is not
 left in the menu of a site collecting real enquiries.
 
-**The preference is not the permission.** `atf_developer_mode()` answers "show me
-these"; `atf_can_edit_forms()` answers "you may use them", and both are checked on
+**The preference is not the permission.** `alltfo_developer_mode()` answers "show me
+these"; `alltfo_can_edit_forms()` answers "you may use them", and both are checked on
 every route. A preference lives in user meta; treating it as authorisation would
 mean anybody who can write their own meta could seed a database.
 
@@ -284,9 +284,9 @@ functions. A formula is author-supplied, stored, and evaluated on every
 submission — `eval()` would be remote code execution wearing a convenience
 costume.
 
-**Themes.** Token values land in a `<style>` block, so braces, semicolons, angle
-brackets, backslashes, `url(`, `expression(`, `@import` and `javascript:` are
-**refused** rather than escaped. There is no legitimate token value that needs
+**Themes.** Token values land in the form wrapper's `style` attribute, so
+braces, semicolons, angle brackets, backslashes, `url(`, `expression(`,
+`@import` and `javascript:` are **refused** rather than escaped. There is no legitimate token value that needs
 one.
 
 **Exports.** A cell beginning `=`, `+`, `-` or `@` is prefixed with an
@@ -295,7 +295,7 @@ apostrophe, because a spreadsheet executes it on open.
 **Post-submit actions.** Post types, post statuses and roles are each constrained
 by a filter whose default is the narrow answer: `post` and `page`; `publish`
 downgraded to `pending`; the site's own default role and nothing else. A form's
-settings are editable by anyone with `atf_edit_forms`, which is a lower bar than
+settings are editable by anyone with `alltfo_edit_forms`, which is a lower bar than
 "may publish anywhere" or "may hand out roles".
 
 **The client schema.** The front end gets a reduced slice — ids, types, logic,
@@ -305,7 +305,7 @@ blocklist or quiz answers. Asserted by
 
 **Entries.** Not `show_in_rest`. An entry holds whatever the form asked for, and
 core's generic handler would expose it to anyone who can read a post. Every read
-goes through `atf_prepare_entry()`, which is where the capability check lives.
+goes through `alltfo_prepare_entry()`, which is where the capability check lives.
 
 **The public routes.** `/submit` and `/track` are the only two, and `/track`
 accepts one event and can only increment a counter.

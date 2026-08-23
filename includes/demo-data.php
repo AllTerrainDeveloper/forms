@@ -15,9 +15,9 @@
  *
  * # These are real submissions
  *
- * Every one goes through `atf_process_submission()` — the same function a
+ * Every one goes through `alltfo_process_submission()` — the same function a
  * stranger's POST reaches. Sanitising, validation, calculations, spam screening,
- * storage, the stats counters and `atf_entry_created` all run exactly as they do
+ * storage, the stats counters and `alltfo_entry_created` all run exactly as they do
  * in production. Nothing is written straight into the database.
  *
  * That is the whole point. A seeder that inserted rows directly would produce
@@ -25,7 +25,7 @@
  * would hide is a bug in the pipeline. The one price is that the demo form must
  * post something the anti-spam screening accepts, which it does honestly: the
  * request carries a properly signed timestamp, made by the same
- * `atf_sign_timestamp()` the rendered form uses, dated far enough back to clear
+ * `alltfo_sign_timestamp()` the rendered form uses, dated far enough back to clear
  * the time trap.
  *
  * # The population is not random
@@ -52,7 +52,7 @@
  *
  * # It comes back out
  *
- * The form and every entry carry `_atf_demo`. Removal deletes exactly what has
+ * The form and every entry carry `_alltfo_demo`. Removal deletes exactly what has
  * that marker and nothing else — never "everything on this form", which would
  * take real submissions with it if somebody had used the demo form for something.
  *
@@ -68,10 +68,10 @@ defined( 'ABSPATH' ) || exit;
  * matches on the key alone, so an entry made by any batch is removed by any
  * removal — which is what somebody clicking "Remove demo data" means.
  */
-const ATF_META_DEMO = '_atf_demo';
+const ALLTFO_META_DEMO = '_alltfo_demo';
 
 /** How many submissions a full batch makes. */
-const ATF_DEMO_TARGET = 500;
+const ALLTFO_DEMO_TARGET = 500;
 
 /**
  * How many are generated per request.
@@ -83,11 +83,11 @@ const ATF_DEMO_TARGET = 500;
  * truthful to put in a progress bar.
  *
  * Twenty-five rather than fifty, after fifty exhausted a 128MB limit partway
- * through a batch — see `atf_demo_seed()` for what was accumulating and what is
+ * through a batch — see `alltfo_demo_seed()` for what was accumulating and what is
  * now freed. The limit is the common one on shared hosting, so being comfortable
  * inside it matters more than the handful of extra requests.
  */
-const ATF_DEMO_CHUNK = 25;
+const ALLTFO_DEMO_CHUNK = 25;
 
 /**
  * The survey.
@@ -122,7 +122,7 @@ const ATF_DEMO_CHUNK = 25;
  *
  * @return array The schema.
  */
-function atf_demo_survey_schema() {
+function alltfo_demo_survey_schema() {
 	return array(
 		'fields'        => array(
 			array(
@@ -296,7 +296,7 @@ function atf_demo_survey_schema() {
  * @param int $state The generator state, updated in place.
  * @return float A number in [0, 1).
  */
-function atf_demo_random( &$state ) {
+function alltfo_demo_random( &$state ) {
 	$state ^= ( $state << 13 ) & 0xFFFFFFFF;
 	$state ^= ( $state >> 17 );
 	$state ^= ( $state << 5 ) & 0xFFFFFFFF;
@@ -319,14 +319,14 @@ function atf_demo_random( &$state ) {
  * @param int   $state   The generator state.
  * @return string|int The chosen key.
  */
-function atf_demo_weighted( $weights, &$state ) {
+function alltfo_demo_weighted( $weights, &$state ) {
 	$total = array_sum( $weights );
 
 	if ( $total <= 0 ) {
 		return key( $weights );
 	}
 
-	$roll = atf_demo_random( $state ) * $total;
+	$roll = alltfo_demo_random( $state ) * $total;
 
 	foreach ( $weights as $option => $weight ) {
 		$roll -= $weight;
@@ -354,11 +354,11 @@ function atf_demo_weighted( $weights, &$state ) {
  * @param int   $state  The generator state.
  * @return float A number in [0, 1].
  */
-function atf_demo_bell( $mean, $spread, &$state ) {
+function alltfo_demo_bell( $mean, $spread, &$state ) {
 	$sum = 0;
 
 	for ( $i = 0; $i < 3; $i++ ) {
-		$sum += atf_demo_random( $state );
+		$sum += alltfo_demo_random( $state );
 	}
 
 	return max( 0, min( 1, $mean + ( ( $sum / 3 ) - 0.5 ) * 2 * $spread ) );
@@ -378,7 +378,7 @@ function atf_demo_bell( $mean, $spread, &$state ) {
  *
  * @return array<string, array{ua: string, view: int, submit: int}>
  */
-function atf_demo_user_agents() {
+function alltfo_demo_user_agents() {
 	return array(
 		'chrome_windows'  => array(
 			'ua'     => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -450,7 +450,7 @@ function atf_demo_user_agents() {
  *
  * @return array Team label => { size, morale, office }.
  */
-function atf_demo_teams() {
+function alltfo_demo_teams() {
 	return array(
 		'Engineering' => array(
 			'size'   => 30,
@@ -502,7 +502,7 @@ function atf_demo_teams() {
  *
  * @return array Band => list of comments.
  */
-function atf_demo_comments() {
+function alltfo_demo_comments() {
 	return array(
 		'low'    => array(
 			'Three reorganisations in eighteen months. Nobody knows who decides anything any more.',
@@ -546,19 +546,19 @@ function atf_demo_comments() {
  * @param int $state The generator state.
  * @return array Field id => value, as a browser would have posted it.
  */
-function atf_demo_respondent( &$state ) {
-	$teams   = atf_demo_teams();
+function alltfo_demo_respondent( &$state ) {
+	$teams   = alltfo_demo_teams();
 	$weights = array();
 
 	foreach ( $teams as $name => $team ) {
 		$weights[ $name ] = $team['size'];
 	}
 
-	$team = atf_demo_weighted( $weights, $state );
+	$team = alltfo_demo_weighted( $weights, $state );
 
 	// Longer-serving people are slightly happier here — partly because the
 	// unhappy ones left, which is the survivorship the chart should show.
-	$tenure = atf_demo_weighted(
+	$tenure = alltfo_demo_weighted(
 		array(
 			'Less than a year'  => 26,
 			'1 to 2 years'      => 32,
@@ -575,11 +575,11 @@ function atf_demo_respondent( &$state ) {
 		'More than 5 years' => 0.06,
 	);
 
-	$morale = atf_demo_bell( $teams[ $team ]['morale'] + $tenure_lift[ $tenure ], 0.55, $state );
+	$morale = alltfo_demo_bell( $teams[ $team ]['morale'] + $tenure_lift[ $tenure ], 0.55, $state );
 
 	// Satisfaction, 1 to 5. Rounded from morale with a little noise, so it is a
 	// coarse view of the same thing rather than a copy of it.
-	$satisfaction = (int) max( 1, min( 5, round( 1 + $morale * 4 + ( atf_demo_random( $state ) - 0.5 ) * 0.9 ) ) );
+	$satisfaction = (int) max( 1, min( 5, round( 1 + $morale * 4 + ( alltfo_demo_random( $state ) - 0.5 ) * 0.9 ) ) );
 
 	// The recommendation score, 0 to 10.
 	//
@@ -592,7 +592,7 @@ function atf_demo_respondent( &$state ) {
 	// Deliberately not a rescaled satisfaction: people rate their own quarter more
 	// kindly than they recommend an employer, and the gap between the two is
 	// exactly the sort of thing a cross-tab exists to show.
-	$recommend = (int) max( 0, min( 10, round( $morale * 10.3 + 1.6 + ( atf_demo_random( $state ) - 0.5 ) * 2.4 ) ) );
+	$recommend = (int) max( 0, min( 10, round( $morale * 10.3 + 1.6 + ( alltfo_demo_random( $state ) - 0.5 ) * 2.4 ) ) );
 
 	// Days in the office. Lumpy on purpose — nobody works 2.5 days, and the modes
 	// at 0 and 5 are what a histogram has to render without pretending it is a
@@ -602,7 +602,7 @@ function atf_demo_respondent( &$state ) {
 	// linear weighting produced means of 1.9 and 2.4 for teams meant to be
 	// obviously different — a real effect that no chart would ever show.
 	$office_bias = $teams[ $team ]['office'];
-	$office      = atf_demo_weighted(
+	$office      = alltfo_demo_weighted(
 		array(
 			'0' => 38 * pow( 1 - $office_bias, 1.6 ),
 			'1' => 14,
@@ -630,7 +630,7 @@ function atf_demo_respondent( &$state ) {
 	$improve = array();
 
 	foreach ( $wants as $option => $chance ) {
-		if ( atf_demo_random( $state ) < $chance ) {
+		if ( alltfo_demo_random( $state ) < $chance ) {
 			$improve[] = $option;
 		}
 	}
@@ -641,8 +641,8 @@ function atf_demo_respondent( &$state ) {
 	$strength = abs( $morale - 0.5 ) * 2;
 	$comment  = '';
 
-	if ( atf_demo_random( $state ) < 0.18 + $strength * 0.42 ) {
-		$comments = atf_demo_comments();
+	if ( alltfo_demo_random( $state ) < 0.18 + $strength * 0.42 ) {
+		$comments = alltfo_demo_comments();
 		$band     = 'middle';
 
 		if ( $morale < 0.35 ) {
@@ -652,7 +652,7 @@ function atf_demo_respondent( &$state ) {
 		}
 
 		$pool    = $comments[ $band ];
-		$comment = $pool[ (int) floor( atf_demo_random( $state ) * count( $pool ) ) ];
+		$comment = $pool[ (int) floor( alltfo_demo_random( $state ) * count( $pool ) ) ];
 	}
 
 	return array(
@@ -662,7 +662,7 @@ function atf_demo_respondent( &$state ) {
 		'recommend'    => (string) $recommend,
 		'satisfaction' => (string) $satisfaction,
 		'improve'      => $improve,
-		'projects'     => atf_demo_projects( $morale, $state ),
+		'projects'     => alltfo_demo_projects( $morale, $state ),
 		'comment'      => $comment,
 	);
 }
@@ -691,8 +691,8 @@ function atf_demo_respondent( &$state ) {
  * @param int   $state  The generator state.
  * @return array[] Rows, keyed by sub-field id.
  */
-function atf_demo_projects( $morale, &$state ) {
-	$count = (int) atf_demo_weighted(
+function alltfo_demo_projects( $morale, &$state ) {
+	$count = (int) alltfo_demo_weighted(
 		array(
 			'1' => 24 + $morale * 18,
 			'2' => 40,
@@ -702,13 +702,13 @@ function atf_demo_projects( $morale, &$state ) {
 		$state
 	);
 
-	$names    = atf_demo_project_names();
+	$names    = alltfo_demo_project_names();
 	$projects = array();
 
 	for ( $i = 0; $i < $count; $i++ ) {
-		$hours = (int) max( 1, min( 40, round( ( 30 / $count ) * ( 0.6 + atf_demo_random( $state ) * 0.8 ) ) ) );
+		$hours = (int) max( 1, min( 40, round( ( 30 / $count ) * ( 0.6 + alltfo_demo_random( $state ) * 0.8 ) ) ) );
 
-		$outcome = atf_demo_weighted(
+		$outcome = alltfo_demo_weighted(
 			array(
 				'Shipped'         => 28 + $morale * 36,
 				'Still in flight' => 45,
@@ -717,9 +717,9 @@ function atf_demo_projects( $morale, &$state ) {
 			$state
 		);
 
-		$name = atf_demo_random( $state ) < 0.125
+		$name = alltfo_demo_random( $state ) < 0.125
 			? ''
-			: $names[ (int) floor( atf_demo_random( $state ) * count( $names ) ) ];
+			: $names[ (int) floor( alltfo_demo_random( $state ) * count( $names ) ) ];
 
 		$projects[] = array(
 			'project_name' => $name,
@@ -738,7 +738,7 @@ function atf_demo_projects( $morale, &$state ) {
  *
  * @return string[]
  */
-function atf_demo_project_names() {
+function alltfo_demo_project_names() {
 	return array(
 		'Checkout rewrite',
 		'Project Lighthouse',
@@ -774,7 +774,7 @@ function atf_demo_project_names() {
  * @param int $state The generator state.
  * @return int A Unix timestamp.
  */
-function atf_demo_answered_at( &$state ) {
+function alltfo_demo_answered_at( &$state ) {
 	$days = 84;
 
 	// The shape is a survey's, not a website's: a spike when it goes out, a long
@@ -782,10 +782,10 @@ function atf_demo_answered_at( &$state ) {
 	// *backwards* from today, the spike belongs at the far end — compressing the
 	// draw towards zero instead put the busiest day today and the quiet tail
 	// twelve weeks ago, which is the shape of a survey nobody has sent yet.
-	if ( atf_demo_random( $state ) < 0.17 ) {
-		$offset = 40 + atf_demo_random( $state ) * 6;
+	if ( alltfo_demo_random( $state ) < 0.17 ) {
+		$offset = 40 + alltfo_demo_random( $state ) * 6;
 	} else {
-		$offset = $days - pow( atf_demo_random( $state ), 2.1 ) * $days;
+		$offset = $days - pow( alltfo_demo_random( $state ), 2.1 ) * $days;
 	}
 
 	$when = time() - (int) round( $offset * DAY_IN_SECONDS );
@@ -795,12 +795,12 @@ function atf_demo_answered_at( &$state ) {
 	// than gaps, which is the harder thing to render.
 	$weekday = (int) gmdate( 'N', $when );
 
-	if ( $weekday >= 6 && atf_demo_random( $state ) < 0.8 ) {
+	if ( $weekday >= 6 && alltfo_demo_random( $state ) < 0.8 ) {
 		$when -= ( $weekday - 5 ) * DAY_IN_SECONDS;
 	}
 
 	// Office hours, roughly, with a lunchtime lull.
-	$hour = (int) atf_demo_weighted(
+	$hour = (int) alltfo_demo_weighted(
 		array(
 			'8'  => 6,
 			'9'  => 14,
@@ -819,7 +819,7 @@ function atf_demo_answered_at( &$state ) {
 
 	return (int) ( floor( $when / DAY_IN_SECONDS ) * DAY_IN_SECONDS )
 		+ $hour * HOUR_IN_SECONDS
-		+ (int) ( atf_demo_random( $state ) * 3600 );
+		+ (int) ( alltfo_demo_random( $state ) * 3600 );
 }
 
 /**
@@ -829,10 +829,10 @@ function atf_demo_answered_at( &$state ) {
  *
  * @return int The form id, or 0.
  */
-function atf_demo_form_id() {
+function alltfo_demo_form_id() {
 	$found = get_posts(
 		array(
-			'post_type'        => ATF_FORM_TYPE,
+			'post_type'        => ALLTFO_FORM_TYPE,
 			'post_status'      => 'any',
 			'posts_per_page'   => 1,
 			'fields'           => 'ids',
@@ -840,7 +840,7 @@ function atf_demo_form_id() {
 			'suppress_filters' => false,
 			'meta_query'       => array(
 				array(
-					'key'     => ATF_META_DEMO,
+					'key'     => ALLTFO_META_DEMO,
 					'compare' => 'EXISTS',
 				),
 			),
@@ -857,22 +857,22 @@ function atf_demo_form_id() {
  *
  * @return array { formId, title, entries, target, remaining }.
  */
-function atf_demo_status() {
-	$form_id = atf_demo_form_id();
+function alltfo_demo_status() {
+	$form_id = alltfo_demo_form_id();
 
 	if ( ! $form_id ) {
 		return array(
 			'formId'    => 0,
 			'title'     => '',
 			'entries'   => 0,
-			'target'    => ATF_DEMO_TARGET,
-			'remaining' => ATF_DEMO_TARGET,
+			'target'    => ALLTFO_DEMO_TARGET,
+			'remaining' => ALLTFO_DEMO_TARGET,
 		);
 	}
 
-	$entries = atf_demo_entry_count();
-	$target  = (int) get_post_meta( $form_id, ATF_META_DEMO . '_target', true );
-	$target  = $target > 0 ? $target : ATF_DEMO_TARGET;
+	$entries = alltfo_demo_entry_count();
+	$target  = (int) get_post_meta( $form_id, ALLTFO_META_DEMO . '_target', true );
+	$target  = $target > 0 ? $target : ALLTFO_DEMO_TARGET;
 
 	return array(
 		'formId'    => $form_id,
@@ -893,16 +893,16 @@ function atf_demo_status() {
  *
  * @return int
  */
-function atf_demo_entry_count() {
+function alltfo_demo_entry_count() {
 	$query = new WP_Query(
 		array(
-			'post_type'      => ATF_ENTRY_TYPE,
-			'post_status'    => atf_entry_statuses(),
+			'post_type'      => ALLTFO_ENTRY_TYPE,
+			'post_status'    => alltfo_entry_statuses(),
 			'posts_per_page' => 1,
 			'fields'         => 'ids',
 			'meta_query'     => array(
 				array(
-					'key'     => ATF_META_DEMO,
+					'key'     => ALLTFO_META_DEMO,
 					'compare' => 'EXISTS',
 				),
 			),
@@ -920,8 +920,8 @@ function atf_demo_entry_count() {
  * @param int $seed The generator seed, stored so a batch can be repeated.
  * @return int|WP_Error The form id.
  */
-function atf_demo_create_form( $seed ) {
-	$existing = atf_demo_form_id();
+function alltfo_demo_create_form( $seed ) {
+	$existing = alltfo_demo_form_id();
 
 	if ( $existing ) {
 		return $existing;
@@ -929,7 +929,7 @@ function atf_demo_create_form( $seed ) {
 
 	$form_id = wp_insert_post(
 		array(
-			'post_type'   => ATF_FORM_TYPE,
+			'post_type'   => ALLTFO_FORM_TYPE,
 			'post_title'  => __( 'Team pulse survey (demo data)', 'allterrain-forms' ),
 			'post_status' => 'publish',
 			'post_author' => get_current_user_id(),
@@ -941,10 +941,10 @@ function atf_demo_create_form( $seed ) {
 		return $form_id;
 	}
 
-	atf_save_form_schema( $form_id, atf_demo_survey_schema() );
+	alltfo_save_form_schema( $form_id, alltfo_demo_survey_schema() );
 
-	update_post_meta( $form_id, ATF_META_DEMO, absint( $seed ) );
-	update_post_meta( $form_id, ATF_META_DEMO . '_target', ATF_DEMO_TARGET );
+	update_post_meta( $form_id, ALLTFO_META_DEMO, absint( $seed ) );
+	update_post_meta( $form_id, ALLTFO_META_DEMO . '_target', ALLTFO_DEMO_TARGET );
 
 	return (int) $form_id;
 }
@@ -960,24 +960,24 @@ function atf_demo_create_form( $seed ) {
  * @param int $count How many to make, at most.
  * @return array|WP_Error The status afterwards.
  */
-function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
-	if ( ! atf_can_use_developer_tools() ) {
+function alltfo_demo_seed( $count = ALLTFO_DEMO_CHUNK ) {
+	if ( ! alltfo_can_use_developer_tools() ) {
 		return new WP_Error(
-			'atf_forbidden',
+			'alltfo_forbidden',
 			__( 'Demo data needs developer mode and permission to edit forms.', 'allterrain-forms' ),
 			array( 'status' => 403 )
 		);
 	}
 
 	$seed    = 0x5EED1234;
-	$form_id = atf_demo_create_form( $seed );
+	$form_id = alltfo_demo_create_form( $seed );
 
 	if ( is_wp_error( $form_id ) ) {
 		return $form_id;
 	}
 
-	$status = atf_demo_status();
-	$count  = max( 1, min( (int) $count, ATF_DEMO_CHUNK, $status['remaining'] ) );
+	$status = alltfo_demo_status();
+	$count  = max( 1, min( (int) $count, ALLTFO_DEMO_CHUNK, $status['remaining'] ) );
 
 	if ( $status['remaining'] < 1 ) {
 		return $status;
@@ -990,7 +990,7 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 	//
 	// Replaying the seed forward past the people already made would work too, and
 	// would do it in time quadratic in the batch size for no benefit.
-	$state = (int) get_post_meta( $form_id, ATF_META_DEMO . '_state', true );
+	$state = (int) get_post_meta( $form_id, ALLTFO_META_DEMO . '_state', true );
 	$state = $state > 0 ? $state : $seed;
 
 	$made = 0;
@@ -1017,10 +1017,10 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 	global $wpdb;
 
 	for ( $i = 0; $i < $count; $i++ ) {
-		$answers = atf_demo_respondent( $state );
-		$when    = atf_demo_answered_at( $state );
+		$answers = alltfo_demo_respondent( $state );
+		$when    = alltfo_demo_answered_at( $state );
 
-		$entry_id = atf_demo_submit( $form_id, $answers, $when, $state );
+		$entry_id = alltfo_demo_submit( $form_id, $answers, $when, $state );
 
 		if ( ! is_wp_error( $entry_id ) ) {
 			++$made;
@@ -1040,7 +1040,7 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 
 	remove_filter( 'pre_wp_mail', '__return_false', 99 );
 
-	update_post_meta( $form_id, ATF_META_DEMO . '_state', $state );
+	update_post_meta( $form_id, ALLTFO_META_DEMO . '_state', $state );
 
 	// Views and starts, so the conversion and completion rates are numbers rather
 	// than zeroes. Roughly two in five people who saw it answered, and four in
@@ -1048,13 +1048,13 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 	// visibly *not* 100%, which is what makes the panel worth reading.
 	$views = (int) round( $made / 0.42 );
 
-	atf_bump_stat( $form_id, 'views', $views );
-	atf_bump_stat( $form_id, 'starts', (int) round( $made / 0.78 ) );
+	alltfo_bump_stat( $form_id, 'views', $views );
+	alltfo_bump_stat( $form_id, 'starts', (int) round( $made / 0.78 ) );
 
 	// The viewers get browsers too, drawn from the same pool under its
 	// visitor weights, so per-device conversion rates come out of two honest
 	// distributions rather than one number split evenly.
-	$agents  = atf_demo_user_agents();
+	$agents  = alltfo_demo_user_agents();
 	$weights = wp_list_pluck( $agents, 'view' );
 	$total   = array_sum( $weights );
 	$dealt   = 0;
@@ -1064,17 +1064,17 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
 		$share = min( $share, $views - $dealt );
 
 		if ( $share > 0 ) {
-			atf_bump_tech( $form_id, 'views', $agent['ua'], $share );
+			alltfo_bump_tech( $form_id, 'views', $agent['ua'], $share );
 
 			$dealt += $share;
 		}
 	}
 
 	if ( $views - $dealt > 0 ) {
-		atf_bump_tech( $form_id, 'views', $agents['chrome_windows']['ua'], $views - $dealt );
+		alltfo_bump_tech( $form_id, 'views', $agents['chrome_windows']['ua'], $views - $dealt );
 	}
 
-	return atf_demo_status();
+	return alltfo_demo_status();
 }
 
 /**
@@ -1088,17 +1088,17 @@ function atf_demo_seed( $count = ATF_DEMO_CHUNK ) {
  * @param int   $state   The generator state.
  * @return int|WP_Error The entry id.
  */
-function atf_demo_submit( $form_id, $answers, $when, &$state ) {
+function alltfo_demo_submit( $form_id, $answers, $when, &$state ) {
 	// Dated far enough back to clear the time trap honestly, and signed with the
 	// same function the rendered form uses. The screening is not bypassed — the
 	// request simply is what a real one looks like.
 	$issued = time() - 90;
 
 	$request = array(
-		'atf_form_id' => $form_id,
-		'atf_t'       => $issued,
-		'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
-		'atf_website' => '',
+		'alltfo_form_id' => $form_id,
+		'alltfo_t'       => $issued,
+		'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
+		'alltfo_website' => '',
 		'atf'         => $answers,
 	);
 
@@ -1107,13 +1107,13 @@ function atf_demo_submit( $form_id, $answers, $when, &$state ) {
 	// exactly the door a real submission uses. Restored afterwards -- this
 	// runs inside an admin request whose real user-agent belongs to whoever
 	// clicked the button.
-	$agents = atf_demo_user_agents();
-	$chosen = atf_demo_weighted( wp_list_pluck( $agents, 'submit' ), $state );
+	$agents = alltfo_demo_user_agents();
+	$chosen = alltfo_demo_weighted( wp_list_pluck( $agents, 'submit' ), $state );
 
 	$real_ua                    = isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Held only to be restored verbatim below.
 	$_SERVER['HTTP_USER_AGENT'] = $agents[ $chosen ]['ua'];
 
-	$result = atf_process_submission( $form_id, $request );
+	$result = alltfo_process_submission( $form_id, $request );
 
 	if ( null === $real_ua ) {
 		unset( $_SERVER['HTTP_USER_AGENT'] );
@@ -1122,12 +1122,12 @@ function atf_demo_submit( $form_id, $answers, $when, &$state ) {
 	}
 
 	if ( empty( $result['success'] ) || empty( $result['entry_id'] ) ) {
-		return new WP_Error( 'atf_demo_failed', __( 'A demo submission was rejected.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_demo_failed', __( 'A demo submission was rejected.', 'allterrain-forms' ) );
 	}
 
 	$entry_id = (int) $result['entry_id'];
 
-	update_post_meta( $entry_id, ATF_META_DEMO, 1 );
+	update_post_meta( $entry_id, ALLTFO_META_DEMO, 1 );
 
 	// Backdated after the fact rather than before: the pipeline stamps an entry
 	// with the moment it was stored, which is correct for every real submission
@@ -1144,16 +1144,16 @@ function atf_demo_submit( $form_id, $answers, $when, &$state ) {
 	// A realistic spread of what has been looked at. Roughly a third still unread,
 	// a handful starred, and a couple of percent caught as spam — so the status
 	// filters and badges have something to show that is not all one value.
-	$roll = atf_demo_random( $state );
+	$roll = alltfo_demo_random( $state );
 
 	if ( $roll < 0.02 ) {
-		atf_set_entry_status( $entry_id, ATF_STATUS_SPAM );
+		alltfo_set_entry_status( $entry_id, ALLTFO_STATUS_SPAM );
 	} elseif ( $roll < 0.68 ) {
-		atf_set_entry_status( $entry_id, ATF_STATUS_READ );
+		alltfo_set_entry_status( $entry_id, ALLTFO_STATUS_READ );
 	}
 
-	if ( atf_demo_random( $state ) < 0.06 ) {
-		atf_star_entry( $entry_id, true );
+	if ( alltfo_demo_random( $state ) < 0.06 ) {
+		alltfo_star_entry( $entry_id, true );
 	}
 
 	return $entry_id;
@@ -1171,10 +1171,10 @@ function atf_demo_submit( $form_id, $answers, $when, &$state ) {
  *
  * @return array|WP_Error { entries, forms }.
  */
-function atf_demo_remove() {
-	if ( ! atf_can_use_developer_tools() ) {
+function alltfo_demo_remove() {
+	if ( ! alltfo_can_use_developer_tools() ) {
 		return new WP_Error(
-			'atf_forbidden',
+			'alltfo_forbidden',
 			__( 'Demo data needs developer mode and permission to edit forms.', 'allterrain-forms' ),
 			array( 'status' => 403 )
 		);
@@ -1188,14 +1188,14 @@ function atf_demo_remove() {
 	do {
 		$batch = get_posts(
 			array(
-				'post_type'      => ATF_ENTRY_TYPE,
-				'post_status'    => atf_entry_statuses(),
+				'post_type'      => ALLTFO_ENTRY_TYPE,
+				'post_status'    => alltfo_entry_statuses(),
 				'posts_per_page' => 100,
 				'fields'         => 'ids',
 				'no_found_rows'  => true,
 				'meta_query'     => array(
 					array(
-						'key'     => ATF_META_DEMO,
+						'key'     => ALLTFO_META_DEMO,
 						'compare' => 'EXISTS',
 					),
 				),
@@ -1205,21 +1205,21 @@ function atf_demo_remove() {
 		$found = count( $batch );
 
 		foreach ( $batch as $entry_id ) {
-			atf_delete_entry_completely( $entry_id );
+			alltfo_delete_entry_completely( $entry_id );
 			++$removed;
 		}
 	} while ( $found >= 100 );
 
 	$forms = get_posts(
 		array(
-			'post_type'      => ATF_FORM_TYPE,
+			'post_type'      => ALLTFO_FORM_TYPE,
 			'post_status'    => 'any',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
 			'no_found_rows'  => true,
 			'meta_query'     => array(
 				array(
-					'key'     => ATF_META_DEMO,
+					'key'     => ALLTFO_META_DEMO,
 					'compare' => 'EXISTS',
 				),
 			),

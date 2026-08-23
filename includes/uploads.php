@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.1.0
  */
-const ATF_FORBIDDEN_EXTENSIONS = array(
+const ALLTFO_FORBIDDEN_EXTENSIONS = array(
 	'php',
 	'php3',
 	'php4',
@@ -90,22 +90,22 @@ const ATF_FORBIDDEN_EXTENSIONS = array(
  * @param int   $form_id The form.
  * @return array { values: array<string, int[]>, errors: array<string, string> }
  */
-function atf_handle_uploads( $schema, $files, $form_id ) {
+function alltfo_handle_uploads( $schema, $files, $form_id ) {
 	$values = array();
 	$errors = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		if ( 'file' !== $field['type'] ) {
 			continue;
 		}
 
-		$key = 'atf_file_' . $field['id'];
+		$key = 'alltfo_file_' . $field['id'];
 
 		if ( ! isset( $files[ $key ] ) ) {
 			continue;
 		}
 
-		$result = atf_handle_field_upload( $field, $files[ $key ], $form_id );
+		$result = alltfo_handle_field_upload( $field, $files[ $key ], $form_id );
 
 		if ( is_wp_error( $result ) ) {
 			$errors[ $field['id'] ] = $result->get_error_message();
@@ -133,14 +133,14 @@ function atf_handle_uploads( $schema, $files, $form_id ) {
  * @param int   $form_id The form.
  * @return int[]|WP_Error Attachment ids, or the first failure.
  */
-function atf_handle_field_upload( $field, $entry, $form_id ) {
-	$files = atf_normalize_files_entry( $entry );
+function alltfo_handle_field_upload( $field, $entry, $form_id ) {
+	$files = alltfo_normalize_files_entry( $entry );
 	$max   = isset( $field['maxfiles'] ) ? max( 1, absint( $field['maxfiles'] ) ) : 1;
 	$ids   = array();
 
 	if ( count( $files ) > $max ) {
 		return new WP_Error(
-			'atf_too_many_files',
+			'alltfo_too_many_files',
 			sprintf(
 				/* translators: %d: maximum number of files. */
 				_n( 'Attach at most %d file.', 'Attach at most %d files.', $max, 'allterrain-forms' ),
@@ -154,14 +154,14 @@ function atf_handle_field_upload( $field, $entry, $form_id ) {
 			continue;
 		}
 
-		$result = atf_store_uploaded_file( $file, $field, $form_id );
+		$result = alltfo_store_uploaded_file( $file, $field, $form_id );
 
 		if ( is_wp_error( $result ) ) {
 			// The files stored before this one failed must not stay behind.
 			// The whole field is being refused, so keeping half its files
 			// would orphan them: attached to no entry, hidden from the media
 			// library by their `private` status, kept forever.
-			atf_delete_upload_attachments( $ids );
+			alltfo_delete_upload_attachments( $ids );
 
 			return $result;
 		}
@@ -183,7 +183,7 @@ function atf_handle_field_upload( $field, $entry, $form_id ) {
  * @param array $entry One field's `$_FILES` entry.
  * @return array[] One array per file.
  */
-function atf_normalize_files_entry( $entry ) {
+function alltfo_normalize_files_entry( $entry ) {
 	if ( ! isset( $entry['name'] ) ) {
 		return array();
 	}
@@ -218,16 +218,16 @@ function atf_normalize_files_entry( $entry ) {
  * @param int   $form_id The form.
  * @return int|WP_Error The attachment id, or why it was refused.
  */
-function atf_store_uploaded_file( $file, $field, $form_id ) {
+function alltfo_store_uploaded_file( $file, $field, $form_id ) {
 	if ( UPLOAD_ERR_OK !== $file['error'] ) {
-		return new WP_Error( 'atf_upload_failed', atf_upload_error_message( $file['error'] ) );
+		return new WP_Error( 'alltfo_upload_failed', alltfo_upload_error_message( $file['error'] ) );
 	}
 
 	$max_bytes = ( isset( $field['maxsize'] ) ? absint( $field['maxsize'] ) : 10 ) * MB_IN_BYTES;
 
 	if ( $file['size'] > $max_bytes ) {
 		return new WP_Error(
-			'atf_file_too_big',
+			'alltfo_file_too_big',
 			sprintf(
 				/* translators: %s: maximum file size, already formatted. */
 				__( 'That file is too big. The limit is %s.', 'allterrain-forms' ),
@@ -239,8 +239,8 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	$name      = sanitize_file_name( $file['name'] );
 	$extension = strtolower( (string) pathinfo( $name, PATHINFO_EXTENSION ) );
 
-	if ( '' === $extension || in_array( $extension, ATF_FORBIDDEN_EXTENSIONS, true ) ) {
-		return new WP_Error( 'atf_file_type', __( 'That kind of file cannot be uploaded.', 'allterrain-forms' ) );
+	if ( '' === $extension || in_array( $extension, ALLTFO_FORBIDDEN_EXTENSIONS, true ) ) {
+		return new WP_Error( 'alltfo_file_type', __( 'That kind of file cannot be uploaded.', 'allterrain-forms' ) );
 	}
 
 	$allowed = isset( $field['filetypes'] ) && is_array( $field['filetypes'] ) ? $field['filetypes'] : array();
@@ -253,7 +253,7 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 
 	if ( $allowed && ! in_array( $extension, $allowed, true ) ) {
 		return new WP_Error(
-			'atf_file_type',
+			'alltfo_file_type',
 			sprintf(
 				/* translators: %s: comma-separated list of accepted extensions. */
 				__( 'That kind of file is not accepted here. Try: %s.', 'allterrain-forms' ),
@@ -267,20 +267,20 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	$checked = wp_check_filetype_and_ext( $file['tmp_name'], $name );
 
 	if ( empty( $checked['ext'] ) || empty( $checked['type'] ) ) {
-		return new WP_Error( 'atf_file_type', __( 'That file does not look like the kind of file it claims to be.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_file_type', __( 'That file does not look like the kind of file it claims to be.', 'allterrain-forms' ) );
 	}
 
 	if ( strtolower( $checked['ext'] ) !== $extension ) {
-		return new WP_Error( 'atf_file_type', __( 'That file does not look like the kind of file it claims to be.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_file_type', __( 'That file does not look like the kind of file it claims to be.', 'allterrain-forms' ) );
 	}
 
 	$overrides = array(
 		'test_form'                => false,
-		'unique_filename_callback' => 'atf_unique_upload_filename',
+		'unique_filename_callback' => 'alltfo_unique_upload_filename',
 		// `mimes` is scoped to what this field allows, so `wp_handle_upload()`
 		// refuses anything outside it even if the checks above were somehow
 		// bypassed by a filter.
-		'mimes'                    => atf_allowed_mimes_for( $allowed ),
+		'mimes'                    => alltfo_allowed_mimes_for( $allowed ),
 	);
 
 	/**
@@ -296,16 +296,16 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	 * @param array $field     The field the file was uploaded for.
 	 * @param int   $form_id   The form.
 	 */
-	$overrides = apply_filters( 'atf_upload_overrides', $overrides, $field, $form_id );
+	$overrides = apply_filters( 'alltfo_upload_overrides', $overrides, $field, $form_id );
 
-	add_filter( 'upload_dir', 'atf_upload_directory' );
+	add_filter( 'upload_dir', 'alltfo_upload_directory' );
 
 	$moved = wp_handle_upload( $file, $overrides );
 
-	remove_filter( 'upload_dir', 'atf_upload_directory' );
+	remove_filter( 'upload_dir', 'alltfo_upload_directory' );
 
 	if ( isset( $moved['error'] ) ) {
-		return new WP_Error( 'atf_upload_failed', (string) $moved['error'] );
+		return new WP_Error( 'alltfo_upload_failed', (string) $moved['error'] );
 	}
 
 	$attachment_id = wp_insert_attachment(
@@ -329,8 +329,8 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 
 	// Marked so the retention sweep and the privacy eraser can find every file
 	// that arrived through a form without walking every entry.
-	update_post_meta( $attachment_id, '_atf_upload', 1 );
-	update_post_meta( $attachment_id, ATF_META_FORM, absint( $form_id ) );
+	update_post_meta( $attachment_id, '_alltfo_upload', 1 );
+	update_post_meta( $attachment_id, ALLTFO_META_FORM, absint( $form_id ) );
 
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 
@@ -345,7 +345,7 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
 	 * @param array $field         The field it came from.
 	 * @param int   $form_id       The form.
 	 */
-	do_action( 'atf_file_uploaded', $attachment_id, $field, $form_id );
+	do_action( 'alltfo_file_uploaded', $attachment_id, $field, $form_id );
 
 	return $attachment_id;
 }
@@ -364,7 +364,7 @@ function atf_store_uploaded_file( $file, $field, $form_id ) {
  * @param int[] $ids Attachment ids.
  * @return void
  */
-function atf_delete_upload_attachments( $ids ) {
+function alltfo_delete_upload_attachments( $ids ) {
 	foreach ( (array) $ids as $attachment_id ) {
 		// `true` skips the bin: a file that was never accepted has no owner to
 		// restore it, and the bin would keep the bytes on disk anyway.
@@ -383,7 +383,7 @@ function atf_delete_upload_attachments( $ids ) {
  * @param string[] $extensions Allowed extensions, without dots.
  * @return array<string, string> Extension pattern => MIME type.
  */
-function atf_allowed_mimes_for( $extensions ) {
+function alltfo_allowed_mimes_for( $extensions ) {
 	$all = get_allowed_mime_types();
 
 	if ( ! $extensions ) {
@@ -416,14 +416,14 @@ function atf_allowed_mimes_for( $extensions ) {
  * @param array $dirs The upload directory array.
  * @return array
  */
-function atf_upload_directory( $dirs ) {
+function alltfo_upload_directory( $dirs ) {
 	$sub = '/allterrain-forms/' . gmdate( 'Y/m' );
 
 	$dirs['subdir'] = $sub;
 	$dirs['path']   = $dirs['basedir'] . $sub;
 	$dirs['url']    = $dirs['baseurl'] . $sub;
 
-	atf_protect_upload_directory( $dirs['basedir'] . '/allterrain-forms' );
+	alltfo_protect_upload_directory( $dirs['basedir'] . '/allterrain-forms' );
 
 	return $dirs;
 }
@@ -441,7 +441,7 @@ function atf_upload_directory( $dirs ) {
  * @param string $directory Absolute path.
  * @return void
  */
-function atf_protect_upload_directory( $directory ) {
+function alltfo_protect_upload_directory( $directory ) {
 	if ( ! wp_mkdir_p( $directory ) ) {
 		return;
 	}
@@ -480,7 +480,7 @@ function atf_protect_upload_directory( $directory ) {
  * @param string $extension The extension, with its dot.
  * @return string
  */
-function atf_unique_upload_filename( $directory, $name, $extension ) {
+function alltfo_unique_upload_filename( $directory, $name, $extension ) {
 	return wp_generate_password( 24, false, false ) . $extension;
 }
 
@@ -492,7 +492,7 @@ function atf_unique_upload_filename( $directory, $name, $extension ) {
  * @param int $code One of the `UPLOAD_ERR_*` constants.
  * @return string
  */
-function atf_upload_error_message( $code ) {
+function alltfo_upload_error_message( $code ) {
 	switch ( $code ) {
 		case UPLOAD_ERR_INI_SIZE:
 		case UPLOAD_ERR_FORM_SIZE:

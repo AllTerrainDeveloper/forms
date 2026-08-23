@@ -59,7 +59,7 @@ function reducedMotion(): boolean {
 /**
  * Builds the screen itself: icon, title, message, optional again-button.
  *
- * Mirrors `atf_success_screen_html()` in PHP — same classes, same structure —
+ * Mirrors `alltfo_success_screen_html()` in PHP — same classes, same structure —
  * so the stylesheet serves both and the no-JavaScript fallback looks like the
  * real thing minus the moving parts.
  */

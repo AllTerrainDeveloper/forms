@@ -4,7 +4,7 @@
  *
  * Everything a form does between "somebody pressed Send" and "there is an entry"
  * — availability, spam screening, storage, notifications and confirmations —
- * goes through `atf_process_submission()`, so this is where the plugin's actual
+ * goes through `alltfo_process_submission()`, so this is where the plugin's actual
  * behaviour is pinned.
  *
  * @package AllTerrain_Forms
@@ -16,7 +16,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Submission extends WP_UnitTestCase {
+class ALLTFO_Test_Submission extends WP_UnitTestCase {
 
 	/**
 	 * A form with one required text field and one email field.
@@ -31,7 +31,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 
-		$this->form_id = atf_test_form(
+		$this->form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -63,10 +63,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$issued = time() - 30;
 
 		return array(
-			'atf_form_id' => $this->form_id,
-			'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $this->form_id ),
-			'atf_t'       => $issued,
-			'atf_ts'      => atf_sign_timestamp( $this->form_id, $issued ),
+			'alltfo_form_id' => $this->form_id,
+			'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $this->form_id ),
+			'alltfo_t'       => $issued,
+			'alltfo_ts'      => alltfo_sign_timestamp( $this->form_id, $issued ),
 			'atf'         => $values,
 		);
 	}
@@ -74,11 +74,11 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A good submission is stored, with its values.
 	 *
-	 * @covers ::atf_process_submission
-	 * @covers ::atf_store_entry
+	 * @covers ::alltfo_process_submission
+	 * @covers ::alltfo_store_entry
 	 */
 	public function test_a_good_submission_is_stored() {
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$this->form_id,
 			$this->request(
 				array(
@@ -94,11 +94,11 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$entry = get_post( $result['entry_id'] );
 
-		$this->assertSame( ATF_ENTRY_TYPE, $entry->post_type );
-		$this->assertSame( ATF_STATUS_UNREAD, $entry->post_status );
-		$this->assertSame( $this->form_id, (int) get_post_meta( $entry->ID, ATF_META_FORM, true ) );
+		$this->assertSame( ALLTFO_ENTRY_TYPE, $entry->post_type );
+		$this->assertSame( ALLTFO_STATUS_UNREAD, $entry->post_status );
+		$this->assertSame( $this->form_id, (int) get_post_meta( $entry->ID, ALLTFO_META_FORM, true ) );
 
-		$values = json_decode( get_post_meta( $entry->ID, ATF_META_VALUES, true ), true );
+		$values = json_decode( get_post_meta( $entry->ID, ALLTFO_META_VALUES, true ), true );
 
 		$this->assertSame( 'Ada Lovelace', $values['f1'] );
 		$this->assertSame( 'ada@example.com', $values['f2'] );
@@ -107,29 +107,29 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A submission missing a required field is refused, and nothing is stored.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_validation_failure_stores_nothing() {
-		$before = wp_count_posts( ATF_ENTRY_TYPE );
+		$before = wp_count_posts( ALLTFO_ENTRY_TYPE );
 
-		$result = atf_process_submission( $this->form_id, $this->request( array( 'f1' => '' ) ) );
+		$result = alltfo_process_submission( $this->form_id, $this->request( array( 'f1' => '' ) ) );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertArrayHasKey( 'f1', $result['errors'] );
 		$this->assertSame( 0, $result['entry_id'] );
 
-		$after = wp_count_posts( ATF_ENTRY_TYPE );
+		$after = wp_count_posts( ALLTFO_ENTRY_TYPE );
 
-		$this->assertEquals( $before->{ATF_STATUS_UNREAD} ?? 0, $after->{ATF_STATUS_UNREAD} ?? 0 );
+		$this->assertEquals( $before->{ALLTFO_STATUS_UNREAD} ?? 0, $after->{ALLTFO_STATUS_UNREAD} ?? 0 );
 	}
 
 	/**
 	 * The entry title is built from a meaningful answer.
 	 *
-	 * @covers ::atf_entry_title
+	 * @covers ::alltfo_entry_title
 	 */
 	public function test_entry_title_is_readable() {
-		$result = atf_process_submission( $this->form_id, $this->request( array( 'f1' => 'Grace Hopper' ) ) );
+		$result = alltfo_process_submission( $this->form_id, $this->request( array( 'f1' => 'Grace Hopper' ) ) );
 
 		$this->assertStringContainsString( 'Grace Hopper', get_the_title( $result['entry_id'] ) );
 	}
@@ -137,10 +137,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A submission works through the REST route, not just the function.
 	 *
-	 * Every other test here calls `atf_process_submission()` directly, which
+	 * Every other test here calls `alltfo_process_submission()` directly, which
 	 * skips WordPress's own argument validation — and that is exactly where this
 	 * plugin once had a bug that no unit test could see: the route declared
-	 * `form_id` as required while the form posts `atf_form_id`, so WordPress
+	 * `form_id` as required while the form posts `alltfo_form_id`, so WordPress
 	 * rejected every real submission with "Missing parameter(s)" before the
 	 * callback ever ran.
 	 *
@@ -148,19 +148,19 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * form actually posts, so the route's contract and the markup's contract are
 	 * checked against each other.
 	 *
-	 * @covers ::atf_rest_submit
+	 * @covers ::alltfo_rest_submit
 	 */
 	public function test_submitting_through_the_rest_route() {
 		$issued = time() - 30;
 
-		$request = new WP_REST_Request( 'POST', '/' . ATF_REST_NAMESPACE . '/submit' );
+		$request = new WP_REST_Request( 'POST', '/' . ALLTFO_REST_NAMESPACE . '/submit' );
 
 		$request->set_body_params(
 			array(
-				'atf_form_id' => $this->form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $this->form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $this->form_id, $issued ),
+				'alltfo_form_id' => $this->form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $this->form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $this->form_id, $issued ),
 				'atf'         => array(
 					'f1' => 'Through REST',
 					'f2' => 'rest@example.com',
@@ -176,7 +176,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$this->assertTrue( $data['success'], wp_json_encode( $data ) );
 		$this->assertGreaterThan( 0, $data['entry_id'] );
-		$this->assertSame( ATF_STATUS_UNREAD, get_post_status( $data['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_UNREAD, get_post_status( $data['entry_id'] ) );
 	}
 
 	/**
@@ -186,11 +186,11 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * named exactly what `/submit` insists on, or the two drift apart again the
 	 * next time either is edited.
 	 *
-	 * @covers ::atf_render_hidden_fields
+	 * @covers ::alltfo_render_hidden_fields
 	 */
 	public function test_the_form_posts_what_the_route_requires() {
 		$routes = rest_get_server()->get_routes();
-		$route  = $routes[ '/' . ATF_REST_NAMESPACE . '/submit' ][0];
+		$route  = $routes[ '/' . ALLTFO_REST_NAMESPACE . '/submit' ][0];
 
 		$required = array();
 
@@ -202,7 +202,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$this->assertNotEmpty( $required );
 
-		$html = atf_render_form( $this->form_id );
+		$html = alltfo_render_form( $this->form_id );
 
 		foreach ( $required as $name ) {
 			$this->assertStringContainsString(
@@ -218,90 +218,90 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A filled honeypot is spam.
 	 *
-	 * @covers ::atf_screen_for_spam
+	 * @covers ::alltfo_screen_for_spam
 	 */
 	public function test_honeypot_catches_a_bot() {
 		$request                = $this->request( array( 'f1' => 'Bot' ) );
-		$request['atf_website'] = 'https://spam.example';
+		$request['alltfo_website'] = 'https://spam.example';
 
-		$result = atf_process_submission( $this->form_id, $request );
+		$result = alltfo_process_submission( $this->form_id, $request );
 
 		// The visitor is told it worked. Telling a spammer they were caught is
 		// how they learn to get past it, and telling a false positive they
 		// failed loses a real enquiry twice.
 		$this->assertTrue( $result['success'] );
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
 	}
 
 	/**
 	 * A submission faster than a human is spam.
 	 *
-	 * @covers ::atf_screen_for_spam
+	 * @covers ::alltfo_screen_for_spam
 	 */
 	public function test_time_trap_catches_an_instant_submission() {
 		$issued = time();
 
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$this->form_id,
 			array(
-				'atf_form_id' => $this->form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $this->form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $this->form_id, $issued ),
+				'alltfo_form_id' => $this->form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $this->form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $this->form_id, $issued ),
 				'atf'         => array( 'f1' => 'Fast' ),
 			)
 		);
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
 	}
 
 	/**
 	 * A request with no timestamp at all — a bare field list — is spam.
 	 *
-	 * @covers ::atf_submission_elapsed
+	 * @covers ::alltfo_submission_elapsed
 	 */
 	public function test_missing_timestamp_is_spam() {
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$this->form_id,
 			array(
-				'atf_form_id' => $this->form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $this->form_id ),
+				'alltfo_form_id' => $this->form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $this->form_id ),
 				'atf'         => array( 'f1' => 'Scripted' ),
 			)
 		);
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
 	}
 
 	/**
 	 * A forged timestamp cannot defeat the time trap.
 	 *
-	 * @covers ::atf_submission_elapsed
+	 * @covers ::alltfo_submission_elapsed
 	 */
 	public function test_forged_timestamp_is_rejected() {
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$this->form_id,
 			array(
-				'atf_form_id' => $this->form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $this->form_id ),
+				'alltfo_form_id' => $this->form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $this->form_id ),
 				// Claims the form was served an hour ago, but the signature is
 				// nonsense, so the claim is not believed.
-				'atf_t'       => time() - 3600,
-				'atf_ts'      => 'made-up-signature',
+				'alltfo_t'       => time() - 3600,
+				'alltfo_ts'      => 'made-up-signature',
 				'atf'         => array( 'f1' => 'Forged' ),
 			)
 		);
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
 	}
 
 	/**
 	 * A blocked word files the submission as spam.
 	 *
-	 * @covers ::atf_blocklist_hit
+	 * @covers ::alltfo_blocklist_hit
 	 */
 	public function test_blocklist() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -317,27 +317,27 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$issued = time() - 30;
 
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array( 'f1' => 'Buy CRYPTO now' ),
 			)
 		);
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $result['entry_id'] ) );
 	}
 
 	/**
 	 * The arithmetic challenge accepts a right answer and refuses a wrong one.
 	 *
-	 * @covers ::atf_challenge_answered
+	 * @covers ::alltfo_challenge_answered
 	 */
 	public function test_challenge() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -354,34 +354,34 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$issued = time() - 30;
 
 		$send = function ( $answer, $signature ) use ( $form_id, $issued ) {
-			return atf_process_submission(
+			return alltfo_process_submission(
 				$form_id,
 				array(
-					'atf_form_id'       => $form_id,
-					'atf_nonce'         => wp_create_nonce( 'atf_submit_' . $form_id ),
-					'atf_t'             => $issued,
-					'atf_ts'            => atf_sign_timestamp( $form_id, $issued ),
-					'atf_challenge'     => $answer,
-					'atf_challenge_sig' => $signature,
+					'alltfo_form_id'       => $form_id,
+					'alltfo_nonce'         => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+					'alltfo_t'             => $issued,
+					'alltfo_ts'            => alltfo_sign_timestamp( $form_id, $issued ),
+					'alltfo_challenge'     => $answer,
+					'alltfo_challenge_sig' => $signature,
 					'atf'               => array( 'f1' => 'Human' ),
 				)
 			);
 		};
 
-		$right = $send( '12', atf_sign_challenge( $form_id, 12 ) );
+		$right = $send( '12', alltfo_sign_challenge( $form_id, 12 ) );
 
-		$this->assertSame( ATF_STATUS_UNREAD, get_post_status( $right['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_UNREAD, get_post_status( $right['entry_id'] ) );
 
 		// A wrong answer, correctly signed for a *different* number.
-		$wrong = $send( '11', atf_sign_challenge( $form_id, 12 ) );
+		$wrong = $send( '11', alltfo_sign_challenge( $form_id, 12 ) );
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $wrong['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $wrong['entry_id'] ) );
 
 		// No answer at all, which is what a script that never read the question
 		// sends.
 		$absent = $send( '', '' );
 
-		$this->assertSame( ATF_STATUS_SPAM, get_post_status( $absent['entry_id'] ) );
+		$this->assertSame( ALLTFO_STATUS_SPAM, get_post_status( $absent['entry_id'] ) );
 	}
 
 	/**
@@ -392,30 +392,30 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * (answer, signature) pair stops replaying within two hours instead of
 	 * working forever.
 	 *
-	 * @covers ::atf_challenge_answered
-	 * @covers ::atf_sign_challenge
+	 * @covers ::alltfo_challenge_answered
+	 * @covers ::alltfo_sign_challenge
 	 */
 	public function test_challenge_signature_expires() {
 		$request = static function ( $signature ) {
 			return array(
-				'atf_form_id'       => 7,
-				'atf_challenge'     => '12',
-				'atf_challenge_sig' => $signature,
+				'alltfo_form_id'       => 7,
+				'alltfo_challenge'     => '12',
+				'alltfo_challenge_sig' => $signature,
 			);
 		};
 
 		$this->assertTrue(
-			atf_challenge_answered( $request( atf_sign_challenge( 7, 12 ) ) ),
+			alltfo_challenge_answered( $request( alltfo_sign_challenge( 7, 12 ) ) ),
 			'A signature from the current hour must verify.'
 		);
 
 		$this->assertTrue(
-			atf_challenge_answered( $request( atf_sign_challenge( 7, 12, gmdate( 'YmdH', time() - HOUR_IN_SECONDS ) ) ) ),
+			alltfo_challenge_answered( $request( alltfo_sign_challenge( 7, 12, gmdate( 'YmdH', time() - HOUR_IN_SECONDS ) ) ) ),
 			'A form rendered just before the hour rolled over must still submit.'
 		);
 
 		$this->assertFalse(
-			atf_challenge_answered( $request( atf_sign_challenge( 7, 12, gmdate( 'YmdH', time() - 2 * HOUR_IN_SECONDS ) ) ) ),
+			alltfo_challenge_answered( $request( alltfo_sign_challenge( 7, 12, gmdate( 'YmdH', time() - 2 * HOUR_IN_SECONDS ) ) ) ),
 			'A signature from two hours ago must have expired.'
 		);
 	}
@@ -423,12 +423,12 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A challenge signature cannot be replayed on another form.
 	 *
-	 * @covers ::atf_sign_challenge
+	 * @covers ::alltfo_sign_challenge
 	 */
 	public function test_challenge_signature_is_per_form() {
 		$this->assertNotSame(
-			atf_sign_challenge( 1, 12 ),
-			atf_sign_challenge( 2, 12 ),
+			alltfo_sign_challenge( 1, 12 ),
+			alltfo_sign_challenge( 2, 12 ),
 			'A signature valid on one form must not be valid on another.'
 		);
 	}
@@ -439,10 +439,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * A challenge whose expected answer travels alongside the question is
 	 * decoration.
 	 *
-	 * @covers ::atf_render_challenge
+	 * @covers ::alltfo_render_challenge
 	 */
 	public function test_challenge_does_not_leak_its_answer() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -456,10 +456,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$html = atf_render_form( $form_id );
+		$html = alltfo_render_form( $form_id );
 
-		$this->assertStringContainsString( 'atf_challenge', $html );
-		$this->assertStringContainsString( 'atf_challenge_sig', $html );
+		$this->assertStringContainsString( 'alltfo_challenge', $html );
+		$this->assertStringContainsString( 'alltfo_challenge_sig', $html );
 
 		// The question is "What is A plus B?"; the answer must appear nowhere in
 		// the markup as a value.
@@ -483,14 +483,14 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 *
 	 * A closed form that still accepts a POST is a form that is not closed.
 	 *
-	 * @covers ::atf_form_availability
+	 * @covers ::alltfo_form_availability
 	 */
 	public function test_a_closed_form_refuses_a_post() {
 		// A user who cannot edit forms, because anyone who can is deliberately
 		// never locked out by a schedule.
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -509,13 +509,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$issued = time() - 30;
 
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array( 'f1' => 'Too late' ),
 			)
 		);
@@ -528,12 +528,12 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A login-only form refuses a logged-out visitor.
 	 *
-	 * @covers ::atf_form_availability
+	 * @covers ::alltfo_form_availability
 	 */
 	public function test_login_required() {
 		wp_set_current_user( 0 );
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -545,7 +545,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$availability = atf_form_availability( $form_id );
+		$availability = alltfo_form_availability( $form_id );
 
 		$this->assertFalse( $availability['open'] );
 		$this->assertSame( 'login', $availability['reason'] );
@@ -558,12 +558,12 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * holds no role at all -- logging out must not be the way past the role
 	 * gate.
 	 *
-	 * @covers ::atf_form_availability
+	 * @covers ::alltfo_form_availability
 	 */
 	public function test_role_restriction_closes_the_form_to_logged_out_visitors() {
 		wp_set_current_user( 0 );
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -575,7 +575,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$availability = atf_form_availability( $form_id );
+		$availability = alltfo_form_availability( $form_id );
 
 		$this->assertFalse( $availability['open'] );
 		$this->assertSame( 'role', $availability['reason'] );
@@ -584,7 +584,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		// holds the role gets through.
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
 
-		$this->assertTrue( atf_form_availability( $form_id )['open'] );
+		$this->assertTrue( alltfo_form_availability( $form_id )['open'] );
 	}
 
 	/**
@@ -593,13 +593,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * They are the person who needs to test the form, and a closed notice with
 	 * no way past it is how a scheduling bug survives to launch day.
 	 *
-	 * @covers ::atf_form_availability
+	 * @covers ::alltfo_form_availability
 	 */
 	public function test_editors_can_always_reach_a_closed_form() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'settings' => array(
 					'schedule' => array( 'end' => gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ),
@@ -607,18 +607,18 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertTrue( atf_form_availability( $form_id )['open'] );
+		$this->assertTrue( alltfo_form_availability( $form_id )['open'] );
 	}
 
 	/**
 	 * A submission limit closes the form once it is reached.
 	 *
-	 * @covers ::atf_form_availability
+	 * @covers ::alltfo_form_availability
 	 */
 	public function test_total_submission_limit() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -638,13 +638,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$send = function () use ( $form_id ) {
 			$issued = time() - 30;
 
-			return atf_process_submission(
+			return alltfo_process_submission(
 				$form_id,
 				array(
-					'atf_form_id' => $form_id,
-					'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-					'atf_t'       => $issued,
-					'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+					'alltfo_form_id' => $form_id,
+					'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+					'alltfo_t'       => $issued,
+					'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 					'atf'         => array( 'f1' => 'Someone' ),
 				)
 			);
@@ -692,7 +692,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 
 		add_filter(
-			'atf_upload_overrides',
+			'alltfo_upload_overrides',
 			static function ( $overrides ) {
 				$overrides['action'] = 'wp_handle_sideload';
 
@@ -708,13 +708,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * a submission too -- so a refused submission has to delete them, or every
 	 * failed attempt leaves an orphan on disk forever.
 	 *
-	 * @covers ::atf_process_submission
-	 * @covers ::atf_delete_upload_attachments
+	 * @covers ::alltfo_process_submission
+	 * @covers ::alltfo_delete_upload_attachments
 	 */
 	public function test_a_submission_that_fails_validation_deletes_its_uploads() {
 		$this->allow_cli_uploads();
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -736,7 +736,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$uploaded = 0;
 
 		add_action(
-			'atf_file_uploaded',
+			'alltfo_file_uploaded',
 			static function ( $attachment_id ) use ( &$uploaded ) {
 				$uploaded = $attachment_id;
 			}
@@ -746,16 +746,16 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		// The required text field is empty, so validation refuses the
 		// submission after the upload has already been stored.
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array( 'f1' => '' ),
 			),
-			array( 'atf_file_f9' => $this->fake_upload( 'notes.txt', 'Plain text.' ) )
+			array( 'alltfo_file_f9' => $this->fake_upload( 'notes.txt', 'Plain text.' ) )
 		);
 
 		$this->assertFalse( $result['success'] );
@@ -770,13 +770,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * The whole submission fails, so the attachments the successful field
 	 * already created must not stay behind.
 	 *
-	 * @covers ::atf_process_submission
-	 * @covers ::atf_delete_upload_attachments
+	 * @covers ::alltfo_process_submission
+	 * @covers ::alltfo_delete_upload_attachments
 	 */
 	public function test_an_upload_error_deletes_the_other_fields_uploads() {
 		$this->allow_cli_uploads();
 
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -797,7 +797,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$uploaded = 0;
 
 		add_action(
-			'atf_file_uploaded',
+			'alltfo_file_uploaded',
 			static function ( $attachment_id ) use ( &$uploaded ) {
 				$uploaded = $attachment_id;
 			}
@@ -807,18 +807,18 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		// The second field's file wears a forbidden extension, so it is refused
 		// before it touches disk -- after the first field's file was stored.
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array(),
 			),
 			array(
-				'atf_file_ok'  => $this->fake_upload( 'notes.txt', 'Plain text.' ),
-				'atf_file_bad' => $this->fake_upload( 'evil.php', '<?php' ),
+				'alltfo_file_ok'  => $this->fake_upload( 'notes.txt', 'Plain text.' ),
+				'alltfo_file_bad' => $this->fake_upload( 'evil.php', '<?php' ),
 			)
 		);
 
@@ -833,10 +833,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * Storage can be switched off entirely.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_storage_can_be_off() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'   => array(
 					array(
@@ -852,13 +852,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$issued = time() - 30;
 
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array( 'f1' => 'Not kept' ),
 			)
 		);
@@ -870,10 +870,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A password is never written into an entry.
 	 *
-	 * @covers ::atf_store_entry
+	 * @covers ::alltfo_store_entry
 	 */
 	public function test_passwords_are_never_stored() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -890,13 +890,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 
 		$issued = time() - 30;
 
-		$result = atf_process_submission(
+		$result = alltfo_process_submission(
 			$form_id,
 			array(
-				'atf_form_id' => $form_id,
-				'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-				'atf_t'       => $issued,
-				'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+				'alltfo_form_id' => $form_id,
+				'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 				'atf'         => array(
 					'u' => 'ada',
 					'p' => 'correct horse battery staple',
@@ -904,22 +904,22 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$stored = get_post_meta( $result['entry_id'], ATF_META_VALUES, true );
+		$stored = get_post_meta( $result['entry_id'], ALLTFO_META_VALUES, true );
 
 		$this->assertStringNotContainsString( 'correct horse battery staple', $stored );
 		$this->assertArrayNotHasKey( 'p', json_decode( $stored, true ) );
 	}
 
 	/**
-	 * `atf_entry_created` fires with the entry and the values.
+	 * `alltfo_entry_created` fires with the entry and the values.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_entry_created_action_fires() {
 		$seen = array();
 
 		add_action(
-			'atf_entry_created',
+			'alltfo_entry_created',
 			static function ( $entry_id, $form_id, $values ) use ( &$seen ) {
 				$seen = compact( 'entry_id', 'form_id', 'values' );
 			},
@@ -927,7 +927,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			3
 		);
 
-		$result = atf_process_submission( $this->form_id, $this->request( array( 'f1' => 'Hooked' ) ) );
+		$result = alltfo_process_submission( $this->form_id, $this->request( array( 'f1' => 'Hooked' ) ) );
 
 		$this->assertSame( $result['entry_id'], $seen['entry_id'] );
 		$this->assertSame( $this->form_id, $seen['form_id'] );
@@ -937,10 +937,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A confirmation is resolved and returned.
 	 *
-	 * @covers ::atf_resolve_confirmation
+	 * @covers ::alltfo_resolve_confirmation
 	 */
 	public function test_default_confirmation() {
-		$result = atf_process_submission( $this->form_id, $this->request( array( 'f1' => 'Ada' ) ) );
+		$result = alltfo_process_submission( $this->form_id, $this->request( array( 'f1' => 'Ada' ) ) );
 
 		$this->assertSame( 'message', $result['confirmation']['type'] );
 		$this->assertStringContainsString( 'Thank you', $result['confirmation']['message'] );
@@ -954,11 +954,11 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	 * outside. `rawurlencode()` on one is a fatal on PHP 8; the array is
 	 * dropped and the rest of the query survives.
 	 *
-	 * @covers ::atf_confirmation_url
+	 * @covers ::alltfo_confirmation_url
 	 */
 	public function test_confirmation_query_drops_nested_values() {
 		$confirmation = array_merge(
-			atf_default_confirmation(),
+			alltfo_default_confirmation(),
 			array(
 				'type'  => 'redirect',
 				'url'   => 'https://example.com/thanks',
@@ -966,7 +966,7 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 			)
 		);
 
-		$url = atf_confirmation_url( $confirmation, array() );
+		$url = alltfo_confirmation_url( $confirmation, array() );
 
 		$this->assertStringContainsString( 'plain=ok', $url );
 		$this->assertStringNotContainsString( 'nested', $url, 'A nested value has no defensible flattening and is dropped.' );
@@ -975,10 +975,10 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * Conditional confirmations pick the first that matches.
 	 *
-	 * @covers ::atf_resolve_confirmation
+	 * @covers ::alltfo_resolve_confirmation
 	 */
 	public function test_conditional_confirmation() {
-		$form_id = atf_test_form(
+		$form_id = alltfo_test_form(
 			array(
 				'fields'        => array(
 					array(
@@ -1026,13 +1026,13 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 		$send = function ( $value ) use ( $form_id ) {
 			$issued = time() - 30;
 
-			return atf_process_submission(
+			return alltfo_process_submission(
 				$form_id,
 				array(
-					'atf_form_id' => $form_id,
-					'atf_nonce'   => wp_create_nonce( 'atf_submit_' . $form_id ),
-					'atf_t'       => $issued,
-					'atf_ts'      => atf_sign_timestamp( $form_id, $issued ),
+					'alltfo_form_id' => $form_id,
+					'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+					'alltfo_t'       => $issued,
+					'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
 					'atf'         => array( 'why' => $value ),
 				)
 			);
@@ -1091,12 +1091,12 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A notification is sent, with the answers in it.
 	 *
-	 * @covers ::atf_send_notifications
+	 * @covers ::alltfo_send_notifications
 	 */
 	public function test_notification_is_sent() {
 		$sent = $this->capture_mail();
 
-		atf_process_submission(
+		alltfo_process_submission(
 			$this->form_id,
 			$this->request(
 				array(
@@ -1119,15 +1119,15 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * Spam never reaches anybody's inbox.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_spam_is_not_emailed() {
 		$sent = $this->capture_mail();
 
 		$request                = $this->request( array( 'f1' => 'Bot' ) );
-		$request['atf_website'] = 'https://spam.example';
+		$request['alltfo_website'] = 'https://spam.example';
 
-		atf_process_submission( $this->form_id, $request );
+		alltfo_process_submission( $this->form_id, $request );
 
 		// Captured through `pre_wp_mail` rather than read off the mock mailer,
 		// so this asserts that nothing was *attempted* — in an environment where
@@ -1139,29 +1139,29 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * Analytics count a submission but not a builder's own preview.
 	 *
-	 * @covers ::atf_record_submission
+	 * @covers ::alltfo_record_submission
 	 */
 	public function test_submission_is_counted() {
-		$before = atf_get_stats( $this->form_id )['submissions'];
+		$before = alltfo_get_stats( $this->form_id )['submissions'];
 
-		atf_process_submission( $this->form_id, $this->request( array( 'f1' => 'Counted' ) ) );
+		alltfo_process_submission( $this->form_id, $this->request( array( 'f1' => 'Counted' ) ) );
 
-		$this->assertSame( $before + 1, atf_get_stats( $this->form_id )['submissions'] );
+		$this->assertSame( $before + 1, alltfo_get_stats( $this->form_id )['submissions'] );
 	}
 
 	/**
 	 * A preview runs the whole pipeline and stores nothing.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_preview_stores_nothing() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$request                = $this->request( array( 'f1' => 'Previewing' ) );
-		$request['atf_preview'] = '1';
+		$request['alltfo_preview'] = '1';
 
-		$result = atf_process_submission( $this->form_id, $request );
+		$result = alltfo_process_submission( $this->form_id, $request );
 
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( 0, $result['entry_id'] );
@@ -1171,16 +1171,16 @@ class ATF_Test_Submission extends WP_UnitTestCase {
 	/**
 	 * A preview still validates, so what it shows is what a visitor would get.
 	 *
-	 * @covers ::atf_process_submission
+	 * @covers ::alltfo_process_submission
 	 */
 	public function test_preview_still_validates() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		atf_add_capabilities();
+		alltfo_add_capabilities();
 
 		$request                = $this->request( array( 'f1' => '' ) );
-		$request['atf_preview'] = '1';
+		$request['alltfo_preview'] = '1';
 
-		$result = atf_process_submission( $this->form_id, $request );
+		$result = alltfo_process_submission( $this->form_id, $request );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertArrayHasKey( 'f1', $result['errors'] );

@@ -6,7 +6,7 @@
  * route here.
  *
  * The **builder** routes -- forms, themes, entries, analytics -- require
- * `atf_edit_forms` or `atf_read_entries` and are called by an authenticated
+ * `alltfo_edit_forms` or `alltfo_read_entries` and are called by an authenticated
  * admin with a nonce.
  *
  * The **submit** route is public by definition. It is the only route with
@@ -19,7 +19,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'rest_api_init', 'atf_register_rest_routes' );
+add_action( 'rest_api_init', 'alltfo_register_rest_routes' );
 
 /**
  * Registers every route.
@@ -28,29 +28,29 @@ add_action( 'rest_api_init', 'atf_register_rest_routes' );
  *
  * @return void
  */
-function atf_register_rest_routes() {
-	$ns = ATF_REST_NAMESPACE;
+function alltfo_register_rest_routes() {
+	$ns = ALLTFO_REST_NAMESPACE;
 
 	register_rest_route(
 		$ns,
 		'/submit',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_submit',
+			'callback'            => 'alltfo_rest_submit',
 			// Public on purpose: this is how a stranger sends a form. Every
 			// check that would normally live in a permission callback --
 			// whether the form is open, whether the visitor may see it, whether
 			// this looks like spam -- happens inside the pipeline, because they
 			// all depend on which form was posted.
 			'permission_callback' => '__return_true',
-			// The parameter is `atf_form_id`, because the bundle posts the
+			// The parameter is `alltfo_form_id`, because the bundle posts the
 			// form's own `FormData` wholesale and that is the name of the hidden
 			// input the renderer emits. Declaring `form_id` here instead makes
 			// WordPress reject every real submission with "Missing parameter(s)"
 			// *before* the callback runs -- a failure no test that calls
-			// `atf_process_submission()` directly can ever see.
+			// `alltfo_process_submission()` directly can ever see.
 			'args'                => array(
-				'atf_form_id' => array(
+				'alltfo_form_id' => array(
 					'required'          => true,
 					'type'              => 'integer',
 					'sanitize_callback' => 'absint',
@@ -64,15 +64,15 @@ function atf_register_rest_routes() {
 		'/resume',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_save_partial',
+			'callback'            => 'alltfo_rest_save_partial',
 			// Public for the same reason `/submit` is: a half-finished form
 			// belongs to a visitor who has no account. The nonce is checked in
 			// the handler, and the form must have the feature switched on.
 			'permission_callback' => '__return_true',
-			// `atf_form_id`, for the same reason as `/submit` above: the bundle
+			// `alltfo_form_id`, for the same reason as `/submit` above: the bundle
 			// posts the form's own FormData.
 			'args'                => array(
-				'atf_form_id' => array(
+				'alltfo_form_id' => array(
 					'required'          => true,
 					'type'              => 'integer',
 					'sanitize_callback' => 'absint',
@@ -87,13 +87,13 @@ function atf_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'atf_rest_list_forms',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_list_forms',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'atf_rest_create_form',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_create_form',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 		)
 	);
@@ -104,18 +104,18 @@ function atf_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'atf_rest_get_form',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_get_form',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 			array(
 				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => 'atf_rest_update_form',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_update_form',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => 'atf_rest_delete_form',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_delete_form',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 		)
 	);
@@ -125,8 +125,8 @@ function atf_register_rest_routes() {
 		'/forms/(?P<id>\d+)/duplicate',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_duplicate_form',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_duplicate_form',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -135,8 +135,8 @@ function atf_register_rest_routes() {
 		'/forms/(?P<id>\d+)/archive',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_archive_form',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_archive_form',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -145,8 +145,8 @@ function atf_register_rest_routes() {
 		'/forms/(?P<id>\d+)/unarchive',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_unarchive_form',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_unarchive_form',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -160,8 +160,8 @@ function atf_register_rest_routes() {
 			// "No route was found matching the URL and request method" — a 404
 			// that reads like a missing route rather than a wrong verb.
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_preview_form',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_preview_form',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -170,8 +170,8 @@ function atf_register_rest_routes() {
 		'/forms/(?P<id>\d+)/merge-tags',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_merge_tags',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_merge_tags',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -180,8 +180,8 @@ function atf_register_rest_routes() {
 		'/forms/(?P<id>\d+)/analytics',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_analytics',
-			'permission_callback' => 'atf_rest_can_read_entries',
+			'callback'            => 'alltfo_rest_analytics',
+			'permission_callback' => 'alltfo_rest_can_read_entries',
 			'args'                => array(
 				'dimension' => array(
 					'type'              => 'string',
@@ -193,7 +193,7 @@ function atf_register_rest_routes() {
 	);
 
 	// The demo-data tools. Gated twice over: developer mode says "show me these",
-	// `atf_edit_forms` says "you may use them", and the two are not the same
+	// `alltfo_edit_forms` says "you may use them", and the two are not the same
 	// question -- see `includes/dev-mode.php`.
 	register_rest_route(
 		$ns,
@@ -201,13 +201,13 @@ function atf_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'atf_rest_demo_status',
-				'permission_callback' => 'atf_rest_can_use_developer_tools',
+				'callback'            => 'alltfo_rest_demo_status',
+				'permission_callback' => 'alltfo_rest_can_use_developer_tools',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'atf_rest_demo_seed',
-				'permission_callback' => 'atf_rest_can_use_developer_tools',
+				'callback'            => 'alltfo_rest_demo_seed',
+				'permission_callback' => 'alltfo_rest_can_use_developer_tools',
 				'args'                => array(
 					'count' => array(
 						'type'     => 'integer',
@@ -217,8 +217,8 @@ function atf_register_rest_routes() {
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => 'atf_rest_demo_remove',
-				'permission_callback' => 'atf_rest_can_use_developer_tools',
+				'callback'            => 'alltfo_rest_demo_remove',
+				'permission_callback' => 'alltfo_rest_can_use_developer_tools',
 			),
 		)
 	);
@@ -228,8 +228,8 @@ function atf_register_rest_routes() {
 		'/entries',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_list_entries',
-			'permission_callback' => 'atf_rest_can_read_entries',
+			'callback'            => 'alltfo_rest_list_entries',
+			'permission_callback' => 'alltfo_rest_can_read_entries',
 		)
 	);
 
@@ -239,18 +239,18 @@ function atf_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'atf_rest_get_entry',
-				'permission_callback' => 'atf_rest_can_read_entries',
+				'callback'            => 'alltfo_rest_get_entry',
+				'permission_callback' => 'alltfo_rest_can_read_entries',
 			),
 			array(
 				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => 'atf_rest_update_entry',
-				'permission_callback' => 'atf_rest_can_read_entries',
+				'callback'            => 'alltfo_rest_update_entry',
+				'permission_callback' => 'alltfo_rest_can_read_entries',
 			),
 			array(
 				'methods'             => WP_REST_Server::DELETABLE,
-				'callback'            => 'atf_rest_delete_entry',
-				'permission_callback' => 'atf_rest_can_delete_entries',
+				'callback'            => 'alltfo_rest_delete_entry',
+				'permission_callback' => 'alltfo_rest_can_delete_entries',
 			),
 		)
 	);
@@ -260,8 +260,8 @@ function atf_register_rest_routes() {
 		'/entries/export',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_export_entries',
-			'permission_callback' => 'atf_rest_can_read_entries',
+			'callback'            => 'alltfo_rest_export_entries',
+			'permission_callback' => 'alltfo_rest_can_read_entries',
 		)
 	);
 
@@ -271,13 +271,13 @@ function atf_register_rest_routes() {
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'atf_rest_list_themes',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_list_themes',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'atf_rest_save_theme',
-				'permission_callback' => 'atf_rest_can_edit',
+				'callback'            => 'alltfo_rest_save_theme',
+				'permission_callback' => 'alltfo_rest_can_edit',
 			),
 		)
 	);
@@ -287,8 +287,8 @@ function atf_register_rest_routes() {
 		'/themes/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'callback'            => 'atf_rest_delete_theme',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_delete_theme',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -297,8 +297,8 @@ function atf_register_rest_routes() {
 		'/config',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_config',
-			'permission_callback' => 'atf_rest_can_edit',
+			'callback'            => 'alltfo_rest_config',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -307,10 +307,10 @@ function atf_register_rest_routes() {
 		'/mailpoet',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'atf_rest_mailpoet',
+			'callback'            => 'alltfo_rest_mailpoet',
 			// Editing forms is the capability that matters: connecting a form
 			// to a list is editing what the form does on submit.
-			'permission_callback' => 'atf_rest_can_edit',
+			'permission_callback' => 'alltfo_rest_can_edit',
 		)
 	);
 
@@ -319,8 +319,27 @@ function atf_register_rest_routes() {
 		'/track',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'atf_rest_track',
+			'callback'            => 'alltfo_rest_track',
+			// Public on purpose, for the same reason `/submit` is: the "someone
+			// began filling this form in" ping comes from a logged-out visitor
+			// on the front end. It records nothing but an anonymous counter
+			// bump against a published form — the handler verifies the form
+			// exists and has analytics switched on before touching anything —
+			// and nothing is read back or sent to any external service.
 			'permission_callback' => '__return_true',
+			'args'                => array(
+				'form_id' => array(
+					'required'          => true,
+					'type'              => 'integer',
+					'sanitize_callback' => 'absint',
+				),
+				'event'   => array(
+					'required'          => true,
+					'type'              => 'string',
+					'enum'              => array( 'start' ),
+					'sanitize_callback' => 'sanitize_key',
+				),
+			),
 		)
 	);
 }
@@ -332,12 +351,12 @@ function atf_register_rest_routes() {
  *
  * @return true|WP_Error
  */
-function atf_rest_can_edit() {
-	if ( atf_can_edit_forms() ) {
+function alltfo_rest_can_edit() {
+	if ( alltfo_can_edit_forms() ) {
 		return true;
 	}
 
-	return new WP_Error( 'atf_forbidden', __( 'You cannot edit forms.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
+	return new WP_Error( 'alltfo_forbidden', __( 'You cannot edit forms.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
 }
 
 /**
@@ -348,7 +367,7 @@ function atf_rest_can_edit() {
  * @param WP_REST_Request $request The request.
  * @return true|WP_Error
  */
-function atf_rest_can_read_entries( $request ) {
+function alltfo_rest_can_read_entries( $request ) {
 	$form_id = (int) $request->get_param( 'form_id' );
 
 	// The analytics route names its form parameter `id`, because it lives at
@@ -359,11 +378,11 @@ function atf_rest_can_read_entries( $request ) {
 		$form_id = (int) $request->get_param( 'id' );
 	}
 
-	if ( atf_can_read_entries( $form_id ) ) {
+	if ( alltfo_can_read_entries( $form_id ) ) {
 		return true;
 	}
 
-	return new WP_Error( 'atf_forbidden', __( 'You cannot read entries.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
+	return new WP_Error( 'alltfo_forbidden', __( 'You cannot read entries.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
 }
 
 /**
@@ -373,12 +392,12 @@ function atf_rest_can_read_entries( $request ) {
  *
  * @return true|WP_Error
  */
-function atf_rest_can_delete_entries() {
-	if ( current_user_can( 'atf_delete_entries' ) ) {
+function alltfo_rest_can_delete_entries() {
+	if ( current_user_can( 'alltfo_delete_entries' ) ) {
 		return true;
 	}
 
-	return new WP_Error( 'atf_forbidden', __( 'You cannot delete entries.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
+	return new WP_Error( 'alltfo_forbidden', __( 'You cannot delete entries.', 'allterrain-forms' ), array( 'status' => rest_authorization_required_code() ) );
 }
 
 /**
@@ -389,8 +408,8 @@ function atf_rest_can_delete_entries() {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_submit( $request ) {
-	$form_id = absint( $request->get_param( 'atf_form_id' ) );
+function alltfo_rest_submit( $request ) {
+	$form_id = absint( $request->get_param( 'alltfo_form_id' ) );
 
 	$body = $request->get_params();
 
@@ -398,9 +417,9 @@ function atf_rest_submit( $request ) {
 	// public form's nonce is not an authorisation check -- it is a replay
 	// deterrent, and a failure has to come back as a message the visitor can
 	// act on rather than a 401 the bundle would render as a dead form.
-	$nonce = isset( $body['atf_nonce'] ) ? sanitize_text_field( (string) $body['atf_nonce'] ) : '';
+	$nonce = isset( $body['alltfo_nonce'] ) ? sanitize_text_field( (string) $body['alltfo_nonce'] ) : '';
 
-	if ( ! wp_verify_nonce( $nonce, 'atf_submit_' . $form_id ) ) {
+	if ( ! wp_verify_nonce( $nonce, 'alltfo_submit_' . $form_id ) ) {
 		return rest_ensure_response(
 			array(
 				'success' => false,
@@ -411,7 +430,7 @@ function atf_rest_submit( $request ) {
 	}
 
 	$files  = $request->get_file_params();
-	$result = atf_process_submission( $form_id, $body, $files );
+	$result = alltfo_process_submission( $form_id, $body, $files );
 
 	return rest_ensure_response( $result );
 }
@@ -424,13 +443,13 @@ function atf_rest_submit( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_save_partial( $request ) {
-	$form_id = absint( $request->get_param( 'atf_form_id' ) );
+function alltfo_rest_save_partial( $request ) {
+	$form_id = absint( $request->get_param( 'alltfo_form_id' ) );
 	$body    = $request->get_params();
 
-	$nonce = isset( $body['atf_nonce'] ) ? sanitize_text_field( (string) $body['atf_nonce'] ) : '';
+	$nonce = isset( $body['alltfo_nonce'] ) ? sanitize_text_field( (string) $body['alltfo_nonce'] ) : '';
 
-	if ( ! wp_verify_nonce( $nonce, 'atf_submit_' . $form_id ) ) {
+	if ( ! wp_verify_nonce( $nonce, 'alltfo_submit_' . $form_id ) ) {
 		return rest_ensure_response(
 			array(
 				'success' => false,
@@ -439,10 +458,10 @@ function atf_rest_save_partial( $request ) {
 		);
 	}
 
-	$saved = atf_save_partial(
+	$saved = alltfo_save_partial(
 		$form_id,
 		isset( $body['atf'] ) && is_array( $body['atf'] ) ? $body['atf'] : array(),
-		isset( $body[ ATF_RESUME_QUERY ] ) ? (string) $body[ ATF_RESUME_QUERY ] : ''
+		isset( $body[ ALLTFO_RESUME_QUERY ] ) ? (string) $body[ ALLTFO_RESUME_QUERY ] : ''
 	);
 
 	if ( is_wp_error( $saved ) ) {
@@ -469,12 +488,19 @@ function atf_rest_save_partial( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_track( $request ) {
+function alltfo_rest_track( $request ) {
 	$form_id = absint( $request->get_param( 'form_id' ) );
 	$event   = sanitize_key( (string) $request->get_param( 'event' ) );
 
-	if ( $form_id && 'start' === $event ) {
-		atf_record_start( $form_id );
+	// Only a real form's counter can be bumped: an id pointing at another post
+	// type, or at nothing, is dropped without side effects, so the public
+	// route cannot be used to write meta onto arbitrary posts. Status is
+	// deliberately not checked — the renderer records views for any existing
+	// form, and the two counters must agree about which forms count.
+	$form = $form_id ? get_post( $form_id ) : null;
+
+	if ( $form && ALLTFO_FORM_TYPE === $form->post_type && 'start' === $event ) {
+		alltfo_record_start( $form_id );
 	}
 
 	return rest_ensure_response( array( 'ok' => true ) );
@@ -492,13 +518,13 @@ function atf_rest_track( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_list_forms( $request ) {
+function alltfo_rest_list_forms( $request ) {
 	$archived = rest_sanitize_boolean( $request->get_param( 'archived' ) );
 
 	$posts = get_posts(
 		array(
-			'post_type'        => ATF_FORM_TYPE,
-			'post_status'      => $archived ? ATF_STATUS_ARCHIVED : array( 'publish', 'draft' ),
+			'post_type'        => ALLTFO_FORM_TYPE,
+			'post_status'      => $archived ? ALLTFO_STATUS_ARCHIVED : array( 'publish', 'draft' ),
 			'numberposts'      => 200,
 			'orderby'          => 'modified',
 			'order'            => 'DESC',
@@ -506,7 +532,7 @@ function atf_rest_list_forms( $request ) {
 		)
 	);
 
-	return rest_ensure_response( array_map( 'atf_form_summary', $posts ) );
+	return rest_ensure_response( array_map( 'alltfo_form_summary', $posts ) );
 }
 
 /**
@@ -517,19 +543,19 @@ function atf_rest_list_forms( $request ) {
  * @param WP_Post $post The form.
  * @return array The summary row.
  */
-function atf_form_summary( $post ) {
-	$schema = atf_get_form_schema( $post->ID );
-	$stats  = atf_get_stats( $post->ID );
+function alltfo_form_summary( $post ) {
+	$schema = alltfo_get_form_schema( $post->ID );
+	$stats  = alltfo_get_stats( $post->ID );
 
 	return array(
 		'id'          => $post->ID,
 		'title'       => $post->post_title,
 		'status'      => $post->post_status,
 		'modified'    => $post->post_modified_gmt,
-		'fields'      => count( atf_input_fields( $schema ) ),
+		'fields'      => count( alltfo_input_fields( $schema ) ),
 		'theme'       => $schema['settings']['theme'],
-		'entries'     => atf_count_entries( $post->ID ),
-		'unread'      => atf_count_entries_by_status( $post->ID, ATF_STATUS_UNREAD ),
+		'entries'     => alltfo_count_entries( $post->ID ),
+		'unread'      => alltfo_count_entries_by_status( $post->ID, ALLTFO_STATUS_UNREAD ),
 		'views'       => $stats['views'],
 		'submissions' => $stats['submissions'],
 		'shortcode'   => sprintf( '[allterrain_form id="%d"]', $post->ID ),
@@ -544,15 +570,15 @@ function atf_form_summary( $post ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_archive_form( $request ) {
+function alltfo_rest_archive_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
-	$result  = atf_archive_form( $form_id );
+	$result  = alltfo_archive_form( $form_id );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 
-	return rest_ensure_response( atf_form_summary( get_post( $form_id ) ) );
+	return rest_ensure_response( alltfo_form_summary( get_post( $form_id ) ) );
 }
 
 /**
@@ -563,15 +589,15 @@ function atf_rest_archive_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_unarchive_form( $request ) {
+function alltfo_rest_unarchive_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
-	$result  = atf_unarchive_form( $form_id );
+	$result  = alltfo_unarchive_form( $form_id );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 
-	return rest_ensure_response( atf_form_summary( get_post( $form_id ) ) );
+	return rest_ensure_response( alltfo_form_summary( get_post( $form_id ) ) );
 }
 
 /**
@@ -582,11 +608,11 @@ function atf_rest_unarchive_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_create_form( $request ) {
+function alltfo_rest_create_form( $request ) {
 	$template = sanitize_key( (string) $request->get_param( 'template' ) );
 	$title    = sanitize_text_field( (string) $request->get_param( 'title' ) );
 
-	$form_id = atf_create_form_from_template( '' !== $template ? $template : 'blank', $title );
+	$form_id = alltfo_create_form_from_template( '' !== $template ? $template : 'blank', $title );
 
 	if ( is_wp_error( $form_id ) ) {
 		return $form_id;
@@ -597,10 +623,10 @@ function atf_rest_create_form( $request ) {
 	$imported = $request->get_param( 'schema' );
 
 	if ( $imported ) {
-		atf_save_form_schema( $form_id, $imported );
+		alltfo_save_form_schema( $form_id, $imported );
 	}
 
-	return atf_rest_form_response( $form_id );
+	return alltfo_rest_form_response( $form_id );
 }
 
 /**
@@ -611,8 +637,8 @@ function atf_rest_create_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_get_form( $request ) {
-	return atf_rest_form_response( absint( $request->get_param( 'id' ) ) );
+function alltfo_rest_get_form( $request ) {
+	return alltfo_rest_form_response( absint( $request->get_param( 'id' ) ) );
 }
 
 /**
@@ -623,12 +649,12 @@ function atf_rest_get_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_update_form( $request ) {
+function alltfo_rest_update_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
 	$post    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	$title = $request->get_param( 'title' );
@@ -645,10 +671,10 @@ function atf_rest_update_form( $request ) {
 	$schema = $request->get_param( 'schema' );
 
 	if ( null !== $schema ) {
-		atf_save_form_schema( $form_id, $schema );
+		alltfo_save_form_schema( $form_id, $schema );
 	}
 
-	return atf_rest_form_response( $form_id );
+	return alltfo_rest_form_response( $form_id );
 }
 
 /**
@@ -663,12 +689,12 @@ function atf_rest_update_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_delete_form( $request ) {
+function alltfo_rest_delete_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
 	$post    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	wp_trash_post( $form_id );
@@ -680,7 +706,7 @@ function atf_rest_delete_form( $request ) {
 	 *
 	 * @param int $form_id The form.
 	 */
-	do_action( 'atf_form_deleted', $form_id );
+	do_action( 'alltfo_form_deleted', $form_id );
 
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
@@ -693,17 +719,17 @@ function atf_rest_delete_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_duplicate_form( $request ) {
+function alltfo_rest_duplicate_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
 	$post    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	$copy_id = wp_insert_post(
 		array(
-			'post_type'   => ATF_FORM_TYPE,
+			'post_type'   => ALLTFO_FORM_TYPE,
 			/* translators: %s: the original form's title. */
 			'post_title'  => sprintf( __( '%s (copy)', 'allterrain-forms' ), $post->post_title ),
 			'post_status' => 'publish',
@@ -716,9 +742,9 @@ function atf_rest_duplicate_form( $request ) {
 		return $copy_id;
 	}
 
-	atf_save_form_schema( $copy_id, atf_get_form_schema( $form_id ) );
+	alltfo_save_form_schema( $copy_id, alltfo_get_form_schema( $form_id ) );
 
-	return atf_rest_form_response( $copy_id );
+	return alltfo_rest_form_response( $copy_id );
 }
 
 /**
@@ -732,12 +758,12 @@ function atf_rest_duplicate_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_preview_form( $request ) {
+function alltfo_rest_preview_form( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
 	$post    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	$schema = $request->get_param( 'schema' );
@@ -746,17 +772,17 @@ function atf_rest_preview_form( $request ) {
 	// The unsaved schema is applied through a filter for the duration of this
 	// one render rather than written to the database, so previewing never
 	// changes the stored form.
-	$override = null !== $schema ? atf_normalize_schema( $schema ) : null;
+	$override = null !== $schema ? alltfo_normalize_schema( $schema ) : null;
 
 	$filter = static function ( $stored, $raw ) use ( $override ) {
 		return $override ? $override : $stored;
 	};
 
 	if ( $override ) {
-		add_filter( 'atf_normalize_schema', $filter, 99, 2 );
+		add_filter( 'alltfo_normalize_schema', $filter, 99, 2 );
 	}
 
-	$html = atf_render_form(
+	$html = alltfo_render_form(
 		$form_id,
 		array(
 			'preview' => true,
@@ -765,7 +791,7 @@ function atf_rest_preview_form( $request ) {
 	);
 
 	if ( $override ) {
-		remove_filter( 'atf_normalize_schema', $filter, 99 );
+		remove_filter( 'alltfo_normalize_schema', $filter, 99 );
 	}
 
 	return rest_ensure_response( array( 'html' => $html ) );
@@ -784,15 +810,15 @@ function atf_rest_preview_form( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_merge_tags( $request ) {
+function alltfo_rest_merge_tags( $request ) {
 	$form_id = absint( $request->get_param( 'id' ) );
 	$post    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	return rest_ensure_response( array( 'groups' => atf_merge_tag_catalogue( $form_id ) ) );
+	return rest_ensure_response( array( 'groups' => alltfo_merge_tag_catalogue( $form_id ) ) );
 }
 
 /**
@@ -803,11 +829,11 @@ function atf_rest_merge_tags( $request ) {
  * @param int $form_id The form.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_form_response( $form_id ) {
+function alltfo_rest_form_response( $form_id ) {
 	$post = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $post || ATF_FORM_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_FORM_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_form_missing', __( 'That form does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	return rest_ensure_response(
@@ -816,14 +842,14 @@ function atf_rest_form_response( $form_id ) {
 			'title'      => $post->post_title,
 			'status'     => $post->post_status,
 			'modified'   => $post->post_modified_gmt,
-			'schema'     => atf_get_form_schema( $post->ID ),
+			'schema'     => alltfo_get_form_schema( $post->ID ),
 			'shortcode'  => sprintf( '[allterrain_form id="%d"]', $post->ID ),
-			'entries'    => atf_count_entries( $post->ID ),
+			'entries'    => alltfo_count_entries( $post->ID ),
 			// Where the title bar's eye button points. Nonced per response
 			// rather than built in the browser, because the browser has no way
 			// to mint a nonce and a preview URL without one is a way to read an
 			// unpublished form.
-			'previewUrl' => atf_form_preview_url( $post->ID ),
+			'previewUrl' => alltfo_form_preview_url( $post->ID ),
 		)
 	);
 }
@@ -836,13 +862,13 @@ function atf_rest_form_response( $form_id ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_list_entries( $request ) {
+function alltfo_rest_list_entries( $request ) {
 	$status = $request->get_param( 'status' );
 
-	$result = atf_query_entries(
+	$result = alltfo_query_entries(
 		array(
 			'form_id'  => absint( $request->get_param( 'form_id' ) ),
-			'status'   => $status ? array_map( 'sanitize_key', (array) $status ) : array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+			'status'   => $status ? array_map( 'sanitize_key', (array) $status ) : array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 			'search'   => (string) $request->get_param( 'search' ),
 			'page'     => max( 1, (int) $request->get_param( 'page' ) ),
 			'per_page' => (int) $request->get_param( 'per_page' ) ? (int) $request->get_param( 'per_page' ) : 25,
@@ -866,17 +892,17 @@ function atf_rest_list_entries( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_get_entry( $request ) {
+function alltfo_rest_get_entry( $request ) {
 	$entry_id = absint( $request->get_param( 'id' ) );
-	$entry    = atf_prepare_entry( $entry_id );
+	$entry    = alltfo_prepare_entry( $entry_id );
 
 	if ( ! $entry ) {
-		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+		return new WP_Error( 'alltfo_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	if ( ATF_STATUS_UNREAD === $entry['status'] ) {
-		atf_set_entry_status( $entry_id, ATF_STATUS_READ );
-		$entry['status'] = ATF_STATUS_READ;
+	if ( ALLTFO_STATUS_UNREAD === $entry['status'] ) {
+		alltfo_set_entry_status( $entry_id, ALLTFO_STATUS_READ );
+		$entry['status'] = ALLTFO_STATUS_READ;
 	}
 
 	return rest_ensure_response( $entry );
@@ -890,13 +916,13 @@ function atf_rest_get_entry( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_update_entry( $request ) {
+function alltfo_rest_update_entry( $request ) {
 	$entry_id = absint( $request->get_param( 'id' ) );
 	$status   = $request->get_param( 'status' );
 	$starred  = $request->get_param( 'starred' );
 
 	if ( null !== $status ) {
-		$result = atf_set_entry_status( $entry_id, sanitize_key( (string) $status ) );
+		$result = alltfo_set_entry_status( $entry_id, sanitize_key( (string) $status ) );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -904,14 +930,14 @@ function atf_rest_update_entry( $request ) {
 	}
 
 	if ( null !== $starred ) {
-		$result = atf_star_entry( $entry_id, (bool) $starred );
+		$result = alltfo_star_entry( $entry_id, (bool) $starred );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 	}
 
-	return rest_ensure_response( atf_prepare_entry( $entry_id ) );
+	return rest_ensure_response( alltfo_prepare_entry( $entry_id ) );
 }
 
 /**
@@ -922,15 +948,15 @@ function atf_rest_update_entry( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_delete_entry( $request ) {
+function alltfo_rest_delete_entry( $request ) {
 	$entry_id = absint( $request->get_param( 'id' ) );
 	$post     = $entry_id ? get_post( $entry_id ) : null;
 
-	if ( ! $post || ATF_ENTRY_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_ENTRY_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_entry_missing', __( 'That entry does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
-	atf_delete_entry_completely( $entry_id );
+	alltfo_delete_entry_completely( $entry_id );
 
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
@@ -948,11 +974,11 @@ function atf_rest_delete_entry( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_export_entries( $request ) {
+function alltfo_rest_export_entries( $request ) {
 	$form_id = absint( $request->get_param( 'form_id' ) );
 
 	$query = array(
-		'status'  => array( ATF_STATUS_UNREAD, ATF_STATUS_READ ),
+		'status'  => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ),
 		'search'  => (string) $request->get_param( 'search' ),
 		'after'   => (string) $request->get_param( 'after' ),
 		'before'  => (string) $request->get_param( 'before' ),
@@ -964,8 +990,8 @@ function atf_rest_export_entries( $request ) {
 
 	$export = 'json'
 		=== $format
-			? atf_export_entries_json( $form_id, $query )
-			: atf_export_entries_csv( $form_id, $query );
+			? alltfo_export_entries_json( $form_id, $query )
+			: alltfo_export_entries_csv( $form_id, $query );
 
 	if ( is_wp_error( $export ) ) {
 		return $export;
@@ -990,9 +1016,9 @@ function atf_rest_export_entries( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response
  */
-function atf_rest_analytics( $request ) {
+function alltfo_rest_analytics( $request ) {
 	return rest_ensure_response(
-		atf_form_analytics(
+		alltfo_form_analytics(
 			absint( $request->get_param( 'id' ) ),
 			(string) $request->get_param( 'dimension' )
 		)
@@ -1006,10 +1032,10 @@ function atf_rest_analytics( $request ) {
  *
  * @return WP_REST_Response
  */
-function atf_rest_list_themes() {
+function alltfo_rest_list_themes() {
 	$themes = array();
 
-	foreach ( atf_get_themes() as $slug => $theme ) {
+	foreach ( alltfo_get_themes() as $slug => $theme ) {
 		$themes[] = array(
 			'slug'        => $slug,
 			'label'       => $theme['label'],
@@ -1018,7 +1044,7 @@ function atf_rest_list_themes() {
 			'dark'        => ! empty( $theme['dark'] ),
 			'id'          => $theme['id'],
 			'tokens'      => $theme['tokens'],
-			'resolved'    => atf_resolve_tokens( $slug ),
+			'resolved'    => alltfo_resolve_tokens( $slug ),
 		);
 	}
 
@@ -1033,8 +1059,8 @@ function atf_rest_list_themes() {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_save_theme( $request ) {
-	$saved = atf_save_theme(
+function alltfo_rest_save_theme( $request ) {
+	$saved = alltfo_save_theme(
 		array(
 			'id'          => absint( $request->get_param( 'id' ) ),
 			'label'       => (string) $request->get_param( 'label' ),
@@ -1048,7 +1074,7 @@ function atf_rest_save_theme( $request ) {
 		return $saved;
 	}
 
-	$saved['resolved'] = atf_resolve_tokens( $saved['slug'] );
+	$saved['resolved'] = alltfo_resolve_tokens( $saved['slug'] );
 
 	return rest_ensure_response( $saved );
 }
@@ -1061,8 +1087,8 @@ function atf_rest_save_theme( $request ) {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_delete_theme( $request ) {
-	$result = atf_delete_theme( absint( $request->get_param( 'id' ) ) );
+function alltfo_rest_delete_theme( $request ) {
+	$result = alltfo_delete_theme( absint( $request->get_param( 'id' ) ) );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -1082,10 +1108,10 @@ function atf_rest_delete_theme( $request ) {
  *
  * @return WP_REST_Response
  */
-function atf_rest_config() {
+function alltfo_rest_config() {
 	$types = array();
 
-	foreach ( atf_get_field_types() as $slug => $definition ) {
+	foreach ( alltfo_get_field_types() as $slug => $definition ) {
 		$types[] = array(
 			'type'        => $slug,
 			'label'       => $definition['label'],
@@ -1101,25 +1127,25 @@ function atf_rest_config() {
 			// the bundle because both lists are filterable, and a builder offering
 			// a fixed five while the renderer draws a filtered seven is a builder
 			// that quietly cannot reach two of them.
-			'parts'       => atf_field_type_parts( $slug ),
+			'parts'       => alltfo_field_type_parts( $slug ),
 		);
 	}
 
 	$tokens = array();
 
-	foreach ( atf_theme_token_defaults() as $name => $default ) {
+	foreach ( alltfo_theme_token_defaults() as $name => $default ) {
 		$tokens[] = array_merge(
 			array(
 				'token'   => $name,
 				'default' => $default,
 			),
-			atf_theme_token_control( $name )
+			alltfo_theme_token_control( $name )
 		);
 	}
 
 	$templates = array();
 
-	foreach ( atf_form_templates() as $slug => $template ) {
+	foreach ( alltfo_form_templates() as $slug => $template ) {
 		$templates[] = array(
 			'slug'        => $slug,
 			'label'       => $template['label'],
@@ -1131,13 +1157,13 @@ function atf_rest_config() {
 	return rest_ensure_response(
 		array(
 			'fieldTypes' => $types,
-			'groups'     => atf_field_groups(),
+			'groups'     => alltfo_field_groups(),
 			'tokens'     => $tokens,
 			'templates'  => $templates,
-			'operators'  => atf_logic_operator_labels(),
-			'countries'  => atf_countries(),
+			'operators'  => alltfo_logic_operator_labels(),
+			'countries'  => alltfo_countries(),
 			'roles'      => wp_roles()->get_names(),
-			'canDelete'  => current_user_can( 'atf_delete_entries' ),
+			'canDelete'  => current_user_can( 'alltfo_delete_entries' ),
 			'adminUrl'   => admin_url(),
 		)
 	);
@@ -1153,7 +1179,7 @@ function atf_rest_config() {
  *
  * @return array<string, string>
  */
-function atf_logic_operator_labels() {
+function alltfo_logic_operator_labels() {
 	return array(
 		'is'            => __( 'is', 'allterrain-forms' ),
 		'is_not'        => __( 'is not', 'allterrain-forms' ),
@@ -1174,7 +1200,7 @@ function atf_logic_operator_labels() {
  * Whether the request may use the developer tools.
  *
  * Two questions, not one. Developer mode is a preference and answers "show me
- * these"; `atf_edit_forms` is a capability and answers "you may use them".
+ * these"; `alltfo_edit_forms` is a capability and answers "you may use them".
  * Checking only the preference would be an authorisation check that any user who
  * can write their own meta could pass.
  *
@@ -1186,18 +1212,18 @@ function atf_logic_operator_labels() {
  *
  * @return true|WP_Error
  */
-function atf_rest_can_use_developer_tools() {
-	if ( ! atf_can_edit_forms() ) {
+function alltfo_rest_can_use_developer_tools() {
+	if ( ! alltfo_can_edit_forms() ) {
 		return new WP_Error(
-			'atf_forbidden',
+			'alltfo_forbidden',
 			__( 'You cannot edit forms.', 'allterrain-forms' ),
 			array( 'status' => rest_authorization_required_code() )
 		);
 	}
 
-	if ( ! atf_developer_mode() ) {
+	if ( ! alltfo_developer_mode() ) {
 		return new WP_Error(
-			'atf_developer_mode_off',
+			'alltfo_developer_mode_off',
 			__( 'Developer mode is off.', 'allterrain-forms' ),
 			array( 'status' => 404 )
 		);
@@ -1213,8 +1239,8 @@ function atf_rest_can_use_developer_tools() {
  *
  * @return WP_REST_Response
  */
-function atf_rest_demo_status() {
-	return rest_ensure_response( atf_demo_status() );
+function alltfo_rest_demo_status() {
+	return rest_ensure_response( alltfo_demo_status() );
 }
 
 /**
@@ -1228,10 +1254,10 @@ function atf_rest_demo_status() {
  * @param WP_REST_Request $request The request.
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_demo_seed( $request ) {
+function alltfo_rest_demo_seed( $request ) {
 	$count = (int) $request->get_param( 'count' );
 
-	return rest_ensure_response( atf_demo_seed( $count > 0 ? $count : ATF_DEMO_CHUNK ) );
+	return rest_ensure_response( alltfo_demo_seed( $count > 0 ? $count : ALLTFO_DEMO_CHUNK ) );
 }
 
 /**
@@ -1241,6 +1267,6 @@ function atf_rest_demo_seed( $request ) {
  *
  * @return WP_REST_Response|WP_Error
  */
-function atf_rest_demo_remove() {
-	return rest_ensure_response( atf_demo_remove() );
+function alltfo_rest_demo_remove() {
+	return rest_ensure_response( alltfo_demo_remove() );
 }

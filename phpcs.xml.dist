@@ -48,8 +48,8 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="atf_"/>
-				<element value="ATF_"/>
+				<element value="alltfo_"/>
+				<element value="ALLTFO_"/>
 				<element value="allterrain_forms"/>
 			</property>
 		</properties>

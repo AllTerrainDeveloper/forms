@@ -23,7 +23,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Analytics extends WP_UnitTestCase {
+class ALLTFO_Test_Analytics extends WP_UnitTestCase {
 
 	/**
 	 * Nothing to summarise is null, not a zero.
@@ -31,22 +31,22 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * A mean of 0 for a question nobody answered would draw a bar at the bottom of
 	 * the chart, which reads as "everybody chose the lowest option".
 	 *
-	 * @covers ::atf_analytics_numbers
-	 * @covers ::atf_analytics_nps
+	 * @covers ::alltfo_analytics_numbers
+	 * @covers ::alltfo_analytics_nps
 	 */
 	public function test_no_answers_summarise_to_nothing() {
-		$this->assertNull( atf_analytics_numbers( array() ) );
-		$this->assertNull( atf_analytics_nps( array() ) );
-		$this->assertNull( atf_analytics_numbers( array( 'x', '', null ) ) );
+		$this->assertNull( alltfo_analytics_numbers( array() ) );
+		$this->assertNull( alltfo_analytics_nps( array() ) );
+		$this->assertNull( alltfo_analytics_numbers( array( 'x', '', null ) ) );
 	}
 
 	/**
 	 * The mean, and the median that stops it lying.
 	 *
-	 * @covers ::atf_analytics_numbers
+	 * @covers ::alltfo_analytics_numbers
 	 */
 	public function test_summary_of_numbers() {
-		$summary = atf_analytics_numbers( array( 1, 2, 2, 3, 10 ) );
+		$summary = alltfo_analytics_numbers( array( 1, 2, 2, 3, 10 ) );
 
 		$this->assertSame( 5, $summary['count'] );
 		$this->assertEqualsWithDelta( 3.6, $summary['mean'], 0.001 );
@@ -60,10 +60,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 *
 	 * The off-by-one that a median written in a hurry always has.
 	 *
-	 * @covers ::atf_analytics_numbers
+	 * @covers ::alltfo_analytics_numbers
 	 */
 	public function test_median_of_an_even_count() {
-		$summary = atf_analytics_numbers( array( 1, 2, 3, 4 ) );
+		$summary = alltfo_analytics_numbers( array( 1, 2, 3, 4 ) );
 
 		$this->assertEqualsWithDelta( 2.5, $summary['median'], 0.001 );
 	}
@@ -74,11 +74,11 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * Everybody answering 3, and half answering 1 with half answering 5, are
 	 * opposite findings with the same mean.
 	 *
-	 * @covers ::atf_analytics_numbers
+	 * @covers ::alltfo_analytics_numbers
 	 */
 	public function test_distribution_separates_agreement_from_a_split() {
-		$agreed = atf_analytics_numbers( array( 3, 3, 3, 3 ) );
-		$split  = atf_analytics_numbers( array( 1, 1, 5, 5 ) );
+		$agreed = alltfo_analytics_numbers( array( 3, 3, 3, 3 ) );
+		$split  = alltfo_analytics_numbers( array( 1, 1, 5, 5 ) );
 
 		$this->assertSame( $agreed['mean'], $split['mean'], 'The premise: identical means.' );
 
@@ -96,13 +96,13 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * NPS is promoters minus detractors, as percentages.
 	 *
 	 * @dataProvider data_nps
-	 * @covers ::atf_analytics_nps
+	 * @covers ::alltfo_analytics_nps
 	 *
 	 * @param array $answers  Scores, 0 to 10.
 	 * @param int   $expected The score.
 	 */
 	public function test_nps( $answers, $expected ) {
-		$this->assertSame( $expected, atf_analytics_nps( $answers )['score'] );
+		$this->assertSame( $expected, alltfo_analytics_nps( $answers )['score'] );
 	}
 
 	/**
@@ -129,10 +129,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 *
 	 * 6 and 7 are the boundary everyone gets wrong: 6 is a detractor and 7 is not.
 	 *
-	 * @covers ::atf_analytics_nps
+	 * @covers ::alltfo_analytics_nps
 	 */
 	public function test_nps_bands() {
-		$nps = atf_analytics_nps( array( 0, 6, 7, 8, 9, 10 ) );
+		$nps = alltfo_analytics_nps( array( 0, 6, 7, 8, 9, 10 ) );
 
 		$this->assertSame( 2, $nps['detractors'], '0 and 6.' );
 		$this->assertSame( 2, $nps['passives'], '7 and 8.' );
@@ -147,7 +147,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * close up, so a quiet fortnight renders the same width as a busy one and the
 	 * chart shows a steady trickle where the truth was one spike and silence.
 	 *
-	 * @covers ::atf_analytics_timeline
+	 * @covers ::alltfo_analytics_timeline
 	 */
 	public function test_timeline_keeps_the_empty_days() {
 		$rows = array(
@@ -161,7 +161,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			),
 		);
 
-		$timeline = atf_analytics_timeline( $rows, 7 );
+		$timeline = alltfo_analytics_timeline( $rows, 7 );
 
 		$this->assertCount( 7, $timeline );
 		$this->assertSame( 2, array_sum( wp_list_pluck( $timeline, 'count' ) ) );
@@ -177,7 +177,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * Anything older than the window is left out rather than piled onto day one.
 	 *
-	 * @covers ::atf_analytics_timeline
+	 * @covers ::alltfo_analytics_timeline
 	 */
 	public function test_timeline_ignores_what_is_off_the_end() {
 		$rows = array(
@@ -187,17 +187,17 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			),
 		);
 
-		$this->assertSame( 0, array_sum( wp_list_pluck( atf_analytics_timeline( $rows, 7 ), 'count' ) ) );
+		$this->assertSame( 0, array_sum( wp_list_pluck( alltfo_analytics_timeline( $rows, 7 ), 'count' ) ) );
 	}
 
 	/**
 	 * A 0–10 scale is recognised as an NPS question; other scales are not.
 	 *
-	 * @covers ::atf_analytics_is_nps_field
+	 * @covers ::alltfo_analytics_is_nps_field
 	 */
 	public function test_nps_field_is_recognised_by_its_shape() {
 		$this->assertTrue(
-			atf_analytics_is_nps_field(
+			alltfo_analytics_is_nps_field(
 				array(
 					'type' => 'scale',
 					'min'  => 0,
@@ -207,7 +207,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 		);
 
 		$this->assertFalse(
-			atf_analytics_is_nps_field(
+			alltfo_analytics_is_nps_field(
 				array(
 					'type' => 'scale',
 					'min'  => 1,
@@ -217,16 +217,16 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			'A 1-5 scale is a rating, and NPS bands would be nonsense on it.'
 		);
 
-		$this->assertFalse( atf_analytics_is_nps_field( array( 'type' => 'rating' ) ) );
+		$this->assertFalse( alltfo_analytics_is_nps_field( array( 'type' => 'rating' ) ) );
 	}
 
 	/**
 	 * Only fields with a readable number of options can be grouped by.
 	 *
-	 * @covers ::atf_analytics_dimensions
+	 * @covers ::alltfo_analytics_dimensions
 	 */
 	public function test_dimensions_are_the_categorical_fields() {
-		$schema = atf_normalize_schema(
+		$schema = alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -249,13 +249,13 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( array( 'team' ), wp_list_pluck( atf_analytics_dimensions( $schema ), 'id' ) );
+		$this->assertSame( array( 'team' ), wp_list_pluck( alltfo_analytics_dimensions( $schema ), 'id' ) );
 	}
 
 	/**
 	 * The cross-tab: numbers grouped by an answer.
 	 *
-	 * @covers ::atf_analytics_breakdown
+	 * @covers ::alltfo_analytics_breakdown
 	 */
 	public function test_breakdown_groups_numbers_by_a_choice() {
 		$schema = $this->survey_schema();
@@ -267,7 +267,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			$this->row( 'b', 2 ),
 		);
 
-		$breakdown = atf_analytics_breakdown( $rows, $schema, 'team' );
+		$breakdown = alltfo_analytics_breakdown( $rows, $schema, 'team' );
 
 		$this->assertSame( 'team', $breakdown['id'] );
 		$this->assertCount( 3, $breakdown['groups'], 'Every choice, including the one nobody picked.' );
@@ -298,10 +298,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * "Nobody on the leadership team answered" is a finding. Dropping the row
 	 * turns it into an absence nobody notices.
 	 *
-	 * @covers ::atf_analytics_breakdown
+	 * @covers ::alltfo_analytics_breakdown
 	 */
 	public function test_breakdown_keeps_an_empty_group() {
-		$breakdown = atf_analytics_breakdown( array( $this->row( 'a', 9 ) ), $this->survey_schema(), 'team' );
+		$breakdown = alltfo_analytics_breakdown( array( $this->row( 'a', 9 ) ), $this->survey_schema(), 'team' );
 
 		$empty = null;
 
@@ -321,10 +321,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 *
 	 * Reachable from the URL, so it has to be an answer rather than a crash.
 	 *
-	 * @covers ::atf_analytics_breakdown
+	 * @covers ::alltfo_analytics_breakdown
 	 */
 	public function test_breakdown_of_an_unknown_field() {
-		$breakdown = atf_analytics_breakdown( array( $this->row( 'a', 9 ) ), $this->survey_schema(), 'nope' );
+		$breakdown = alltfo_analytics_breakdown( array( $this->row( 'a', 9 ) ), $this->survey_schema(), 'nope' );
 
 		$this->assertSame( array(), $breakdown['groups'] );
 	}
@@ -335,15 +335,15 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * The pure functions above are tested in isolation; this is the one that says
 	 * they are wired to the right data.
 	 *
-	 * @covers ::atf_form_analytics
+	 * @covers ::alltfo_form_analytics
 	 */
 	public function test_report_over_real_entries() {
-		$form_id = atf_test_form( $this->survey_schema() );
+		$form_id = alltfo_test_form( $this->survey_schema() );
 
 		foreach ( array( array( 'a', 10 ), array( 'a', 9 ), array( 'b', 1 ) ) as $answer ) {
-			atf_store_entry(
+			alltfo_store_entry(
 				$form_id,
-				atf_get_form_schema( $form_id ),
+				alltfo_get_form_schema( $form_id ),
 				array(
 					'team'  => $answer[0],
 					'score' => (string) $answer[1],
@@ -351,7 +351,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			);
 		}
 
-		$report = atf_form_analytics( $form_id );
+		$report = alltfo_form_analytics( $form_id );
 
 		$this->assertSame( 3, $report['sampled'] );
 		$this->assertNotEmpty( $report['timeline'] );
@@ -373,10 +373,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * A form with no submissions reports zeroes rather than failing.
 	 *
-	 * @covers ::atf_form_analytics
+	 * @covers ::alltfo_form_analytics
 	 */
 	public function test_report_of_an_empty_form() {
-		$report = atf_form_analytics( atf_test_form( $this->survey_schema() ) );
+		$report = alltfo_form_analytics( alltfo_test_form( $this->survey_schema() ) );
 
 		$this->assertSame( 0, $report['sampled'] );
 		$this->assertSame( 0, $report['submissions'] );
@@ -389,7 +389,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * @return array
 	 */
 	private function survey_schema() {
-		return atf_normalize_schema(
+		return alltfo_normalize_schema(
 			array(
 				'fields' => array(
 					array(
@@ -443,10 +443,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * A repeater's sub-fields report as questions of their own.
 	 *
-	 * @covers ::atf_repeater_report_rows
+	 * @covers ::alltfo_repeater_report_rows
 	 */
 	public function test_repeater_subfields_report_across_rows() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'     => 'att',
 				'type'   => 'repeater',
@@ -508,7 +508,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			),
 		);
 
-		$rows = atf_repeater_report_rows( $field, $sample );
+		$rows = alltfo_repeater_report_rows( $field, $sample );
 
 		$this->assertCount( 2, $rows );
 
@@ -530,10 +530,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * A sub-field skipped in some rows reports an honest per-row rate.
 	 *
-	 * @covers ::atf_repeater_report_rows
+	 * @covers ::alltfo_repeater_report_rows
 	 */
 	public function test_repeater_subfield_rate_is_per_row() {
-		$field = atf_normalize_field(
+		$field = alltfo_normalize_field(
 			array(
 				'id'     => 'att',
 				'type'   => 'repeater',
@@ -571,7 +571,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			),
 		);
 
-		$rows = atf_repeater_report_rows( $field, $sample );
+		$rows = alltfo_repeater_report_rows( $field, $sample );
 
 		$this->assertSame( 1, $rows[0]['answered'] );
 		$this->assertSame( 2, $rows[0]['of'] );
@@ -584,7 +584,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * "Chrome", every WebKit browser says "Safari", an iPad says "like Mac OS
 	 * X", and Android puts "Mobile" on phones but not tablets.
 	 *
-	 * @covers ::atf_classify_user_agent
+	 * @covers ::alltfo_classify_user_agent
 	 */
 	public function test_user_agents_classify_coarsely() {
 		$cases = array(
@@ -637,7 +637,7 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 					'browser' => $case[1][1],
 					'os'      => $case[1][2],
 				),
-				atf_classify_user_agent( $case[0] ),
+				alltfo_classify_user_agent( $case[0] ),
 				$label
 			);
 		}
@@ -646,22 +646,22 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * Tech tallies accumulate and come back out as ranked report rows.
 	 *
-	 * @covers ::atf_bump_tech
-	 * @covers ::atf_get_tech_stats
-	 * @covers ::atf_analytics_tech
+	 * @covers ::alltfo_bump_tech
+	 * @covers ::alltfo_get_tech_stats
+	 * @covers ::alltfo_analytics_tech
 	 */
 	public function test_tech_tallies_become_report_rows() {
-		$form_id = atf_test_form();
+		$form_id = alltfo_test_form();
 
 		$iphone  = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 		$windows = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-		atf_bump_tech( $form_id, 'views', $iphone, 10 );
-		atf_bump_tech( $form_id, 'views', $windows, 10 );
-		atf_bump_tech( $form_id, 'submissions', $iphone, 2 );
-		atf_bump_tech( $form_id, 'submissions', $windows, 8 );
+		alltfo_bump_tech( $form_id, 'views', $iphone, 10 );
+		alltfo_bump_tech( $form_id, 'views', $windows, 10 );
+		alltfo_bump_tech( $form_id, 'submissions', $iphone, 2 );
+		alltfo_bump_tech( $form_id, 'submissions', $windows, 8 );
 
-		$tech = atf_analytics_tech( $form_id );
+		$tech = alltfo_analytics_tech( $form_id );
 
 		$this->assertNotNull( $tech );
 
@@ -681,10 +681,10 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * A form that has tallied nothing reports no tech section at all.
 	 *
-	 * @covers ::atf_analytics_tech
+	 * @covers ::alltfo_analytics_tech
 	 */
 	public function test_no_tallies_is_null_not_zeroes() {
-		$this->assertNull( atf_analytics_tech( atf_test_form() ) );
+		$this->assertNull( alltfo_analytics_tech( alltfo_test_form() ) );
 	}
 
 	/**
@@ -694,14 +694,14 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	 * means no views, no starts and no tech; `tech` off alone keeps the
 	 * counters and drops only the technology tally.
 	 *
-	 * @covers ::atf_record_view
-	 * @covers ::atf_record_start
-	 * @covers ::atf_should_record_tech
+	 * @covers ::alltfo_record_view
+	 * @covers ::alltfo_record_start
+	 * @covers ::alltfo_should_record_tech
 	 */
 	public function test_analytics_switches_gate_the_recording() {
 		$_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-		$off = atf_test_form(
+		$off = alltfo_test_form(
 			array(
 				'settings' => array(
 					'analytics' => array(
@@ -712,16 +712,16 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			)
 		);
 
-		atf_record_view( $off );
-		atf_record_start( $off );
+		alltfo_record_view( $off );
+		alltfo_record_start( $off );
 
-		$stats = atf_get_stats( $off );
+		$stats = alltfo_get_stats( $off );
 
 		$this->assertSame( 0, $stats['views'] );
 		$this->assertSame( 0, $stats['starts'] );
-		$this->assertNull( atf_analytics_tech( $off ) );
+		$this->assertNull( alltfo_analytics_tech( $off ) );
 
-		$no_tech = atf_test_form(
+		$no_tech = alltfo_test_form(
 			array(
 				'settings' => array(
 					'analytics' => array(
@@ -732,16 +732,16 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 			)
 		);
 
-		atf_record_view( $no_tech );
+		alltfo_record_view( $no_tech );
 
-		$this->assertSame( 1, atf_get_stats( $no_tech )['views'] );
-		$this->assertNull( atf_analytics_tech( $no_tech ), 'Views counted, technology not tallied.' );
+		$this->assertSame( 1, alltfo_get_stats( $no_tech )['views'] );
+		$this->assertNull( alltfo_analytics_tech( $no_tech ), 'Views counted, technology not tallied.' );
 
-		$on = atf_test_form();
+		$on = alltfo_test_form();
 
-		atf_record_view( $on );
+		alltfo_record_view( $on );
 
-		$tech = atf_analytics_tech( $on );
+		$tech = alltfo_analytics_tech( $on );
 
 		$this->assertNotNull( $tech );
 		$this->assertSame( 'desktop', $tech['device'][0]['id'] );
@@ -752,17 +752,17 @@ class ATF_Test_Analytics extends WP_UnitTestCase {
 	/**
 	 * The tally filter is the per-request veto a consent plugin needs.
 	 *
-	 * @covers ::atf_should_record_tech
+	 * @covers ::alltfo_should_record_tech
 	 */
 	public function test_the_tech_filter_can_veto() {
-		$form_id = atf_test_form();
+		$form_id = alltfo_test_form();
 
-		add_filter( 'atf_record_tech', '__return_false' );
+		add_filter( 'alltfo_record_tech', '__return_false' );
 
-		$this->assertFalse( atf_should_record_tech( $form_id ) );
+		$this->assertFalse( alltfo_should_record_tech( $form_id ) );
 
-		remove_filter( 'atf_record_tech', '__return_false' );
+		remove_filter( 'alltfo_record_tech', '__return_false' );
 
-		$this->assertTrue( atf_should_record_tech( $form_id ) );
+		$this->assertTrue( alltfo_should_record_tech( $form_id ) );
 	}
 }

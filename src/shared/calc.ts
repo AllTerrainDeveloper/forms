@@ -20,7 +20,7 @@ type Token =
 	| { type: 'function'; value: string; arity?: number }
 	| { type: '(' | ')' | 'comma'; value: string };
 
-/** Function name => argument count, or -1 for variadic. Mirrors `atf_calc_functions()`. */
+/** Function name => argument count, or -1 for variadic. Mirrors `alltfo_calc_functions()`. */
 const FUNCTIONS: Record< string, number > = {
 	min: -1,
 	max: -1,
@@ -100,7 +100,7 @@ function resolveRefs( formula: string, values: Values, fields: Field[] ): string
 	);
 }
 
-/** The literal one reference resolves to. Mirrors `atf_calc_ref_literal()`. */
+/** The literal one reference resolves to. Mirrors `alltfo_calc_ref_literal()`. */
 function refLiteral(
 	formula: string,
 	offset: number,
@@ -168,7 +168,7 @@ function findField( fields: Field[], fieldId: string ): Field | null {
  * `sum( {a.b} )` — where "one argument per row" is unambiguously what was
  * meant. Everywhere else the reference collapses to its sum, because spreading
  * into a fixed-arity call like `pow( {a.b}, 2 )` would silently shift every
- * later argument out of its slot. Mirrors `atf_calc_ref_spreads()`.
+ * later argument out of its slot. Mirrors `alltfo_calc_ref_spreads()`.
  */
 function refSpreads( formula: string, offset: number, length: number ): boolean {
 	const after = formula.slice( offset + length ).replace( /^\s+/, '' );
@@ -189,7 +189,7 @@ function refSpreads( formula: string, offset: number, length: number ): boolean 
  * A row where every answer is empty is a row the visitor added and abandoned;
  * counting it would make `{attendees}` disagree with what the entry stores,
  * because the server's sanitiser drops exactly the same rows. Mirrors
- * `atf_calc_repeater_rows()`.
+ * `alltfo_calc_repeater_rows()`.
  */
 export function repeaterRows( value: FieldValue ): Array< Record< string, unknown > > {
 	if ( ! Array.isArray( value ) ) {

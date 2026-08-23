@@ -27,11 +27,11 @@ defined( 'ABSPATH' ) || exit;
  * @param int   $form_id  The form.
  * @return void
  */
-function atf_send_notifications( $schema, $values, $entry_id, $form_id ) {
+function alltfo_send_notifications( $schema, $values, $entry_id, $form_id ) {
 	$notifications = $schema['notifications'];
 
 	if ( ! $notifications ) {
-		$notifications = array( atf_default_notification( $form_id ) );
+		$notifications = array( alltfo_default_notification( $form_id ) );
 	}
 
 	$context = array(
@@ -39,7 +39,7 @@ function atf_send_notifications( $schema, $values, $entry_id, $form_id ) {
 		'values'   => $values,
 		'form_id'  => $form_id,
 		'entry_id' => $entry_id,
-		'entry'    => $entry_id ? atf_prepare_entry( $entry_id ) : array(),
+		'entry'    => $entry_id ? alltfo_prepare_entry( $entry_id ) : array(),
 		'format'   => 'html',
 	);
 
@@ -48,11 +48,11 @@ function atf_send_notifications( $schema, $values, $entry_id, $form_id ) {
 			continue;
 		}
 
-		if ( ! atf_logic_conditions_met( $notification['logic'], $values, $schema ) ) {
+		if ( ! alltfo_logic_conditions_met( $notification['logic'], $values, $schema ) ) {
 			continue;
 		}
 
-		atf_send_notification( $notification, $context );
+		alltfo_send_notification( $notification, $context );
 	}
 }
 
@@ -64,7 +64,7 @@ function atf_send_notifications( $schema, $values, $entry_id, $form_id ) {
  * @param int $form_id The form.
  * @return array A normalised notification.
  */
-function atf_default_notification( $form_id ) {
+function alltfo_default_notification( $form_id ) {
 	$notification = array(
 		'id'          => 'default',
 		'enabled'     => true,
@@ -98,7 +98,7 @@ function atf_default_notification( $form_id ) {
 	 * @param array $notification The default notification.
 	 * @param int   $form_id      The form.
 	 */
-	return apply_filters( 'atf_default_notification', $notification, $form_id );
+	return apply_filters( 'alltfo_default_notification', $notification, $form_id );
 }
 
 /**
@@ -110,17 +110,17 @@ function atf_default_notification( $form_id ) {
  * @param array $context      The merge-tag context.
  * @return bool Whether `wp_mail()` accepted it.
  */
-function atf_send_notification( $notification, $context ) {
-	$to = atf_resolve_recipients( $notification['to'], $context );
+function alltfo_send_notification( $notification, $context ) {
+	$to = alltfo_resolve_recipients( $notification['to'], $context );
 
 	if ( ! $to ) {
 		return false;
 	}
 
-	$subject = atf_replace_merge_tags( $notification['subject'], array_merge( $context, array( 'format' => 'text' ) ) );
+	$subject = alltfo_replace_merge_tags( $notification['subject'], array_merge( $context, array( 'format' => 'text' ) ) );
 	$subject = '' !== trim( $subject ) ? $subject : __( 'New form submission', 'allterrain-forms' );
 
-	$body = atf_replace_merge_tags(
+	$body = alltfo_replace_merge_tags(
 		'' !== trim( $notification['message'] ) ? $notification['message'] : '{all_fields}',
 		$context
 	);
@@ -131,21 +131,21 @@ function atf_send_notification( $notification, $context ) {
 		'cc'  => 'Cc',
 		'bcc' => 'Bcc',
 	) as $key => $header ) {
-		$addresses = atf_resolve_recipients( $notification[ $key ], $context );
+		$addresses = alltfo_resolve_recipients( $notification[ $key ], $context );
 
 		foreach ( $addresses as $address ) {
 			$headers[] = $header . ': ' . $address;
 		}
 	}
 
-	$reply_to = atf_resolve_recipients( $notification['replyTo'], $context );
+	$reply_to = alltfo_resolve_recipients( $notification['replyTo'], $context );
 
 	if ( $reply_to ) {
 		$headers[] = 'Reply-To: ' . $reply_to[0];
 	}
 
-	$from_email = atf_replace_merge_tags( $notification['fromEmail'], array_merge( $context, array( 'format' => 'text' ) ) );
-	$from_name  = atf_replace_merge_tags( $notification['fromName'], array_merge( $context, array( 'format' => 'text' ) ) );
+	$from_email = alltfo_replace_merge_tags( $notification['fromEmail'], array_merge( $context, array( 'format' => 'text' ) ) );
+	$from_name  = alltfo_replace_merge_tags( $notification['fromName'], array_merge( $context, array( 'format' => 'text' ) ) );
 
 	// A From address on a domain the site does not own is the fastest way into a
 	// spam folder, so a visitor's own address is never used as the sender --
@@ -160,13 +160,13 @@ function atf_send_notification( $notification, $context ) {
 	$attachments = array();
 
 	if ( ! empty( $notification['attachFiles'] ) ) {
-		$attachments = atf_notification_attachments( $context );
+		$attachments = alltfo_notification_attachments( $context );
 	}
 
 	$mail = array(
 		'to'          => $to,
 		'subject'     => $subject,
-		'message'     => atf_wrap_email_body( $body, $context ),
+		'message'     => alltfo_wrap_email_body( $body, $context ),
 		'headers'     => $headers,
 		'attachments' => $attachments,
 	);
@@ -182,7 +182,7 @@ function atf_send_notification( $notification, $context ) {
 	 * @param array $notification The notification.
 	 * @param array $context      The merge-tag context.
 	 */
-	$mail = apply_filters( 'atf_notification_email', $mail, $notification, $context );
+	$mail = apply_filters( 'alltfo_notification_email', $mail, $notification, $context );
 
 	if ( empty( $mail['to'] ) ) {
 		return false;
@@ -200,7 +200,7 @@ function atf_send_notification( $notification, $context ) {
 	 * @param array $notification The notification.
 	 * @param array $context      The merge-tag context.
 	 */
-	do_action( 'atf_notification_sent', $sent, $mail, $notification, $context );
+	do_action( 'alltfo_notification_sent', $sent, $mail, $notification, $context );
 
 	return $sent;
 }
@@ -218,8 +218,8 @@ function atf_send_notification( $notification, $context ) {
  * @param array  $context    The merge-tag context.
  * @return string[] Valid addresses.
  */
-function atf_resolve_recipients( $recipients, $context ) {
-	$resolved = atf_replace_merge_tags( (string) $recipients, array_merge( $context, array( 'format' => 'text' ) ) );
+function alltfo_resolve_recipients( $recipients, $context ) {
+	$resolved = alltfo_replace_merge_tags( (string) $recipients, array_merge( $context, array( 'format' => 'text' ) ) );
 	$parts    = preg_split( '/[,;]+/', $resolved );
 	$valid    = array();
 
@@ -253,10 +253,10 @@ function atf_resolve_recipients( $recipients, $context ) {
  * @param array $context The merge-tag context.
  * @return string[] Absolute paths.
  */
-function atf_notification_attachments( $context ) {
+function alltfo_notification_attachments( $context ) {
 	$paths = array();
 
-	foreach ( atf_input_fields( $context['schema'] ) as $field ) {
+	foreach ( alltfo_input_fields( $context['schema'] ) as $field ) {
 		if ( 'file' !== $field['type'] ) {
 			continue;
 		}
@@ -288,7 +288,7 @@ function atf_notification_attachments( $context ) {
  * @param array  $context The merge-tag context.
  * @return string
  */
-function atf_wrap_email_body( $body, $context ) {
+function alltfo_wrap_email_body( $body, $context ) {
 	$title = $context['form_id'] ? get_the_title( $context['form_id'] ) : get_bloginfo( 'name' );
 
 	$html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>'
@@ -317,5 +317,5 @@ function atf_wrap_email_body( $body, $context ) {
 	 * @param string $body    The merged body it wraps.
 	 * @param array  $context The merge-tag context.
 	 */
-	return (string) apply_filters( 'atf_email_html', $html, $body, $context );
+	return (string) apply_filters( 'alltfo_email_html', $html, $body, $context );
 }

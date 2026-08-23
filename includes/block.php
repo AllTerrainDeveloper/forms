@@ -3,7 +3,7 @@
  * The block.
  *
  * A dynamic block: the editor stores a form id and a theme, and the front end
- * renders through `atf_render_form()` at request time. Storing rendered HTML in
+ * renders through `alltfo_render_form()` at request time. Storing rendered HTML in
  * post content instead would freeze a copy of the form into every page that
  * embeds it, and editing the form would change nothing anywhere.
  *
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'init', 'atf_register_block', 20 );
+add_action( 'init', 'alltfo_register_block', 20 );
 
 /**
  * Registers the block and its editor script.
@@ -21,16 +21,16 @@ add_action( 'init', 'atf_register_block', 20 );
  *
  * @return void
  */
-function atf_register_block() {
+function alltfo_register_block() {
 	if ( ! function_exists( 'register_block_type' ) ) {
 		return;
 	}
 
 	wp_register_script(
 		'allterrain-forms-block',
-		ATF_URL . 'assets/js/block.js',
+		ALLTFO_URL . 'assets/js/block.js',
 		array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-i18n', 'wp-data', 'wp-api-fetch' ),
-		atf_asset_version( 'assets/js/block.js' ),
+		alltfo_asset_version( 'assets/js/block.js' ),
 		true
 	);
 
@@ -63,7 +63,7 @@ function atf_register_block() {
 				'align'  => array( 'wide', 'full' ),
 				'anchor' => true,
 			),
-			'render_callback' => 'atf_render_block',
+			'render_callback' => 'alltfo_render_block',
 		)
 	);
 }
@@ -76,19 +76,19 @@ function atf_register_block() {
  * @param array $attributes The block's attributes.
  * @return string
  */
-function atf_render_block( $attributes ) {
+function alltfo_render_block( $attributes ) {
 	$form_id = isset( $attributes['formId'] ) ? absint( $attributes['formId'] ) : 0;
 
 	if ( ! $form_id ) {
 		return '';
 	}
 
-	atf_enqueue_form_assets();
+	alltfo_enqueue_form_assets();
 
 	// The block goes through the shortcode rather than straight to the renderer,
 	// so that a failed non-JavaScript submission is rehydrated the same way in
 	// both -- one code path for "what happens after a POST", not two.
-	return atf_shortcode(
+	return alltfo_shortcode(
 		array(
 			'id'    => $form_id,
 			'theme' => isset( $attributes['theme'] ) ? sanitize_key( $attributes['theme'] ) : '',

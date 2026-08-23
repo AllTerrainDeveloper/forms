@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<string, string> Token name => default value.
  */
-function atf_theme_token_defaults() {
+function alltfo_theme_token_defaults() {
 	$tokens = array(
 
 		/* ------------------------------------------------------------ Colour */
@@ -148,7 +148,7 @@ function atf_theme_token_defaults() {
 	 *
 	 * @param array<string, string> $tokens Token name => default value.
 	 */
-	return apply_filters( 'atf_theme_tokens', $tokens );
+	return apply_filters( 'alltfo_theme_tokens', $tokens );
 }
 
 /**
@@ -164,7 +164,7 @@ function atf_theme_token_defaults() {
  * @param string $token Token name.
  * @return array { control: string, options?: string[], unit?: string, label: string, group: string }
  */
-function atf_theme_token_control( $token ) {
+function alltfo_theme_token_control( $token ) {
 	$enums = array(
 		'field-style'      => array( 'outline', 'filled', 'underline', 'none' ),
 		'label-position'   => array( 'top', 'inside', 'floating', 'left', 'hidden' ),
@@ -207,7 +207,7 @@ function atf_theme_token_control( $token ) {
 	}
 
 	$control['label'] = ucfirst( str_replace( '-', ' ', $token ) );
-	$control['group'] = atf_theme_token_group( $token );
+	$control['group'] = alltfo_theme_token_group( $token );
 
 	/**
 	 * Filters the Theme Studio control for one token.
@@ -217,7 +217,7 @@ function atf_theme_token_control( $token ) {
 	 * @param array  $control The control descriptor.
 	 * @param string $token   Token name.
 	 */
-	return apply_filters( 'atf_theme_token_control', $control, $token );
+	return apply_filters( 'alltfo_theme_token_control', $control, $token );
 }
 
 /**
@@ -228,7 +228,7 @@ function atf_theme_token_control( $token ) {
  * @param string $token Token name.
  * @return string Group slug.
  */
-function atf_theme_token_group( $token ) {
+function alltfo_theme_token_group( $token ) {
 	$prefixes = array(
 		'radius-'     => 'shape',
 		'shadow-'     => 'shadow',
@@ -269,7 +269,7 @@ function atf_theme_token_group( $token ) {
  *
  * @return array<string, array> Theme slug => { label, description, tokens, dark }.
  */
-function atf_builtin_themes() {
+function alltfo_builtin_themes() {
 	$themes = array(
 
 		'clean'     => array(
@@ -592,21 +592,21 @@ function atf_builtin_themes() {
 	 *
 	 * @param array<string, array> $themes Theme slug => definition.
 	 */
-	return apply_filters( 'atf_builtin_themes', $themes );
+	return apply_filters( 'alltfo_builtin_themes', $themes );
 }
 
 /**
  * Themes registered in code by other plugins.
  *
  * A function-static rather than a global so nothing can reach in and mutate it
- * without going through `atf_register_theme()`, which normalises.
+ * without going through `alltfo_register_theme()`, which normalises.
  *
  * @since 0.1.0
  *
  * @param array|null $set Internal. Replaces the whole table.
  * @return array<string, array> Theme slug => definition.
  */
-function &atf_theme_store( $set = null ) {
+function &alltfo_theme_store( $set = null ) {
 	static $themes = array();
 
 	if ( null !== $set ) {
@@ -619,14 +619,14 @@ function &atf_theme_store( $set = null ) {
 /**
  * Registers a theme in code.
  *
- * The parallel of `atf_register_field_type()`, and the right shape for a theme
+ * The parallel of `alltfo_register_field_type()`, and the right shape for a theme
  * that ships inside another plugin rather than one a user made in the Studio.
  *
  * Only the tokens a theme changes need listing -- everything else inherits from
  * the defaults, so a token added to the surface in a later release reaches every
  * registered theme without an edit.
  *
- * Call it on `atf_loaded`.
+ * Call it on `alltfo_loaded`.
  *
  * @since 0.1.0
  *
@@ -641,22 +641,22 @@ function &atf_theme_store( $set = null ) {
  * }
  * @return true|WP_Error True on success.
  */
-function atf_register_theme( $slug, $args = array() ) {
+function alltfo_register_theme( $slug, $args = array() ) {
 	$slug = sanitize_key( $slug );
 
 	if ( '' === $slug ) {
-		return new WP_Error( 'atf_theme_slug', __( 'A theme needs a slug.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_theme_slug', __( 'A theme needs a slug.', 'allterrain-forms' ) );
 	}
 
 	if ( empty( $args['label'] ) ) {
 		return new WP_Error(
-			'atf_theme_label',
+			'alltfo_theme_label',
 			/* translators: %s: theme slug. */
 			sprintf( __( 'Theme "%s" needs a label.', 'allterrain-forms' ), $slug )
 		);
 	}
 
-	$themes          = &atf_theme_store();
+	$themes          = &alltfo_theme_store();
 	$themes[ $slug ] = array(
 		'label'       => (string) $args['label'],
 		'description' => isset( $args['description'] ) ? (string) $args['description'] : '',
@@ -664,7 +664,7 @@ function atf_register_theme( $slug, $args = array() ) {
 		// Sanitised at registration rather than at use, so a typo in a token
 		// name is dropped once instead of being carried around and silently
 		// ignored by every reader.
-		'tokens'      => atf_sanitize_tokens( isset( $args['tokens'] ) ? $args['tokens'] : array() ),
+		'tokens'      => alltfo_sanitize_tokens( isset( $args['tokens'] ) ? $args['tokens'] : array() ),
 	);
 
 	return true;
@@ -681,8 +681,8 @@ function atf_register_theme( $slug, $args = array() ) {
  * @param string $slug Theme slug.
  * @return bool True when a theme was removed.
  */
-function atf_unregister_theme( $slug ) {
-	$themes = &atf_theme_store();
+function alltfo_unregister_theme( $slug ) {
+	$themes = &alltfo_theme_store();
 	$slug   = sanitize_key( $slug );
 
 	if ( ! isset( $themes[ $slug ] ) ) {
@@ -704,14 +704,14 @@ function atf_unregister_theme( $slug ) {
  *
  * @return array<string, array> Theme slug => { label, description, tokens, custom, id }.
  */
-function atf_get_themes() {
+function alltfo_get_themes() {
 	$themes = array();
 
 	// Three sources, each beating the one before: the built-ins, then anything
 	// registered in code by another plugin, then the ones a user saved. A saved
 	// theme winning on a slug collision is what lets a site override a shipped
 	// theme and get it back by deleting theirs.
-	$registered = array_merge( atf_builtin_themes(), atf_theme_store() );
+	$registered = array_merge( alltfo_builtin_themes(), alltfo_theme_store() );
 
 	foreach ( $registered as $slug => $theme ) {
 		$themes[ $slug ] = array_merge(
@@ -730,7 +730,7 @@ function atf_get_themes() {
 		);
 	}
 
-	foreach ( atf_get_custom_themes() as $theme ) {
+	foreach ( alltfo_get_custom_themes() as $theme ) {
 		$themes[ $theme['slug'] ] = $theme;
 	}
 
@@ -744,10 +744,10 @@ function atf_get_themes() {
  *
  * @return array[] Theme records.
  */
-function atf_get_custom_themes() {
+function alltfo_get_custom_themes() {
 	$posts = get_posts(
 		array(
-			'post_type'        => ATF_THEME_TYPE,
+			'post_type'        => ALLTFO_THEME_TYPE,
 			'post_status'      => array( 'publish', 'draft' ),
 			'numberposts'      => 200,
 			'orderby'          => 'title',
@@ -759,13 +759,13 @@ function atf_get_custom_themes() {
 	$themes = array();
 
 	foreach ( $posts as $post ) {
-		$tokens = json_decode( (string) get_post_meta( $post->ID, ATF_META_TOKENS, true ), true );
+		$tokens = json_decode( (string) get_post_meta( $post->ID, ALLTFO_META_TOKENS, true ), true );
 
 		$themes[ $post->post_name ] = array(
 			'slug'        => $post->post_name,
 			'label'       => $post->post_title,
 			'description' => $post->post_excerpt,
-			'tokens'      => atf_sanitize_tokens( is_array( $tokens ) ? $tokens : array() ),
+			'tokens'      => alltfo_sanitize_tokens( is_array( $tokens ) ? $tokens : array() ),
 			'dark'        => false,
 			'custom'      => true,
 			'id'          => $post->ID,
@@ -787,8 +787,8 @@ function atf_get_custom_themes() {
  * @param string $slug Theme slug.
  * @return array The theme record.
  */
-function atf_get_theme( $slug ) {
-	$themes = atf_get_themes();
+function alltfo_get_theme( $slug ) {
+	$themes = alltfo_get_themes();
 	$slug   = sanitize_key( (string) $slug );
 
 	if ( isset( $themes[ $slug ] ) ) {
@@ -818,12 +818,12 @@ function atf_get_theme( $slug ) {
  * @param array  $overrides Per-form token overrides.
  * @return array<string, string> Every token, resolved.
  */
-function atf_resolve_tokens( $slug, $overrides = array() ) {
-	$theme  = atf_get_theme( $slug );
+function alltfo_resolve_tokens( $slug, $overrides = array() ) {
+	$theme  = alltfo_get_theme( $slug );
 	$tokens = array_merge(
-		atf_theme_token_defaults(),
-		atf_sanitize_tokens( $theme['tokens'] ),
-		atf_sanitize_tokens( is_array( $overrides ) ? $overrides : array() )
+		alltfo_theme_token_defaults(),
+		alltfo_sanitize_tokens( $theme['tokens'] ),
+		alltfo_sanitize_tokens( is_array( $overrides ) ? $overrides : array() )
 	);
 
 	/**
@@ -838,16 +838,16 @@ function atf_resolve_tokens( $slug, $overrides = array() ) {
 	 * @param string                $slug      Theme slug.
 	 * @param array                 $overrides The per-form overrides that were applied.
 	 */
-	return apply_filters( 'atf_resolved_tokens', $tokens, $slug, $overrides );
+	return apply_filters( 'alltfo_resolved_tokens', $tokens, $slug, $overrides );
 }
 
 /**
  * Keeps a token map to known names and CSS-safe values.
  *
  * This is the security boundary of the whole theme system. Token values land
- * inside a `<style>` block, so a value containing a brace could close the rule
- * and open another -- which is how a "theme" becomes a way to restyle the page
- * around it, or to load a remote resource. Braces, semicolons, angle brackets,
+ * inside the form wrapper's `style` attribute, so a value that could close a
+ * declaration and smuggle in another is how a "theme" becomes a way to restyle
+ * the page around it, or to load a remote resource. Braces, semicolons, angle brackets,
  * `@` rules, backslash escapes and `url(`/`expression(` are all refused rather
  * than escaped, because there is no legitimate token value that needs one.
  *
@@ -856,12 +856,12 @@ function atf_resolve_tokens( $slug, $overrides = array() ) {
  * @param array $tokens Raw tokens.
  * @return array<string, string> Only known names, with usable values.
  */
-function atf_sanitize_tokens( $tokens ) {
+function alltfo_sanitize_tokens( $tokens ) {
 	if ( ! is_array( $tokens ) ) {
 		return array();
 	}
 
-	$known = atf_theme_token_defaults();
+	$known = alltfo_theme_token_defaults();
 	$clean = array();
 
 	foreach ( $tokens as $name => $value ) {
@@ -900,19 +900,20 @@ function atf_sanitize_tokens( $tokens ) {
 }
 
 /**
- * Turns a resolved token map into the CSS custom properties for one form.
+ * Turns a resolved token map into CSS custom-property declarations for one form.
  *
- * Scoped to the form's own id attribute rather than emitted globally, so two
- * forms with different themes can sit on the same page -- which they routinely
- * do, and which a global block would render impossible.
+ * Shaped for a `style` attribute rather than a `<style>` block, because the
+ * renderer puts the tokens straight on the form's own wrapper element. That
+ * buys the same scoping the old per-instance rule bought -- two forms with
+ * different themes routinely share a page -- without the plugin printing a
+ * style tag by hand.
  *
  * @since 0.1.0
  *
- * @param string $scope  CSS selector to scope the properties to.
- * @param array  $tokens Resolved tokens.
- * @return string A `<style>`-ready rule, already escaped.
+ * @param array $tokens Resolved tokens.
+ * @return string Declarations for `esc_attr()`, or the empty string for none.
  */
-function atf_tokens_to_css( $scope, $tokens ) {
+function alltfo_tokens_to_declarations( $tokens ) {
 	$lines = array();
 
 	foreach ( $tokens as $name => $value ) {
@@ -931,14 +932,14 @@ function atf_tokens_to_css( $scope, $tokens ) {
 			continue;
 		}
 
-		$lines[] = sprintf( "\t--atf-%s: %s;", $name, $value );
+		$lines[] = sprintf( '--atf-%s: %s', $name, $value );
 	}
 
 	if ( ! $lines ) {
 		return '';
 	}
 
-	return sprintf( "%s {\n%s\n}", $scope, implode( "\n", $lines ) );
+	return implode( '; ', $lines ) . ';';
 }
 
 /**
@@ -957,32 +958,32 @@ function atf_tokens_to_css( $scope, $tokens ) {
  * }
  * @return array|WP_Error The saved theme record.
  */
-function atf_save_theme( $args ) {
-	if ( ! atf_can_edit_forms() ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot change form themes.', 'allterrain-forms' ), array( 'status' => 403 ) );
+function alltfo_save_theme( $args ) {
+	if ( ! alltfo_can_edit_forms() ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot change form themes.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
 	$label = isset( $args['label'] ) ? sanitize_text_field( (string) $args['label'] ) : '';
 
 	if ( '' === $label ) {
-		return new WP_Error( 'atf_theme_no_label', __( 'A theme needs a name.', 'allterrain-forms' ), array( 'status' => 400 ) );
+		return new WP_Error( 'alltfo_theme_no_label', __( 'A theme needs a name.', 'allterrain-forms' ), array( 'status' => 400 ) );
 	}
 
 	$id     = isset( $args['id'] ) ? absint( $args['id'] ) : 0;
 	$slug   = isset( $args['slug'] ) && '' !== $args['slug'] ? sanitize_title( $args['slug'] ) : sanitize_title( $label );
-	$tokens = atf_sanitize_tokens( isset( $args['tokens'] ) ? $args['tokens'] : array() );
+	$tokens = alltfo_sanitize_tokens( isset( $args['tokens'] ) ? $args['tokens'] : array() );
 
-	// A saved theme must not take a built-in's slug, or `atf_get_themes()` would
+	// A saved theme must not take a built-in's slug, or `alltfo_get_themes()` would
 	// hide the built-in behind it and there would be no way back short of the
 	// database. Suffixing is friendlier than refusing the save.
-	$builtins = atf_builtin_themes();
+	$builtins = alltfo_builtin_themes();
 
 	if ( isset( $builtins[ $slug ] ) ) {
 		$slug .= '-custom';
 	}
 
 	$postarr = array(
-		'post_type'    => ATF_THEME_TYPE,
+		'post_type'    => ALLTFO_THEME_TYPE,
 		'post_title'   => $label,
 		'post_name'    => $slug,
 		'post_excerpt' => isset( $args['description'] ) ? sanitize_text_field( (string) $args['description'] ) : '',
@@ -1000,7 +1001,7 @@ function atf_save_theme( $args ) {
 		return $result;
 	}
 
-	update_post_meta( $result, ATF_META_TOKENS, wp_slash( wp_json_encode( $tokens ) ) );
+	update_post_meta( $result, ALLTFO_META_TOKENS, wp_slash( wp_json_encode( $tokens ) ) );
 
 	/**
 	 * Fires after a user-made theme is saved.
@@ -1010,7 +1011,7 @@ function atf_save_theme( $args ) {
 	 * @param int   $theme_id The theme post.
 	 * @param array $tokens   The tokens stored.
 	 */
-	do_action( 'atf_theme_saved', $result, $tokens );
+	do_action( 'alltfo_theme_saved', $result, $tokens );
 
 	$post = get_post( $result );
 
@@ -1037,16 +1038,16 @@ function atf_save_theme( $args ) {
  * @param int $theme_id The theme post.
  * @return true|WP_Error
  */
-function atf_delete_theme( $theme_id ) {
-	if ( ! atf_can_edit_forms() ) {
-		return new WP_Error( 'atf_forbidden', __( 'You cannot change form themes.', 'allterrain-forms' ), array( 'status' => 403 ) );
+function alltfo_delete_theme( $theme_id ) {
+	if ( ! alltfo_can_edit_forms() ) {
+		return new WP_Error( 'alltfo_forbidden', __( 'You cannot change form themes.', 'allterrain-forms' ), array( 'status' => 403 ) );
 	}
 
 	$theme_id = absint( $theme_id );
 	$post     = $theme_id ? get_post( $theme_id ) : null;
 
-	if ( ! $post || ATF_THEME_TYPE !== $post->post_type ) {
-		return new WP_Error( 'atf_theme_missing', __( 'That theme does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
+	if ( ! $post || ALLTFO_THEME_TYPE !== $post->post_type ) {
+		return new WP_Error( 'alltfo_theme_missing', __( 'That theme does not exist.', 'allterrain-forms' ), array( 'status' => 404 ) );
 	}
 
 	wp_delete_post( $theme_id, true );

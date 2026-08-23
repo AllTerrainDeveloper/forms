@@ -304,7 +304,7 @@ var allTerrainFormsDock = function(exports) {
     );
     const openFolder = (form) => host.navigate({
       kind: "detail",
-      entityId: "atf-forms",
+      entityId: "alltfo-forms",
       postId: form.id,
       postTitle: form.title || `#${form.id}`
     });
@@ -380,7 +380,7 @@ var allTerrainFormsDock = function(exports) {
               icon: "dashicons-feedback",
               label: form.title || `#${form.id}`,
               vitals: `${form.fields} ${1 === form.fields ? "question" : "questions"} — open in the builder`,
-              onOpen: () => openWindowOnForm("allterrain-forms", "builder", "atf-open-form", form.id)
+              onOpen: () => openWindowOnForm("allterrain-forms", "builder", "alltfo-open-form", form.id)
             }),
             // Entries and Report are doors, not depths: the windows are
             // where those jobs are done, so the tiles take you there.
@@ -388,13 +388,13 @@ var allTerrainFormsDock = function(exports) {
               icon: "dashicons-list-view",
               label: "Entries",
               vitals: `${form.entries} stored`,
-              onOpen: () => openWindowOnForm("allterrain-forms-entries", "entries", "atf-open-entries-form", form.id)
+              onOpen: () => openWindowOnForm("allterrain-forms-entries", "entries", "alltfo-open-entries-form", form.id)
             }),
             tile({
               icon: "dashicons-chart-bar",
               label: "Report",
               vitals: "conversion, NPS, answers",
-              onOpen: () => openWindowOnForm("allterrain-forms-analytics", "analytics", "atf-open-analytics-form", form.id)
+              onOpen: () => openWindowOnForm("allterrain-forms-analytics", "analytics", "alltfo-open-analytics-form", form.id)
             })
           ]
         }),
@@ -500,7 +500,7 @@ var allTerrainFormsDock = function(exports) {
         url: "",
         onSelect: () => {
           open(ANALYTICS);
-          document.dispatchEvent(new CustomEvent("atf-open-demo-panel"));
+          document.dispatchEvent(new CustomEvent("alltfo-open-demo-panel"));
         },
         windowId: ANALYTICS
       });
@@ -558,9 +558,9 @@ var allTerrainFormsDock = function(exports) {
       return;
     }
     const targets = {
-      "allterrain-forms/open-builder": { windowId: BUILDER, surface: "builder", event: "atf-open-form" },
-      "allterrain-forms/open-entries": { windowId: ENTRIES, surface: "entries", event: "atf-open-entries-form" },
-      "allterrain-forms/open-analytics": { windowId: ANALYTICS, surface: "analytics", event: "atf-open-analytics-form" }
+      "allterrain-forms/open-builder": { windowId: BUILDER, surface: "builder", event: "alltfo-open-form" },
+      "allterrain-forms/open-entries": { windowId: ENTRIES, surface: "entries", event: "alltfo-open-entries-form" },
+      "allterrain-forms/open-analytics": { windowId: ANALYTICS, surface: "analytics", event: "alltfo-open-analytics-form" }
     };
     hooks.addFilter(
       "os.my-wordpress.preview-actions",
@@ -589,7 +589,7 @@ var allTerrainFormsDock = function(exports) {
   }
   function registerFormsKind() {
     const mw = window.wp?.os?.myWordpress;
-    mw?.registerEntityKind?.("atf-form", renderFormsKind);
+    mw?.registerEntityKind?.("alltfo-form", renderFormsKind);
   }
   registerExplorerActions();
   exports.submenuFor = submenuFor;

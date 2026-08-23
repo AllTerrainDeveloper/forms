@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'init', 'atf_register_assets', 5 );
+add_action( 'init', 'alltfo_register_assets', 5 );
 
 /**
  * Registers every handle.
@@ -32,8 +32,8 @@ add_action( 'init', 'atf_register_assets', 5 );
  *
  * @return void
  */
-function atf_register_assets() {
-	$suffix = atf_asset_suffix();
+function alltfo_register_assets() {
+	$suffix = alltfo_asset_suffix();
 
 	// A `false` src is WordPress's supported way to ship inline-only JS: a real
 	// handle with nothing to fetch. Being a *dependency* of every bundle rather
@@ -41,66 +41,73 @@ function atf_register_assets() {
 	// order is not execution order once other plugins are enqueueing too, and a
 	// bundle that runs before its config reads `undefined` and silently does
 	// nothing.
-	wp_register_script( 'allterrain-forms-config', false, array(), ATF_VERSION, true );
+	wp_register_script( 'allterrain-forms-config', false, array(), ALLTFO_VERSION, true );
 
 	wp_register_style(
 		'allterrain-forms',
-		ATF_URL . 'assets/css/form.css',
+		ALLTFO_URL . 'assets/css/form.css',
 		array(),
-		atf_asset_version( 'assets/css/form.css' )
+		alltfo_asset_version( 'assets/css/form.css' )
+	);
+
+	wp_register_style(
+		'allterrain-forms-preview',
+		ALLTFO_URL . 'assets/css/preview.css',
+		array( 'allterrain-forms' ),
+		alltfo_asset_version( 'assets/css/preview.css' )
 	);
 
 	wp_register_style(
 		'allterrain-forms-explorer',
-		ATF_URL . 'assets/css/explorer.css',
+		ALLTFO_URL . 'assets/css/explorer.css',
 		array(),
-		atf_asset_version( 'assets/css/explorer.css' )
+		alltfo_asset_version( 'assets/css/explorer.css' )
 	);
 
 	wp_register_style(
 		'allterrain-forms-builder',
-		ATF_URL . 'assets/css/builder.css',
+		ALLTFO_URL . 'assets/css/builder.css',
 		array( 'allterrain-forms' ),
-		atf_asset_version( 'assets/css/builder.css' )
+		alltfo_asset_version( 'assets/css/builder.css' )
 	);
 
 	wp_register_script(
 		'allterrain-forms-front',
-		ATF_URL . "assets/js/form{$suffix}.js",
+		ALLTFO_URL . "assets/js/form{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/form{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/form{$suffix}.js" ),
 		true
 	);
 
 	wp_register_script(
 		'allterrain-forms-builder',
-		ATF_URL . "assets/js/builder{$suffix}.js",
+		ALLTFO_URL . "assets/js/builder{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/builder{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/builder{$suffix}.js" ),
 		true
 	);
 
 	wp_register_script(
 		'allterrain-forms-entries',
-		ATF_URL . "assets/js/entries{$suffix}.js",
+		ALLTFO_URL . "assets/js/entries{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/entries{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/entries{$suffix}.js" ),
 		true
 	);
 
 	wp_register_script(
 		'allterrain-forms-analytics',
-		ATF_URL . "assets/js/analytics{$suffix}.js",
+		ALLTFO_URL . "assets/js/analytics{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/analytics{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/analytics{$suffix}.js" ),
 		true
 	);
 
 	wp_register_style(
 		'allterrain-forms-analytics',
-		ATF_URL . 'assets/css/analytics.css',
+		ALLTFO_URL . 'assets/css/analytics.css',
 		array( 'allterrain-forms-builder' ),
-		atf_asset_version( 'assets/css/analytics.css' )
+		alltfo_asset_version( 'assets/css/analytics.css' )
 	);
 
 	// The dock tile. Registered separately from every window bundle because it
@@ -108,21 +115,21 @@ function atf_register_assets() {
 	// small enough that paying for it is never a question.
 	wp_register_script(
 		'allterrain-forms-dock',
-		ATF_URL . "assets/js/dock{$suffix}.js",
+		ALLTFO_URL . "assets/js/dock{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/dock{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/dock{$suffix}.js" ),
 		true
 	);
 
 	wp_register_script(
 		'allterrain-forms-widget',
-		ATF_URL . "assets/js/widget{$suffix}.js",
+		ALLTFO_URL . "assets/js/widget{$suffix}.js",
 		array( 'allterrain-forms-config' ),
-		atf_asset_version( "assets/js/widget{$suffix}.js" ),
+		alltfo_asset_version( "assets/js/widget{$suffix}.js" ),
 		true
 	);
 
-	atf_print_config( 'allterrain-forms-config' );
+	alltfo_print_config( 'allterrain-forms-config' );
 }
 
 /**
@@ -142,22 +149,22 @@ function atf_register_assets() {
  * @param string $handle The script handle to attach to.
  * @return void
  */
-function atf_print_config( $handle ) {
+function alltfo_print_config( $handle ) {
 	$config = array(
-		'restUrl'   => esc_url_raw( rest_url( ATF_REST_NAMESPACE ) ),
+		'restUrl'   => esc_url_raw( rest_url( ALLTFO_REST_NAMESPACE ) ),
 		'wpRestUrl' => esc_url_raw( rest_url() ),
 		'nonce'     => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
 		'adminUrl'  => esc_url_raw( admin_url() ),
-		'version'   => ATF_VERSION,
-		'canEdit'   => atf_can_edit_forms(),
-		'canRead'   => atf_can_read_entries(),
+		'version'   => ALLTFO_VERSION,
+		'canEdit'   => alltfo_can_edit_forms(),
+		'canRead'   => alltfo_can_read_entries(),
 		// Read by the dock so the demo-data row appears without a reload, and by
 		// the analytics window so the developer panel does. It is a preference,
 		// never an authorisation -- every route it reveals checks a capability of
 		// its own.
-		'devMode'   => atf_developer_mode(),
+		'devMode'   => alltfo_developer_mode(),
 		'locale'    => get_locale(),
-		'i18n'      => atf_client_strings(),
+		'i18n'      => alltfo_client_strings(),
 	);
 
 	/**
@@ -167,7 +174,7 @@ function atf_print_config( $handle ) {
 	 *
 	 * @param array $config The config.
 	 */
-	$config = apply_filters( 'atf_script_config', $config );
+	$config = apply_filters( 'alltfo_script_config', $config );
 
 	wp_add_inline_script(
 		$handle,
@@ -188,7 +195,7 @@ function atf_print_config( $handle ) {
  *
  * @return array<string, string>
  */
-function atf_client_strings() {
+function alltfo_client_strings() {
 	return array(
 		'required'      => __( 'This is required.', 'allterrain-forms' ),
 		'invalidEmail'  => __( 'That does not look like an email address.', 'allterrain-forms' ),
@@ -228,7 +235,7 @@ function atf_client_strings() {
  *
  * @return void
  */
-function atf_enqueue_form_assets() {
+function alltfo_enqueue_form_assets() {
 	wp_enqueue_style( 'allterrain-forms' );
 	wp_enqueue_script( 'allterrain-forms-front' );
 }
@@ -236,7 +243,7 @@ function atf_enqueue_form_assets() {
 /**
  * The cache-busting version for one asset.
  *
- * `ATF_VERSION` alone is right for a release and actively wrong during
+ * `ALLTFO_VERSION` alone is right for a release and actively wrong during
  * development: the plugin version does not change between rebuilds, so the URL
  * does not change either, and the browser keeps serving the bundle it cached
  * before the last `npm run build`. The symptom is the worst kind -- code that is
@@ -247,17 +254,17 @@ function atf_enqueue_form_assets() {
  * @param string $relative_path Path under the plugin directory.
  * @return string
  */
-function atf_asset_version( $relative_path ) {
+function alltfo_asset_version( $relative_path ) {
 	$developing = ( defined( 'WP_DEBUG' ) && WP_DEBUG ) || ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG );
 
 	if ( ! $developing ) {
-		return ATF_VERSION;
+		return ALLTFO_VERSION;
 	}
 
-	$file = ATF_DIR . ltrim( $relative_path, '/' );
+	$file = ALLTFO_DIR . ltrim( $relative_path, '/' );
 
 	if ( ! file_exists( $file ) ) {
-		return ATF_VERSION;
+		return ALLTFO_VERSION;
 	}
 
 	return (string) filemtime( $file );
@@ -270,6 +277,6 @@ function atf_asset_version( $relative_path ) {
  *
  * @return string Either `.min` or an empty string.
  */
-function atf_asset_suffix() {
+function alltfo_asset_suffix() {
 	return ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 }

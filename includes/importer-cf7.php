@@ -27,19 +27,19 @@ defined( 'ABSPATH' ) || exit;
  * @param array[] $importers Importer id => definition.
  * @return array[]
  */
-function atf_register_cf7_importer( $importers ) {
+function alltfo_register_cf7_importer( $importers ) {
 	$importers['contact-form-7'] = array(
 		'label'          => __( 'Contact Form 7', 'allterrain-forms' ),
-		'available'      => 'atf_cf7_available',
-		'forms'          => 'atf_cf7_forms',
-		'import'         => 'atf_cf7_import',
-		'entries'        => 'atf_cf7_entry_count',
-		'import_entries' => 'atf_cf7_import_entries',
+		'available'      => 'alltfo_cf7_available',
+		'forms'          => 'alltfo_cf7_forms',
+		'import'         => 'alltfo_cf7_import',
+		'entries'        => 'alltfo_cf7_entry_count',
+		'import_entries' => 'alltfo_cf7_import_entries',
 	);
 
 	return $importers;
 }
-add_filter( 'atf_importers', 'atf_register_cf7_importer' );
+add_filter( 'alltfo_importers', 'alltfo_register_cf7_importer' );
 
 /**
  * Whether any Contact Form 7 forms exist on this site.
@@ -51,8 +51,8 @@ add_filter( 'atf_importers', 'atf_register_cf7_importer' );
  *
  * @return bool
  */
-function atf_cf7_available() {
-	return (bool) atf_cf7_forms();
+function alltfo_cf7_available() {
+	return (bool) alltfo_cf7_forms();
 }
 
 /**
@@ -62,7 +62,7 @@ function atf_cf7_available() {
  *
  * @return array
  */
-function atf_cf7_forms() {
+function alltfo_cf7_forms() {
 	$posts = get_posts(
 		array(
 			'post_type'      => 'wpcf7_contact_form',
@@ -93,16 +93,16 @@ function atf_cf7_forms() {
  * @param string $source_id The CF7 post id.
  * @return int|WP_Error The new form's id.
  */
-function atf_cf7_import( $source_id ) {
+function alltfo_cf7_import( $source_id ) {
 	$post = get_post( absint( $source_id ) );
 
 	if ( ! $post || 'wpcf7_contact_form' !== $post->post_type ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
 	$template = (string) get_post_meta( $post->ID, '_form', true );
 
-	$schema = atf_cf7_convert(
+	$schema = alltfo_cf7_convert(
 		$template,
 		(array) get_post_meta( $post->ID, '_mail', true ),
 		(array) get_post_meta( $post->ID, '_mail_2', true ),
@@ -111,10 +111,10 @@ function atf_cf7_import( $source_id ) {
 
 	// Parsed a second time for its name => id map alone. The template is a few
 	// hundred bytes and this happens once per form ever imported; thread the map
-	// out of atf_cf7_convert() and every caller of it has to care about it.
-	$parsed = atf_cf7_parse_template( $template );
+	// out of alltfo_cf7_convert() and every caller of it has to care about it.
+	$parsed = alltfo_cf7_parse_template( $template );
 
-	return atf_create_imported_form(
+	return alltfo_create_imported_form(
 		$post->post_title,
 		$schema,
 		'contact-form-7',
@@ -132,7 +132,7 @@ function atf_cf7_import( $source_id ) {
  * @param WP_Post $form The CF7 form post.
  * @return int Term id, or 0 when the form has no channel.
  */
-function atf_cf7_channel_id( $form ) {
+function alltfo_cf7_channel_id( $form ) {
 	$meta = get_post_meta( $form->ID, '_flamingo', true );
 
 	if ( is_array( $meta ) && ! empty( $meta['channel'] ) ) {
@@ -156,7 +156,7 @@ function atf_cf7_channel_id( $form ) {
  *
  * @return string[]
  */
-function atf_cf7_message_statuses() {
+function alltfo_cf7_message_statuses() {
 	return array( 'publish', 'flamingo-spam' );
 }
 
@@ -172,7 +172,7 @@ function atf_cf7_message_statuses() {
  * @param int    $form_id   The AllTerrain form the messages would land on.
  * @return int
  */
-function atf_cf7_entry_count( $source_id, $form_id = 0 ) {
+function alltfo_cf7_entry_count( $source_id, $form_id = 0 ) {
 	global $wpdb;
 
 	$form = get_post( absint( $source_id ) );
@@ -181,13 +181,13 @@ function atf_cf7_entry_count( $source_id, $form_id = 0 ) {
 		return 0;
 	}
 
-	$channel_id = atf_cf7_channel_id( $form );
+	$channel_id = alltfo_cf7_channel_id( $form );
 
 	if ( ! $channel_id ) {
 		return 0;
 	}
 
-	$statuses     = atf_cf7_message_statuses();
+	$statuses     = alltfo_cf7_message_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders is a generated list of %s.
@@ -209,7 +209,7 @@ function atf_cf7_entry_count( $source_id, $form_id = 0 ) {
 		return $total;
 	}
 
-	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+	return max( 0, $total - count( alltfo_imported_entry_keys( (int) $form_id ) ) );
 }
 
 /**
@@ -223,16 +223,16 @@ function atf_cf7_entry_count( $source_id, $form_id = 0 ) {
  * @param int    $limit     How many to attempt in this pass.
  * @return array|WP_Error { imported, skipped, done, remaining }.
  */
-function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
+function alltfo_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
 	global $wpdb;
 
 	$form = get_post( absint( $source_id ) );
 
 	if ( ! $form || 'wpcf7_contact_form' !== $form->post_type ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
-	$channel_id = atf_cf7_channel_id( $form );
+	$channel_id = alltfo_cf7_channel_id( $form );
 
 	if ( ! $channel_id ) {
 		return array(
@@ -243,8 +243,8 @@ function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
 		);
 	}
 
-	$seen         = atf_imported_entry_keys( (int) $form_id );
-	$statuses     = atf_cf7_message_statuses();
+	$seen         = alltfo_imported_entry_keys( (int) $form_id );
+	$statuses     = alltfo_cf7_message_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 	// Fetched a page at a time, and the page is larger than the limit because
@@ -275,21 +275,21 @@ function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
 			break;
 		}
 
-		if ( isset( $seen[ atf_entry_source_key( 'contact-form-7', $row->ID ) ] ) ) {
+		if ( isset( $seen[ alltfo_entry_source_key( 'contact-form-7', $row->ID ) ] ) ) {
 			++$skipped;
 			continue;
 		}
 
-		$result = atf_import_entry(
+		$result = alltfo_import_entry(
 			(int) $form_id,
 			array(
-				'values'       => atf_cf7_message_values( (int) $row->ID ),
+				'values'       => alltfo_cf7_message_values( (int) $row->ID ),
 				'importer'     => 'contact-form-7',
 				'record'       => (string) $row->ID,
 				'submitted_at' => (int) strtotime( $row->post_date_gmt . ' UTC' ),
 				'spam'         => 'flamingo-spam' === $row->post_status,
-				'ip'           => atf_cf7_message_meta( (int) $row->ID, 'remote_ip' ),
-				'user_agent'   => atf_cf7_message_meta( (int) $row->ID, 'user_agent' ),
+				'ip'           => alltfo_cf7_message_meta( (int) $row->ID, 'remote_ip' ),
+				'user_agent'   => alltfo_cf7_message_meta( (int) $row->ID, 'user_agent' ),
 			)
 		);
 
@@ -297,7 +297,7 @@ function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
 			// A single unreadable record must not strand the rest of the
 			// migration, but an error that would repeat on every one of them --
 			// a missing schema or field map -- is worth stopping for.
-			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+			if ( in_array( $result->get_error_code(), array( 'alltfo_no_schema', 'alltfo_no_import_map' ), true ) ) {
 				return $result;
 			}
 
@@ -308,7 +308,7 @@ function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
 		++$imported;
 	}
 
-	$remaining = atf_cf7_entry_count( $source_id, (int) $form_id );
+	$remaining = alltfo_cf7_entry_count( $source_id, (int) $form_id );
 
 	return array(
 		'imported'  => $imported,
@@ -328,7 +328,7 @@ function atf_cf7_import_entries( $source_id, $form_id, $limit = 100 ) {
  * @param int $message_id The `flamingo_inbound` post id.
  * @return array Field name => value.
  */
-function atf_cf7_message_values( $message_id ) {
+function alltfo_cf7_message_values( $message_id ) {
 	$values = array();
 
 	foreach ( get_post_meta( $message_id ) as $key => $raw ) {
@@ -349,7 +349,7 @@ function atf_cf7_message_values( $message_id ) {
  * @param string $key        The tag name, e.g. `remote_ip`.
  * @return string
  */
-function atf_cf7_message_meta( $message_id, $key ) {
+function alltfo_cf7_message_meta( $message_id, $key ) {
 	$meta = get_post_meta( $message_id, '_meta', true );
 
 	return is_array( $meta ) && isset( $meta[ $key ] ) ? (string) $meta[ $key ] : '';
@@ -367,10 +367,10 @@ function atf_cf7_message_meta( $message_id, $key ) {
  * @param array  $mail     The `_mail` settings.
  * @param array  $mail_2   The `_mail_2` settings.
  * @param array  $messages The `_messages` strings.
- * @return array A raw schema, ready for `atf_normalize_schema()`.
+ * @return array A raw schema, ready for `alltfo_normalize_schema()`.
  */
-function atf_cf7_convert( $template, $mail, $mail_2, $messages ) {
-	$parsed = atf_cf7_parse_template( $template );
+function alltfo_cf7_convert( $template, $mail, $mail_2, $messages ) {
+	$parsed = alltfo_cf7_parse_template( $template );
 
 	$schema = array(
 		'fields'        => $parsed['fields'],
@@ -382,7 +382,7 @@ function atf_cf7_convert( $template, $mail, $mail_2, $messages ) {
 		$schema['settings'] = array( 'submitLabel' => $parsed['submit_label'] );
 	}
 
-	$notification = atf_cf7_convert_mail( $mail, $parsed['map'], __( 'Notification', 'allterrain-forms' ) );
+	$notification = alltfo_cf7_convert_mail( $mail, $parsed['map'], __( 'Notification', 'allterrain-forms' ) );
 
 	if ( $notification ) {
 		$schema['notifications'][] = $notification;
@@ -392,7 +392,7 @@ function atf_cf7_convert( $template, $mail, $mail_2, $messages ) {
 	// either way, and importing a disabled autoresponder as a live one would
 	// start e-mailing visitors nobody meant to e-mail.
 	if ( ! empty( $mail_2['active'] ) ) {
-		$second = atf_cf7_convert_mail( $mail_2, $parsed['map'], __( 'Mail (2)', 'allterrain-forms' ) );
+		$second = alltfo_cf7_convert_mail( $mail_2, $parsed['map'], __( 'Mail (2)', 'allterrain-forms' ) );
 
 		if ( $second ) {
 			$schema['notifications'][] = $second;
@@ -422,7 +422,7 @@ function atf_cf7_convert( $template, $mail, $mail_2, $messages ) {
  *     @type string  $submit_label The `[submit]` tag's label, or ''.
  * }
  */
-function atf_cf7_parse_template( $template ) {
+function alltfo_cf7_parse_template( $template ) {
 	$fields       = array();
 	$map          = array();
 	$submit_label = '';
@@ -439,7 +439,7 @@ function atf_cf7_parse_template( $template ) {
 	foreach ( $matches as $match ) {
 		$type     = strtolower( $match[1][0] );
 		$required = '' !== $match[2][0];
-		$rest     = atf_cf7_parse_tag_body( isset( $match[3][0] ) ? $match[3][0] : '' );
+		$rest     = alltfo_cf7_parse_tag_body( isset( $match[3][0] ) ? $match[3][0] : '' );
 		$offset   = $match[0][1];
 
 		if ( 'submit' === $type ) {
@@ -452,19 +452,19 @@ function atf_cf7_parse_template( $template ) {
 			continue;
 		}
 
-		$field = atf_cf7_tag_to_field( $type, $required, $rest, "f{$next}" );
+		$field = alltfo_cf7_tag_to_field( $type, $required, $rest, "f{$next}" );
 
 		if ( ! $field ) {
 			continue;
 		}
 
-		$field['label'] = atf_cf7_label_for( (string) $template, $offset, $rest['name'] );
+		$field['label'] = alltfo_cf7_label_for( (string) $template, $offset, $rest['name'] );
 
 		// Acceptance carries its condition as tag *content* —
 		// `[acceptance name] I agree… [/acceptance]` — which reads better as
 		// the consent line than as the label.
 		if ( 'consent' === $field['type'] ) {
-			$content = atf_cf7_tag_content( (string) $template, $offset + strlen( $match[0][0] ), 'acceptance' );
+			$content = alltfo_cf7_tag_content( (string) $template, $offset + strlen( $match[0][0] ), 'acceptance' );
 
 			if ( '' !== $content ) {
 				$field['consentText'] = $content;
@@ -495,7 +495,7 @@ function atf_cf7_parse_template( $template ) {
  * @param string $body Everything between the tag's type and its `]`.
  * @return array { name: string, options: string[], values: string[] }
  */
-function atf_cf7_parse_tag_body( $body ) {
+function alltfo_cf7_parse_tag_body( $body ) {
 	$name    = '';
 	$options = array();
 	$values  = array();
@@ -532,7 +532,7 @@ function atf_cf7_parse_tag_body( $body ) {
  * @param string   $key     The option name.
  * @return string The part after the colon, or '' when absent.
  */
-function atf_cf7_option( $options, $key ) {
+function alltfo_cf7_option( $options, $key ) {
 	foreach ( $options as $option ) {
 		if ( 0 === strpos( $option, $key . ':' ) ) {
 			return substr( $option, strlen( $key ) + 1 );
@@ -553,7 +553,7 @@ function atf_cf7_option( $options, $key ) {
  * @param string $id       The id the new field will take.
  * @return array|null The field, or null when the tag has no equivalent.
  */
-function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
+function alltfo_cf7_tag_to_field( $type, $required, $rest, $id ) {
 	$simple = array(
 		'text'     => 'text',
 		'email'    => 'email',
@@ -590,7 +590,7 @@ function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
 		}
 
 		foreach ( array( 'min', 'max', 'minlength', 'maxlength', 'step' ) as $bound ) {
-			$value = atf_cf7_option( $options, $bound );
+			$value = alltfo_cf7_option( $options, $bound );
 
 			if ( '' !== $value ) {
 				$field[ $bound ] = $value;
@@ -600,7 +600,7 @@ function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
 		if ( 'file' === $field['type'] ) {
 			unset( $field['default'], $field['placeholder'] );
 
-			$filetypes = atf_cf7_option( $options, 'filetypes' );
+			$filetypes = alltfo_cf7_option( $options, 'filetypes' );
 
 			if ( '' !== $filetypes ) {
 				$field['filetypes'] = array_values( array_filter( array_map( 'trim', explode( '|', strtolower( $filetypes ) ) ) ) );
@@ -613,7 +613,7 @@ function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
 	switch ( $type ) {
 		case 'select':
 			$field['type']    = in_array( 'multiple', $options, true ) ? 'multiselect' : 'select';
-			$field['choices'] = atf_cf7_choices( $values );
+			$field['choices'] = alltfo_cf7_choices( $values );
 
 			return $field;
 
@@ -621,13 +621,13 @@ function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
 			// An `exclusive` checkbox group allows exactly one answer, which
 			// is a radio group wearing checkbox clothes.
 			$field['type']    = in_array( 'exclusive', $options, true ) ? 'radio' : 'checkboxes';
-			$field['choices'] = atf_cf7_choices( $values );
+			$field['choices'] = alltfo_cf7_choices( $values );
 
 			return $field;
 
 		case 'radio':
 			$field['type']    = 'radio';
-			$field['choices'] = atf_cf7_choices( $values );
+			$field['choices'] = alltfo_cf7_choices( $values );
 
 			return $field;
 
@@ -668,7 +668,7 @@ function atf_cf7_tag_to_field( $type, $required, $rest, $id ) {
  * @param string[] $values The tag's quoted strings.
  * @return array[]
  */
-function atf_cf7_choices( $values ) {
+function alltfo_cf7_choices( $values ) {
 	$choices = array();
 
 	foreach ( $values as $value ) {
@@ -698,7 +698,7 @@ function atf_cf7_choices( $values ) {
  * @param string $name     The CF7 field name, the fallback.
  * @return string
  */
-function atf_cf7_label_for( $template, $offset, $name ) {
+function alltfo_cf7_label_for( $template, $offset, $name ) {
 	$before = substr( $template, 0, $offset );
 
 	if ( preg_match( '/<label[^>]*>\s*([^<>\[\]]*?)\s*$/s', $before, $found ) && '' !== trim( $found[1] ) ) {
@@ -718,7 +718,7 @@ function atf_cf7_label_for( $template, $offset, $name ) {
  * @param string $type     The tag type, e.g. `acceptance`.
  * @return string The trimmed content, or '' when there is no closing tag.
  */
-function atf_cf7_tag_content( $template, $offset, $type ) {
+function alltfo_cf7_tag_content( $template, $offset, $type ) {
 	$closing = strpos( $template, '[/' . $type . ']', $offset );
 
 	if ( false === $closing ) {
@@ -738,7 +738,7 @@ function atf_cf7_tag_content( $template, $offset, $type ) {
  * @param string $name The notification's display name.
  * @return array|null The notification, or null when the block is empty.
  */
-function atf_cf7_convert_mail( $mail, $map, $name ) {
+function alltfo_cf7_convert_mail( $mail, $map, $name ) {
 	$recipient = isset( $mail['recipient'] ) ? (string) $mail['recipient'] : '';
 	$body      = isset( $mail['body'] ) ? (string) $mail['body'] : '';
 
@@ -757,9 +757,9 @@ function atf_cf7_convert_mail( $mail, $map, $name ) {
 
 	$notification = array(
 		'name'    => $name,
-		'to'      => atf_cf7_replace_mail_tags( $recipient, $map ),
-		'subject' => atf_cf7_replace_mail_tags( isset( $mail['subject'] ) ? (string) $mail['subject'] : '', $map ),
-		'message' => atf_cf7_replace_mail_tags( $body, $map ),
+		'to'      => alltfo_cf7_replace_mail_tags( $recipient, $map ),
+		'subject' => alltfo_cf7_replace_mail_tags( isset( $mail['subject'] ) ? (string) $mail['subject'] : '', $map ),
+		'message' => alltfo_cf7_replace_mail_tags( $body, $map ),
 	);
 
 	// CF7's sender is one string — `Name <address>` — where this plugin keeps
@@ -767,16 +767,16 @@ function atf_cf7_convert_mail( $mail, $map, $name ) {
 	$sender = isset( $mail['sender'] ) ? (string) $mail['sender'] : '';
 
 	if ( preg_match( '/^\s*(.*?)\s*<([^<>]+)>\s*$/', $sender, $parts ) ) {
-		$notification['fromName']  = atf_cf7_replace_mail_tags( $parts[1], $map );
-		$notification['fromEmail'] = atf_cf7_replace_mail_tags( $parts[2], $map );
+		$notification['fromName']  = alltfo_cf7_replace_mail_tags( $parts[1], $map );
+		$notification['fromEmail'] = alltfo_cf7_replace_mail_tags( $parts[2], $map );
 	} elseif ( '' !== trim( $sender ) ) {
-		$notification['fromEmail'] = atf_cf7_replace_mail_tags( trim( $sender ), $map );
+		$notification['fromEmail'] = alltfo_cf7_replace_mail_tags( trim( $sender ), $map );
 	}
 
 	$headers = isset( $mail['additional_headers'] ) ? (string) $mail['additional_headers'] : '';
 
 	if ( preg_match( '/^\s*Reply-To:\s*(.+)$/mi', $headers, $reply ) ) {
-		$notification['replyTo'] = atf_cf7_replace_mail_tags( trim( $reply[1] ), $map );
+		$notification['replyTo'] = alltfo_cf7_replace_mail_tags( trim( $reply[1] ), $map );
 	}
 
 	if ( ! empty( $mail['attachments'] ) ) {
@@ -800,7 +800,7 @@ function atf_cf7_convert_mail( $mail, $map, $name ) {
  * @param array  $map  CF7 field name => new field id.
  * @return string
  */
-function atf_cf7_replace_mail_tags( $text, $map ) {
+function alltfo_cf7_replace_mail_tags( $text, $map ) {
 	$specials = array(
 		'[_site_title]'       => '{site}',
 		'[_site_url]'         => '{site:url}',

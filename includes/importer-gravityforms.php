@@ -26,19 +26,19 @@ defined( 'ABSPATH' ) || exit;
  * @param array[] $importers Importer id => definition.
  * @return array[]
  */
-function atf_register_gravityforms_importer( $importers ) {
+function alltfo_register_gravityforms_importer( $importers ) {
 	$importers['gravityforms'] = array(
 		'label'          => __( 'Gravity Forms', 'allterrain-forms' ),
-		'available'      => 'atf_gf_available',
-		'forms'          => 'atf_gf_forms',
-		'import'         => 'atf_gf_import',
-		'entries'        => 'atf_gf_entry_count',
-		'import_entries' => 'atf_gf_import_entries',
+		'available'      => 'alltfo_gf_available',
+		'forms'          => 'alltfo_gf_forms',
+		'import'         => 'alltfo_gf_import',
+		'entries'        => 'alltfo_gf_entry_count',
+		'import_entries' => 'alltfo_gf_import_entries',
 	);
 
 	return $importers;
 }
-add_filter( 'atf_importers', 'atf_register_gravityforms_importer' );
+add_filter( 'alltfo_importers', 'alltfo_register_gravityforms_importer' );
 
 /**
  * Whether Gravity Forms' tables exist on this site.
@@ -47,7 +47,7 @@ add_filter( 'atf_importers', 'atf_register_gravityforms_importer' );
  *
  * @return bool
  */
-function atf_gf_available() {
+function alltfo_gf_available() {
 	global $wpdb;
 
 	$table = $wpdb->prefix . 'gf_form';
@@ -65,10 +65,10 @@ function atf_gf_available() {
  *
  * @return array
  */
-function atf_gf_forms() {
+function alltfo_gf_forms() {
 	global $wpdb;
 
-	if ( ! atf_gf_available() ) {
+	if ( ! alltfo_gf_available() ) {
 		return array();
 	}
 
@@ -93,13 +93,13 @@ function atf_gf_forms() {
  * @param string $source_id The Gravity Forms form id.
  * @return int|WP_Error The new form's id.
  */
-function atf_gf_import( $source_id ) {
+function alltfo_gf_import( $source_id ) {
 	global $wpdb;
 
 	$source_id = absint( $source_id );
 
-	if ( ! $source_id || ! atf_gf_available() ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+	if ( ! $source_id || ! alltfo_gf_available() ) {
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
 	$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Another plugin's table; read once per import.
@@ -113,16 +113,16 @@ function atf_gf_import( $source_id ) {
 	);
 
 	if ( ! $row ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
 	$display = json_decode( (string) $row->display_meta, true );
 
 	if ( ! is_array( $display ) ) {
-		return new WP_Error( 'atf_import_unreadable', __( 'That form could not be read.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_import_unreadable', __( 'That form could not be read.', 'allterrain-forms' ) );
 	}
 
-	$schema = atf_gf_convert(
+	$schema = alltfo_gf_convert(
 		$display,
 		json_decode( (string) $row->notifications, true ),
 		json_decode( (string) $row->confirmations, true )
@@ -130,7 +130,7 @@ function atf_gf_import( $source_id ) {
 
 	$title = '' !== (string) $row->title ? (string) $row->title : ( isset( $display['title'] ) ? (string) $display['title'] : '' );
 
-	return atf_create_imported_form( $title, $schema, 'gravityforms', (string) $source_id, atf_gf_map( $display ) );
+	return alltfo_create_imported_form( $title, $schema, 'gravityforms', (string) $source_id, alltfo_gf_map( $display ) );
 }
 
 /**
@@ -144,9 +144,9 @@ function atf_gf_import( $source_id ) {
  * @param array      $display       The decoded `display_meta`.
  * @param array|null $notifications The decoded notifications column.
  * @param array|null $confirmations The decoded confirmations column.
- * @return array A raw schema, ready for `atf_normalize_schema()`.
+ * @return array A raw schema, ready for `alltfo_normalize_schema()`.
  */
-function atf_gf_convert( $display, $notifications = null, $confirmations = null ) {
+function alltfo_gf_convert( $display, $notifications = null, $confirmations = null ) {
 	$source_fields = isset( $display['fields'] ) && is_array( $display['fields'] ) ? $display['fields'] : array();
 
 	$fields   = array();
@@ -168,7 +168,7 @@ function atf_gf_convert( $display, $notifications = null, $confirmations = null 
 			continue;
 		}
 
-		$field = atf_gf_field( $source, $map[ (string) $source['id'] ], $map );
+		$field = alltfo_gf_field( $source, $map[ (string) $source['id'] ], $map );
 
 		if ( ! $field ) {
 			unset( $map[ (string) $source['id'] ] );
@@ -221,18 +221,18 @@ function atf_gf_convert( $display, $notifications = null, $confirmations = null 
 		if ( isset( $notification['toType'] ) && 'field' === $notification['toType'] && isset( $map[ $to ] ) ) {
 			$to = '{field:' . $map[ $to ] . '}';
 		} else {
-			$to = atf_gf_replace_tags( $to, $map );
+			$to = alltfo_gf_replace_tags( $to, $map );
 		}
 
 		$schema['notifications'][] = array(
 			'name'     => isset( $notification['name'] ) && '' !== $notification['name'] ? (string) $notification['name'] : __( 'Notification', 'allterrain-forms' ),
 			'enabled'  => empty( $notification['isActive'] ) && isset( $notification['isActive'] ) ? false : true,
 			'to'       => $to,
-			'subject'  => atf_gf_replace_tags( isset( $notification['subject'] ) ? (string) $notification['subject'] : '', $map ),
-			'message'  => atf_gf_replace_tags( isset( $notification['message'] ) ? (string) $notification['message'] : '', $map ),
-			'fromName' => atf_gf_replace_tags( isset( $notification['fromName'] ) ? (string) $notification['fromName'] : '', $map ),
-			'replyTo'  => atf_gf_replace_tags( isset( $notification['replyTo'] ) ? (string) $notification['replyTo'] : '', $map ),
-			'logic'    => atf_gf_logic( isset( $notification['conditionalLogic'] ) ? $notification['conditionalLogic'] : null, $map ),
+			'subject'  => alltfo_gf_replace_tags( isset( $notification['subject'] ) ? (string) $notification['subject'] : '', $map ),
+			'message'  => alltfo_gf_replace_tags( isset( $notification['message'] ) ? (string) $notification['message'] : '', $map ),
+			'fromName' => alltfo_gf_replace_tags( isset( $notification['fromName'] ) ? (string) $notification['fromName'] : '', $map ),
+			'replyTo'  => alltfo_gf_replace_tags( isset( $notification['replyTo'] ) ? (string) $notification['replyTo'] : '', $map ),
+			'logic'    => alltfo_gf_logic( isset( $notification['conditionalLogic'] ) ? $notification['conditionalLogic'] : null, $map ),
 		);
 	}
 
@@ -246,11 +246,11 @@ function atf_gf_convert( $display, $notifications = null, $confirmations = null 
 		$schema['confirmations'][] = array(
 			'name'    => isset( $confirmation['name'] ) && '' !== $confirmation['name'] ? (string) $confirmation['name'] : __( 'Confirmation', 'allterrain-forms' ),
 			'type'    => in_array( $type, array( 'message', 'redirect', 'page' ), true ) ? $type : 'message',
-			'message' => atf_gf_replace_tags( isset( $confirmation['message'] ) ? (string) $confirmation['message'] : '', $map ),
+			'message' => alltfo_gf_replace_tags( isset( $confirmation['message'] ) ? (string) $confirmation['message'] : '', $map ),
 			'url'     => isset( $confirmation['url'] ) ? (string) $confirmation['url'] : '',
 			'pageId'  => isset( $confirmation['pageId'] ) ? absint( $confirmation['pageId'] ) : 0,
-			'query'   => atf_gf_replace_tags( isset( $confirmation['queryString'] ) ? (string) $confirmation['queryString'] : '', $map ),
-			'logic'   => atf_gf_logic( isset( $confirmation['conditionalLogic'] ) ? $confirmation['conditionalLogic'] : null, $map ),
+			'query'   => alltfo_gf_replace_tags( isset( $confirmation['queryString'] ) ? (string) $confirmation['queryString'] : '', $map ),
+			'logic'   => alltfo_gf_logic( isset( $confirmation['conditionalLogic'] ) ? $confirmation['conditionalLogic'] : null, $map ),
 		);
 	}
 
@@ -267,7 +267,7 @@ function atf_gf_convert( $display, $notifications = null, $confirmations = null 
  * @param array  $map    Gravity field id => new field id, for logic rules.
  * @return array|null The field, or null when the source has no equivalent.
  */
-function atf_gf_field( $source, $id, $map ) {
+function alltfo_gf_field( $source, $id, $map ) {
 	$type = isset( $source['type'] ) ? strtolower( (string) $source['type'] ) : '';
 
 	// A post field is its input type wearing a publishing hat; the answer
@@ -305,7 +305,7 @@ function atf_gf_field( $source, $id, $map ) {
 		'id'       => $id,
 		'label'    => isset( $source['label'] ) ? (string) $source['label'] : '',
 		'required' => ! empty( $source['isRequired'] ),
-		'logic'    => atf_gf_logic( isset( $source['conditionalLogic'] ) ? $source['conditionalLogic'] : null, $map ),
+		'logic'    => alltfo_gf_logic( isset( $source['conditionalLogic'] ) ? $source['conditionalLogic'] : null, $map ),
 	);
 
 	if ( isset( $source['description'] ) && '' !== $source['description'] ) {
@@ -359,7 +359,7 @@ function atf_gf_field( $source, $id, $map ) {
 			);
 			$field['type'] = $types[ $type ];
 
-			$converted = atf_gf_choices( $source );
+			$converted = alltfo_gf_choices( $source );
 
 			$field['choices'] = $converted['choices'];
 
@@ -371,7 +371,7 @@ function atf_gf_field( $source, $id, $map ) {
 
 		case 'name':
 			$field['type']  = 'name';
-			$field['parts'] = atf_gf_name_parts( $source );
+			$field['parts'] = alltfo_gf_name_parts( $source );
 
 			return $field;
 
@@ -428,7 +428,7 @@ function atf_gf_field( $source, $id, $map ) {
 
 			if ( in_array( $input_type, array( 'select', 'radio' ), true ) ) {
 				$field['type']    = 'select' === $input_type ? 'select' : 'radio';
-				$field['choices'] = atf_gf_choices( $source )['choices'];
+				$field['choices'] = alltfo_gf_choices( $source )['choices'];
 
 				return $field;
 			}
@@ -440,14 +440,14 @@ function atf_gf_field( $source, $id, $map ) {
 			$field['type'] = 'number';
 
 			if ( isset( $source['basePrice'] ) && '' !== $source['basePrice'] ) {
-				$field['default'] = (string) atf_gf_price( $source['basePrice'] );
+				$field['default'] = (string) alltfo_gf_price( $source['basePrice'] );
 			}
 
 			return $field;
 
 		case 'option':
 			$field['type']    = 'checkboxes';
-			$field['choices'] = atf_gf_choices( $source )['choices'];
+			$field['choices'] = alltfo_gf_choices( $source )['choices'];
 
 			return $field;
 
@@ -471,7 +471,7 @@ function atf_gf_field( $source, $id, $map ) {
  * @param array $source The source field.
  * @return array { choices: array[], other: bool }
  */
-function atf_gf_choices( $source ) {
+function alltfo_gf_choices( $source ) {
 	$raw     = isset( $source['choices'] ) && is_array( $source['choices'] ) ? $source['choices'] : array();
 	$priced  = in_array( strtolower( isset( $source['type'] ) ? (string) $source['type'] : '' ), array( 'product', 'option' ), true )
 		|| ! empty( $source['enablePrice'] );
@@ -495,7 +495,7 @@ function atf_gf_choices( $source ) {
 		);
 
 		if ( $priced && isset( $choice['price'] ) && '' !== $choice['price'] ) {
-			$converted['price'] = atf_gf_price( $choice['price'] );
+			$converted['price'] = alltfo_gf_price( $choice['price'] );
 		}
 
 		if ( ! empty( $choice['isSelected'] ) ) {
@@ -522,7 +522,7 @@ function atf_gf_choices( $source ) {
  * @param mixed $price The stored price.
  * @return float
  */
-function atf_gf_price( $price ) {
+function alltfo_gf_price( $price ) {
 	$price = preg_replace( '/[^0-9.,\-]/', '', (string) $price );
 
 	// A comma-decimal price with no dot reads as European formatting.
@@ -543,7 +543,7 @@ function atf_gf_price( $price ) {
  * @param array $source The source field.
  * @return string[]
  */
-function atf_gf_name_parts( $source ) {
+function alltfo_gf_name_parts( $source ) {
 	$known = array(
 		'2' => 'prefix',
 		'3' => 'first',
@@ -586,7 +586,7 @@ function atf_gf_name_parts( $source ) {
  * @param array $map   Gravity field id => new field id.
  * @return array The logic block, disabled when there was none.
  */
-function atf_gf_logic( $logic, $map ) {
+function alltfo_gf_logic( $logic, $map ) {
 	if ( ! is_array( $logic ) || empty( $logic['rules'] ) || ! is_array( $logic['rules'] ) ) {
 		return array( 'enabled' => false );
 	}
@@ -651,7 +651,7 @@ function atf_gf_logic( $logic, $map ) {
  * @param array  $map  Gravity field id => new field id.
  * @return string
  */
-function atf_gf_replace_tags( $text, $map ) {
+function alltfo_gf_replace_tags( $text, $map ) {
 	$specials = array(
 		'{all_fields}'  => '{all_fields}',
 		'{admin_email}' => '{admin_email}',
@@ -676,7 +676,7 @@ function atf_gf_replace_tags( $text, $map ) {
 /**
  * The Gravity field id => new field id map for one form, recomputed.
  *
- * The same two passes `atf_gf_convert()` runs, minus building the schema —
+ * The same two passes `alltfo_gf_convert()` runs, minus building the schema —
  * minting has to happen for every field before dropping any, or the ids would
  * shift and stop matching the ones the conversion minted. Recomputed rather
  * than threaded out of the converter for the same reason the CF7 importer
@@ -688,7 +688,7 @@ function atf_gf_replace_tags( $text, $map ) {
  * @param array $display The decoded `display_meta`.
  * @return array Gravity field id => new field id.
  */
-function atf_gf_map( $display ) {
+function alltfo_gf_map( $display ) {
 	$source_fields = isset( $display['fields'] ) && is_array( $display['fields'] ) ? $display['fields'] : array();
 
 	$map  = array();
@@ -706,7 +706,7 @@ function atf_gf_map( $display ) {
 			continue;
 		}
 
-		if ( ! atf_gf_field( $source, $map[ (string) $source['id'] ], $map ) ) {
+		if ( ! alltfo_gf_field( $source, $map[ (string) $source['id'] ], $map ) ) {
 			unset( $map[ (string) $source['id'] ] );
 		}
 	}
@@ -717,7 +717,7 @@ function atf_gf_map( $display ) {
 /**
  * Whether Gravity Forms' entry tables exist on this site.
  *
- * Checked separately from `atf_gf_available()` because the two can differ: a
+ * Checked separately from `alltfo_gf_available()` because the two can differ: a
  * site restored from a partial backup, or one that ran a very old Gravity
  * Forms, can hold the form tables without the entry tables.
  *
@@ -725,7 +725,7 @@ function atf_gf_map( $display ) {
  *
  * @return bool
  */
-function atf_gf_entries_available() {
+function alltfo_gf_entries_available() {
 	global $wpdb;
 
 	$table = $wpdb->prefix . 'gf_entry';
@@ -744,7 +744,7 @@ function atf_gf_entries_available() {
  *
  * @return string[]
  */
-function atf_gf_entry_statuses() {
+function alltfo_gf_entry_statuses() {
 	return array( 'active', 'spam' );
 }
 
@@ -757,16 +757,16 @@ function atf_gf_entry_statuses() {
  * @param int    $form_id   The AllTerrain form the entries would land on.
  * @return int
  */
-function atf_gf_entry_count( $source_id, $form_id = 0 ) {
+function alltfo_gf_entry_count( $source_id, $form_id = 0 ) {
 	global $wpdb;
 
 	$source_id = absint( $source_id );
 
-	if ( ! $source_id || ! atf_gf_entries_available() ) {
+	if ( ! $source_id || ! alltfo_gf_entries_available() ) {
 		return 0;
 	}
 
-	$statuses     = atf_gf_entry_statuses();
+	$statuses     = alltfo_gf_entry_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Another plugin's table; $placeholders is a generated list of %s.
@@ -782,7 +782,7 @@ function atf_gf_entry_count( $source_id, $form_id = 0 ) {
 		return $total;
 	}
 
-	return max( 0, $total - count( atf_imported_entry_keys( (int) $form_id ) ) );
+	return max( 0, $total - count( alltfo_imported_entry_keys( (int) $form_id ) ) );
 }
 
 /**
@@ -798,17 +798,17 @@ function atf_gf_entry_count( $source_id, $form_id = 0 ) {
  * @param int    $limit     How many to attempt in this pass.
  * @return array|WP_Error { imported, skipped, done, remaining }.
  */
-function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
+function alltfo_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
 	global $wpdb;
 
 	$source_id = absint( $source_id );
 	$form_id   = (int) $form_id;
 
-	if ( ! $source_id || ! atf_gf_available() ) {
-		return new WP_Error( 'atf_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
+	if ( ! $source_id || ! alltfo_gf_available() ) {
+		return new WP_Error( 'alltfo_import_missing', __( 'That form no longer exists.', 'allterrain-forms' ) );
 	}
 
-	if ( ! atf_gf_entries_available() ) {
+	if ( ! alltfo_gf_entries_available() ) {
 		return array(
 			'imported'  => 0,
 			'skipped'   => 0,
@@ -817,14 +817,14 @@ function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
 		);
 	}
 
-	$fields = atf_gf_entry_fields( $form_id );
+	$fields = alltfo_gf_entry_fields( $form_id );
 
 	if ( is_wp_error( $fields ) ) {
 		return $fields;
 	}
 
-	$seen         = atf_imported_entry_keys( $form_id );
-	$statuses     = atf_gf_entry_statuses();
+	$seen         = alltfo_imported_entry_keys( $form_id );
+	$statuses     = alltfo_gf_entry_statuses();
 	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 	// The page is larger than the limit because records already imported are
@@ -850,15 +850,15 @@ function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
 			break;
 		}
 
-		if ( isset( $seen[ atf_entry_source_key( 'gravityforms', $row->id ) ] ) ) {
+		if ( isset( $seen[ alltfo_entry_source_key( 'gravityforms', $row->id ) ] ) ) {
 			++$skipped;
 			continue;
 		}
 
-		$result = atf_import_entry(
+		$result = alltfo_import_entry(
 			$form_id,
 			array(
-				'values'       => atf_gf_entry_values( (int) $row->id, $fields ),
+				'values'       => alltfo_gf_entry_values( (int) $row->id, $fields ),
 				'importer'     => 'gravityforms',
 				'record'       => (string) $row->id,
 				'submitted_at' => (int) strtotime( $row->date_created . ' UTC' ),
@@ -872,7 +872,7 @@ function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
 			// A single unreadable record must not strand the rest of the
 			// migration, but an error that would repeat on every one of them
 			// is worth stopping for.
-			if ( in_array( $result->get_error_code(), array( 'atf_no_schema', 'atf_no_import_map' ), true ) ) {
+			if ( in_array( $result->get_error_code(), array( 'alltfo_no_schema', 'alltfo_no_import_map' ), true ) ) {
 				return $result;
 			}
 
@@ -883,7 +883,7 @@ function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
 		++$imported;
 	}
 
-	$remaining = atf_gf_entry_count( (string) $source_id, $form_id );
+	$remaining = alltfo_gf_entry_count( (string) $source_id, $form_id );
 
 	return array(
 		'imported'  => $imported,
@@ -905,25 +905,25 @@ function atf_gf_import_entries( $source_id, $form_id, $limit = 100 ) {
  * @param int $form_id The AllTerrain form.
  * @return array|WP_Error Gravity field id => normalised field.
  */
-function atf_gf_entry_fields( $form_id ) {
-	$schema = atf_get_form_schema( $form_id );
+function alltfo_gf_entry_fields( $form_id ) {
+	$schema = alltfo_get_form_schema( $form_id );
 
 	if ( ! $schema ) {
-		return new WP_Error( 'atf_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
+		return new WP_Error( 'alltfo_no_schema', __( 'That form has no schema.', 'allterrain-forms' ) );
 	}
 
-	$map = atf_form_import_map( $form_id );
+	$map = alltfo_form_import_map( $form_id );
 
 	if ( ! $map ) {
 		return new WP_Error(
-			'atf_no_import_map',
+			'alltfo_no_import_map',
 			__( 'That form has no field map, so its stored submissions cannot be read. Import the form again to record one.', 'allterrain-forms' )
 		);
 	}
 
 	$by_id = array();
 
-	foreach ( atf_input_fields( $schema ) as $field ) {
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
 		$by_id[ $field['id'] ] = $field;
 	}
 
@@ -953,7 +953,7 @@ function atf_gf_entry_fields( $form_id ) {
  * @param array $fields   Gravity field id => the imported field it became.
  * @return array Gravity field id => value, shaped for the target field.
  */
-function atf_gf_entry_values( $entry_id, $fields ) {
+function alltfo_gf_entry_values( $entry_id, $fields ) {
 	global $wpdb;
 
 	$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Another plugin's table; read once per imported entry.
@@ -988,7 +988,7 @@ function atf_gf_entry_values( $entry_id, $fields ) {
 			continue;
 		}
 
-		$value = atf_gf_entry_value( $buckets[ $source_id ], $field );
+		$value = alltfo_gf_entry_value( $buckets[ $source_id ], $field );
 
 		if ( null !== $value ) {
 			$values[ $source_id ] = $value;
@@ -1007,7 +1007,7 @@ function atf_gf_entry_values( $entry_id, $fields ) {
  * @param array $field  The imported field the value now belongs to.
  * @return mixed The assembled value, or null when the field holds nothing here.
  */
-function atf_gf_entry_value( $bucket, $field ) {
+function alltfo_gf_entry_value( $bucket, $field ) {
 	$single = isset( $bucket['single'] ) ? $bucket['single'] : '';
 	$subs   = isset( $bucket['subs'] ) ? $bucket['subs'] : array();
 
@@ -1015,7 +1015,7 @@ function atf_gf_entry_value( $bucket, $field ) {
 		case 'name':
 			// Gravity numbers name inputs `{field}.{part}`, and the sub-numbers
 			// are stable across every install -- the same table
-			// `atf_gf_name_parts()` reads when the form is converted.
+			// `alltfo_gf_name_parts()` reads when the form is converted.
 			$parts = array(
 				'2' => 'prefix',
 				'3' => 'first',
@@ -1024,7 +1024,7 @@ function atf_gf_entry_value( $bucket, $field ) {
 				'8' => 'suffix',
 			);
 
-			return atf_gf_entry_parts( $subs, $parts );
+			return alltfo_gf_entry_parts( $subs, $parts );
 
 		case 'address':
 			$parts = array(
@@ -1036,7 +1036,7 @@ function atf_gf_entry_value( $bucket, $field ) {
 				'6' => 'country',
 			);
 
-			return atf_gf_entry_parts( $subs, $parts );
+			return alltfo_gf_entry_parts( $subs, $parts );
 
 		case 'checkboxes':
 			// One dotted row per ticked box, holding the choice's value. An
@@ -1126,7 +1126,7 @@ function atf_gf_entry_value( $bucket, $field ) {
  * @param array $parts Sub-number => part key.
  * @return array|null Part key => value, or null when every part is empty.
  */
-function atf_gf_entry_parts( $subs, $parts ) {
+function alltfo_gf_entry_parts( $subs, $parts ) {
 	$value = array();
 
 	foreach ( $parts as $sub => $part ) {

@@ -297,11 +297,11 @@
 	flex: 0 0 auto;
 }
 
-.atfx-dot--atf-unread {
+.atfx-dot--alltfo-unread {
 	background: var( --os-ui-accent, #2271b1 );
 }
 
-.atfx-dot--atf-spam {
+.atfx-dot--alltfo-spam {
 	background: #d63638;
 }
 

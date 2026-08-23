@@ -3,7 +3,7 @@
  * The merge-tag catalogue.
  *
  * The catalogue is what the builder's picker shows. It is a *description* of
- * `atf_resolve_merge_tag()`, and a description that has drifted from the thing
+ * `alltfo_resolve_merge_tag()`, and a description that has drifted from the thing
  * it describes is worse than none at all: somebody picks a value from a list,
  * their email arrives with `{entry:link}` printed in it verbatim, and nothing
  * anywhere told them the list was wrong.
@@ -21,7 +21,7 @@
  *
  * @group allterrain-forms
  */
-class ATF_Test_Merge_Tags extends WP_UnitTestCase {
+class ALLTFO_Test_Merge_Tags extends WP_UnitTestCase {
 
 	/**
 	 * A form with one question of each kind the catalogue treats specially.
@@ -29,7 +29,7 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * @return int The form id.
 	 */
 	private function catalogued_form() {
-		return atf_test_form(
+		return alltfo_test_form(
 			array(
 				'fields' => array(
 					array(
@@ -71,7 +71,7 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	private function catalogued_tags( $form_id ) {
 		$tags = array();
 
-		foreach ( atf_merge_tag_catalogue( $form_id ) as $group ) {
+		foreach ( alltfo_merge_tag_catalogue( $form_id ) as $group ) {
 			foreach ( $group['items'] as $item ) {
 				$tags[] = $item['tag'];
 			}
@@ -90,12 +90,12 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * catalogue ships as literal text in somebody's email instead of failing
 	 * loudly. This test is the loud failure.
 	 *
-	 * @covers ::atf_merge_tag_catalogue
+	 * @covers ::alltfo_merge_tag_catalogue
 	 */
 	public function test_every_offered_tag_resolves() {
 		$form_id = $this->catalogued_form();
 		$context = array(
-			'schema'  => atf_get_form_schema( $form_id ),
+			'schema'  => alltfo_get_form_schema( $form_id ),
 			'form_id' => $form_id,
 			'values'  => array( 'f1' => 'Ada' ),
 		);
@@ -106,7 +106,7 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 			// An empty result is fine and often correct — `{user:email}` is empty
 			// for a visitor who was not logged in. Getting the tag *back* is not:
 			// that is the resolver saying it has never heard of it.
-			if ( atf_replace_merge_tags( $tag, $context ) === $tag ) {
+			if ( alltfo_replace_merge_tags( $tag, $context ) === $tag ) {
 				$unresolved[] = $tag;
 			}
 		}
@@ -125,11 +125,11 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * The whole point of the picker: `{field:f2}` is not something anybody can be
 	 * expected to recognise, and "Your email" is.
 	 *
-	 * @covers ::atf_merge_tag_answer_group
+	 * @covers ::alltfo_merge_tag_answer_group
 	 */
 	public function test_questions_are_offered_by_their_labels() {
 		$form_id = $this->catalogued_form();
-		$groups  = atf_merge_tag_catalogue( $form_id );
+		$groups  = alltfo_merge_tag_catalogue( $form_id );
 
 		$answers = null;
 
@@ -155,11 +155,11 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * seeing "Yes, I will be there" tells the person composing the email both the
 	 * shape and the wording of what they are going to get.
 	 *
-	 * @covers ::atf_merge_tag_placeholder_for
+	 * @covers ::alltfo_merge_tag_placeholder_for
 	 */
 	public function test_a_choice_question_samples_its_own_choices() {
 		$form_id = $this->catalogued_form();
-		$groups  = atf_merge_tag_catalogue( $form_id );
+		$groups  = alltfo_merge_tag_catalogue( $form_id );
 
 		$sample = '';
 
@@ -181,13 +181,13 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * 'toggle' -- names no field type has ever registered under -- so a phone
 	 * field's sample fell through to the generic answer and taught nothing.
 	 *
-	 * @covers ::atf_merge_tag_placeholder_for
+	 * @covers ::alltfo_merge_tag_placeholder_for
 	 */
 	public function test_samples_use_registered_type_slugs() {
-		$this->assertSame( '+34 600 123 456', atf_merge_tag_placeholder_for( array( 'type' => 'tel' ) ) );
-		$this->assertSame( 'https://example.com', atf_merge_tag_placeholder_for( array( 'type' => 'url' ) ) );
-		$this->assertSame( 'Yes', atf_merge_tag_placeholder_for( array( 'type' => 'switch' ) ) );
-		$this->assertStringContainsString( 'longer answer', atf_merge_tag_placeholder_for( array( 'type' => 'textarea' ) ) );
+		$this->assertSame( '+34 600 123 456', alltfo_merge_tag_placeholder_for( array( 'type' => 'tel' ) ) );
+		$this->assertSame( 'https://example.com', alltfo_merge_tag_placeholder_for( array( 'type' => 'url' ) ) );
+		$this->assertSame( 'Yes', alltfo_merge_tag_placeholder_for( array( 'type' => 'switch' ) ) );
+		$this->assertStringContainsString( 'longer answer', alltfo_merge_tag_placeholder_for( array( 'type' => 'textarea' ) ) );
 	}
 
 	/**
@@ -197,14 +197,14 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * something else would be a plausible-looking lie, and the person would only
 	 * find out after sending.
 	 *
-	 * @covers ::atf_merge_tag_sample
+	 * @covers ::alltfo_merge_tag_sample
 	 */
 	public function test_site_samples_come_from_this_site() {
 		update_option( 'admin_email', 'someone@allterrain.test' );
 
 		$found = '';
 
-		foreach ( atf_merge_tag_catalogue( 0 ) as $group ) {
+		foreach ( alltfo_merge_tag_catalogue( 0 ) as $group ) {
 			foreach ( $group['items'] as $item ) {
 				if ( '{admin_email}' === $item['tag'] ) {
 					$found = $item['sample'];
@@ -218,14 +218,14 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	/**
 	 * A form with no questions says so, rather than showing an empty box.
 	 *
-	 * @covers ::atf_merge_tag_answer_group
+	 * @covers ::alltfo_merge_tag_answer_group
 	 */
 	public function test_a_form_with_no_questions_explains_itself() {
-		$form_id = atf_test_form( array( 'fields' => array() ) );
+		$form_id = alltfo_test_form( array( 'fields' => array() ) );
 
 		$answers = null;
 
-		foreach ( atf_merge_tag_catalogue( $form_id ) as $group ) {
+		foreach ( alltfo_merge_tag_catalogue( $form_id ) as $group ) {
 			if ( 'answers' === $group['id'] ) {
 				$answers = $group;
 			}
@@ -242,12 +242,12 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	 * with nothing to learn from — both are silent, so a filter that adds a tag
 	 * carelessly would degrade the picker without anybody noticing.
 	 *
-	 * @covers ::atf_merge_tag_catalogue
+	 * @covers ::alltfo_merge_tag_catalogue
 	 */
 	public function test_every_entry_is_complete() {
 		$incomplete = array();
 
-		foreach ( atf_merge_tag_catalogue( $this->catalogued_form() ) as $group ) {
+		foreach ( alltfo_merge_tag_catalogue( $this->catalogued_form() ) as $group ) {
 			foreach ( $group['items'] as $item ) {
 				if ( ! isset( $item['tag'], $item['label'], $item['hint'], $item['sample'] ) || '' === $item['label'] ) {
 					$incomplete[] = isset( $item['tag'] ) ? $item['tag'] : '(no tag)';
@@ -261,15 +261,15 @@ class ATF_Test_Merge_Tags extends WP_UnitTestCase {
 	/**
 	 * A plugin can add its own tag to the picker.
 	 *
-	 * The pairing that matters: `atf_resolve_merge_tag` makes a tag work and
-	 * `atf_merge_tag_catalogue` makes it findable. A plugin that uses only the
+	 * The pairing that matters: `alltfo_resolve_merge_tag` makes a tag work and
+	 * `alltfo_merge_tag_catalogue` makes it findable. A plugin that uses only the
 	 * first has built something nobody will ever discover.
 	 *
-	 * @covers ::atf_merge_tag_catalogue
+	 * @covers ::alltfo_merge_tag_catalogue
 	 */
 	public function test_a_plugin_can_advertise_its_own_tag() {
 		add_filter(
-			'atf_merge_tag_catalogue',
+			'alltfo_merge_tag_catalogue',
 			static function ( $groups ) {
 				$groups[] = array(
 					'id'    => 'crm',
