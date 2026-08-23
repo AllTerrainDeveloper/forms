@@ -653,6 +653,34 @@ class ALLTFO_Test_Render extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'does not exist', alltfo_render_form( 999999 ) );
 	}
+
+	/**
+	 * A deleted form renders nothing, on every page that ever mentioned it.
+	 *
+	 * `get_post()` happily returns a trashed post, so without its own status
+	 * check the renderer kept a deleted form alive — visible and accepting
+	 * answers — through any shortcode still pointing at it.
+	 *
+	 * @covers ::alltfo_render_form
+	 */
+	public function test_deleted_form_is_silent_for_visitors() {
+		$form_id = alltfo_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'    => 'f1',
+						'type'  => 'text',
+						'label' => 'Name',
+					),
+				),
+			)
+		);
+
+		wp_trash_post( $form_id );
+		wp_set_current_user( 0 );
+
+		$this->assertSame( '', alltfo_render_form( $form_id ) );
+	}
 	/**
 	 * The wording on a page break's buttons is the author's.
 	 *

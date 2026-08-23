@@ -526,6 +526,43 @@ class ALLTFO_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A deleted form refuses a POST, even one built while it was alive.
+	 *
+	 * A visitor's tab can outlive the form on it: the nonce and timestamp were
+	 * issued honestly, and only the trash status says the form is gone.
+	 *
+	 * @covers ::alltfo_process_submission
+	 */
+	public function test_a_deleted_form_refuses_a_post() {
+		$form_id = alltfo_test_form(
+			array(
+				'fields' => array(
+					array(
+						'id'   => 'f1',
+						'type' => 'text',
+					),
+				),
+			)
+		);
+
+		$issued  = time() - 30;
+		$request = array(
+			'alltfo_form_id' => $form_id,
+			'alltfo_nonce'   => wp_create_nonce( 'alltfo_submit_' . $form_id ),
+			'alltfo_t'       => $issued,
+			'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
+			'atf'            => array( 'f1' => 'Posted into the void' ),
+		);
+
+		wp_trash_post( $form_id );
+
+		$result = alltfo_process_submission( $form_id, $request );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertSame( 0, $result['entry_id'] );
+	}
+
+	/**
 	 * A login-only form refuses a logged-out visitor.
 	 *
 	 * @covers ::alltfo_form_availability

@@ -50,7 +50,11 @@ function alltfo_render_form( $form_id, $args = array() ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
+	// A trashed form is a deleted form: `get_post()` still returns it, but as
+	// far as any page is concerned it no longer exists. Without the status
+	// check a deleted form kept rendering — and accepting answers — through
+	// every shortcode that ever mentioned it.
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type || 'trash' === $form->post_status ) {
 		// Silent for visitors, loud for the person who can fix it. A broken
 		// shortcode id should never print an error into a published page.
 		if ( alltfo_can_edit_forms() ) {
