@@ -2,7 +2,7 @@
 Contributors: allterraindeveloper
 Tags: contact form, form builder, survey, quiz, conditional logic
 Requires at least: 6.9
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
 Stable tag: 0.1.0
