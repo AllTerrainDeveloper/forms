@@ -65,6 +65,8 @@ function alltfo_maybe_init_openstation() {
 
 	add_action( 'init', 'alltfo_register_shell_surfaces', 20 );
 
+	add_filter( 'openstation_recycle_bin_capture_post_types', 'alltfo_recycle_bin_post_types' );
+
 	// Registered against both spellings of the hook. Which one fires depends on
 	// the shell's version, and a listener for a hook that never fires costs
 	// nothing -- far less than deciding at boot which shell is present, since
@@ -74,6 +76,27 @@ function alltfo_maybe_init_openstation() {
 	}
 
 	add_action( 'admin_enqueue_scripts', 'alltfo_enqueue_shell_styles', 20 );
+}
+
+/**
+ * Opts forms into the desktop's Recycle Bin.
+ *
+ * The form post type is headless (`show_ui => false`), so the bin does not
+ * track it by itself — without this, a deleted form is in the trash with no
+ * door back out of it. Forms only, deliberately: entries are bulk-trashed by
+ * the retention policy every day, and hundreds of expired entries would bury
+ * the two things in the bin somebody actually wants back. Entries live and
+ * die in the Entries window, which is where somebody who lost one will look.
+ *
+ * @since 0.2.0
+ *
+ * @param string[] $types Post types the recycle bin tracks.
+ * @return string[]
+ */
+function alltfo_recycle_bin_post_types( $types ) {
+	$types[] = ALLTFO_FORM_TYPE;
+
+	return $types;
 }
 
 /**

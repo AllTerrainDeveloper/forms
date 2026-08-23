@@ -8127,6 +8127,16 @@ ${decls}
               }),
               button("Archive this form", () => void this.archiveCurrentForm(), "secondary", "archive")
             ]
+          }),
+          el("section", {
+            children: [
+              el("h3", { text: "Delete" }),
+              el("p", {
+                class: "atfb-hint",
+                text: "Deleting is for a form that should never have existed. It moves to the desktop’s Trash, disappears from every list, and any page still carrying its shortcode shows nothing at all. Its entries stay in Entries, and until the Trash is emptied you can bring it back from there. If the form simply had its day, archive it instead."
+              }),
+              button("Delete this form", () => void this.deleteCurrentForm(), "danger", "trash")
+            ]
           })
         ]
       });
@@ -8157,23 +8167,64 @@ ${decls}
         }
         await api.archiveForm(this.form.id);
         notify("Form archived", `${title} — restore it any time from the New form dialog.`);
-        this.forms = this.forms.filter((form) => form.id !== this.form.id);
-        this.form = null;
-        this.schema = null;
-        this.selected = null;
-        this.dirty = false;
-        this.history = [];
-        this.historyAt = -1;
-        if (this.forms.length) {
-          await this.open(this.forms[0].id);
-          return;
-        }
-        this.renderBar();
-        this.renderCanvas();
-        this.renderInspector();
+        await this.releaseCurrentForm();
       } catch (error) {
         notify("Could not archive the form", error instanceof Error ? error.message : "", "error");
       }
+    }
+    /**
+     * Deletes the open form.
+     *
+     * No save-first, unlike the archive: saving a form on its way to the trash
+     * would only preserve edits nobody will ever see. The entries deliberately
+     * stay — they are the visitors' words, not the form's — and the server
+     * uses the trash rather than a hard delete, so a wrong click ends in the
+     * desktop's Trash window, not in a loss.
+     */
+    async deleteCurrentForm() {
+      if (!this.form) {
+        return;
+      }
+      const title = this.form.title || "(untitled)";
+      const entries = this.forms.find((form) => form.id === this.form.id)?.entries ?? 0;
+      const confirmed = await confirmAction(
+        `Delete “${title}”? Every page showing it goes blank. ${entries ? `Its ${entries} ${entries === 1 ? "entry stays" : "entries stay"} in Entries. ` : ""}It moves to the desktop’s Trash — restore it from there if you change your mind.`,
+        "Delete form"
+      );
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const formId = this.form.id;
+        await api.deleteForm(formId);
+        const shell2 = window.wp?.os;
+        shell2?.announceContentChange?.("alltfo_form", "trashed", formId, "allterrain-forms");
+        notify("Form deleted", `${title} moved to the desktop’s Trash.`);
+        await this.releaseCurrentForm();
+      } catch (error) {
+        notify("Could not delete the form", error instanceof Error ? error.message : "", "error");
+      }
+    }
+    /**
+     * Lets go of the open form after it left the working set — archived or
+     * deleted — and lands the builder somewhere sensible: the next form if
+     * there is one, the empty state if there is not.
+     */
+    async releaseCurrentForm() {
+      this.forms = this.forms.filter((form) => form.id !== this.form.id);
+      this.form = null;
+      this.schema = null;
+      this.selected = null;
+      this.dirty = false;
+      this.history = [];
+      this.historyAt = -1;
+      if (this.forms.length) {
+        await this.open(this.forms[0].id);
+        return;
+      }
+      this.renderBar();
+      this.renderCanvas();
+      this.renderInspector();
     }
     /** A one-line input that understands merge tags. */
     taggableInput(value, onChange, placeholder = "") {

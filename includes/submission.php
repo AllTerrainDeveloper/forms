@@ -51,7 +51,10 @@ function alltfo_process_submission( $form_id, $request, $files = array() ) {
 	$form_id = absint( $form_id );
 	$form    = $form_id ? get_post( $form_id ) : null;
 
-	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type ) {
+	// The same three-way gate as the renderer, trash included: a deleted form
+	// must refuse a POST as surely as it refuses to render, or a browser tab
+	// opened before the deletion could keep feeding it entries afterwards.
+	if ( ! $form || ALLTFO_FORM_TYPE !== $form->post_type || 'trash' === $form->post_status ) {
 		return alltfo_submission_failure( __( 'That form does not exist.', 'allterrain-forms' ) );
 	}
 
