@@ -4927,6 +4927,21 @@ export class Builder {
 						button( 'Archive this form', () => void this.archiveCurrentForm(), 'secondary', 'archive' ),
 					],
 				} ),
+
+				el( 'section', {
+					children: [
+						el( 'h3', { text: 'Delete' } ),
+						el( 'p', {
+							class: 'atfb-hint',
+							text:
+								'Deleting is for a form that should never have existed. It goes to the trash, '
+								+ 'disappears from every list, and any page still carrying its shortcode shows '
+								+ 'nothing at all. Its entries stay in Entries. If the form simply had its day, '
+								+ 'archive it instead — an archived form can come back.',
+						} ),
+						button( 'Delete this form', () => void this.deleteCurrentForm(), 'danger', 'trash' ),
+					],
+				} ),
 			],
 		} );
 	}
@@ -4965,26 +4980,75 @@ export class Builder {
 			await api.archiveForm( this.form.id );
 			notify( 'Form archived', `${ title } — restore it any time from the New form dialog.` );
 
-			this.forms = this.forms.filter( ( form ) => form.id !== this.form!.id );
-			this.form = null;
-			this.schema = null;
-			this.selected = null;
-			this.dirty = false;
-			this.history = [];
-			this.historyAt = -1;
-
-			if ( this.forms.length ) {
-				await this.open( this.forms[ 0 ].id );
-
-				return;
-			}
-
-			this.renderBar();
-			this.renderCanvas();
-			this.renderInspector();
+			await this.releaseCurrentForm();
 		} catch ( error ) {
 			notify( 'Could not archive the form', error instanceof Error ? error.message : '', 'error' );
 		}
+	}
+
+	/**
+	 * Deletes the open form.
+	 *
+	 * No save-first, unlike the archive: saving a form on its way to the trash
+	 * would only preserve edits nobody will ever see. The entries deliberately
+	 * stay — they are the visitors' words, not the form's — and the server
+	 * uses the trash rather than a hard delete, so a wrong click is a support
+	 * request, not a loss.
+	 */
+	private async deleteCurrentForm(): Promise< void > {
+		if ( ! this.form ) {
+			return;
+		}
+
+		const title = this.form.title || '(untitled)';
+		const entries = this.forms.find( ( form ) => form.id === this.form!.id )?.entries ?? 0;
+
+		const confirmed = await confirmAction(
+			`Delete “${ title }”? It goes to the trash and every page showing it goes blank. ${
+				entries
+					? `Its ${ entries } ${ entries === 1 ? 'entry stays' : 'entries stay' } in Entries. `
+					: ''
+			}If it might be needed again, archive it instead.`,
+			'Delete form'
+		);
+
+		if ( ! confirmed ) {
+			return;
+		}
+
+		try {
+			await api.deleteForm( this.form.id );
+			notify( 'Form deleted', `${ title } is in the trash.` );
+
+			await this.releaseCurrentForm();
+		} catch ( error ) {
+			notify( 'Could not delete the form', error instanceof Error ? error.message : '', 'error' );
+		}
+	}
+
+	/**
+	 * Lets go of the open form after it left the working set — archived or
+	 * deleted — and lands the builder somewhere sensible: the next form if
+	 * there is one, the empty state if there is not.
+	 */
+	private async releaseCurrentForm(): Promise< void > {
+		this.forms = this.forms.filter( ( form ) => form.id !== this.form!.id );
+		this.form = null;
+		this.schema = null;
+		this.selected = null;
+		this.dirty = false;
+		this.history = [];
+		this.historyAt = -1;
+
+		if ( this.forms.length ) {
+			await this.open( this.forms[ 0 ].id );
+
+			return;
+		}
+
+		this.renderBar();
+		this.renderCanvas();
+		this.renderInspector();
 	}
 
 	/** A one-line input that understands merge tags. */
