@@ -8195,7 +8195,10 @@ ${decls}
         return;
       }
       try {
-        await api.deleteForm(this.form.id);
+        const formId = this.form.id;
+        await api.deleteForm(formId);
+        const shell2 = window.wp?.os;
+        shell2?.announceContentChange?.("alltfo_form", "trashed", formId, "allterrain-forms");
         notify("Form deleted", `${title} moved to the desktop’s Trash.`);
         await this.releaseCurrentForm();
       } catch (error) {

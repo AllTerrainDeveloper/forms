@@ -5018,7 +5018,30 @@ export class Builder {
 		}
 
 		try {
-			await api.deleteForm( this.form.id );
+			const formId = this.form.id;
+
+			await api.deleteForm( formId );
+
+			// Tell the rest of the desktop *now*. The open Trash window and
+			// its dock badge subscribe to `os.alltfo_form.changed`; the shell
+			// cannot see a mutation made through this plugin's own REST, so
+			// without the announcement they only learn about the delete when
+			// the Heartbeat catch-all drips it in, up to a minute later.
+			const shell = ( window as unknown as {
+				wp?: {
+					os?: {
+						announceContentChange?: (
+							type: string,
+							action: string,
+							ids: number | number[],
+							source?: string
+						) => void;
+					};
+				};
+			} ).wp?.os;
+
+			shell?.announceContentChange?.( 'alltfo_form', 'trashed', formId, 'allterrain-forms' );
+
 			notify( 'Form deleted', `${ title } moved to the desktop’s Trash.` );
 
 			await this.releaseCurrentForm();
