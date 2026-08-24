@@ -1694,6 +1694,60 @@ html body.atf-drag-active [contenteditable="true"] {
 	background: #0a0d10;
 }
 
+/* --- The shell's control theming, kept out of the preview ------------------
+ *
+ * OpenStation paints raw controls in native window bodies with its own tokens:
+ * `.os-window__body :is( input[type="text"], …, select, textarea )` sets
+ * background-color, color and border-color to `--os-ui-*`, and weighs (0,2,1)
+ * — one point over `.atf-form .atf-input` at (0,2,0). So a light form theme
+ * previewed on a dark desktop theme got the desktop's ink: white labels on a
+ * white card around a near-black select. Same for `::placeholder`, which the
+ * shell also claims at (0,2,1).
+ *
+ * These rules restate ONLY the properties the shell claims, with the form's
+ * own tokens, at (0,3,0) — above anything the shell writes, below nothing else
+ * of ours that matters. They mirror form.css's field-style ladder (outline /
+ * filled / underline / none, hover and focus) in the same source order, so the
+ * preview's internal cascade stays exactly the front end's; if that ladder
+ * grows a variant, it must be mirrored here.
+ *
+ * The compound `.atfb-preview.atf-form` is deliberate: on the canvas the
+ * preview element IS the form element, so a descendant-only prefix would miss
+ * it. */
+:is( .atfs-preview__frame .atf-form, .atfb-preview.atf-form, .atf-block-preview .atf-form ) .atf-input {
+	background-color: var( --atf-surface );
+	color: var( --atf-text );
+	border-color: var( --atf-border );
+}
+
+:is( .atfs-preview__frame .atf-form, .atfb-preview.atf-form, .atf-block-preview .atf-form ) .atf-input::placeholder {
+	color: var( --atf-placeholder );
+}
+
+:is( .atfs-preview__frame .atf-fields-filled, .atfb-preview.atf-fields-filled, .atf-block-preview .atf-fields-filled ) .atf-input {
+	background-color: var( --atf-surface-alt );
+	border-color: transparent;
+}
+
+:is( .atfs-preview__frame .atf-fields-underline, .atfb-preview.atf-fields-underline, .atf-block-preview .atf-fields-underline ) .atf-input {
+	background-color: transparent;
+}
+
+:is( .atfs-preview__frame .atf-fields-none, .atfb-preview.atf-fields-none, .atf-block-preview .atf-fields-none ) .atf-input {
+	background-color: transparent;
+	border-color: transparent;
+}
+
+/* After the variants, as in form.css: focus's border beats filled's
+   transparent one. */
+:is( .atfs-preview__frame .atf-form, .atfb-preview.atf-form, .atf-block-preview .atf-form ) .atf-input:hover:not( :disabled ) {
+	border-color: var( --atf-border-focus );
+}
+
+:is( .atfs-preview__frame .atf-form, .atfb-preview.atf-form, .atf-block-preview .atf-form ) .atf-input:focus {
+	border-color: var( --atf-border-focus );
+}
+
 /* The pointer the admin page shows when the desktop shell is up and the native
    window is the real experience. */
 .atf-admin__pointer {
