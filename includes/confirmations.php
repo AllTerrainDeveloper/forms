@@ -140,7 +140,13 @@ function alltfo_resolve_confirmation( $schema, $values, $entry_id, $form_id ) {
 			? $chosen['message']
 			: __( 'Thank you. Your submission has been received.', 'allterrain-forms' );
 
-		$resolved['message'] = alltfo_replace_merge_tags( $message, $context );
+		// Kses'd here, at resolution, so both render paths carry the same
+		// armour: the no-JS path escapes again in `alltfo_success_screen_html()`,
+		// but the AJAX path hands this string straight to the bundle, which
+		// injects it as HTML. Field values inside it are already tag-free —
+		// every field type's sanitiser strips tags — so this is the second
+		// layer, not the first.
+		$resolved['message'] = wp_kses_post( alltfo_replace_merge_tags( $message, $context ) );
 	} else {
 		$resolved['url'] = alltfo_confirmation_url( $chosen, $context );
 

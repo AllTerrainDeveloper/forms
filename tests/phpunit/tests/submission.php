@@ -1029,6 +1029,62 @@ class ALLTFO_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A hostile answer cannot ride a merge tag into the confirmation as markup.
+	 *
+	 * The confirmation message travels to the bundle, which injects it as HTML
+	 * — so this is the surface a script-in-an-answer would have to cross. It
+	 * is blocked twice: every field type's sanitiser strips tags from the
+	 * value, and the resolved message is kses'd whole.
+	 *
+	 * @covers ::alltfo_resolve_confirmation
+	 * @covers ::alltfo_sanitize_field_value
+	 */
+	public function test_confirmation_merge_tag_cannot_carry_script() {
+		$form_id = alltfo_test_form(
+			array(
+				'fields'        => array(
+					array(
+						'id'    => 'f1',
+						'type'  => 'text',
+						'label' => 'Name',
+					),
+				),
+				'confirmations' => array(
+					array(
+						'id'      => 'c1',
+						'enabled' => true,
+						'type'    => 'message',
+						'message' => 'Thanks {field:f1}!',
+					),
+				),
+			)
+		);
+
+		$issued = time() - 30;
+
+		$result = alltfo_process_submission(
+			$form_id,
+			array(
+				'alltfo_form_id' => $form_id,
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
+				'atf'            => array(
+					'f1' => '<script>alert(1)</script>Ada<img src=x onerror=alert(2)>',
+				),
+			)
+		);
+
+		$this->assertTrue( $result['success'] );
+
+		$message = $result['confirmation']['message'];
+
+		$this->assertStringContainsString( 'Ada', $message );
+		$this->assertStringNotContainsString( '<script', $message );
+		$this->assertStringNotContainsString( 'onerror', $message );
+		$this->assertStringNotContainsString( 'alert', $message, 'The script payload is gone entirely, not merely defanged.' );
+	}
+
+	/**
 	 * A redirect query only carries scalar values.
 	 *
 	 * `parse_str()` builds nested arrays from bracketed keys, and the query is
