@@ -288,4 +288,103 @@ class ALLTFO_Test_Abilities extends WP_UnitTestCase {
 		$this->assertWPError( $create );
 		$this->assertWPError( $read );
 	}
+
+	/**
+	 * An unauthenticated caller is refused everywhere — submit-form included.
+	 *
+	 * Submitting mints a valid time-trap signature, a liberty that is only
+	 * honest on a channel that identifies its caller. Anonymous traffic has
+	 * the rendered form and the public REST route, where the trap runs whole.
+	 *
+	 * @covers ::alltfo_register_abilities
+	 */
+	public function test_logged_out_caller_is_refused() {
+		$form_id = $this->make_form();
+		$form    = $this->run_ability( 'allterrain-forms/get-form', array( 'form_id' => $form_id ) );
+		$name_id = $form['fields'][0]['id'];
+
+		wp_set_current_user( 0 );
+
+		$this->assertWPError( wp_get_ability( 'allterrain-forms/get-form' )->execute( array( 'form_id' => $form_id ) ) );
+		$this->assertWPError( wp_get_ability( 'allterrain-forms/form-report' )->execute( array( 'form_id' => $form_id ) ) );
+
+		$refused = wp_get_ability( 'allterrain-forms/submit-form' )->execute(
+			array(
+				'form_id' => $form_id,
+				'values'  => array( $name_id => 'Anonymous' ),
+			)
+		);
+
+		$this->assertWPError( $refused );
+		$this->assertSame( 0, alltfo_count_entries( $form_id ), 'The refused submit stored nothing.' );
+	}
+
+	/**
+	 * Any authenticated user may submit — submitting is what visitors do.
+	 *
+	 * @covers ::alltfo_ability_submit_form
+	 */
+	public function test_a_subscriber_can_submit() {
+		$form_id = $this->make_form();
+		$form    = $this->run_ability( 'allterrain-forms/get-form', array( 'form_id' => $form_id ) );
+		$name_id = $form['fields'][0]['id'];
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$accepted = wp_get_ability( 'allterrain-forms/submit-form' )->execute(
+			array(
+				'form_id' => $form_id,
+				'values'  => array( $name_id => 'Signed-in visitor' ),
+			)
+		);
+
+		$this->assertTrue( $accepted['success'] );
+		$this->assertSame( 1, alltfo_count_entries( $form_id ) );
+	}
+
+	/**
+	 * The per-form filter confines every reading ability, id in hand.
+	 *
+	 * A user the `alltfo_can_read_entries` filter restricts to one form gets
+	 * that form and no other — from get-form, from form-report, and from the
+	 * list itself.
+	 *
+	 * @covers ::alltfo_register_abilities
+	 * @covers ::alltfo_ability_list_forms
+	 */
+	public function test_per_form_filter_confines_the_read_abilities() {
+		$allowed = $this->make_form();
+		$other   = $this->make_form();
+
+		$reader = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+
+		( new WP_User( $reader ) )->add_cap( 'alltfo_read_entries' );
+		wp_set_current_user( $reader );
+
+		$filter = static function ( $can, $form_id ) use ( $allowed ) {
+			// 0 is the "any form at all" question the list gate asks; every
+			// concrete id except the allowed one is refused.
+			return ( 0 === $form_id || $allowed === $form_id ) ? $can : false;
+		};
+
+		add_filter( 'alltfo_can_read_entries', $filter, 10, 2 );
+
+		$mine   = wp_get_ability( 'allterrain-forms/get-form' )->execute( array( 'form_id' => $allowed ) );
+		$theirs = wp_get_ability( 'allterrain-forms/get-form' )->execute( array( 'form_id' => $other ) );
+
+		$this->assertIsArray( $mine );
+		$this->assertWPError( $theirs, 'The schema of a form outside the filter is not readable.' );
+
+		$this->assertWPError(
+			wp_get_ability( 'allterrain-forms/form-report' )->execute( array( 'form_id' => $other ) ),
+			'The analytics of a form outside the filter are not readable.'
+		);
+
+		$ids = wp_list_pluck( wp_get_ability( 'allterrain-forms/list-forms' )->execute(), 'id' );
+
+		$this->assertContains( $allowed, $ids );
+		$this->assertNotContains( $other, $ids, 'The list is confined the same way.' );
+
+		remove_filter( 'alltfo_can_read_entries', $filter, 10 );
+	}
 }

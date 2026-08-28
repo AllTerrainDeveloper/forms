@@ -480,8 +480,11 @@ entry under spam rather than rejecting it, so a wrong answer here is always
 recoverable from the Entries window.
 
 The five checks are the honeypot, a **signed** time trap, a per-address rate
-limit, a word blocklist and Akismet. A sixth — an arithmetic challenge — is off
-by default and is the only one that asks the visitor to do anything.
+limit, a word blocklist and Akismet. Akismet is off by default — switching it
+on per form is the site owner's decision, because it sends each submission
+(answers, IP, user agent) to Akismet's servers. A sixth check — an arithmetic
+challenge — is also off by default and is the only one that asks the visitor
+to do anything.
 
 The challenge's answer is signed with `alltfo_sign_challenge()` and never sent to
 the browser. A challenge whose expected answer travels in the page alongside the
@@ -512,6 +515,11 @@ sending a different one each time.
 ```php
 do_action( 'alltfo_before_submission', int $form_id, array $request, array $schema );
 ```
+
+Since 0.4.0 `$request` arrives deep-sanitised — every key and scalar has been
+through `alltfo_sanitize_request()` before this fires. The per-field-type
+sanitisation still runs after it, so treat these values as clean text, not as
+the typed values `alltfo_entry_created` receives.
 
 ### `alltfo_entry_created` — Action — *Stable*
 
@@ -1073,6 +1081,10 @@ apply_filters( 'alltfo_can_read_entries', bool $can, int $form_id );
 
 The seam for per-form permissions: a site can let a department read only the
 entries of the forms it owns by returning false for every other id.
+
+The abilities honour it with the form in hand: `get-form`, `list-entries` and
+`form-report` ask this filter with the `form_id` from their input, and
+`list-forms` asks it per form before listing one.
 
 ---
 

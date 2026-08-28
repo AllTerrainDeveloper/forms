@@ -208,7 +208,8 @@ forms with step validation. Save and resume. Pre-fill from the URL, the logged-i
 user or the date. Unique-value validation.
 
 **Anti-spam without a captcha** — honeypot, signed time trap, per-address rate
-limit, word blocklist, and Akismet when the site already has it. Nothing asks the
+limit, word blocklist, and Akismet — off by default — when the site already has
+it and switches it on per form. Nothing asks the
 visitor to prove they are human, because that charges them for the site's spam
 problem and fails WCAG for a good number of people. A submission judged spam is
 **stored**, in a spam status, never silently discarded.

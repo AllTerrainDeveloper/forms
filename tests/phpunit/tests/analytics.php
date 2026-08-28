@@ -750,6 +750,50 @@ class ALLTFO_Test_Analytics extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The public track route bumps published forms and nothing else.
+	 *
+	 * The route is unauthenticated on purpose — the ping comes from a
+	 * logged-out visitor — so what it can touch has to be exactly what is
+	 * public: a draft, trashed or archived form must not be countable, or the
+	 * route becomes a way to probe and inflate forms nobody can see.
+	 *
+	 * @covers ::alltfo_rest_track
+	 */
+	public function test_track_route_is_confined_to_published_forms() {
+		$published = alltfo_test_form();
+		$draft     = alltfo_test_form();
+		$trashed   = alltfo_test_form();
+
+		wp_update_post(
+			array(
+				'ID'          => $draft,
+				'post_status' => 'draft',
+			)
+		);
+		wp_update_post(
+			array(
+				'ID'          => $trashed,
+				'post_status' => 'trash',
+			)
+		);
+
+		foreach ( array( $published, $draft, $trashed ) as $form_id ) {
+			$request = new WP_REST_Request( 'POST', '/' . ALLTFO_REST_NAMESPACE . '/track' );
+
+			$request->set_param( 'form_id', $form_id );
+			$request->set_param( 'event', 'start' );
+
+			$response = rest_do_request( $request );
+
+			$this->assertSame( 200, $response->get_status(), 'The route answers 200 regardless — it never confirms what exists.' );
+		}
+
+		$this->assertSame( 1, alltfo_get_stats( $published )['starts'] );
+		$this->assertSame( 0, alltfo_get_stats( $draft )['starts'], 'A draft form is not countable from the public route.' );
+		$this->assertSame( 0, alltfo_get_stats( $trashed )['starts'], 'A trashed form is not countable from the public route.' );
+	}
+
+	/**
 	 * The tally filter is the per-request veto a consent plugin needs.
 	 *
 	 * @covers ::alltfo_should_record_tech

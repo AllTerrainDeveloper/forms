@@ -38,6 +38,11 @@ const ALLTFO_SCHEMA_VERSION = 1;
  * stored but the retention default is 0 (keep forever) -- a plugin should not
  * quietly delete somebody's data on a schedule they never chose.
  *
+ * Akismet is **off**, even on a site that has it installed and configured.
+ * Switching it on sends each submission -- the answers, the sender's IP and
+ * user agent -- to Akismet's servers, and data leaving the site is a decision
+ * the site owner makes per form, never a default a plugin makes for them.
+ *
  * @since 0.1.0
  *
  * @return array A complete schema with no fields.
@@ -71,7 +76,7 @@ function alltfo_default_schema() {
 				'timeTrap'  => 3,
 				'rateLimit' => 10,
 				'blocklist' => '',
-				'akismet'   => true,
+				'akismet'   => false,
 				'challenge' => false,
 			),
 			'storage'        => array(

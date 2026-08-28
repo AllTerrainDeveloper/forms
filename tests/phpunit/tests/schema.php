@@ -195,6 +195,21 @@ class ALLTFO_Test_Schema extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Akismet is opt-in: a new form must not send submissions off-site by default.
+	 *
+	 * Sending each submission -- answers, IP, user agent -- to Akismet's servers
+	 * is the site owner's decision per form, never a default. A regression here
+	 * is a privacy bug, not a preference.
+	 *
+	 * @covers ::alltfo_default_schema
+	 * @covers ::alltfo_normalize_settings
+	 */
+	public function test_akismet_is_off_by_default() {
+		$this->assertFalse( alltfo_default_schema()['settings']['spam']['akismet'] );
+		$this->assertFalse( alltfo_normalize_schema( array() )['settings']['spam']['akismet'], 'A schema that never mentions Akismet stays off.' );
+	}
+
+	/**
 	 * A setting is the type its default declares, whatever the import sent.
 	 *
 	 * A hand-written JSON import can put an array where a string belongs, and

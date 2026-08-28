@@ -105,6 +105,51 @@ class ALLTFO_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The request is deep-sanitised before the first hook can read it.
+	 *
+	 * `alltfo_before_submission` is the earliest reader a request has, so what
+	 * it receives is what "sanitise early" means in practice: no tag survives
+	 * to that point, in a value or in a key. The per-field-type sanitisation
+	 * still runs after this pass.
+	 *
+	 * @covers ::alltfo_sanitize_request
+	 * @covers ::alltfo_process_submission
+	 */
+	public function test_request_is_sanitised_before_the_first_hook() {
+		$seen = null;
+
+		add_action(
+			'alltfo_before_submission',
+			static function ( $form_id, $request ) use ( &$seen ) {
+				$seen = $request;
+			},
+			10,
+			2
+		);
+
+		$result = alltfo_process_submission(
+			$this->form_id,
+			$this->request(
+				array(
+					'f1'         => '<script>alert(1)</script>Ada',
+					'evil<b>key' => 'never a field',
+				)
+			)
+		);
+
+		$this->assertIsArray( $seen, 'The action fired.' );
+		$this->assertSame( 'Ada', $seen['atf']['f1'], 'The script tag and its payload are gone before the first hook.' );
+		$this->assertArrayHasKey( 'evilkey', $seen['atf'], 'Keys are sanitised too.' );
+		$this->assertArrayNotHasKey( 'evil<b>key', $seen['atf'] );
+
+		$this->assertTrue( $result['success'] );
+
+		$values = json_decode( get_post_meta( $result['entry_id'], ALLTFO_META_VALUES, true ), true );
+
+		$this->assertSame( 'Ada', $values['f1'] );
+	}
+
+	/**
 	 * A submission missing a required field is refused, and nothing is stored.
 	 *
 	 * @covers ::alltfo_process_submission
