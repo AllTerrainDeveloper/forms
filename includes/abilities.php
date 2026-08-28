@@ -131,6 +131,28 @@ function alltfo_register_abilities() {
 		return alltfo_can_read_entries() || alltfo_can_edit_forms();
 	};
 
+	// The per-form gates. An ability that names a form in its input asks the
+	// question about *that* form, so the `alltfo_can_read_entries` filter — the
+	// seam a site uses to confine a department to its own forms — is consulted
+	// with the id, not with the blanket 0. The Abilities API hands the input to
+	// the permission callback whenever an input schema is declared.
+	$read_form = static function ( $input ) {
+		return alltfo_can_edit_forms() || alltfo_can_read_entries( absint( $input['form_id'] ?? 0 ) );
+	};
+
+	$read_form_entries = static function ( $input ) {
+		return alltfo_can_read_entries( absint( $input['form_id'] ?? 0 ) );
+	};
+
+	// Submitting is what visitors do, so no capability is asked for — but the
+	// ability *is* held to an authenticated user, because it mints the time-trap
+	// signature a rendered form would carry, and that liberty is only honest on
+	// a channel that identifies its caller. Anonymous traffic has the rendered
+	// form and the public REST route, where every anti-bot check runs whole.
+	$is_authenticated = static function () {
+		return is_user_logged_in();
+	};
+
 	wp_register_ability(
 		'allterrain-forms/list-forms',
 		array(
@@ -159,7 +181,7 @@ function alltfo_register_abilities() {
 			'label'               => __( 'Get a form', 'allterrain-forms' ),
 			'description'         => __( 'Reads one form: title, status, theme, embed shortcode, entry count, and every question with its field id, type, label, required flag and choices. Use it before submitting to a form or interpreting its entries — values in entries are keyed by these field ids, and choice answers store the choice value, not its label.', 'allterrain-forms' ),
 			'category'            => $category,
-			'permission_callback' => $read_anything,
+			'permission_callback' => $read_form,
 			'execute_callback'    => 'alltfo_ability_get_form',
 			'input_schema'        => array(
 				'type'       => 'object',
@@ -280,7 +302,7 @@ function alltfo_register_abilities() {
 			'label'               => __( 'List entries', 'allterrain-forms' ),
 			'description'         => __( 'Queries a form’s submissions. Each entry returns its answers twice: raw values keyed by field id, and a human-readable line per question with the label resolved — use the readable form for summaries and the raw form for computation. Filter by free-text search, date range (after/before, Y-m-d), status (alltfo-unread, alltfo-read, alltfo-spam) and starred; paginate with page/per_page.', 'allterrain-forms' ),
 			'category'            => $category,
-			'permission_callback' => $read_entries,
+			'permission_callback' => $read_form_entries,
 			'execute_callback'    => 'alltfo_ability_list_entries',
 			'input_schema'        => array(
 				'type'       => 'object',
@@ -343,9 +365,9 @@ function alltfo_register_abilities() {
 		'allterrain-forms/submit-form',
 		array(
 			'label'               => __( 'Submit a form', 'allterrain-forms' ),
-			'description'         => __( 'Submits answers to a form through the same pipeline a visitor uses: availability, validation, anti-spam, storage, notification emails and confirmations all run. Values are keyed by field id (from get-form); choice fields take the choice value, checkbox groups take an array of them. On validation failure nothing is stored and the per-field errors are returned — fix them and call again.', 'allterrain-forms' ),
+			'description'         => __( 'Submits answers to a form through the same pipeline a visitor uses: availability, validation, anti-spam, storage, notification emails and confirmations all run. Requires an authenticated user. Values are keyed by field id (from get-form); choice fields take the choice value, checkbox groups take an array of them. On validation failure nothing is stored and the per-field errors are returned — fix them and call again.', 'allterrain-forms' ),
 			'category'            => $category,
-			'permission_callback' => '__return_true',
+			'permission_callback' => $is_authenticated,
 			'execute_callback'    => 'alltfo_ability_submit_form',
 			'input_schema'        => array(
 				'type'       => 'object',
@@ -376,7 +398,7 @@ function alltfo_register_abilities() {
 			'label'               => __( 'Form report', 'allterrain-forms' ),
 			'description'         => __( 'The analytics for one form as structured data: views, starts, submissions, conversion and completion rates, a 90-day timeline, per-question answer distributions, numeric summaries, and a Net Promoter Score panel where a 0–10 question exists. Pass group_by (a choice field id) to break every question down by how a grouping question was answered. Prefer this over fetching every entry when the job is summarising.', 'allterrain-forms' ),
 			'category'            => $category,
-			'permission_callback' => $read_entries,
+			'permission_callback' => $read_form_entries,
 			'execute_callback'    => 'alltfo_ability_form_report',
 			'input_schema'        => array(
 				'type'       => 'object',
@@ -402,7 +424,12 @@ function alltfo_register_abilities() {
 }
 
 /**
- * Every form, distilled.
+ * Every form the caller may see, distilled.
+ *
+ * Each form is held against the per-form gate before it is listed: a user the
+ * `alltfo_can_read_entries` filter confines to a department's forms gets that
+ * department's list, not the site's. Editors see everything — they could open
+ * any form in the builder anyway.
  *
  * @since 0.3.0
  *
@@ -420,7 +447,14 @@ function alltfo_ability_list_forms() {
 		)
 	);
 
-	return array_map( 'alltfo_ability_form', $posts );
+	$posts = array_filter(
+		$posts,
+		static function ( $post ) {
+			return alltfo_can_edit_forms() || alltfo_can_read_entries( $post->ID );
+		}
+	);
+
+	return array_values( array_map( 'alltfo_ability_form', $posts ) );
 }
 
 /**
@@ -581,9 +615,12 @@ function alltfo_ability_get_entry( $input ) {
  * including a *valid* time-trap signature stamped far enough in the past to
  * pass the minimum-time check. Minting it here is not defeating the trap: the
  * trap exists to catch bots that post faster than a human can read, and an
- * agent invoking a described ability through an authenticated channel is not
- * the traffic it hunts. Every other check — honeypot, rate limit, blocklist,
- * Akismet, validation — runs exactly as it does for a visitor.
+ * agent invoking a described ability is not the traffic it hunts — which is
+ * exactly why the ability's permission callback requires an authenticated
+ * user. An anonymous caller never reaches this function; they have the
+ * rendered form and the public REST route, where the trap runs whole. Every
+ * other check — honeypot, rate limit, blocklist, Akismet, validation — runs
+ * exactly as it does for a visitor.
  *
  * @since 0.3.0
  *

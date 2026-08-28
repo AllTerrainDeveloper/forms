@@ -122,9 +122,10 @@ pick it on any form, export it as JSON, import it on another site.
 = Spam protection without a CAPTCHA =
 
 A honeypot, a signed time trap, a per-address rate limit, a word blocklist,
-and Akismet if you already have it. Nothing asks a visitor to identify traffic
-lights, because a CAPTCHA charges the visitor for the site's spam problem and
-fails accessibility for a good number of people.
+and — if you already have it and switch it on for a form — Akismet. Nothing
+asks a visitor to identify traffic lights, because a CAPTCHA charges the
+visitor for the site's spam problem and fails accessibility for a good number
+of people.
 
 Anything judged spam is **kept**, in a spam folder, never silently thrown away.
 
@@ -195,12 +196,13 @@ The plugin makes no connection of its own to us or to anyone else — no
 accounts, no license checks, no telemetry, no updates outside WordPress.org.
 Two optional features send data to a destination **you** choose:
 
-* **Akismet** — if the [Akismet plugin](https://wordpress.org/plugins/akismet/)
-  is installed and configured on your site *and* you switch it on for a form,
-  each submission to that form (the answers, plus the sender's IP and
-  user agent) is sent to Akismet's servers for a spam verdict, and spam/ham
-  corrections you make in the entries screen are reported back. Without the
-  Akismet plugin, or with the per-form switch off, nothing is sent. See the
+* **Akismet** — off by default on every form, even when the
+  [Akismet plugin](https://wordpress.org/plugins/akismet/) is installed and
+  configured on your site. Only when you switch it on for a form is each
+  submission to that form (the answers, plus the sender's IP and user agent)
+  sent to Akismet's servers for a spam verdict, with spam/ham corrections you
+  make in the entries screen reported back. Without the Akismet plugin, or
+  with the per-form switch off, nothing is sent. See the
   [Akismet Terms of Service](https://akismet.com/tos/) and the
   [Automattic Privacy Policy](https://automattic.com/privacy/).
 * **Webhooks** — a form can POST each entry as JSON to a URL you enter,

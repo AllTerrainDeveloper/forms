@@ -5043,9 +5043,16 @@ export class Builder {
 							textArea( settings.spam.blocklist, ( value ) => set( 'spam.blocklist', value ), 4 ),
 							'One per line.'
 						),
-						checkbox( 'Use Akismet when it is installed', settings.spam.akismet, ( value ) =>
+						checkbox( 'Check submissions with Akismet', settings.spam.akismet, ( value ) =>
 							set( 'spam.akismet', value )
 						),
+						el( 'p', {
+							class: 'atfb-hint',
+							text:
+								'Off unless you switch it on. When on, each submission — the answers, plus the '
+								+ 'sender’s IP address and user agent — is sent to Akismet’s servers for a spam '
+								+ 'verdict. Needs the Akismet plugin installed and configured.',
+						} ),
 						checkbox( 'Ask a simple sum before sending', settings.spam.challenge, ( value ) =>
 							set( 'spam.challenge', value )
 						),

@@ -324,8 +324,9 @@ function alltfo_register_rest_routes() {
 			// began filling this form in" ping comes from a logged-out visitor
 			// on the front end. It records nothing but an anonymous counter
 			// bump against a published form — the handler verifies the form
-			// exists and has analytics switched on before touching anything —
-			// and nothing is read back or sent to any external service.
+			// exists *and is published*, and the recorder refuses forms whose
+			// analytics are switched off — and nothing is read back or sent to
+			// any external service.
 			'permission_callback' => '__return_true',
 			'args'                => array(
 				'form_id' => array(
@@ -492,14 +493,17 @@ function alltfo_rest_track( $request ) {
 	$form_id = absint( $request->get_param( 'form_id' ) );
 	$event   = sanitize_key( (string) $request->get_param( 'event' ) );
 
-	// Only a real form's counter can be bumped: an id pointing at another post
-	// type, or at nothing, is dropped without side effects, so the public
-	// route cannot be used to write meta onto arbitrary posts. Status is
-	// deliberately not checked — the renderer records views for any existing
-	// form, and the two counters must agree about which forms count.
+	// Only a published form's counter can be bumped: an id pointing at another
+	// post type, at a draft, trashed or archived form, or at nothing, is
+	// dropped without side effects — so the public route can neither write
+	// meta onto arbitrary posts nor be used to probe or inflate forms that
+	// are not public. A draft embedded somewhere counts its views (the
+	// renderer runs as the page does) but not starts from this route; that
+	// small asymmetry is the price of the unauthenticated surface staying
+	// confined to what is actually published.
 	$form = $form_id ? get_post( $form_id ) : null;
 
-	if ( $form && ALLTFO_FORM_TYPE === $form->post_type && 'start' === $event ) {
+	if ( $form && ALLTFO_FORM_TYPE === $form->post_type && 'publish' === $form->post_status && 'start' === $event ) {
 		alltfo_record_start( $form_id );
 	}
 

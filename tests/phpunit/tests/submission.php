@@ -105,6 +105,51 @@ class ALLTFO_Test_Submission extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The request is deep-sanitised before the first hook can read it.
+	 *
+	 * `alltfo_before_submission` is the earliest reader a request has, so what
+	 * it receives is what "sanitise early" means in practice: no tag survives
+	 * to that point, in a value or in a key. The per-field-type sanitisation
+	 * still runs after this pass.
+	 *
+	 * @covers ::alltfo_sanitize_request
+	 * @covers ::alltfo_process_submission
+	 */
+	public function test_request_is_sanitised_before_the_first_hook() {
+		$seen = null;
+
+		add_action(
+			'alltfo_before_submission',
+			static function ( $form_id, $request ) use ( &$seen ) {
+				$seen = $request;
+			},
+			10,
+			2
+		);
+
+		$result = alltfo_process_submission(
+			$this->form_id,
+			$this->request(
+				array(
+					'f1'         => '<script>alert(1)</script>Ada',
+					'evil<b>key' => 'never a field',
+				)
+			)
+		);
+
+		$this->assertIsArray( $seen, 'The action fired.' );
+		$this->assertSame( 'Ada', $seen['atf']['f1'], 'The script tag and its payload are gone before the first hook.' );
+		$this->assertArrayHasKey( 'evilkey', $seen['atf'], 'Keys are sanitised too.' );
+		$this->assertArrayNotHasKey( 'evil<b>key', $seen['atf'] );
+
+		$this->assertTrue( $result['success'] );
+
+		$values = json_decode( get_post_meta( $result['entry_id'], ALLTFO_META_VALUES, true ), true );
+
+		$this->assertSame( 'Ada', $values['f1'] );
+	}
+
+	/**
 	 * A submission missing a required field is refused, and nothing is stored.
 	 *
 	 * @covers ::alltfo_process_submission
@@ -981,6 +1026,62 @@ class ALLTFO_Test_Submission extends WP_UnitTestCase {
 
 		$this->assertSame( 'message', $result['confirmation']['type'] );
 		$this->assertStringContainsString( 'Thank you', $result['confirmation']['message'] );
+	}
+
+	/**
+	 * A hostile answer cannot ride a merge tag into the confirmation as markup.
+	 *
+	 * The confirmation message travels to the bundle, which injects it as HTML
+	 * — so this is the surface a script-in-an-answer would have to cross. It
+	 * is blocked twice: every field type's sanitiser strips tags from the
+	 * value, and the resolved message is kses'd whole.
+	 *
+	 * @covers ::alltfo_resolve_confirmation
+	 * @covers ::alltfo_sanitize_field_value
+	 */
+	public function test_confirmation_merge_tag_cannot_carry_script() {
+		$form_id = alltfo_test_form(
+			array(
+				'fields'        => array(
+					array(
+						'id'    => 'f1',
+						'type'  => 'text',
+						'label' => 'Name',
+					),
+				),
+				'confirmations' => array(
+					array(
+						'id'      => 'c1',
+						'enabled' => true,
+						'type'    => 'message',
+						'message' => 'Thanks {field:f1}!',
+					),
+				),
+			)
+		);
+
+		$issued = time() - 30;
+
+		$result = alltfo_process_submission(
+			$form_id,
+			array(
+				'alltfo_form_id' => $form_id,
+				'alltfo_t'       => $issued,
+				'alltfo_ts'      => alltfo_sign_timestamp( $form_id, $issued ),
+				'atf'            => array(
+					'f1' => '<script>alert(1)</script>Ada<img src=x onerror=alert(2)>',
+				),
+			)
+		);
+
+		$this->assertTrue( $result['success'] );
+
+		$message = $result['confirmation']['message'];
+
+		$this->assertStringContainsString( 'Ada', $message );
+		$this->assertStringNotContainsString( '<script', $message );
+		$this->assertStringNotContainsString( 'onerror', $message );
+		$this->assertStringNotContainsString( 'alert', $message, 'The script payload is gone entirely, not merely defanged.' );
 	}
 
 	/**

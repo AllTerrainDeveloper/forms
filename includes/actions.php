@@ -450,7 +450,12 @@ function alltfo_action_webhook( $settings, $context ) {
 		$headers['X-ATF-Signature'] = 'sha256=' . hash_hmac( 'sha256', $body, (string) $settings['secret'] );
 	}
 
-	$response = wp_remote_post(
+	// The safe variant, not `wp_remote_post()`: the URL was validated above,
+	// but only the *first* URL. A webhook endpoint that answers 302 would have
+	// the followed redirect land wherever it pointed — an internal address
+	// included — with no second look. `wp_safe_remote_post()` re-validates
+	// every hop.
+	$response = wp_safe_remote_post(
 		$url,
 		array(
 			// Short, and blocking. A webhook that hangs would hold the visitor

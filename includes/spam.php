@@ -3,9 +3,10 @@
  * Spam screening without a captcha.
  *
  * Five checks, none of which asks the visitor to do anything: a honeypot, a time
- * trap, a per-IP rate limit, a word blocklist, and Akismet when the site already
- * has it. An optional arithmetic challenge exists for forms under sustained
- * attack, and is off by default.
+ * trap, a per-IP rate limit, a word blocklist, and Akismet — off by default,
+ * because it sends the submission off-site, and that is the site owner's call
+ * to make per form. An optional arithmetic challenge exists for forms under
+ * sustained attack, and is off by default too.
  *
  * No reCAPTCHA, no hCaptcha, no "select all the traffic lights". Those work, but
  * they charge the visitor for the site's spam problem, they are a WCAG failure

@@ -35,7 +35,9 @@ defined( 'ABSPATH' ) || exit;
  * @since 0.1.0
  *
  * @param int   $form_id The form.
- * @param array $request The raw request body, unslashed.
+ * @param array $request The request body, unslashed. Deep-sanitised on entry
+ *                       via `alltfo_sanitize_request()`, so callers may hand
+ *                       it over raw.
  * @param array $files   The `$_FILES` array.
  * @return array {
  *     The result.
@@ -60,13 +62,21 @@ function alltfo_process_submission( $form_id, $request, $files = array() ) {
 
 	$schema = alltfo_get_form_schema( $form_id );
 
+	// Sanitise early: the whole request is cleaned here, before any code —
+	// including the `alltfo_before_submission` action below — reads a byte of
+	// it. This is the coarse pass; each answer is then sanitised *again*
+	// through its own field type in `alltfo_sanitize_submission()`, which
+	// knows the shape it expects.
+	$request = alltfo_sanitize_request( $request );
+
 	/**
 	 * Fires before a submission is processed.
 	 *
 	 * @since 0.1.0
+	 * @since 0.4.0 `$request` arrives deep-sanitised via `alltfo_sanitize_request()`.
 	 *
 	 * @param int   $form_id The form.
-	 * @param array $request The raw request.
+	 * @param array $request The request, deep-sanitised.
 	 * @param array $schema  The form schema.
 	 */
 	do_action( 'alltfo_before_submission', $form_id, $request, $schema );
@@ -204,6 +214,48 @@ function alltfo_process_submission( $form_id, $request, $files = array() ) {
 		'entry_id'     => $entry_id,
 		'confirmation' => alltfo_resolve_confirmation( $schema, $values, $entry_id, $form_id ),
 	);
+}
+
+/**
+ * Deep-sanitises a raw request body, early.
+ *
+ * The coarse first pass over everything a request carries, run at the top of
+ * the pipeline so nothing downstream ever holds dirty data: keys become plain
+ * text, every scalar goes through `sanitize_textarea_field()` — tags and
+ * control characters stripped, the newlines a message field exists to collect
+ * kept — and anything that is neither an array nor a scalar is dropped. Each
+ * answer is then sanitised *again* through its own field type in
+ * `alltfo_sanitize_submission()`; this pass is about never trusting the wire,
+ * that one about the shape each field expects.
+ *
+ * The depth cap matches nothing a real form produces — the deepest legitimate
+ * shape, a value inside a repeater row, sits four levels under `atf` — and
+ * exists so a hand-crafted JSON body cannot turn the recursion into work.
+ *
+ * @since 0.4.0
+ *
+ * @param mixed $request The raw request body, unslashed.
+ * @param int   $depth   Internal recursion depth.
+ * @return array The sanitised request.
+ */
+function alltfo_sanitize_request( $request, $depth = 0 ) {
+	if ( ! is_array( $request ) || $depth > 8 ) {
+		return array();
+	}
+
+	$clean = array();
+
+	foreach ( $request as $key => $value ) {
+		$key = is_int( $key ) ? $key : sanitize_text_field( (string) $key );
+
+		if ( is_array( $value ) ) {
+			$clean[ $key ] = alltfo_sanitize_request( $value, $depth + 1 );
+		} elseif ( null === $value || is_scalar( $value ) ) {
+			$clean[ $key ] = sanitize_textarea_field( (string) $value );
+		}
+	}
+
+	return $clean;
 }
 
 /**
@@ -502,7 +554,7 @@ function alltfo_handle_post_submission() {
 		return;
 	}
 
-	$request = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Every value is sanitised through its own field type in `alltfo_sanitize_submission()`.
+	$request = alltfo_sanitize_request( wp_unslash( $_POST ) );
 	$files   = isset( $_FILES ) ? $_FILES : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated in full by `alltfo_handle_uploads()`.
 
 	$result = alltfo_process_submission( $form_id, $request, $files );
