@@ -33,18 +33,38 @@ defined( 'ABSPATH' ) || exit;
  * compromised through an upload form had somebody who thought their case was the
  * exception.
  *
+ * Comprehensiveness is the point. The variants that read like typos -- `pht`,
+ * `phtm`, `php6`, `shtml` -- are the ones a bypass reaches for precisely because
+ * a shorter list forgot them; a blocklist that stops one spelling of "run this
+ * as PHP" and not the next is a blocklist that has not done its job. The check
+ * matches a single, real extension against this flat set, never a pattern or a
+ * pipe-joined MIME key, so there is no alternation for a crafted name to hide
+ * inside.
+ *
  * @since 0.1.0
  */
 const ALLTFO_FORBIDDEN_EXTENSIONS = array(
 	'php',
+	'php1',
+	'php2',
 	'php3',
 	'php4',
 	'php5',
+	'php6',
 	'php7',
 	'php8',
 	'phps',
+	'pht',
+	'phtm',
 	'phtml',
 	'phar',
+	'phpt',
+	'hphp',
+	// Server-side includes: `.shtml` and its kin are executed by mod_include
+	// wherever SSI is on, which makes them as good as a script for this.
+	'shtml',
+	'shtm',
+	'stm',
 	'pl',
 	'py',
 	'rb',
