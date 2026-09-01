@@ -201,8 +201,10 @@ Two optional features send data to a destination **you** choose:
   configured on your site. Only when you switch it on for a form is each
   submission to that form (the answers, plus the sender's IP and user agent)
   sent to Akismet's servers for a spam verdict, with spam/ham corrections you
-  make in the entries screen reported back. Without the Akismet plugin, or
-  with the per-form switch off, nothing is sent. See the
+  make in the entries screen reported back. Corrections obey the same per-form
+  switch: marking an entry spam or not-spam on a form that has Akismet off
+  sends nothing. Without the Akismet plugin, or with the per-form switch off,
+  nothing is ever sent. See the
   [Akismet Terms of Service](https://akismet.com/tos/) and the
   [Automattic Privacy Policy](https://automattic.com/privacy/).
 * **Webhooks** — a form can POST each entry as JSON to a URL you enter,

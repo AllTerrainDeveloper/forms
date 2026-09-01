@@ -221,8 +221,9 @@ function alltfo_prepare_entry( $entry ) {
 /**
  * Changes an entry's status.
  *
- * Marking as spam or not-spam also tells Akismet, when it is installed, which is
- * what keeps the service learning about this particular site.
+ * Marking as spam or not-spam also tells Akismet -- but only when the entry's
+ * form has Akismet switched on. A form that never opted in sends nothing, on
+ * submission or on correction; see `alltfo_akismet_submit_correction()`.
  *
  * @since 0.1.0
  *

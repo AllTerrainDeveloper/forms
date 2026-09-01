@@ -87,7 +87,7 @@ function alltfo_screen_for_spam( $schema, $values, $request ) {
 		);
 	}
 
-	if ( ! $verdict['spam'] && ! empty( $settings['akismet'] ) && alltfo_akismet_available() ) {
+	if ( ! $verdict['spam'] && alltfo_form_uses_akismet( $schema ) && alltfo_akismet_available() ) {
 		if ( alltfo_akismet_says_spam( $schema, $values ) ) {
 			$verdict = array(
 				'spam'   => true,
@@ -462,28 +462,58 @@ function alltfo_akismet_says_spam( $schema, $values ) {
 }
 
 /**
+ * Whether a form has opted in to Akismet.
+ *
+ * The single gate every Akismet request passes through. It is the form's own
+ * `spam.akismet` switch -- off by default -- and nothing else: not whether the
+ * Akismet plugin happens to be installed, and not a site-wide setting. Data
+ * leaves the site for this form only because the site owner said so for this
+ * form.
+ *
+ * @since 0.1.0
+ *
+ * @param array $schema The form schema.
+ * @return bool
+ */
+function alltfo_form_uses_akismet( $schema ) {
+	return ! empty( $schema['settings']['spam']['akismet'] );
+}
+
+/**
  * Tells Akismet it got one wrong.
  *
  * Called when somebody marks an entry as spam or not-spam in the Entries window,
  * which is what keeps the service learning about this particular site rather
  * than only about the internet in general.
  *
+ * The correction is subject to the same opt-in as the check that preceded it.
+ * An entry belongs to a form, and unless that form has Akismet switched on the
+ * entry's contents, IP address and user agent never leave the site -- not on
+ * submission, and not when somebody clicks "spam" or "not spam" afterwards. The
+ * form's switch is consulted first, before Akismet is so much as looked for.
+ *
  * @since 0.1.0
  *
  * @param int    $entry_id The entry.
  * @param string $verdict  `spam` or `ham`.
- * @return void
+ * @return bool Whether a correction was sent.
  */
 function alltfo_akismet_submit_correction( $entry_id, $verdict ) {
+	$form_id = (int) get_post_meta( $entry_id, ALLTFO_META_FORM, true );
+
+	if ( ! $form_id || ! alltfo_form_uses_akismet( alltfo_get_form_schema( $form_id ) ) ) {
+		return false;
+	}
+
 	if ( ! alltfo_akismet_available() ) {
-		return;
+		return false;
 	}
 
 	$context = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_CONTEXT, true ), true );
 	$values  = json_decode( (string) get_post_meta( $entry_id, ALLTFO_META_VALUES, true ), true );
 
 	if ( ! is_array( $context ) || ! is_array( $values ) ) {
-		return;
+		return false;
 	}
 
 	$request = array(
@@ -495,4 +525,6 @@ function alltfo_akismet_submit_correction( $entry_id, $verdict ) {
 	);
 
 	Akismet::http_post( build_query( $request ), 'spam' === $verdict ? 'submit-spam' : 'submit-ham' );
+
+	return true;
 }
