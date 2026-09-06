@@ -415,6 +415,37 @@ function alltfo_can_read_entries( $form_id = 0 ) {
 }
 
 /**
+ * Whether the current user may read one particular entry.
+ *
+ * An entry belongs to a form, and the per-form `alltfo_can_read_entries`
+ * filter is the seam a site uses to confine a reader to some forms and not
+ * others -- so a gate that names an entry must ask about *that* entry's form,
+ * not the blanket "any form at all". This is what the `get-entry` ability and
+ * the `/entries/{id}` REST route ask before their callbacks run; the data
+ * path asks it again in `alltfo_prepare_entry()`, so the gate and the door
+ * agree.
+ *
+ * An id that is not an entry falls back to the blanket question, so a caller
+ * holding the capability still reaches its own "that entry does not exist"
+ * answer instead of an opaque refusal.
+ *
+ * @since 0.1.0
+ *
+ * @param int $entry_id The entry.
+ * @return bool
+ */
+function alltfo_can_read_entry( $entry_id ) {
+	$entry_id = absint( $entry_id );
+	$post     = $entry_id ? get_post( $entry_id ) : null;
+
+	if ( ! $post || ALLTFO_ENTRY_TYPE !== $post->post_type ) {
+		return alltfo_can_read_entries();
+	}
+
+	return alltfo_can_read_entries( (int) get_post_meta( $post->ID, ALLTFO_META_FORM, true ) );
+}
+
+/**
  * Every status an entry can hold.
  *
  * Exists because `'post_status' => 'any'` does **not** mean any status. It means

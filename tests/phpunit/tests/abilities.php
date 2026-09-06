@@ -343,18 +343,46 @@ class ALLTFO_Test_Abilities extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Submits one answer to a form and returns the entry id.
+	 *
+	 * @param int $form_id The form.
+	 * @return int The entry id.
+	 */
+	protected function make_entry( $form_id ) {
+		$form   = $this->run_ability( 'allterrain-forms/get-form', array( 'form_id' => $form_id ) );
+		$result = $this->run_ability(
+			'allterrain-forms/submit-form',
+			array(
+				'form_id' => $form_id,
+				'values'  => array( $form['fields'][0]['id'] => 'Tomas Berg' ),
+			)
+		);
+
+		$this->assertTrue( $result['success'] );
+
+		return (int) $result['entry_id'];
+	}
+
+	/**
 	 * The per-form filter confines every reading ability, id in hand.
 	 *
 	 * A user the `alltfo_can_read_entries` filter restricts to one form gets
-	 * that form and no other — from get-form, from form-report, and from the
-	 * list itself.
+	 * that form and no other — from get-form, from form-report, from get-entry,
+	 * and from the list itself. For get-entry the refusal must come from the
+	 * *permission gate*, not only from the data path behind it: an ability's
+	 * declared gate is what an MCP client and the REST channel consult before
+	 * running anything.
 	 *
 	 * @covers ::alltfo_register_abilities
 	 * @covers ::alltfo_ability_list_forms
+	 * @covers ::alltfo_can_read_entry
 	 */
 	public function test_per_form_filter_confines_the_read_abilities() {
 		$allowed = $this->make_form();
 		$other   = $this->make_form();
+
+		$my_entry    = $this->make_entry( $allowed );
+		$their_entry = $this->make_entry( $other );
 
 		$reader = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
@@ -384,6 +412,20 @@ class ALLTFO_Test_Abilities extends WP_UnitTestCase {
 
 		$this->assertContains( $allowed, $ids );
 		$this->assertNotContains( $other, $ids, 'The list is confined the same way.' );
+
+		$get_entry = wp_get_ability( 'allterrain-forms/get-entry' );
+
+		$this->assertTrue( $get_entry->check_permissions( array( 'entry_id' => $my_entry ) ) );
+		$this->assertFalse(
+			$get_entry->check_permissions( array( 'entry_id' => $their_entry ) ),
+			'The gate itself refuses an entry of a form outside the filter.'
+		);
+
+		$this->assertIsArray( $get_entry->execute( array( 'entry_id' => $my_entry ) ) );
+		$this->assertWPError(
+			$get_entry->execute( array( 'entry_id' => $their_entry ) ),
+			'An entry of a form outside the filter is not readable.'
+		);
 
 		remove_filter( 'alltfo_can_read_entries', $filter, 10 );
 	}

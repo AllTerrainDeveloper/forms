@@ -180,14 +180,18 @@ class ALLTFO_Test_Entries extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The analytics route's form id reaches the per-form read filter.
+	 * The analytics and entry routes ask the per-form read filter about the
+	 * right form.
 	 *
-	 * The route names its parameter `id`, because it lives at
-	 * `/forms/{id}/analytics` -- and the permission callback used to read only
-	 * `form_id`, so the documented `alltfo_can_read_entries` seam was always
-	 * asked about form 0 rather than the form whose numbers were being read.
+	 * Both name their parameter `id`, and it means a different thing on each:
+	 * the form itself on `/forms/{id}/analytics`, an entry on `/entries/{id}`.
+	 * The permission callback used to read only `form_id`, so the documented
+	 * `alltfo_can_read_entries` seam was asked about form 0 on both -- and an
+	 * entry route must resolve its entry to the form it belongs to rather than
+	 * mistake the entry id for a form id.
 	 *
 	 * @covers ::alltfo_rest_can_read_entries
+	 * @covers ::alltfo_can_read_entry
 	 */
 	public function test_analytics_permission_asks_about_the_right_form() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
@@ -209,8 +213,8 @@ class ALLTFO_Test_Entries extends WP_UnitTestCase {
 
 		$result = alltfo_rest_can_read_entries( $request );
 
-		// An entry route's `id` is an entry, not a form, and must stay out of
-		// the per-form question.
+		// An entry route's `id` is an entry, not a form: the per-form question
+		// is about the form the entry belongs to.
 		$entry_request = new WP_REST_Request( 'GET', '/' . ALLTFO_REST_NAMESPACE . '/entries/' . $seeded['entry_id'] );
 		$entry_request->set_param( 'id', $seeded['entry_id'] );
 
@@ -221,8 +225,49 @@ class ALLTFO_Test_Entries extends WP_UnitTestCase {
 		$this->assertWPError( $result, 'Denying the form must deny its analytics.' );
 		$this->assertContains( $seeded['form_id'], $asked, 'The filter must be asked about the form being read.' );
 
-		$this->assertTrue( $entry_result );
+		$this->assertWPError( $entry_result, 'Denying the form must deny each of its entries at the gate.' );
 		$this->assertNotContains( $seeded['entry_id'], $asked, 'An entry id must never be mistaken for a form id.' );
+	}
+
+	/**
+	 * Asking about an entry asks about its form; asking about no entry asks
+	 * the blanket question.
+	 *
+	 * @covers ::alltfo_can_read_entry
+	 */
+	public function test_reading_one_entry_asks_about_its_form() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		alltfo_add_capabilities();
+
+		$seeded = $this->seed();
+		$asked  = array();
+
+		$filter = static function ( $can, $form_id ) use ( &$asked ) {
+			$asked[] = $form_id;
+
+			return $can;
+		};
+
+		add_filter( 'alltfo_can_read_entries', $filter, 10, 2 );
+
+		$this->assertTrue( alltfo_can_read_entry( $seeded['entry_id'] ) );
+		$this->assertSame( array( $seeded['form_id'] ), $asked );
+
+		$asked = array();
+
+		// A form id, a page id, an invented id: none is an entry, so the
+		// question falls back to "any form at all" and the caller keeps its
+		// own "does not exist" answer.
+		$this->assertTrue( alltfo_can_read_entry( $seeded['form_id'] ) );
+		$this->assertTrue( alltfo_can_read_entry( 987654 ) );
+		$this->assertSame( array( 0, 0 ), $asked );
+
+		remove_filter( 'alltfo_can_read_entries', $filter );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$this->assertFalse( alltfo_can_read_entry( $seeded['entry_id'] ), 'Without the capability nothing is readable.' );
+		$this->assertFalse( alltfo_can_read_entry( 987654 ) );
 	}
 
 	/* ---------------------------------------------------------------- Export */
