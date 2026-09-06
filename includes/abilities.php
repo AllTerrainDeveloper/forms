@@ -144,6 +144,13 @@ function alltfo_register_abilities() {
 		return alltfo_can_read_entries( absint( $input['form_id'] ?? 0 ) );
 	};
 
+	// An ability that names an *entry* asks about the form that entry belongs
+	// to -- the gate itself, not only the data path behind it, honours the
+	// per-form filter.
+	$read_entry = static function ( $input ) {
+		return alltfo_can_read_entry( absint( $input['entry_id'] ?? 0 ) );
+	};
+
 	// Submitting is what visitors do, so no capability is asked for — but the
 	// ability *is* held to an authenticated user, because it mints the time-trap
 	// signature a rendered form would carry, and that liberty is only honest on
@@ -341,7 +348,7 @@ function alltfo_register_abilities() {
 			'label'               => __( 'Get an entry', 'allterrain-forms' ),
 			'description'         => __( 'Reads one submission in full: every question with its label, the raw stored value and a formatted human-readable value, plus the submission date and status.', 'allterrain-forms' ),
 			'category'            => $category,
-			'permission_callback' => $read_entries,
+			'permission_callback' => $read_entry,
 			'execute_callback'    => 'alltfo_ability_get_entry',
 			'input_schema'        => array(
 				'type'       => 'object',

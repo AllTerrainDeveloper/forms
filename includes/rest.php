@@ -369,17 +369,25 @@ function alltfo_rest_can_edit() {
  * @return true|WP_Error
  */
 function alltfo_rest_can_read_entries( $request ) {
+	$route   = (string) $request->get_route();
 	$form_id = (int) $request->get_param( 'form_id' );
+	$id      = (int) $request->get_param( 'id' );
 
-	// The analytics route names its form parameter `id`, because it lives at
-	// `/forms/{id}/analytics`. Only routes under `/forms/` may read it that
-	// way -- on `/entries/{id}` the `id` is an *entry*, and treating it as a
-	// form would ask the per-form filter about the wrong thing entirely.
-	if ( ! $form_id && false !== strpos( (string) $request->get_route(), '/forms/' ) ) {
-		$form_id = (int) $request->get_param( 'id' );
+	// What `id` names depends on the route. On `/entries/{id}` it is an
+	// *entry*, and the per-form question is about the form that entry belongs
+	// to. On `/forms/{id}/analytics` it is the form itself. Treating one as
+	// the other would ask the per-form filter about the wrong thing entirely.
+	if ( ! $form_id && $id && false !== strpos( $route, '/entries/' ) ) {
+		$allowed = alltfo_can_read_entry( $id );
+	} else {
+		if ( ! $form_id && false !== strpos( $route, '/forms/' ) ) {
+			$form_id = $id;
+		}
+
+		$allowed = alltfo_can_read_entries( $form_id );
 	}
 
-	if ( alltfo_can_read_entries( $form_id ) ) {
+	if ( $allowed ) {
 		return true;
 	}
 

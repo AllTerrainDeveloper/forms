@@ -1084,7 +1084,10 @@ entries of the forms it owns by returning false for every other id.
 
 The abilities honour it with the form in hand: `get-form`, `list-entries` and
 `form-report` ask this filter with the `form_id` from their input, and
-`list-forms` asks it per form before listing one.
+`list-forms` asks it per form before listing one. `get-entry` and the
+`/entries/{id}` REST route name an entry, not a form, so their permission gates
+go through `alltfo_can_read_entry( $entry_id )`, which resolves the entry to its
+form and asks this filter about that form.
 
 ---
 
