@@ -66,10 +66,10 @@ jobs:
           tag="${TAG#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(awk '/^[[:space:]]*\*[[:space:]]*Version:/ { print $3; exit }' allterrain-forms.php)
-          constant=$(awk -F"'" '/ATF_VERSION/ { print $4; exit }' allterrain-forms.php)
+          constant=$(awk -F"'" '/ALLTFO_VERSION/ { print $4; exit }' allterrain-forms.php)
           stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" && "$tag" == "$stable" ]]; then
-            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header ATF_VERSION=$constant readme.txt Stable tag=$stable"
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header ALLTFO_VERSION=$constant readme.txt Stable tag=$stable"
             exit 1
           fi
           # The deploy action derives VERSION from GITHUB_REF, which is only a
