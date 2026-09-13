@@ -44,6 +44,7 @@ import type { Field, FieldType } from './types';
 
 /** The visual families a field can be drawn as. */
 export type PreviewShape =
+	| 'total'
 	| 'text'
 	| 'textarea'
 	| 'select'
@@ -94,7 +95,7 @@ const SHAPES: Record< string, PreviewShape > = {
 	color: 'text',
 	name: 'composite',
 	address: 'composite',
-	total: 'text',
+	total: 'total',
 	hidden: 'static',
 	heading: 'static',
 	html: 'static',
@@ -347,6 +348,14 @@ function control(
 	handlers: PreviewHandlers
 ): HTMLElement | null {
 	switch ( shape ) {
+		case 'total':
+			return el( 'div', { class: 'atf-total', children: [
+				field.currency ? el( 'span', { class: 'atf-total__currency', text: String( field.currency ) } ) : null,
+				field.display === 'output'
+					? el( 'output', { class: 'atf-total__output', text: '0.00' } )
+					: el( 'input', { class: 'atf-input atf-total__input', type: 'text', value: '0.00', attrs: { disabled: true } } ),
+			] } );
+
 		case 'text':
 			return placeholderBox( field, 'atf-input', handlers );
 

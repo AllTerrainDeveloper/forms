@@ -322,3 +322,14 @@ add_filter( 'alltfo_client_schema', function ( $payload, $schema ) {
 	return $payload;
 }, 10, 2 );
 ```
+
+### Total display
+
+The Total inspector offers **Display total as**: **Plain text** or **Disabled
+input**. The `display` setting accepts `output` or `input` (the default, also used
+for older forms and invalid values). Plain text renders a semantic `<output>`
+with the field label attached; input mode renders a disabled text input. Both
+use the form theme, currency symbol and decimal precision and update live.
+A hidden `atf[field_id]` input preserves the calculated value for submission and
+integrations. The server recomputes it from the source answers in both modes.
+The builder canvas reflects the selected presentation.

@@ -1143,7 +1143,7 @@ var allTerrainFormsBuilder = function(exports) {
     color: "text",
     name: "composite",
     address: "composite",
-    total: "text",
+    total: "total",
     hidden: "static",
     heading: "static",
     html: "static",
@@ -1254,6 +1254,11 @@ var allTerrainFormsBuilder = function(exports) {
   }
   function control(field, type, shape, handlers) {
     switch (shape) {
+      case "total":
+        return el("div", { class: "atf-total", children: [
+          field.currency ? el("span", { class: "atf-total__currency", text: String(field.currency) }) : null,
+          field.display === "output" ? el("output", { class: "atf-total__output", text: "0.00" }) : el("input", { class: "atf-input atf-total__input", type: "text", value: "0.00", attrs: { disabled: true } })
+        ] });
       case "text":
         return placeholderBox(field, "atf-input", handlers);
       case "textarea":
@@ -5274,6 +5279,13 @@ var allTerrainFormsBuilder = function(exports) {
             row("Currency symbol", textInput(String(field.currency ?? ""), (value) => update("currency", value)))
           );
         }
+        if (field.type === "total") {
+          this.inspector.append(row("Display total as", select(
+            String(field.display ?? "input"),
+            [{ value: "output", label: "Plain text" }, { value: "input", label: "Disabled input" }],
+            (value) => update("display", value)
+          )));
+        }
         this.inspector.append(this.renderValidationSection(field, supports, update));
         if (!parent) {
           this.inspector.append(this.renderLogicSection(field));
@@ -6841,7 +6853,8 @@ var allTerrainFormsBuilder = function(exports) {
       if (!field) {
         return;
       }
-      const draft = { ...field.logic, rules: field.logic.rules.map((rule) => ({ ...rule })) };
+      const hadRules = field.logic.rules.length > 0;
+      const draft = { ...field.logic, enabled: true, rules: field.logic.rules.map((rule) => ({ ...rule })) };
       const overlay = el("div", { class: "atfb-overlay" });
       const dialog = el("div", {
         class: "atfb-modal atfb-condition-editor",
@@ -6870,7 +6883,7 @@ var allTerrainFormsBuilder = function(exports) {
         });
         match.setAttribute("aria-label", "Match rules");
         const copy = el("button", {
-          class: "atfb-copy-condition",
+          class: "atfb-button atfb-copy-condition",
           type: "button",
           children: [icon("admin-page"), el("span", { text: "Copy condition" })],
           on: { click: () => openConditionCopy({
@@ -6881,6 +6894,7 @@ var allTerrainFormsBuilder = function(exports) {
               fields: this.schema.fields.map((item) => item.id === fieldId ? { ...item, logic: draft } : item)
             } : null,
             onCopy: () => {
+              draft.enabled = true;
               paint();
               dialog.focus();
             }
@@ -6891,23 +6905,21 @@ var allTerrainFormsBuilder = function(exports) {
             el("span", { class: "atfb-condition-editor__icon", children: [icon("randomize")] }),
             el("div", { children: [el("h2", { text: "Conditional logic" }), el("p", { text: field.label || "Untitled field" })] })
           ] }),
-          el("div", { class: "atfb-condition-editor__switch", children: [
-            checkbox("Enable conditions", draft.enabled, (enabled) => {
-              draft.enabled = enabled;
-              paint();
-            }),
-            el("p", { text: "Choose when this field appears in your form." })
-          ] }),
-          ...draft.enabled ? [
-            el("div", { class: "atfb-condition-editor__sentence", children: [action, "this field when", match, "of these rules match:"] }),
-            ...this.logicRulesEditor(draft, write, fieldId)
-          ] : [el("p", { class: "atfb-condition-editor__empty", text: "This field is always visible. Enable conditions to choose when to show or hide it." })],
+          el("p", { class: "atfb-hint", text: "Choose when this field appears in your form." }),
+          el("div", { class: "atfb-condition-editor__sentence", children: [action, "this field when", match, "of these rules match:"] }),
+          ...this.logicRulesEditor(draft, write, fieldId),
           el("div", { class: "atfb-condition-editor__footer", children: [
             copy,
             el("div", { class: "atfb-modal__actions", children: [
-              button("Cancel", close),
+              button("Clear", () => {
+                this.snapshot();
+                this.editCondition(fieldId, (live) => Object.assign(live, { enabled: false, action: "show", match: "all", rules: [] }));
+                this.snapshot();
+                close();
+              }),
+              ...hadRules || draft.rules.length ? [button("Cancel", close)] : [],
               button("Save conditions", () => {
-                if (!this.liveField(fieldId)) {
+                if (!this.liveField(fieldId) || !draft.rules.length) {
                   close();
                   return;
                 }
@@ -6919,6 +6931,9 @@ var allTerrainFormsBuilder = function(exports) {
             ] })
           ] })
         );
+        if (!draft.rules.length) {
+          dialog.querySelector(".atfb-button--primary")?.setAttribute("disabled", "");
+        }
         if (focusedIndex >= 0) {
           const controls = dialog.querySelectorAll(controlsSelector);
           controls[Math.min(focusedIndex, controls.length - 1)]?.focus();
@@ -8339,7 +8354,7 @@ var allTerrainFormsBuilder = function(exports) {
     /** Reuse a condition, resolving the schema when the chooser applies it. */
     copyConditionButton(key) {
       return el("button", {
-        class: "atfb-copy-condition",
+        class: "atfb-button atfb-copy-condition",
         type: "button",
         children: [icon("admin-page"), el("span", { text: "Copy condition" })],
         on: { click: () => openConditionCopy({
@@ -8377,7 +8392,6 @@ var allTerrainFormsBuilder = function(exports) {
         `logic:${field.id}`,
         "Conditional logic",
         [
-          this.copyConditionButton(`field:${field.id}`),
           checkbox("Only show this field sometimes", logic.enabled, (value) => {
             write((live) => {
               live.enabled = value;
@@ -8414,7 +8428,8 @@ var allTerrainFormsBuilder = function(exports) {
               }),
               ...editor
             ]
-          }) : null
+          }) : null,
+          el("div", { class: "atfb-logic-actions", children: [this.copyConditionButton(`field:${field.id}`)] })
         ],
         // A field that already has a condition opens showing it: being told a
         // rule governs this field and not what it says is the problem the

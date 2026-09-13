@@ -2610,7 +2610,8 @@ export class Builder {
 		if ( ! field ) {
 			return;
 		}
-		const draft: Logic = { ...field.logic, rules: field.logic.rules.map( ( rule ) => ( { ...rule } ) ) };
+		const hadRules = field.logic.rules.length > 0;
+		const draft: Logic = { ...field.logic, enabled: true, rules: field.logic.rules.map( ( rule ) => ( { ...rule } ) ) };
 		const overlay = el( 'div', { class: 'atfb-overlay' } );
 		const dialog = el( 'div', {
 			class: 'atfb-modal atfb-condition-editor',
@@ -2637,7 +2638,7 @@ export class Builder {
 			} );
 			match.setAttribute( 'aria-label', 'Match rules' );
 			const copy = el( 'button', {
-				class: 'atfb-copy-condition', type: 'button',
+				class: 'atfb-button atfb-copy-condition', type: 'button',
 				children: [ icon( 'admin-page' ), el( 'span', { text: 'Copy condition' } ) ],
 				on: { click: () => openConditionCopy( {
 					root: overlay,
@@ -2646,7 +2647,7 @@ export class Builder {
 						...this.schema,
 						fields: this.schema.fields.map( ( item ) => item.id === fieldId ? { ...item, logic: draft } : item ),
 					} : null,
-					onCopy: () => { paint(); dialog.focus(); },
+					onCopy: () => { draft.enabled = true; paint(); dialog.focus(); },
 				} ) },
 			} );
 			dialog.replaceChildren(
@@ -2654,23 +2655,21 @@ export class Builder {
 					el( 'span', { class: 'atfb-condition-editor__icon', children: [ icon( 'randomize' ) ] } ),
 					el( 'div', { children: [ el( 'h2', { text: 'Conditional logic' } ), el( 'p', { text: field.label || 'Untitled field' } ) ] } ),
 				] } ),
-				el( 'div', { class: 'atfb-condition-editor__switch', children: [
-					checkbox( 'Enable conditions', draft.enabled, ( enabled ) => {
-						draft.enabled = enabled;
-						paint();
-					} ),
-					el( 'p', { text: 'Choose when this field appears in your form.' } ),
-				] } ),
-				...( draft.enabled ? [
-					el( 'div', { class: 'atfb-condition-editor__sentence', children: [ action, 'this field when', match, 'of these rules match:' ] } ),
-					...this.logicRulesEditor( draft, write, fieldId ),
-				] : [ el( 'p', { class: 'atfb-condition-editor__empty', text: 'This field is always visible. Enable conditions to choose when to show or hide it.' } ) ] ),
+				el( 'p', { class: 'atfb-hint', text: 'Choose when this field appears in your form.' } ),
+				el( 'div', { class: 'atfb-condition-editor__sentence', children: [ action, 'this field when', match, 'of these rules match:' ] } ),
+				...this.logicRulesEditor( draft, write, fieldId ),
 				el( 'div', { class: 'atfb-condition-editor__footer', children: [
 					copy,
 					el( 'div', { class: 'atfb-modal__actions', children: [
-						button( 'Cancel', close ),
+						button( 'Clear', () => {
+							this.snapshot();
+							this.editCondition( fieldId, ( live ) => Object.assign( live, { enabled: false, action: 'show', match: 'all', rules: [] } ) );
+							this.snapshot();
+							close();
+						} ),
+						...( hadRules || draft.rules.length ? [ button( 'Cancel', close ) ] : [] ),
 						button( 'Save conditions', () => {
-							if ( ! this.liveField( fieldId ) ) {
+							if ( ! this.liveField( fieldId ) || ! draft.rules.length ) {
 								close();
 								return;
 							}
@@ -2682,6 +2681,9 @@ export class Builder {
 					] } ),
 				] } )
 			);
+			if ( ! draft.rules.length ) {
+				dialog.querySelector( '.atfb-button--primary' )?.setAttribute( 'disabled', '' );
+			}
 			if ( focusedIndex >= 0 ) {
 				const controls = dialog.querySelectorAll< HTMLElement >( controlsSelector );
 				controls[ Math.min( focusedIndex, controls.length - 1 ) ]?.focus();
@@ -3879,6 +3881,14 @@ export class Builder {
 			);
 		}
 
+		if ( field.type === 'total' ) {
+			this.inspector.append( row( 'Display total as', select(
+				String( field.display ?? 'input' ),
+				[ { value: 'output', label: 'Plain text' }, { value: 'input', label: 'Disabled input' } ],
+				( value ) => update( 'display', value )
+			) ) );
+		}
+
 		this.inspector.append( this.renderValidationSection( field, supports, update ) );
 
 		// Conditional logic and prefill act on top-level answers: the logic
@@ -4867,7 +4877,7 @@ export class Builder {
 	/** Reuse a condition, resolving the schema when the chooser applies it. */
 	private copyConditionButton( key: string ): HTMLElement {
 		return el( 'button', {
-			class: 'atfb-copy-condition', type: 'button',
+			class: 'atfb-button atfb-copy-condition', type: 'button',
 			children: [ icon( 'admin-page' ), el( 'span', { text: 'Copy condition' } ) ],
 			on: { click: () => openConditionCopy( {
 				root: this.root,
@@ -4925,7 +4935,6 @@ export class Builder {
 			`logic:${ field.id }`,
 			'Conditional logic',
 			[
-				this.copyConditionButton( `field:${ field.id }` ),
 				checkbox( 'Only show this field sometimes', logic.enabled, ( value ) => {
 					write( ( live ) => {
 						live.enabled = value;
@@ -4967,6 +4976,7 @@ export class Builder {
 							],
 					  } )
 					: null,
+				el( 'div', { class: 'atfb-logic-actions', children: [ this.copyConditionButton( `field:${ field.id }` ) ] } ),
 			],
 			// A field that already has a condition opens showing it: being told a
 			// rule governs this field and not what it says is the problem the

@@ -894,9 +894,17 @@
 	color: var( --atf-text-muted );
 }
 
-.atf-form .atf-total__input {
+.atf-form .atf-total__input,
+.atf-total__output {
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
+}
+
+.atf-total__output {
+	display: block;
+	color: var( --atf-text );
+	font-size: var( --atf-size-base );
+	overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------------------------------- */

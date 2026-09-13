@@ -379,7 +379,7 @@ class AllTerrainForm {
 						return;
 					}
 
-					input.disabled = ! show;
+					input.disabled = ! show || input.hasAttribute( 'data-atf-total' );
 				} );
 		}
 
@@ -390,7 +390,7 @@ class AllTerrainForm {
 				continue;
 			}
 
-			const input = this.fieldElement( field.id )?.querySelector< HTMLInputElement >( '[data-atf-total]' );
+			const input = this.fieldElement( field.id )?.querySelector< HTMLInputElement | HTMLOutputElement >( '[data-atf-total]' );
 
 			if ( ! input ) {
 				continue;
@@ -400,6 +400,10 @@ class AllTerrainForm {
 			const decimals = typeof field.decimals === 'number' ? field.decimals : 2;
 
 			input.value = typeof value === 'number' ? value.toFixed( decimals ) : '';
+			const submitted = this.fieldElement( field.id )?.querySelector< HTMLInputElement >( '[data-atf-total-value]' );
+			if ( submitted ) {
+				submitted.value = input.value;
+			}
 		}
 	}
 

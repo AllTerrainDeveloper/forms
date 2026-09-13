@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -325,6 +325,12 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
+= 1.0.1 =
+* Align Copy condition with the condition settings and use the desktop theme's dialog palette and textures.
+* Open conditional logic directly into rule editing, without a separate enable checkbox.
+* Add Clear to remove and disable conditions, and hide Cancel for new conditions with no rules.
+* Display calculated totals as plain text or disabled inputs while preserving live calculations and submitted values.
+
 = 1.0.0 =
 * Open the searchable value selector by typing { in calculation and merge-tag inputs.
 * Preview references as descriptive values instead of invented answers.
@@ -339,6 +345,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Improved conditional dialogs and theme support. Totals can display as plain text or disabled inputs; existing totals keep their input presentation.
 
 = 1.0.0 =
 Improved formula selection and conditional editing. Existing forms and saved conditions retain their format and behavior.

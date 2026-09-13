@@ -1087,10 +1087,8 @@ function alltfo_render_repeater_row( $field, $sub_fields, $row, $index, $context
 /**
  * A calculated total.
  *
- * `readonly` rather than `disabled`, because a disabled input is not submitted
- * and the value would never reach the entry. The server recomputes it anyway,
- * so a tampered value is discarded -- but a missing one would look like a form
- * that forgot to collect its own total.
+ * The display is an output or a disabled input. A hidden input carries the
+ * browser's value for integrations; the server always recomputes the total.
  *
  * @since 0.1.0
  *
@@ -1100,15 +1098,28 @@ function alltfo_render_repeater_row( $field, $sub_fields, $row, $index, $context
  * @return string
  */
 function alltfo_render_total( $field, $value, $context ) {
-	return alltfo_render_label( $field, $context['id'] ) . sprintf(
-		'<div class="atf-total">%s<input type="text" class="atf-input atf-total__input" id="%s" name="%s" value="%s" readonly'
-		. ' data-atf-total data-atf-formula="%s" data-atf-decimals="%d" data-atf-input></div>',
-		! empty( $field['currency'] ) ? sprintf( '<span class="atf-total__currency" aria-hidden="true">%s</span>', esc_html( $field['currency'] ) ) : '',
+	$text   = is_scalar( $value ) ? (string) $value : '';
+	$output = isset( $field['display'] ) && 'output' === $field['display'];
+	$attrs  = sprintf(
+		' id="%s" data-atf-total data-atf-formula="%s" data-atf-decimals="%d"',
 		esc_attr( $context['id'] ),
-		esc_attr( 'atf[' . $field['id'] . ']' ),
-		esc_attr( is_scalar( $value ) ? (string) $value : '' ),
 		esc_attr( isset( $field['formula'] ) ? $field['formula'] : '' ),
 		isset( $field['decimals'] ) ? absint( $field['decimals'] ) : 2
+	);
+	if ( ! empty( $context['describedby'] ) ) {
+		$attrs .= sprintf( ' aria-describedby="%s"', esc_attr( $context['describedby'] ) );
+	}
+
+	$control = $output
+		? '<output class="atf-total__output"' . $attrs . '>' . esc_html( $text ) . '</output>'
+		: '<input type="text" class="atf-input atf-total__input"' . $attrs . ' value="' . esc_attr( $text ) . '" disabled>';
+
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
+		'<div class="atf-total">%s%s<input type="hidden" name="%s" value="%s" data-atf-total-value data-atf-input></div>',
+		! empty( $field['currency'] ) ? sprintf( '<span class="atf-total__currency">%s</span>', esc_html( $field['currency'] ) ) : '',
+		$control,
+		esc_attr( 'atf[' . $field['id'] . ']' ),
+		esc_attr( $text )
 	);
 }
 

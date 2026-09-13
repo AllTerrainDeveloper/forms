@@ -18,6 +18,25 @@
 class ALLTFO_Test_Schema extends WP_UnitTestCase {
 
 	/**
+	 * Total display preserves valid modes and defaults safely for older forms.
+	 *
+	 * @covers ::alltfo_normalize_field
+	 */
+	public function test_total_display_is_normalized() {
+		foreach ( array( null, 'input', 'output', 'invalid', array( 'output' ) ) as $display ) {
+			$raw = array(
+				'id'   => 'total',
+				'type' => 'total',
+			);
+			if ( null !== $display ) {
+				$raw['display'] = $display;
+			}
+			$field = alltfo_normalize_field( $raw, array() );
+			$this->assertSame( 'output' === $display ? 'output' : 'input', $field['display'] );
+		}
+	}
+
+	/**
 	 * Rubbish in gives a valid schema out rather than an exception.
 	 *
 	 * @dataProvider data_rubbish
