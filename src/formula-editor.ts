@@ -11,7 +11,7 @@
  */
 
 import { calculate } from './shared/calc';
-import { insertAtCursor } from './merge-tags';
+import { insertAtCursor, taggable } from './merge-tags';
 import { button, el, row } from './ui';
 import type { Field, Values } from './types';
 
@@ -136,6 +136,30 @@ export function formulaSampleValues( fields: Field[], except: string ): Values {
 	return values;
 }
 
+/** A calculation input with the same brace shortcut as notification values. */
+export function formulaInput(
+	input: HTMLInputElement | HTMLTextAreaElement,
+	fields: Field[],
+	except: string
+): HTMLElement {
+	return taggable( input, {
+		preview: false,
+		groups: () => [ {
+			id: 'references',
+			label: 'Your questions',
+			items: [
+				...formulaTargets( fields, except ).map( ( field ) => ( {
+					label: field.label || field.id, tag: `{${ field.id }}`, sample: '', hint: '',
+				} ) ),
+				...repeaterReferences( fields.filter( ( field ) => field.id !== except ) ).map( ( ref ) => ( {
+					label: ref.label, tag: ref.insert, sample: '', hint: '',
+				} ) ),
+			],
+			empty: 'Add a number, scale or priced choice question to reference it here.',
+		} ],
+	} );
+}
+
 /** What the editor needs from its host. */
 export interface FormulaEditorOptions {
 	/** Where the overlay mounts — the builder root, so it stays inside the window. */
@@ -232,7 +256,7 @@ export function openFormulaEditor( options: FormulaEditorOptions ): void {
 		} );
 
 	const targets = formulaTargets( options.fields, options.field.id );
-	const repeaters = repeaterReferences( options.fields );
+	const repeaters = repeaterReferences( options.fields.filter( ( field ) => field.id !== options.field.id ) );
 
 	const questions = el( 'div', {
 		class: 'atfb-formula__chips',
@@ -256,7 +280,7 @@ export function openFormulaEditor( options: FormulaEditorOptions ): void {
 			attrs: { role: 'dialog', 'aria-label': 'Formula editor' },
 			children: [
 				el( 'h2', { text: 'Formula' } ),
-				input,
+				formulaInput( input, options.fields, options.field.id ),
 				result,
 				row( 'Your questions', questions, 'Click one to reference its answer.' ),
 				row( 'Functions', functions ),

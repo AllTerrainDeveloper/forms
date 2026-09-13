@@ -294,3 +294,59 @@ Pointer events rather than HTML5 drag-and-drop, in both: HTML5 drag has no
 programmatic cancel (Escape, alt-tab and system modals all strand the state), and
 `setPointerCapture` anywhere in the ancestry silently stops `dragstart` firing at
 all.
+
+## Builder value pickers and condition copying
+
+Typing `{` in any input with **Insert a value** opens its searchable picker next
+to the control. Pick a value with the mouse, or search and press Enter; arrow
+keys move through results and Escape returns to the input. Picker navigation
+is captured before desktop shortcuts, so arrows cannot switch desktops, open
+Overview or toggle Show Desktop while selecting a reference. The inserted tag
+replaces the triggering brace at the cursor. Pasting an existing formula does
+not open the picker. The Insert button also remains available.
+
+Notification and confirmation text uses the server's merge-tag catalogue and
+syntax (`{field:f1}`). Its preview describes each known tag as
+`{the value of Question label}` instead of displaying invented answers. Unknown
+tags remain visible. This is only a builder preview change; saved tags and
+submission-time resolution are unchanged.
+
+Calculation inputs, both in the inspector and the Formula editor, offer numeric
+questions, priced choices and repeater references using calculation syntax
+(`{f1}`, `{attendees.age}`). They exclude the field being edited. The Formula
+editor continues to calculate its numeric result using the displayed sample
+answers.
+
+**Conditional** is a compact button beside Required/Optional in each field
+card’s title bar. It opens a dialog with an enable switch, Show/Hide, all/any,
+and the full rule editor. Changes stay in a draft until **Save conditions**;
+Cancel or Escape discards them. Copy condition inside the dialog also edits
+only this draft. An active condition is indicated by the button’s filled dot.
+
+The bottom condition strip remains directly editable. The `+ Add rule` button
+adds a rule, each rule has a Delete button, and Clear removes all rules while
+leaving the strip open. These structural changes can be undone.
+
+Condition values use `os-select` for predefined choices (including checkbox
+groups), opinion scales, star ratings, toggles/consent and countries. Numeric
+options follow the rendered field's limits; sliders with up to 1,000 steps also
+use a selector. Open-ended answers and continuous or larger slider ranges keep
+an input. This applies to the dialog, inline strip, inspector, notifications and
+confirmations. Value selectors and free-text condition inputs have a 100px minimum width. Unavailable values
+from older rules remain visible as disabled options until replaced; opening an
+editor never silently changes a saved rule.
+
+**Copy condition** also appears in Conditional logic / Conditions panels. The
+section whose button was clicked is always the destination. The chooser only
+asks for **Copy from**, listing other fields, notifications and confirmations
+and previewing the full rule set. Applying replaces
+the destination's condition, including enabled state, show/hide, all/any and every
+rule. The new rules are independent objects, so changing `< 6` to `≥ 6` in the
+copy leaves the original intact. Self-copy, missing references and copies that
+would make a field depend on itself are excluded. Changes use the normal dirty,
+save and undo flow; no new schema keys or public runtime hooks are introduced.
+
+The desktop canvas preview now allows up to 820px (100px wider than before).
+The desktop palette and inspector reserve 100px less combined, giving that space
+to the draggable previews while preserving the narrower-window layouts. Shell button hosts receive no extra
+padding on hover; their internal components own the button dimensions.

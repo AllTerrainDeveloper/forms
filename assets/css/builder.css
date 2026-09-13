@@ -273,7 +273,7 @@
 }
 
 .atfb__body {
-	grid-template-columns: 240px 1fr 320px;
+	grid-template-columns: 200px minmax( 0, 1fr ) 260px;
 }
 
 .atfe__body {
@@ -454,7 +454,7 @@
 /* -------------------------------------------------------------------------- */
 
 .atfb-canvas__inner {
-	max-inline-size: 720px;
+	max-inline-size: 820px;
 	margin-inline: auto;
 }
 
@@ -2077,6 +2077,7 @@ html body.atf-drag-active [contenteditable="true"] {
 }
 
 .atfb-tagpick {
+	box-sizing: border-box;
 	position: absolute;
 	inset-inline-end: 0;
 	inset-block-start: 100%;
@@ -2103,20 +2104,19 @@ html body.atf-drag-active [contenteditable="true"] {
 	box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.22 );
 }
 
-/* Opened upward when the button is too near the bottom of the pane. */
-.atfb-tagpick--above {
-	inset-block-start: auto;
-	inset-block-end: 100%;
-	margin-block-end: 4px;
-}
-
 .atfb-tagpick__intro {
+	flex-shrink: 0;
 	margin: 0;
 	font-size: 11px;
 	color: var( --atfb-muted );
 }
 
+.atfb-tagpick__search {
+	flex-shrink: 0;
+}
+
 .atfb-tagpick__list {
+	min-block-size: 0;
 	overflow-y: auto;
 	margin-inline: -4px;
 	padding-inline: 4px;
@@ -2340,7 +2340,7 @@ input.atfb-cond__value {
 	line-height: 1.5;
 	color: var( --atfb-fg );
 	max-inline-size: 24ch;
-	min-inline-size: 3ch;
+	min-inline-size: 100px;
 	field-sizing: content;
 	cursor: text;
 	min-block-size: 0;
@@ -4051,4 +4051,295 @@ os-checkbox-label.atfb-check {
 	.atfm-why__card {
 		transition: none;
 	}
+}
+
+/* Keep copied conditions readable even when a rule contains a long answer. */
+.atfb-condition-copy__preview {
+	padding: 12px;
+	border-radius: var( --atfb-radius-ctl );
+	background: var( --atfb-accent-soft );
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+}
+
+.atfb-cond__rule,
+.atfb-cond__actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	inline-size: 100%;
+}
+
+.atfb-cond__add,
+.atfb-cond__delete,
+.atfb-cond__clear {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: 28px;
+	min-block-size: 28px;
+	padding: 3px 7px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background: transparent;
+	color: var( --atfb-fg );
+	font: inherit;
+	cursor: pointer;
+}
+
+.atfb-cond__add {
+	font-size: 11px;
+}
+
+.atfb-cond__delete:hover,
+.atfb-cond__clear:hover:not( :disabled ) {
+	color: var( --atfb-danger );
+	border-color: currentColor;
+}
+
+.atfb-cond__add:hover {
+	background: var( --atfb-accent-soft );
+}
+
+.atfb-cond__clear:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.atfb-cond__add:focus-visible,
+.atfb-cond__delete:focus-visible,
+.atfb-cond__clear:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 2px;
+}
+
+/* Copy is a quiet inline action: fixed geometry and no animated shell sheen. */
+.atfb-copy-condition {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 8px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background: var( --atfb-raised );
+	color: var( --atfb-fg );
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+	transition: none;
+}
+
+.atfb-copy-condition:hover {
+	border-color: var( --atfb-accent );
+}
+
+.atfb-copy-condition:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 2px;
+}
+
+
+/* A single quiet badge opens the settings; the titlebar stays one line. */
+.atfb-condition-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap;
+}
+
+.atfb-condition-dot {
+	inline-size: 5px;
+	block-size: 5px;
+	border-radius: 50%;
+	background: currentColor;
+	opacity: 0.35;
+}
+
+.atfb-condition-toggle.is-on .atfb-condition-dot {
+	opacity: 1;
+}
+
+.atfb-card.is-selected .atfb-card__bar .atfb-req {
+	color: var( --os-titlebar-color-focused, var( --atfb-accent-ink ) );
+}
+
+.atfb-card__body > .atfb-cond {
+	margin-block-start: 0;
+	padding: 12px 14px;
+	gap: 8px;
+	border-block-start: 1px solid var( --atfb-border );
+	background: color-mix( in srgb, var( --atfb-accent ) 3%, var( --atfb-bg ) );
+}
+
+.atfb-cond__heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	inline-size: 100%;
+}
+
+.atfb-cond__label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+.atfb-cond .atfb-copy-condition,
+.atfb-condition-editor__footer .atfb-copy-condition {
+	padding: 4px 0;
+	border: 0;
+	background: transparent;
+	color: var( --atfb-muted );
+}
+
+.atfb-cond .atfb-copy-condition:hover,
+.atfb-condition-editor__footer .atfb-copy-condition:hover {
+	color: var( --atfb-accent );
+}
+
+.atfb-copy-condition .dashicons {
+	font-size: 14px;
+	inline-size: 14px;
+	block-size: 14px;
+}
+
+.atfb-cond__rule {
+	padding: 6px 8px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 7px;
+	background: var( --atfb-bg );
+}
+
+.atfb-cond__delete {
+	margin-inline-start: auto;
+	border-color: transparent;
+	color: var( --atfb-muted );
+}
+
+.atfb-cond__actions {
+	justify-content: space-between;
+}
+
+.atfb-cond__add,
+.atfb-cond__clear {
+	padding: 3px 0;
+	border-color: transparent;
+	background: transparent;
+	color: var( --atfb-muted );
+}
+
+.atfb-cond__add {
+	color: var( --atfb-accent );
+	font-weight: 600;
+}
+
+.atfb-condition-editor {
+	inline-size: min( 580px, 100% );
+	padding: 24px;
+}
+
+.atfb-condition-editor__heading {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-block-end: 24px;
+}
+
+.atfb-condition-editor__heading h2 {
+	margin: 0 0 4px;
+	font-size: 18px;
+}
+
+.atfb-condition-editor__heading p {
+	margin: 0;
+	color: var( --atfb-muted );
+	font-size: 12px;
+}
+
+.atfb-condition-editor__icon {
+	display: grid;
+	place-items: center;
+	inline-size: 40px;
+	block-size: 40px;
+	border-radius: 10px;
+	background: var( --atfb-accent-soft );
+	color: var( --atfb-accent );
+}
+
+.atfb-condition-editor__switch {
+	padding-block-end: 18px;
+	border-block-end: 1px solid var( --atfb-border );
+}
+
+.atfb-condition-editor__switch p {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfb-condition-editor__sentence {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-block: 18px 12px;
+	font-size: 12px;
+	color: var( --atfb-muted );
+}
+
+.atfb-condition-editor__empty {
+	margin-block: 20px;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var( --atfb-muted );
+}
+
+.atfb-condition-editor .atfb-rule {
+	display: grid;
+	grid-template-columns: minmax( 0, 1.2fr ) minmax( 0, 1fr ) minmax( 100px, 0.6fr ) auto;
+	align-items: center;
+	gap: 8px;
+}
+
+.atfb-condition-editor .atfb-rule__top {
+	display: contents;
+}
+
+.atfb-condition-editor .atfb-rule__top > .atfb-card__action {
+	grid-column: 4;
+	grid-row: 1;
+}
+
+.atfb-condition-editor__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-block-start: 24px;
+	padding-block-start: 16px;
+	border-block-start: 1px solid var( --atfb-border );
+}
+
+.atfb-condition-editor__footer .atfb-modal__actions {
+	margin: 0;
+}
+
+.atfb-condition-editor .atfb-rule input {
+	border: 1px solid var( --atfb-border );
+	border-radius: 6px;
+	min-inline-size: 100px;
+	inline-size: 100%;
+}
+
+/* Condition values stay usable even when their content is short or empty. */
+.atfb-cond__value-select,
+.atfb-rule input {
+	min-inline-size: 100px;
 }

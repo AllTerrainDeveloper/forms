@@ -602,6 +602,7 @@ var allTerrainFormsEntries = function(exports) {
       for (const option of options) {
         const item = document.createElement("os-option");
         item.setAttribute("value", option.value);
+        if (option.disabled) item.setAttribute("disabled", "");
         item.textContent = option.label;
         host.append(item);
       }
@@ -619,7 +620,7 @@ var allTerrainFormsEntries = function(exports) {
         (option) => el("option", {
           value: option.value,
           text: option.label,
-          attrs: { selected: option.value === value }
+          attrs: { selected: option.value === value, disabled: option.disabled }
         })
       )
     });
