@@ -20,6 +20,7 @@
  */
 
 import { api, runtime } from './api';
+import { conditionValueOptions } from './condition-values';
 import { buildPayload, getDragManager, insertionIndex, watchShellDragVisuals } from './dnd';
 import {
 	button,
@@ -43,7 +44,7 @@ import {
 	writeSetting,
 } from './ui';
 import { handOffToWindow, watchHandoffButton, takeFormFor } from './handoff';
-import { LogicMap, OPERATOR_LABELS, VALUELESS_OPERATORS, controlCounts, logicEdges, logicTokens, tokensToText } from './logic-map';
+import { LogicMap, OPERATOR_LABELS, VALUELESS_OPERATORS, controlCounts, logicEdges, logicTokens, ruleTokens, tokensToText } from './logic-map';
 import { boundValue, renderFieldPreview } from './field-preview';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
@@ -52,7 +53,8 @@ import { mountThemeControls } from './theme-studio';
 // standalone Theme Studio does, and mounts itself when its root is present.
 import './mailpoet-hub';
 import { SUCCESS_STYLE_ICONS, defaultSuccessScreen, normalizeSuccessScreen, playSuccessEffects, renderSuccessScreen } from './success';
-import { openFormulaEditor } from './formula-editor';
+import { formulaInput, openFormulaEditor } from './formula-editor';
+import { openConditionCopy } from './condition-copy';
 import { compileRecipe, describeRecipe, openValidationEditor, parseRecipe } from './validation-editor';
 import { VALIDATION_GROUPS, VALIDATION_PRESETS, validationPreset } from './shared/validation';
 import { openPreview, refreshPreview, registerPreviewButton } from './preview-button';
@@ -958,8 +960,18 @@ export class Builder {
 		const focused = document.activeElement;
 
 		if ( focused instanceof HTMLElement && this.canvas.contains( focused ) ) {
-			focused.addEventListener( 'blur', () => this.rebindCanvas(), { once: true } );
+			// Wait for focus to reach its next control (including the value picker).
+			// During blur, activeElement is temporarily the body.
+			focused.addEventListener( 'blur', () => queueMicrotask( () => this.rebindCanvas() ), { once: true } );
 
+			return;
+		}
+
+		// A popup option can briefly return focus to the body between pointerdown
+		// and click. Replacing its host then swallows the selection. Wait until
+		// the pointer leaves the canvas as well as its keyboard focus.
+		if ( this.canvas.matches( ':hover' ) ) {
+			this.canvas.addEventListener( 'pointerleave', () => this.rebindCanvas(), { once: true } );
 			return;
 		}
 
@@ -1941,20 +1953,61 @@ export class Builder {
 	 * because a screen reader reading five chips as five unrelated fragments
 	 * would be worse off than before.
 	 *
-	 * The question chip is a button that selects that field — the reference is
-	 * the useful kind, the kind you can follow.
+	 * Questions, comparisons and answers are editable in place. Each rule has
+	 * its own delete control; adding or clearing rules stays on the canvas.
 	 */
 	private renderCondition( owner: Field, tokens: LogicToken[] ): HTMLElement {
 		const broken = tokens.some( ( token ) => 'field' === token.kind && token.missing );
 
-		const wrap = el( 'span', {
+		const wrap = el( 'div', {
 			class: `atfb-cond${ broken ? ' is-broken' : '' }`,
-			attrs: { 'aria-label': tokensToText( tokens ) },
-			children: [
-				icon( 'randomize' ),
-				...tokens.map( ( token ) => this.renderConditionToken( owner, token ) ),
-			],
+			attrs: { 'aria-label': tokens.length ? tokensToText( tokens ) : 'Conditional rules' },
 		} );
+		wrap.append( el( 'div', { class: 'atfb-cond__heading', children: [
+			el( 'span', { class: 'atfb-cond__label', children: [ icon( 'randomize' ), 'Conditions' ] } ),
+			this.copyConditionButton( `field:${ owner.id }` ),
+		] } ) );
+		owner.logic.rules.forEach( ( rule, index ) => {
+			const parts = ruleTokens( rule, this.schema?.fields ?? [], index );
+			const remove = el( 'button', {
+				class: 'atfb-cond__delete', type: 'button', title: 'Delete this rule',
+				attrs: { 'aria-label': `Delete rule ${ index + 1 }` },
+				children: [ icon( 'trash' ) ],
+				on: { click: () => {
+					this.snapshot();
+					this.editCondition( owner.id, ( logic ) => { logic.rules.splice( index, 1 ); }, true, `${ owner.id }:add` );
+					this.snapshot();
+				} },
+			} );
+			wrap.append( el( 'div', {
+				class: 'atfb-cond__rule',
+				children: [
+					index === 0
+						? this.renderConditionToken( owner, { kind: 'verb', text: owner.logic.action === 'hide' ? 'Hidden when' : 'Shown when' } )
+						: this.renderConditionToken( owner, { kind: 'join', text: owner.logic.match === 'all' ? 'and' : 'or' } ),
+					...parts.map( ( token ) => this.renderConditionToken( owner, token, index ) ),
+					remove,
+				],
+			} ) );
+		} );
+		if ( ! owner.logic.rules.length ) {
+			wrap.append( el( 'span', { class: 'atfb-hint', text: 'No rules yet. Add one or copy a condition.' } ) );
+		}
+		const add = el( 'button', {
+			class: 'atfb-cond__add', type: 'button', text: '+ Add rule', title: 'Add rule',
+			attrs: { 'aria-label': 'Add rule', 'data-cond': `${ owner.id }:add` },
+			on: { click: () => this.addConditionRule( owner.id ) },
+		} );
+		const clear = el( 'button', {
+			class: 'atfb-cond__clear', type: 'button', text: 'Clear', title: 'Delete all rules',
+			attrs: { 'aria-label': 'Clear all rules', disabled: ! owner.logic.rules.length },
+			on: { click: () => {
+				this.snapshot();
+				this.editCondition( owner.id, ( logic ) => { logic.rules = []; }, true, `${ owner.id }:add` );
+				this.snapshot();
+			} },
+		} );
+		wrap.append( el( 'div', { class: 'atfb-cond__actions', children: [ add, clear ] } ) );
 
 		// The row is a live editor inside a card that is itself a draggable
 		// button. None of the card's gestures may leak in: a pointerdown would
@@ -2021,7 +2074,7 @@ export class Builder {
 	 */
 	private condSelect(
 		value: string,
-		options: Array< { value: string; label: string } >,
+		options: Array< { value: string; label: string; disabled?: boolean } >,
 		key: string,
 		label: string,
 		onChange: ( picked: string ) => void
@@ -2033,12 +2086,14 @@ export class Builder {
 			host.setAttribute( 'aria-label', label );
 			host.setAttribute( 'data-cond', key );
 			host.className = 'atfb-cond__control';
+			host.setAttribute( 'plain', '' );
 			host.title = label;
 
 			for ( const option of options ) {
 				const item = document.createElement( 'os-option' );
 
 				item.setAttribute( 'value', option.value );
+				if ( option.disabled ) item.setAttribute( 'disabled', '' );
 				item.textContent = option.label;
 				host.append( item );
 			}
@@ -2058,7 +2113,7 @@ export class Builder {
 				change: ( event: Event ) => onChange( ( event.target as HTMLSelectElement ).value ),
 			},
 			children: options.map( ( option ) =>
-				el( 'option', { value: option.value, text: option.label, attrs: { selected: option.value === value } } )
+				el( 'option', { value: option.value, text: option.label, attrs: { selected: option.value === value, disabled: option.disabled } } )
 			),
 		} );
 	}
@@ -2073,29 +2128,20 @@ export class Builder {
 	 * small select, the answer is an input (or a select of the source field's
 	 * choices), and "and"/"or" toggles how rules combine.
 	 */
-	private renderConditionToken( owner: Field, token: LogicToken ): HTMLElement {
-		if ( 'field' === token.kind && ! token.missing ) {
-			const chip = el( 'button', {
-				class: 'atfb-cond__chip atfb-cond__chip--field',
-				type: 'button',
-				text: token.text,
-				title: 'Go to this question',
-				// The row is inside a card that is itself a button; without this the
-				// click selects the card the chip is *on* rather than the question it
-				// names, which is the opposite of what it offers.
-				on: {
-					click: ( event: Event ) => {
-						event.stopPropagation();
-						this.selectField( token.fieldId );
-
-						this.canvas
-							.querySelector< HTMLElement >( `[data-atfb-card="${ CSS.escape( token.fieldId ) }"]` )
-							?.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
-					},
-				},
-			} );
-
-			return chip;
+	private renderConditionToken( owner: Field, token: LogicToken, ruleIndex = 0 ): HTMLElement {
+		if ( 'field' === token.kind ) {
+			const key = `${ owner.id }:source:${ ruleIndex }`;
+			const choices = ( this.schema?.fields ?? [] ).filter( ( field ) => field.id !== owner.id && field.type !== 'page_break' );
+			return this.condSelect( token.fieldId, [
+				...( token.missing ? [ { value: token.fieldId, label: 'Choose a question…' } ] : [] ),
+				...choices.map( ( field ) => ( { value: field.id, label: field.label || field.id } ) ),
+			], key, 'Question used by this rule', ( value ) => this.editCondition( owner.id, ( logic ) => {
+				const rule = logic.rules[ ruleIndex ];
+				if ( rule ) {
+					rule.field = value;
+					rule.value = '';
+				}
+			}, true, key ) );
 		}
 
 		if ( 'verb' === token.kind ) {
@@ -2168,9 +2214,7 @@ export class Builder {
 			return this.renderConditionValue( owner, token );
 		}
 
-		// Only the missing-field chip is left, and it is the one part with
-		// nothing to edit: the rule points at a question that is gone.
-		return el( 'span', { class: 'atfb-cond__chip atfb-cond__chip--missing', text: token.text } );
+		return el( 'span' );
 	}
 
 	/**
@@ -2178,7 +2222,7 @@ export class Builder {
 	 *
 	 * When the question being consulted has choices, the honest editor is a
 	 * select of those choices — typing free text against a radio group can only
-	 * produce a rule that never matches. Anything else gets a text box, sized to
+	 * produce a rule that never matches. Scales, ratings and other finite answer sets also get selectors. Open-ended answers get a text box, sized to
 	 * its content so it reads as part of the sentence rather than as a form.
 	 */
 	private renderConditionValue(
@@ -2202,22 +2246,12 @@ export class Builder {
 				key
 			);
 
-		if ( source?.choices?.length ) {
-			const options = source.choices.map( ( choice ) => ( {
-				value: choice.value,
-				label: choice.label || choice.value,
-			} ) );
-
-			// A stored value no choice carries any more — the option was renamed
-			// or deleted — is kept visible rather than silently swapped for the
-			// first choice, so what the select shows is always what the rule says.
-			if ( token.raw !== '' && ! source.choices.some( ( choice ) => choice.value === token.raw ) ) {
-				options.unshift( { value: token.raw, label: token.text } );
-			}
-
-			return this.condSelect( token.raw, options, key, 'The answer that triggers this', ( picked ) =>
-				write( picked, true )
-			);
+		const options = conditionValueOptions( source, token.raw, this.config?.countries );
+		if ( options ) {
+			const picker = this.condSelect( token.raw, options, key, 'The answer that triggers this', ( picked ) => write( picked, true ) );
+			picker.classList.add( 'atfb-cond__value-select' );
+			picker.removeAttribute( 'plain' );
+			return picker;
 		}
 
 		const numeric = [ 'number', 'range', 'scale', 'rating', 'total' ].includes( source?.type ?? '' );
@@ -2410,6 +2444,7 @@ export class Builder {
 								icon( type?.icon ?? 'dashicons-forms' ),
 								el( 'span', { class: 'atfb-card__type', text: type?.label ?? field.type } ),
 								this.requiredToggle( field ),
+								field.type !== 'page_break' ? this.conditionToolbar( field ) : null,
 								controls
 									? el( 'span', {
 											class: 'atfb-badge atfb-badge--controls',
@@ -2478,7 +2513,7 @@ export class Builder {
 							types: ( name ) => this.config?.fieldTypes.find( ( candidate ) => candidate.type === name ),
 							selectedId: this.selected,
 						} ),
-						condition.length ? this.renderCondition( field, condition ) : null,
+						field.logic.enabled ? this.renderCondition( field, condition ) : null,
 					],
 				} ),
 			],
@@ -2538,6 +2573,144 @@ export class Builder {
 		} );
 
 		return card;
+	}
+
+	/** Adds a rule without leaving the canvas. */
+	private addConditionRule( fieldId: string ): void {
+		this.snapshot();
+		this.editCondition( fieldId, ( logic ) => {
+			const source = this.schema?.fields.find( ( field ) => field.id !== fieldId && field.type !== 'page_break' );
+			logic.rules.push( { field: source?.id ?? '', operator: 'is', value: '' } );
+		}, true, `${ fieldId }:source:${ this.liveField( fieldId )?.logic.rules.length ?? 0 }` );
+		this.snapshot();
+	}
+
+	/** A compact title-bar entry point; the settings live in a dialog. */
+	private conditionToolbar( field: Field ): HTMLElement {
+		const trigger = el( 'button', {
+			class: `atfb-req atfb-condition-toggle${ field.logic.enabled ? ' is-on' : '' }`,
+			type: 'button',
+			title: field.logic.enabled ? 'Edit conditional logic' : 'Set up conditional logic',
+			attrs: { 'aria-haspopup': 'dialog', 'data-cond': `${ field.id }:enabled` },
+			children: [
+				el( 'span', { class: 'atfb-condition-dot', attrs: { 'aria-hidden': 'true' } } ),
+				el( 'span', { text: 'Conditional' } ),
+			],
+			on: { click: () => this.openConditionEditor( field.id ) },
+		} );
+		for ( const name of [ 'pointerdown', 'click', 'keydown' ] ) {
+			trigger.addEventListener( name, ( event ) => event.stopPropagation() );
+		}
+		return trigger;
+	}
+
+	/** Edits a draft, so Cancel leaves the saved and inline conditions alone. */
+	private openConditionEditor( fieldId: string ): void {
+		const field = this.liveField( fieldId );
+		if ( ! field ) {
+			return;
+		}
+		const draft: Logic = { ...field.logic, rules: field.logic.rules.map( ( rule ) => ( { ...rule } ) ) };
+		const overlay = el( 'div', { class: 'atfb-overlay' } );
+		const dialog = el( 'div', {
+			class: 'atfb-modal atfb-condition-editor',
+			attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Conditional logic', tabindex: '-1' },
+		} );
+		const close = () => {
+			overlay.remove();
+			this.root.querySelector< HTMLElement >( `[data-cond="${ CSS.escape( fieldId ) }:enabled"]` )?.focus();
+		};
+		const controlsSelector = 'button:not([disabled]), input, select, os-select, os-checkbox-label, os-button:not([disabled])';
+		const paint = () => {
+			const focusedIndex = [ ...dialog.querySelectorAll( controlsSelector ) ].indexOf( document.activeElement! );
+			const write = ( mutate: ( logic: Logic ) => void, rebuild = false ) => {
+				mutate( draft );
+				if ( rebuild ) {
+					paint();
+				}
+			};
+			const action = select( draft.action, [ { value: 'show', label: 'Show' }, { value: 'hide', label: 'Hide' } ], ( value ) => { draft.action = value as Logic[ 'action' ]; } );
+			action.setAttribute( 'aria-label', 'Conditional action' );
+			const match = select( draft.match, [ { value: 'all', label: 'all' }, { value: 'any', label: 'any' } ], ( value ) => {
+				draft.match = value as Logic[ 'match' ];
+				paint();
+			} );
+			match.setAttribute( 'aria-label', 'Match rules' );
+			const copy = el( 'button', {
+				class: 'atfb-copy-condition', type: 'button',
+				children: [ icon( 'admin-page' ), el( 'span', { text: 'Copy condition' } ) ],
+				on: { click: () => openConditionCopy( {
+					root: overlay,
+					to: `field:${ fieldId }`,
+					schema: () => this.schema ? {
+						...this.schema,
+						fields: this.schema.fields.map( ( item ) => item.id === fieldId ? { ...item, logic: draft } : item ),
+					} : null,
+					onCopy: () => { paint(); dialog.focus(); },
+				} ) },
+			} );
+			dialog.replaceChildren(
+				el( 'div', { class: 'atfb-condition-editor__heading', children: [
+					el( 'span', { class: 'atfb-condition-editor__icon', children: [ icon( 'randomize' ) ] } ),
+					el( 'div', { children: [ el( 'h2', { text: 'Conditional logic' } ), el( 'p', { text: field.label || 'Untitled field' } ) ] } ),
+				] } ),
+				el( 'div', { class: 'atfb-condition-editor__switch', children: [
+					checkbox( 'Enable conditions', draft.enabled, ( enabled ) => {
+						draft.enabled = enabled;
+						paint();
+					} ),
+					el( 'p', { text: 'Choose when this field appears in your form.' } ),
+				] } ),
+				...( draft.enabled ? [
+					el( 'div', { class: 'atfb-condition-editor__sentence', children: [ action, 'this field when', match, 'of these rules match:' ] } ),
+					...this.logicRulesEditor( draft, write, fieldId ),
+				] : [ el( 'p', { class: 'atfb-condition-editor__empty', text: 'This field is always visible. Enable conditions to choose when to show or hide it.' } ) ] ),
+				el( 'div', { class: 'atfb-condition-editor__footer', children: [
+					copy,
+					el( 'div', { class: 'atfb-modal__actions', children: [
+						button( 'Cancel', close ),
+						button( 'Save conditions', () => {
+							if ( ! this.liveField( fieldId ) ) {
+								close();
+								return;
+							}
+							this.snapshot();
+							this.editCondition( fieldId, ( live ) => Object.assign( live, draft, { rules: draft.rules.map( ( rule ) => ( { ...rule } ) ) } ) );
+							this.snapshot();
+							close();
+						}, 'primary' ),
+					] } ),
+				] } )
+			);
+			if ( focusedIndex >= 0 ) {
+				const controls = dialog.querySelectorAll< HTMLElement >( controlsSelector );
+				controls[ Math.min( focusedIndex, controls.length - 1 ) ]?.focus();
+			}
+		};
+		overlay.append( dialog );
+		overlay.addEventListener( 'click', ( event ) => { if ( event.target === overlay ) close(); } );
+		overlay.addEventListener( 'keydown', ( event ) => {
+			if ( event.key === 'Escape' ) {
+				event.preventDefault();
+				close();
+			}
+			if ( event.key === 'Tab' ) {
+				const controls = [ ...dialog.querySelectorAll< HTMLElement >( controlsSelector ) ];
+				const first = controls[ 0 ];
+				const last = controls[ controls.length - 1 ];
+				if ( event.shiftKey && ( document.activeElement === first || document.activeElement === dialog ) ) {
+					event.preventDefault();
+					last?.focus();
+				} else if ( ! event.shiftKey && document.activeElement === last ) {
+					event.preventDefault();
+					first?.focus();
+				}
+			}
+			event.stopPropagation();
+		} );
+		this.root.append( overlay );
+		paint();
+		dialog.focus();
 	}
 
 	/**
@@ -3678,7 +3851,10 @@ export class Builder {
 					el( 'div', {
 						class: 'atfb-formula__row',
 						children: [
-							textInput( String( field.formula ?? '' ), ( value ) => update( 'formula', value ) ),
+							formulaInput(
+								textInput( String( field.formula ?? '' ), ( value ) => update( 'formula', value ) ),
+								this.schema?.fields ?? [], field.id
+							),
 							// The editor is where the formula is meant to be
 							// written: the questions and the functions are
 							// buttons there, and the result computes live
@@ -3688,7 +3864,7 @@ export class Builder {
 								openFormulaEditor( {
 									root: this.root,
 									fields: this.schema?.fields ?? [],
-									field,
+									field: this.liveField( field.id ) ?? field,
 									onSave: ( formula ) => {
 										update( 'formula', formula );
 										this.renderInspector();
@@ -4550,18 +4726,8 @@ export class Builder {
 			if ( ! VALUELESS_OPERATORS.includes( rule.operator ) ) {
 				const source = this.schema?.fields.find( ( candidate ) => candidate.id === rule.field );
 
-				if ( source?.choices?.length ) {
-					const options = source.choices.map( ( choice ) => ( {
-						value: choice.value,
-						label: choice.label || choice.value,
-					} ) );
-
-					// A stored value no choice carries any more stays visible
-					// rather than being silently swapped for the first choice.
-					if ( '' !== rule.value && ! source.choices.some( ( choice ) => choice.value === rule.value ) ) {
-						options.unshift( { value: rule.value, label: rule.value } );
-					}
-
+				const options = conditionValueOptions( source, rule.value, this.config?.countries );
+				if ( options ) {
 					children.push(
 						select( rule.value, options, ( value ) =>
 							write( ( live ) => {
@@ -4590,6 +4756,11 @@ export class Builder {
 					);
 				}
 			}
+
+			children[ 0 ].querySelector( 'select, os-select' )?.setAttribute( 'aria-label', 'Question used by this rule' );
+			children[ 1 ].setAttribute( 'aria-label', 'How the answer is compared' );
+			children[ 2 ]?.setAttribute( 'aria-label', 'The answer that triggers this' );
+			if ( children[ 2 ]?.matches( 'select, os-select' ) ) children[ 2 ].classList.add( 'atfb-cond__value-select' );
 
 			return el( 'div', { class: 'atfb-rule', children } );
 		};
@@ -4652,6 +4823,7 @@ export class Builder {
 			`conditions:${ key }`,
 			'Conditions',
 			[
+				this.copyConditionButton( `${ noun }:${ key }` ),
 				checkbox(
 					`Only ${ verb.toLowerCase() } this ${ noun } sometimes`,
 					logic.enabled,
@@ -4690,6 +4862,26 @@ export class Builder {
 			// reason a conditioned field's logic section does.
 			logic.enabled
 		);
+	}
+
+	/** Reuse a condition, resolving the schema when the chooser applies it. */
+	private copyConditionButton( key: string ): HTMLElement {
+		return el( 'button', {
+			class: 'atfb-copy-condition', type: 'button',
+			children: [ icon( 'admin-page' ), el( 'span', { text: 'Copy condition' } ) ],
+			on: { click: () => openConditionCopy( {
+				root: this.root,
+				schema: () => this.schema,
+				to: key,
+				beforeCopy: () => this.snapshot(),
+				onCopy: () => {
+					this.snapshot();
+					this.markDirty();
+					this.renderCanvas();
+					this.renderInspector();
+				},
+			} ) },
+		} );
 	}
 
 	/** The conditional-logic editor. */
@@ -4733,6 +4925,7 @@ export class Builder {
 			`logic:${ field.id }`,
 			'Conditional logic',
 			[
+				this.copyConditionButton( `field:${ field.id }` ),
 				checkbox( 'Only show this field sometimes', logic.enabled, ( value ) => {
 					write( ( live ) => {
 						live.enabled = value;
@@ -5286,6 +5479,22 @@ export class Builder {
 		this.renderInspector();
 	}
 
+	/** Tag inputs can remain focused across autosaves; always write to the live section. */
+	private writeTagValue( kind: 'notification' | 'confirmation', id: string, key: string, value: string ): void {
+		const section = kind === 'notification'
+			? this.schema?.notifications.find( ( item ) => item.id === id )
+			: this.schema?.confirmations.find( ( item ) => item.id === id );
+		if ( ! section ) {
+			return;
+		}
+		if ( key === 'successTitle' && 'success' in section ) {
+			section.success.title = value;
+		} else {
+			Object.assign( section, { [ key ]: value } );
+		}
+		this.markDirty();
+	}
+
 	/** A one-line input that understands merge tags. */
 	private taggableInput(
 		value: string,
@@ -5360,8 +5569,7 @@ export class Builder {
 					textInput(
 						/\{/.test( notification.to ) ? '' : notification.to,
 						( value ) => {
-							notification.to = value;
-							this.markDirty();
+							this.writeTagValue( 'notification', notification.id, 'to', value );
 						},
 						'name@example.com'
 					)
@@ -5375,8 +5583,7 @@ export class Builder {
 					this.taggableInput(
 						notification.to,
 						( value ) => {
-							notification.to = value;
-							this.markDirty();
+							this.writeTagValue( 'notification', notification.id, 'to', value );
 						},
 						'{admin_email}, sales@example.com'
 					),
@@ -5453,8 +5660,7 @@ export class Builder {
 							this.taggableInput(
 								notification.replyTo,
 								( value ) => {
-									notification.replyTo = value;
-									this.markDirty();
+									this.writeTagValue( 'notification', notification.id, 'replyTo', value );
 								},
 								'Leave empty to reply to you'
 							),
@@ -5463,8 +5669,7 @@ export class Builder {
 						row(
 							'Subject',
 							this.taggableInput( notification.subject, ( value ) => {
-								notification.subject = value;
-								this.markDirty();
+								this.writeTagValue( 'notification', notification.id, 'subject', value );
 							} )
 						),
 						row(
@@ -5472,8 +5677,7 @@ export class Builder {
 							this.taggableArea(
 								notification.message,
 								( value ) => {
-									notification.message = value;
-									this.markDirty();
+									this.writeTagValue( 'notification', notification.id, 'message', value );
 								},
 								8
 							)
@@ -5550,8 +5754,7 @@ export class Builder {
 						this.taggableArea(
 							confirmation.message,
 							( value ) => {
-								confirmation.message = value;
-								this.markDirty();
+								this.writeTagValue( 'confirmation', confirmation.id, 'message', value );
 							},
 							5
 						),
@@ -5571,8 +5774,7 @@ export class Builder {
 			this.taggableInput(
 				confirmation.query,
 				( value ) => {
-					confirmation.query = value;
-					this.markDirty();
+					this.writeTagValue( 'confirmation', confirmation.id, 'query', value );
 				},
 				'ref={entry:id}&name={field:f1}'
 			),
@@ -5587,8 +5789,7 @@ export class Builder {
 						this.taggableInput(
 							confirmation.url,
 							( value ) => {
-								confirmation.url = value;
-								this.markDirty();
+								this.writeTagValue( 'confirmation', confirmation.id, 'url', value );
 							},
 							'https://example.com/thank-you'
 						),
@@ -5710,8 +5911,7 @@ export class Builder {
 						this.taggableInput(
 							success.title,
 							( value ) => {
-								success.title = value;
-								this.markDirty();
+								this.writeTagValue( 'confirmation', confirmation.id, 'successTitle', value );
 							},
 							'Thank you, {field:name}!'
 						),

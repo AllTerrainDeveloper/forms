@@ -437,6 +437,50 @@ var allTerrainFormsBuilder = function(exports) {
     saveTheme: (body) => post("/themes", body),
     deleteTheme: (id) => del(`/themes/${id}`)
   };
+  function conditionValueOptions(field, current, countries = {}) {
+    if (!field) return null;
+    let options;
+    const number = (key, fallback2) => {
+      const value = field[key];
+      return value === void 0 || value === null || !Number.isFinite(Number(value)) ? fallback2 : Number(value);
+    };
+    const sequence = (min, max, step = 1) => Array.from(
+      { length: Math.floor((max - min) / step + 1e-9) + 1 },
+      (_, index) => {
+        const value = String(Number((min + index * step).toPrecision(12)));
+        return { value, label: value };
+      }
+    );
+    if (field.type === "scale") {
+      const min = Math.trunc(number("min", 0));
+      let max = Math.trunc(number("max", 10));
+      if (max <= min) max = min + 10;
+      options = sequence(min, Math.min(max, min + 20));
+    } else if (field.type === "rating") {
+      options = sequence(1, Math.max(2, Math.min(10, Math.abs(Math.trunc(number("max", 5))))));
+    } else if (field.type === "switch" || field.type === "consent") {
+      options = [{ value: "1", label: "Checked" }, { value: "", label: "Unchecked" }];
+    } else if (field.type === "country") {
+      options = Object.entries(countries).map(([value, label]) => ({ value, label }));
+    } else if (field.type === "range") {
+      const min = number("min", 0);
+      const max = number("max", 100);
+      const step = field.step === "any" ? 0 : number("step", 1);
+      if (step <= 0 || max < min || (max - min) / step > 999) return null;
+      options = sequence(min, max, step);
+    } else if (field.choices?.length || ["select", "multiselect", "radio", "checkboxes", "image_choice", "quiz", "likert"].includes(field.type)) {
+      options = (field.choices ?? []).map((choice) => ({ value: choice.value, label: choice.label || choice.value }));
+    } else {
+      return null;
+    }
+    if (!options.some((option) => option.value === current) && current !== "") {
+      options.unshift({ value: current, label: `${current} (stored value; unavailable)`, disabled: true });
+    }
+    if (!options.some((option) => option.value === "")) {
+      options.unshift({ value: "", label: "Choose a value…", disabled: true });
+    }
+    return options;
+  }
   function el(tag, options = {}) {
     const node = document.createElement(tag);
     if (options.class) {
@@ -562,6 +606,7 @@ var allTerrainFormsBuilder = function(exports) {
       for (const option of options) {
         const item = document.createElement("os-option");
         item.setAttribute("value", option.value);
+        if (option.disabled) item.setAttribute("disabled", "");
         item.textContent = option.label;
         host.append(item);
       }
@@ -579,7 +624,7 @@ var allTerrainFormsBuilder = function(exports) {
         (option) => el("option", {
           value: option.value,
           text: option.label,
-          attrs: { selected: option.value === value }
+          attrs: { selected: option.value === value, disabled: option.disabled }
         })
       )
     });
@@ -1582,16 +1627,23 @@ var allTerrainFormsBuilder = function(exports) {
     const all = flatten(groups);
     return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
       const known = all.get(match.toLowerCase());
-      return known ? known.sample : match;
+      return known ? `{the value of ${known.label}}` : match;
     });
   }
   function hasTags(text) {
     return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
   }
   let openPicker = null;
-  function closePicker() {
+  let pickerRequest = 0;
+  let pickerReturnFocus = null;
+  function closePicker(restoreFocus = false) {
+    pickerRequest++;
     openPicker?.remove();
     openPicker = null;
+    if (restoreFocus) {
+      pickerReturnFocus?.focus();
+    }
+    pickerReturnFocus = null;
   }
   if (typeof document !== "undefined") {
     document.addEventListener("pointerdown", (event) => {
@@ -1599,16 +1651,17 @@ var allTerrainFormsBuilder = function(exports) {
       if (target?.closest(".atfb-tagpick__open")) {
         return;
       }
-      if (openPicker && !openPicker.contains(target)) {
+      if (!openPicker?.contains(target)) {
         closePicker();
       }
     });
     document.addEventListener("keydown", (event) => {
-      if ("Escape" === event.key && openPicker) {
-        closePicker();
-        event.stopPropagation();
+      if ("Escape" === event.key && pickerReturnFocus) {
+        closePicker(true);
+        event.preventDefault();
+        event.stopImmediatePropagation();
       }
-    });
+    }, true);
   }
   function insertAtCursor(field, text) {
     const start = field.selectionStart ?? field.value.length;
@@ -1616,19 +1669,22 @@ var allTerrainFormsBuilder = function(exports) {
     field.value = field.value.slice(0, start) + text + field.value.slice(end);
     const caret = start + text.length;
     field.setSelectionRange(caret, caret);
-    field.focus();
     field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
   }
-  function clipBottom(from) {
+  function pickerBounds(from) {
+    let top = 0;
+    let bottom = window.innerHeight;
     let node = from.parentElement;
     while (node && node !== document.body) {
-      const overflow = getComputedStyle(node).overflowY;
-      if ("auto" === overflow || "scroll" === overflow || "hidden" === overflow) {
-        return node.getBoundingClientRect().bottom;
+      if (/auto|scroll|hidden|clip/.test(getComputedStyle(node).overflowY)) {
+        const rect = node.getBoundingClientRect();
+        top = Math.max(top, rect.top);
+        bottom = Math.min(bottom, rect.bottom);
       }
       node = node.parentElement;
     }
-    return window.innerHeight;
+    return { top, bottom };
   }
   function buildPicker(groups, onPick) {
     const search = el("input", {
@@ -1664,8 +1720,8 @@ var allTerrainFormsBuilder = function(exports) {
               type: "button",
               on: {
                 click: () => {
-                  onPick(item.tag);
                   closePicker();
+                  onPick(item.tag);
                 }
               },
               children: [
@@ -1678,9 +1734,7 @@ var allTerrainFormsBuilder = function(exports) {
                 }),
                 item.hint || item.sample ? el("span", {
                   class: "atfb-tagpick__meta",
-                  // The sample is the part people actually read, so it
-                  // leads; the hint explains the cases where it is empty.
-                  text: item.sample ? `e.g. ${item.sample}` : item.hint
+                  text: `{the value of ${item.label}}`
                 }) : null
               ]
             })
@@ -1693,7 +1747,7 @@ var allTerrainFormsBuilder = function(exports) {
     };
     paint("");
     search.addEventListener("input", () => paint(search.value));
-    return el("div", {
+    const picker = el("div", {
       class: "atfb-tagpick",
       attrs: { role: "dialog", "aria-label": "Insert a value" },
       children: [
@@ -1705,12 +1759,28 @@ var allTerrainFormsBuilder = function(exports) {
         list
       ]
     });
+    picker.addEventListener("keydown", (event) => {
+      const items = [...list.querySelectorAll("button")];
+      const index = items.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items.length - 1 : index - 1;
+        items[(next + items.length) % items.length]?.focus();
+      } else if (event.key === "Enter" && event.target === search) {
+        event.preventDefault();
+        items[0]?.click();
+      }
+      event.stopPropagation();
+    });
+    return picker;
   }
   function taggable(field, options) {
+    const catalogue = () => Promise.resolve(options.groups ? options.groups() : mergeTags(options.formId ?? 0));
     const insert = el("button", {
       class: "atfb-button atfb-button--ghost atfb-tagpick__open",
       type: "button",
       title: "Insert a value from the submission",
+      attrs: { "aria-haspopup": "dialog" },
       children: [icon("shortcode"), el("span", { text: "Insert a value" })]
     });
     const wrapper = el("div", {
@@ -1730,7 +1800,10 @@ var allTerrainFormsBuilder = function(exports) {
         preview.hidden = true;
         return;
       }
-      void mergeTags(options.formId).then((groups) => {
+      void catalogue().then((groups) => {
+        if (!hasTags(field.value)) {
+          return;
+        }
         preview.hidden = false;
         preview.replaceChildren(
           el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
@@ -1740,27 +1813,45 @@ var allTerrainFormsBuilder = function(exports) {
     };
     field.addEventListener("input", repaint);
     repaint();
-    insert.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (openPicker && wrapper.contains(openPicker)) {
-        closePicker();
-        return;
-      }
+    const open = (start, end) => {
       closePicker();
-      void mergeTags(options.formId).then((groups) => {
+      const request2 = pickerRequest;
+      const original = field.value;
+      pickerReturnFocus = field;
+      void catalogue().then((groups) => {
+        if (request2 !== pickerRequest || !wrapper.isConnected || field.value !== original) {
+          return;
+        }
         const picker = buildPicker(groups, (tag) => {
+          field.setSelectionRange(start, end);
           insertAtCursor(field, tag);
-          repaint();
         });
         wrapper.append(picker);
         openPicker = picker;
-        if (window.innerHeight - picker.getBoundingClientRect().top < picker.offsetHeight) {
-          picker.classList.add("atfb-tagpick--above");
-        } else if (picker.getBoundingClientRect().bottom > clipBottom(wrapper)) {
-          picker.classList.add("atfb-tagpick--above");
-        }
-        picker.querySelector(".atfb-tagpick__search")?.focus();
+        const bounds = pickerBounds(wrapper);
+        picker.style.maxBlockSize = `${Math.max(0, Math.min(320, bounds.bottom - bounds.top - 8))}px`;
+        const anchor = wrapper.getBoundingClientRect();
+        const height = picker.getBoundingClientRect().height;
+        const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
+        const top = Math.max(bounds.top + 4, Math.min(preferred, bounds.bottom - height - 4));
+        picker.style.insetBlockStart = `${top - anchor.top}px`;
+        picker.querySelector(".atfb-tagpick__search")?.focus({ preventScroll: true });
       });
+    };
+    insert.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (pickerReturnFocus === field) {
+        closePicker(true);
+        return;
+      }
+      open(field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length);
+    });
+    field.addEventListener("input", (event) => {
+      const typed = event;
+      const caret = field.selectionStart ?? 0;
+      if (!typed.isComposing && typed.data === "{" && field.value[caret - 1] === "{") {
+        open(caret - 1, caret + (field.value[caret] === "}" ? 1 : 0));
+      }
     });
     return wrapper;
   }
@@ -3749,6 +3840,30 @@ var allTerrainFormsBuilder = function(exports) {
     }
     return values;
   }
+  function formulaInput(input, fields, except) {
+    return taggable(input, {
+      preview: false,
+      groups: () => [{
+        id: "references",
+        label: "Your questions",
+        items: [
+          ...formulaTargets(fields, except).map((field) => ({
+            label: field.label || field.id,
+            tag: `{${field.id}}`,
+            sample: "",
+            hint: ""
+          })),
+          ...repeaterReferences(fields.filter((field) => field.id !== except)).map((ref) => ({
+            label: ref.label,
+            tag: ref.insert,
+            sample: "",
+            hint: ""
+          }))
+        ],
+        empty: "Add a number, scale or priced choice question to reference it here."
+      }]
+    });
+  }
   function openFormulaEditor(options) {
     const overlay = el("div", { class: "atfb-overlay" });
     const close = () => {
@@ -3802,7 +3917,7 @@ var allTerrainFormsBuilder = function(exports) {
       }
     });
     const targets = formulaTargets(options.fields, options.field.id);
-    const repeaters = repeaterReferences(options.fields);
+    const repeaters = repeaterReferences(options.fields.filter((field) => field.id !== options.field.id));
     const questions = el("div", {
       class: "atfb-formula__chips",
       children: targets.length || repeaters.length ? [
@@ -3820,7 +3935,7 @@ var allTerrainFormsBuilder = function(exports) {
         attrs: { role: "dialog", "aria-label": "Formula editor" },
         children: [
           el("h2", { text: "Formula" }),
-          input,
+          formulaInput(input, options.fields, options.field.id),
           result,
           row("Your questions", questions, "Click one to reference its answer."),
           row("Functions", functions),
@@ -3851,6 +3966,118 @@ var allTerrainFormsBuilder = function(exports) {
     preview();
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
+  }
+  function conditionSections(schema) {
+    return [
+      ...schema.fields.filter((field) => field.type !== "page_break").map((field) => ({
+        key: `field:${field.id}`,
+        label: `Field: ${field.label || field.id}`,
+        fieldId: field.id,
+        logic: field.logic
+      })),
+      ...schema.notifications.map((item) => ({
+        key: `notification:${item.id}`,
+        label: `Notification: ${item.name || item.id}`,
+        logic: item.logic
+      })),
+      ...schema.confirmations.map((item) => ({
+        key: `confirmation:${item.id}`,
+        label: `Confirmation: ${item.name || item.id}`,
+        logic: item.logic
+      }))
+    ];
+  }
+  function canCopyCondition(source, target, schema) {
+    return source.key !== target.key && source.logic.rules.length > 0 && source.logic.rules.every(
+      (rule) => rule.field !== target.fieldId && schema.fields.some((field) => field.id === rule.field && field.type !== "page_break")
+    );
+  }
+  function copyCondition(schema, from, to, beforeCopy) {
+    const sections = conditionSections(schema);
+    const source = sections.find((item) => item.key === from);
+    const target = sections.find((item) => item.key === to);
+    if (!source || !target || !canCopyCondition(source, target, schema)) {
+      return false;
+    }
+    beforeCopy?.();
+    Object.assign(target.logic, source.logic, { rules: source.logic.rules.map((rule) => ({ ...rule })) });
+    return true;
+  }
+  function openConditionCopy(options) {
+    const previous = document.activeElement;
+    const overlay = el("div", { class: "atfb-overlay" });
+    const dialog = el("div", {
+      class: "atfb-modal atfb-condition-copy",
+      attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Copy condition", tabindex: "-1" }
+    });
+    let from = "";
+    const to = options.to;
+    const close = () => {
+      overlay.remove();
+      previous?.focus();
+    };
+    const paint = () => {
+      const schema = options.schema();
+      if (!schema) {
+        close();
+        return;
+      }
+      const sections = conditionSections(schema);
+      const target = sections.find((item) => item.key === to);
+      const sources = sections.filter((item) => item.logic.rules.length && target && canCopyCondition(item, target, schema));
+      const source = sources.find((item) => item.key === from);
+      const sourcePicker = select(from, [{ value: "", label: "Choose a section…" }, ...sources.map((item) => ({ value: item.key, label: item.label }))], (value) => {
+        from = value;
+        paint();
+        dialog.querySelector('[aria-label="Copy from"]')?.focus();
+      });
+      sourcePicker.setAttribute("aria-label", "Copy from");
+      const apply = button("Copy condition", () => {
+        const live = options.schema();
+        if (live && copyCondition(live, from, to, options.beforeCopy)) {
+          close();
+          options.onCopy();
+        }
+      }, "primary");
+      if (!source || !to) {
+        apply.setAttribute("disabled", "");
+      }
+      const destination = sections.find((item) => item.key === to);
+      dialog.replaceChildren(
+        el("h2", { text: "Copy condition" }),
+        row("Copy from", sourcePicker),
+        el("p", { class: "atfb-hint", text: `Apply to ${destination?.label ?? "this section"}.` }),
+        el("p", { class: "atfb-condition-copy__preview", attrs: { "aria-live": "polite" }, text: source ? `${source.logic.enabled ? "Enabled" : "Disabled"} · ${source.logic.action === "hide" ? "Hide" : "Show"} · Match ${source.logic.match}: ` + source.logic.rules.map((rule) => tokensToText(ruleTokens(rule, schema.fields))).join(source.logic.match === "all" ? " and " : " or ") : sources.length ? "Choose the section whose condition you want to reuse." : "No conditions are available to copy here yet." }),
+        el("p", { class: "atfb-hint", text: destination?.logic.rules.length ? "This replaces the destination’s entire condition. You can edit the copy independently." : "Copies every rule, all/any matching, show/hide and enabled state. You can edit the copy independently." }),
+        el("div", { class: "atfb-modal__actions", children: [button("Cancel", close), apply] })
+      );
+    };
+    overlay.append(dialog);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      }
+      if (event.key === "Tab") {
+        const controls = [...dialog.querySelectorAll("button:not([disabled]), select, os-select, os-button:not([disabled])")];
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+      event.stopPropagation();
+    });
+    options.root.append(overlay);
+    paint();
+    dialog.focus();
   }
   const FORM_TYPE = "allterrain-forms/form";
   function relations() {
@@ -5010,7 +5237,11 @@ var allTerrainFormsBuilder = function(exports) {
               el("div", {
                 class: "atfb-formula__row",
                 children: [
-                  textInput(String(field.formula ?? ""), (value) => update("formula", value)),
+                  formulaInput(
+                    textInput(String(field.formula ?? ""), (value) => update("formula", value)),
+                    this.schema?.fields ?? [],
+                    field.id
+                  ),
                   // The editor is where the formula is meant to be
                   // written: the questions and the functions are
                   // buttons there, and the result computes live
@@ -5021,7 +5252,7 @@ var allTerrainFormsBuilder = function(exports) {
                     () => openFormulaEditor({
                       root: this.root,
                       fields: this.schema?.fields ?? [],
-                      field,
+                      field: this.liveField(field.id) ?? field,
                       onSave: (formula) => {
                         update("formula", formula);
                         this.renderInspector();
@@ -5336,7 +5567,11 @@ var allTerrainFormsBuilder = function(exports) {
       }
       const focused = document.activeElement;
       if (focused instanceof HTMLElement && this.canvas.contains(focused)) {
-        focused.addEventListener("blur", () => this.rebindCanvas(), { once: true });
+        focused.addEventListener("blur", () => queueMicrotask(() => this.rebindCanvas()), { once: true });
+        return;
+      }
+      if (this.canvas.matches(":hover")) {
+        this.canvas.addEventListener("pointerleave", () => this.rebindCanvas(), { once: true });
         return;
       }
       this.renderCanvas();
@@ -6056,19 +6291,70 @@ var allTerrainFormsBuilder = function(exports) {
      * because a screen reader reading five chips as five unrelated fragments
      * would be worse off than before.
      *
-     * The question chip is a button that selects that field — the reference is
-     * the useful kind, the kind you can follow.
+     * Questions, comparisons and answers are editable in place. Each rule has
+     * its own delete control; adding or clearing rules stays on the canvas.
      */
     renderCondition(owner, tokens) {
       const broken = tokens.some((token) => "field" === token.kind && token.missing);
-      const wrap = el("span", {
+      const wrap = el("div", {
         class: `atfb-cond${broken ? " is-broken" : ""}`,
-        attrs: { "aria-label": tokensToText(tokens) },
-        children: [
-          icon("randomize"),
-          ...tokens.map((token) => this.renderConditionToken(owner, token))
-        ]
+        attrs: { "aria-label": tokens.length ? tokensToText(tokens) : "Conditional rules" }
       });
+      wrap.append(el("div", { class: "atfb-cond__heading", children: [
+        el("span", { class: "atfb-cond__label", children: [icon("randomize"), "Conditions"] }),
+        this.copyConditionButton(`field:${owner.id}`)
+      ] }));
+      owner.logic.rules.forEach((rule, index) => {
+        const parts = ruleTokens(rule, this.schema?.fields ?? [], index);
+        const remove = el("button", {
+          class: "atfb-cond__delete",
+          type: "button",
+          title: "Delete this rule",
+          attrs: { "aria-label": `Delete rule ${index + 1}` },
+          children: [icon("trash")],
+          on: { click: () => {
+            this.snapshot();
+            this.editCondition(owner.id, (logic) => {
+              logic.rules.splice(index, 1);
+            }, true, `${owner.id}:add`);
+            this.snapshot();
+          } }
+        });
+        wrap.append(el("div", {
+          class: "atfb-cond__rule",
+          children: [
+            index === 0 ? this.renderConditionToken(owner, { kind: "verb", text: owner.logic.action === "hide" ? "Hidden when" : "Shown when" }) : this.renderConditionToken(owner, { kind: "join", text: owner.logic.match === "all" ? "and" : "or" }),
+            ...parts.map((token) => this.renderConditionToken(owner, token, index)),
+            remove
+          ]
+        }));
+      });
+      if (!owner.logic.rules.length) {
+        wrap.append(el("span", { class: "atfb-hint", text: "No rules yet. Add one or copy a condition." }));
+      }
+      const add = el("button", {
+        class: "atfb-cond__add",
+        type: "button",
+        text: "+ Add rule",
+        title: "Add rule",
+        attrs: { "aria-label": "Add rule", "data-cond": `${owner.id}:add` },
+        on: { click: () => this.addConditionRule(owner.id) }
+      });
+      const clear2 = el("button", {
+        class: "atfb-cond__clear",
+        type: "button",
+        text: "Clear",
+        title: "Delete all rules",
+        attrs: { "aria-label": "Clear all rules", disabled: !owner.logic.rules.length },
+        on: { click: () => {
+          this.snapshot();
+          this.editCondition(owner.id, (logic) => {
+            logic.rules = [];
+          }, true, `${owner.id}:add`);
+          this.snapshot();
+        } }
+      });
+      wrap.append(el("div", { class: "atfb-cond__actions", children: [add, clear2] }));
       wrap.addEventListener("pointerdown", (event) => event.stopPropagation());
       wrap.addEventListener("click", (event) => event.stopPropagation());
       wrap.addEventListener("keydown", (event) => event.stopPropagation());
@@ -6125,10 +6411,12 @@ var allTerrainFormsBuilder = function(exports) {
         host.setAttribute("aria-label", label);
         host.setAttribute("data-cond", key);
         host.className = "atfb-cond__control";
+        host.setAttribute("plain", "");
         host.title = label;
         for (const option of options) {
           const item = document.createElement("os-option");
           item.setAttribute("value", option.value);
+          if (option.disabled) item.setAttribute("disabled", "");
           item.textContent = option.label;
           host.append(item);
         }
@@ -6145,7 +6433,7 @@ var allTerrainFormsBuilder = function(exports) {
           change: (event) => onChange(event.target.value)
         },
         children: options.map(
-          (option) => el("option", { value: option.value, text: option.label, attrs: { selected: option.value === value } })
+          (option) => el("option", { value: option.value, text: option.label, attrs: { selected: option.value === value, disabled: option.disabled } })
         )
       });
     }
@@ -6159,25 +6447,20 @@ var allTerrainFormsBuilder = function(exports) {
      * small select, the answer is an input (or a select of the source field's
      * choices), and "and"/"or" toggles how rules combine.
      */
-    renderConditionToken(owner, token) {
-      if ("field" === token.kind && !token.missing) {
-        const chip = el("button", {
-          class: "atfb-cond__chip atfb-cond__chip--field",
-          type: "button",
-          text: token.text,
-          title: "Go to this question",
-          // The row is inside a card that is itself a button; without this the
-          // click selects the card the chip is *on* rather than the question it
-          // names, which is the opposite of what it offers.
-          on: {
-            click: (event) => {
-              event.stopPropagation();
-              this.selectField(token.fieldId);
-              this.canvas.querySelector(`[data-atfb-card="${CSS.escape(token.fieldId)}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-            }
+    renderConditionToken(owner, token, ruleIndex = 0) {
+      if ("field" === token.kind) {
+        const key = `${owner.id}:source:${ruleIndex}`;
+        const choices = (this.schema?.fields ?? []).filter((field) => field.id !== owner.id && field.type !== "page_break");
+        return this.condSelect(token.fieldId, [
+          ...token.missing ? [{ value: token.fieldId, label: "Choose a question…" }] : [],
+          ...choices.map((field) => ({ value: field.id, label: field.label || field.id }))
+        ], key, "Question used by this rule", (value) => this.editCondition(owner.id, (logic) => {
+          const rule = logic.rules[ruleIndex];
+          if (rule) {
+            rule.field = value;
+            rule.value = "";
           }
-        });
-        return chip;
+        }, true, key));
       }
       if ("verb" === token.kind) {
         return el("button", {
@@ -6240,14 +6523,14 @@ var allTerrainFormsBuilder = function(exports) {
       if ("value" === token.kind) {
         return this.renderConditionValue(owner, token);
       }
-      return el("span", { class: "atfb-cond__chip atfb-cond__chip--missing", text: token.text });
+      return el("span");
     }
     /**
      * The answer half of a condition, as the control it deserves.
      *
      * When the question being consulted has choices, the honest editor is a
      * select of those choices — typing free text against a radio group can only
-     * produce a rule that never matches. Anything else gets a text box, sized to
+     * produce a rule that never matches. Scales, ratings and other finite answer sets also get selectors. Open-ended answers get a text box, sized to
      * its content so it reads as part of the sentence rather than as a form.
      */
     renderConditionValue(owner, token) {
@@ -6264,21 +6547,12 @@ var allTerrainFormsBuilder = function(exports) {
         rebuild,
         key
       );
-      if (source?.choices?.length) {
-        const options = source.choices.map((choice) => ({
-          value: choice.value,
-          label: choice.label || choice.value
-        }));
-        if (token.raw !== "" && !source.choices.some((choice) => choice.value === token.raw)) {
-          options.unshift({ value: token.raw, label: token.text });
-        }
-        return this.condSelect(
-          token.raw,
-          options,
-          key,
-          "The answer that triggers this",
-          (picked) => write(picked, true)
-        );
+      const options = conditionValueOptions(source, token.raw, this.config?.countries);
+      if (options) {
+        const picker = this.condSelect(token.raw, options, key, "The answer that triggers this", (picked) => write(picked, true));
+        picker.classList.add("atfb-cond__value-select");
+        picker.removeAttribute("plain");
+        return picker;
       }
       const numeric = ["number", "range", "scale", "rating", "total"].includes(source?.type ?? "");
       const input = el("input", {
@@ -6426,6 +6700,7 @@ var allTerrainFormsBuilder = function(exports) {
                   icon(type?.icon ?? "dashicons-forms"),
                   el("span", { class: "atfb-card__type", text: type?.label ?? field.type }),
                   this.requiredToggle(field),
+                  field.type !== "page_break" ? this.conditionToolbar(field) : null,
                   controls ? el("span", {
                     class: "atfb-badge atfb-badge--controls",
                     text: 1 === controls ? "controls 1 field" : `controls ${controls} fields`,
@@ -6482,7 +6757,7 @@ var allTerrainFormsBuilder = function(exports) {
                 types: (name) => this.config?.fieldTypes.find((candidate) => candidate.type === name),
                 selectedId: this.selected
               }),
-              condition.length ? this.renderCondition(field, condition) : null
+              field.logic.enabled ? this.renderCondition(field, condition) : null
             ]
           })
         ]
@@ -6524,6 +6799,149 @@ var allTerrainFormsBuilder = function(exports) {
         });
       });
       return card;
+    }
+    /** Adds a rule without leaving the canvas. */
+    addConditionRule(fieldId) {
+      this.snapshot();
+      this.editCondition(fieldId, (logic) => {
+        const source = this.schema?.fields.find((field) => field.id !== fieldId && field.type !== "page_break");
+        logic.rules.push({ field: source?.id ?? "", operator: "is", value: "" });
+      }, true, `${fieldId}:source:${this.liveField(fieldId)?.logic.rules.length ?? 0}`);
+      this.snapshot();
+    }
+    /** A compact title-bar entry point; the settings live in a dialog. */
+    conditionToolbar(field) {
+      const trigger = el("button", {
+        class: `atfb-req atfb-condition-toggle${field.logic.enabled ? " is-on" : ""}`,
+        type: "button",
+        title: field.logic.enabled ? "Edit conditional logic" : "Set up conditional logic",
+        attrs: { "aria-haspopup": "dialog", "data-cond": `${field.id}:enabled` },
+        children: [
+          el("span", { class: "atfb-condition-dot", attrs: { "aria-hidden": "true" } }),
+          el("span", { text: "Conditional" })
+        ],
+        on: { click: () => this.openConditionEditor(field.id) }
+      });
+      for (const name of ["pointerdown", "click", "keydown"]) {
+        trigger.addEventListener(name, (event) => event.stopPropagation());
+      }
+      return trigger;
+    }
+    /** Edits a draft, so Cancel leaves the saved and inline conditions alone. */
+    openConditionEditor(fieldId) {
+      const field = this.liveField(fieldId);
+      if (!field) {
+        return;
+      }
+      const draft = { ...field.logic, rules: field.logic.rules.map((rule) => ({ ...rule })) };
+      const overlay = el("div", { class: "atfb-overlay" });
+      const dialog = el("div", {
+        class: "atfb-modal atfb-condition-editor",
+        attrs: { role: "dialog", "aria-modal": "true", "aria-label": "Conditional logic", tabindex: "-1" }
+      });
+      const close = () => {
+        overlay.remove();
+        this.root.querySelector(`[data-cond="${CSS.escape(fieldId)}:enabled"]`)?.focus();
+      };
+      const controlsSelector = "button:not([disabled]), input, select, os-select, os-checkbox-label, os-button:not([disabled])";
+      const paint = () => {
+        const focusedIndex = [...dialog.querySelectorAll(controlsSelector)].indexOf(document.activeElement);
+        const write = (mutate, rebuild = false) => {
+          mutate(draft);
+          if (rebuild) {
+            paint();
+          }
+        };
+        const action = select(draft.action, [{ value: "show", label: "Show" }, { value: "hide", label: "Hide" }], (value) => {
+          draft.action = value;
+        });
+        action.setAttribute("aria-label", "Conditional action");
+        const match = select(draft.match, [{ value: "all", label: "all" }, { value: "any", label: "any" }], (value) => {
+          draft.match = value;
+          paint();
+        });
+        match.setAttribute("aria-label", "Match rules");
+        const copy = el("button", {
+          class: "atfb-copy-condition",
+          type: "button",
+          children: [icon("admin-page"), el("span", { text: "Copy condition" })],
+          on: { click: () => openConditionCopy({
+            root: overlay,
+            to: `field:${fieldId}`,
+            schema: () => this.schema ? {
+              ...this.schema,
+              fields: this.schema.fields.map((item) => item.id === fieldId ? { ...item, logic: draft } : item)
+            } : null,
+            onCopy: () => {
+              paint();
+              dialog.focus();
+            }
+          }) }
+        });
+        dialog.replaceChildren(
+          el("div", { class: "atfb-condition-editor__heading", children: [
+            el("span", { class: "atfb-condition-editor__icon", children: [icon("randomize")] }),
+            el("div", { children: [el("h2", { text: "Conditional logic" }), el("p", { text: field.label || "Untitled field" })] })
+          ] }),
+          el("div", { class: "atfb-condition-editor__switch", children: [
+            checkbox("Enable conditions", draft.enabled, (enabled) => {
+              draft.enabled = enabled;
+              paint();
+            }),
+            el("p", { text: "Choose when this field appears in your form." })
+          ] }),
+          ...draft.enabled ? [
+            el("div", { class: "atfb-condition-editor__sentence", children: [action, "this field when", match, "of these rules match:"] }),
+            ...this.logicRulesEditor(draft, write, fieldId)
+          ] : [el("p", { class: "atfb-condition-editor__empty", text: "This field is always visible. Enable conditions to choose when to show or hide it." })],
+          el("div", { class: "atfb-condition-editor__footer", children: [
+            copy,
+            el("div", { class: "atfb-modal__actions", children: [
+              button("Cancel", close),
+              button("Save conditions", () => {
+                if (!this.liveField(fieldId)) {
+                  close();
+                  return;
+                }
+                this.snapshot();
+                this.editCondition(fieldId, (live) => Object.assign(live, draft, { rules: draft.rules.map((rule) => ({ ...rule })) }));
+                this.snapshot();
+                close();
+              }, "primary")
+            ] })
+          ] })
+        );
+        if (focusedIndex >= 0) {
+          const controls = dialog.querySelectorAll(controlsSelector);
+          controls[Math.min(focusedIndex, controls.length - 1)]?.focus();
+        }
+      };
+      overlay.append(dialog);
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) close();
+      });
+      overlay.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close();
+        }
+        if (event.key === "Tab") {
+          const controls = [...dialog.querySelectorAll(controlsSelector)];
+          const first = controls[0];
+          const last = controls[controls.length - 1];
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }
+        event.stopPropagation();
+      });
+      this.root.append(overlay);
+      paint();
+      dialog.focus();
     }
     /**
      * The required flag, as a toggle on the card rather than a badge.
@@ -7789,14 +8207,8 @@ var allTerrainFormsBuilder = function(exports) {
         ];
         if (!VALUELESS_OPERATORS.includes(rule.operator)) {
           const source = this.schema?.fields.find((candidate) => candidate.id === rule.field);
-          if (source?.choices?.length) {
-            const options = source.choices.map((choice) => ({
-              value: choice.value,
-              label: choice.label || choice.value
-            }));
-            if ("" !== rule.value && !source.choices.some((choice) => choice.value === rule.value)) {
-              options.unshift({ value: rule.value, label: rule.value });
-            }
+          const options = conditionValueOptions(source, rule.value, this.config?.countries);
+          if (options) {
             children.push(
               select(
                 rule.value,
@@ -7824,6 +8236,10 @@ var allTerrainFormsBuilder = function(exports) {
             );
           }
         }
+        children[0].querySelector("select, os-select")?.setAttribute("aria-label", "Question used by this rule");
+        children[1].setAttribute("aria-label", "How the answer is compared");
+        children[2]?.setAttribute("aria-label", "The answer that triggers this");
+        if (children[2]?.matches("select, os-select")) children[2].classList.add("atfb-cond__value-select");
         return el("div", { class: "atfb-rule", children });
       };
       const rules = el("div", { class: "atfb-rules" });
@@ -7876,6 +8292,7 @@ var allTerrainFormsBuilder = function(exports) {
         `conditions:${key}`,
         "Conditions",
         [
+          this.copyConditionButton(`${noun}:${key}`),
           checkbox(
             `Only ${verb.toLowerCase()} this ${noun} sometimes`,
             logic.enabled,
@@ -7911,6 +8328,26 @@ var allTerrainFormsBuilder = function(exports) {
         logic.enabled
       );
     }
+    /** Reuse a condition, resolving the schema when the chooser applies it. */
+    copyConditionButton(key) {
+      return el("button", {
+        class: "atfb-copy-condition",
+        type: "button",
+        children: [icon("admin-page"), el("span", { text: "Copy condition" })],
+        on: { click: () => openConditionCopy({
+          root: this.root,
+          schema: () => this.schema,
+          to: key,
+          beforeCopy: () => this.snapshot(),
+          onCopy: () => {
+            this.snapshot();
+            this.markDirty();
+            this.renderCanvas();
+            this.renderInspector();
+          }
+        }) }
+      });
+    }
     /** The conditional-logic editor. */
     renderLogicSection(field) {
       const logic = field.logic;
@@ -7932,6 +8369,7 @@ var allTerrainFormsBuilder = function(exports) {
         `logic:${field.id}`,
         "Conditional logic",
         [
+          this.copyConditionButton(`field:${field.id}`),
           checkbox("Only show this field sometimes", logic.enabled, (value) => {
             write((live) => {
               live.enabled = value;
@@ -8383,6 +8821,19 @@ ${decls}
       this.renderCanvas();
       this.renderInspector();
     }
+    /** Tag inputs can remain focused across autosaves; always write to the live section. */
+    writeTagValue(kind, id, key, value) {
+      const section = kind === "notification" ? this.schema?.notifications.find((item) => item.id === id) : this.schema?.confirmations.find((item) => item.id === id);
+      if (!section) {
+        return;
+      }
+      if (key === "successTitle" && "success" in section) {
+        section.success.title = value;
+      } else {
+        Object.assign(section, { [key]: value });
+      }
+      this.markDirty();
+    }
     /** A one-line input that understands merge tags. */
     taggableInput(value, onChange, placeholder = "") {
       return taggable(textInput(value, onChange, placeholder), { formId: this.form.id });
@@ -8441,8 +8892,7 @@ ${decls}
             textInput(
               /\{/.test(notification.to) ? "" : notification.to,
               (value) => {
-                notification.to = value;
-                this.markDirty();
+                this.writeTagValue("notification", notification.id, "to", value);
               },
               "name@example.com"
             )
@@ -8454,8 +8904,7 @@ ${decls}
             this.taggableInput(
               notification.to,
               (value) => {
-                notification.to = value;
-                this.markDirty();
+                this.writeTagValue("notification", notification.id, "to", value);
               },
               "{admin_email}, sales@example.com"
             ),
@@ -8520,8 +8969,7 @@ ${decls}
                 this.taggableInput(
                   notification.replyTo,
                   (value) => {
-                    notification.replyTo = value;
-                    this.markDirty();
+                    this.writeTagValue("notification", notification.id, "replyTo", value);
                   },
                   "Leave empty to reply to you"
                 ),
@@ -8530,8 +8978,7 @@ ${decls}
               row(
                 "Subject",
                 this.taggableInput(notification.subject, (value) => {
-                  notification.subject = value;
-                  this.markDirty();
+                  this.writeTagValue("notification", notification.id, "subject", value);
                 })
               ),
               row(
@@ -8539,8 +8986,7 @@ ${decls}
                 this.taggableArea(
                   notification.message,
                   (value) => {
-                    notification.message = value;
-                    this.markDirty();
+                    this.writeTagValue("notification", notification.id, "message", value);
                   },
                   8
                 )
@@ -8614,8 +9060,7 @@ ${decls}
               this.taggableArea(
                 confirmation.message,
                 (value) => {
-                  confirmation.message = value;
-                  this.markDirty();
+                  this.writeTagValue("confirmation", confirmation.id, "message", value);
                 },
                 5
               ),
@@ -8630,8 +9075,7 @@ ${decls}
         this.taggableInput(
           confirmation.query,
           (value) => {
-            confirmation.query = value;
-            this.markDirty();
+            this.writeTagValue("confirmation", confirmation.id, "query", value);
           },
           "ref={entry:id}&name={field:f1}"
         ),
@@ -8645,8 +9089,7 @@ ${decls}
               this.taggableInput(
                 confirmation.url,
                 (value) => {
-                  confirmation.url = value;
-                  this.markDirty();
+                  this.writeTagValue("confirmation", confirmation.id, "url", value);
                 },
                 "https://example.com/thank-you"
               ),
@@ -8742,8 +9185,7 @@ ${decls}
               this.taggableInput(
                 success.title,
                 (value) => {
-                  success.title = value;
-                  this.markDirty();
+                  this.writeTagValue("confirmation", confirmation.id, "successTitle", value);
                 },
                 "Thank you, {field:name}!"
               ),

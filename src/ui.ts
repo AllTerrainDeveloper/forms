@@ -214,7 +214,7 @@ export function textArea( value: string, onChange: ( value: string ) => void, ro
  */
 export function select(
 	value: string,
-	options: Array< { value: string; label: string } >,
+	options: Array< { value: string; label: string; disabled?: boolean } >,
 	onChange: ( value: string ) => void
 ): HTMLElement {
 	if ( hasComponent( 'os-select' ) && hasComponent( 'os-option' ) ) {
@@ -227,6 +227,7 @@ export function select(
 			const item = document.createElement( 'os-option' );
 
 			item.setAttribute( 'value', option.value );
+			if ( option.disabled ) item.setAttribute( 'disabled', '' );
 			item.textContent = option.label;
 			host.append( item );
 		}
@@ -247,7 +248,7 @@ export function select(
 			el( 'option', {
 				value: option.value,
 				text: option.label,
-				attrs: { selected: option.value === value },
+				attrs: { selected: option.value === value, disabled: option.disabled },
 			} )
 		),
 	} );

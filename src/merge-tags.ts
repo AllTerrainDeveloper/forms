@@ -13,11 +13,11 @@
  *
  * 1. **A picker.** Every box that understands tags gets an Insert button opening
  *    a grouped list — the form's own questions first, by the labels the person
- *    wrote. Nobody has to type a brace. The tag is shown beside each label, small
+ *    wrote. Typing `{` opens that same picker in place. The tag is shown beside each label, small
  *    and secondary, which is how the syntax gets learned rather than taught.
  *
- * 2. **A resolved preview.** Under each box, the same text with the tags filled
- *    in from sample values. The reason merge tags feel like guesswork is that you
+ * 2. **A descriptive preview.** Under each box, each tag becomes
+ *    `{the value of Question label}`. The reason merge tags feel like guesswork is that you
  *    cannot see the result until a real email reaches a real person, and by then
  *    it is too late to be wrong.
  *
@@ -87,7 +87,7 @@ function flatten( groups: MergeTagGroup[] ): Map< string, MergeTag > {
 /**
  * The text as it will read once the tags are resolved.
  *
- * Uses each tag's sample value. A tag nobody recognises is left visible rather
+ * Names each value instead of inventing an answer. A tag nobody recognises is left visible rather
  * than blanked, because that is what the server does with it too — and a preview
  * that quietly swallowed a typo would hide the one mistake this is here to
  * catch.
@@ -98,7 +98,7 @@ export function resolvePreview( text: string, groups: MergeTagGroup[] ): string 
 	return text.replace( /\{[a-z_]+(?::[^}]*)?\}/gi, ( match ) => {
 		const known = all.get( match.toLowerCase() );
 
-		return known ? known.sample : match;
+		return known ? `{the value of ${ known.label }}` : match;
 	} );
 }
 
@@ -109,11 +109,18 @@ export function hasTags( text: string ): boolean {
 
 /** The one open picker, so a second Insert click does not stack two. */
 let openPicker: HTMLElement | null = null;
+let pickerRequest = 0;
+let pickerReturnFocus: HTMLElement | null = null;
 
 /** Closes whatever picker is open. */
-function closePicker(): void {
+function closePicker( restoreFocus = false ): void {
+	pickerRequest++;
 	openPicker?.remove();
 	openPicker = null;
+	if ( restoreFocus ) {
+		pickerReturnFocus?.focus();
+	}
+	pickerReturnFocus = null;
 }
 
 if ( typeof document !== 'undefined' ) {
@@ -130,17 +137,18 @@ if ( typeof document !== 'undefined' ) {
 			return;
 		}
 
-		if ( openPicker && ! openPicker.contains( target ) ) {
+		if ( ! openPicker?.contains( target ) ) {
 			closePicker();
 		}
 	} );
 
 	document.addEventListener( 'keydown', ( event ) => {
-		if ( 'Escape' === event.key && openPicker ) {
-			closePicker();
-			event.stopPropagation();
+		if ( 'Escape' === event.key && pickerReturnFocus ) {
+			closePicker( true );
+			event.preventDefault();
+			event.stopImmediatePropagation();
 		}
-	} );
+	}, true );
 }
 
 /**
@@ -160,35 +168,27 @@ export function insertAtCursor( field: HTMLInputElement | HTMLTextAreaElement, t
 	const caret = start + text.length;
 
 	field.setSelectionRange( caret, caret );
-	field.focus();
 
 	// A programmatic value change fires nothing, so the pane's own `input`
 	// handler — the thing that marks the form dirty — would never run.
 	field.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+	field.focus();
 }
 
-/**
- * The lowest point a popover can reach before something clips it.
- *
- * Walks up to the first ancestor that scrolls — in the builder that is
- * `.atfb__canvas`, whose `overflow-y: auto` is what actually cuts the popover
- * off. Falls back to the viewport on a plain admin page, where the document
- * itself is the scroller.
- */
-function clipBottom( from: HTMLElement ): number {
-	let node: HTMLElement | null = from.parentElement;
-
+/** The visible area shared by every scrolling ancestor of the control. */
+function pickerBounds( from: HTMLElement ): { top: number; bottom: number } {
+	let top = 0;
+	let bottom = window.innerHeight;
+	let node = from.parentElement;
 	while ( node && node !== document.body ) {
-		const overflow = getComputedStyle( node ).overflowY;
-
-		if ( 'auto' === overflow || 'scroll' === overflow || 'hidden' === overflow ) {
-			return node.getBoundingClientRect().bottom;
+		if ( /auto|scroll|hidden|clip/.test( getComputedStyle( node ).overflowY ) ) {
+			const rect = node.getBoundingClientRect();
+			top = Math.max( top, rect.top );
+			bottom = Math.min( bottom, rect.bottom );
 		}
-
 		node = node.parentElement;
 	}
-
-	return window.innerHeight;
+	return { top, bottom };
 }
 
 /** Builds the popover list. */
@@ -244,8 +244,8 @@ function buildPicker(
 						type: 'button',
 						on: {
 							click: () => {
-								onPick( item.tag );
 								closePicker();
+								onPick( item.tag );
 							},
 						},
 						children: [
@@ -259,9 +259,7 @@ function buildPicker(
 							item.hint || item.sample
 								? el( 'span', {
 										class: 'atfb-tagpick__meta',
-										// The sample is the part people actually read, so it
-										// leads; the hint explains the cases where it is empty.
-										text: item.sample ? `e.g. ${ item.sample }` : item.hint,
+										text: `{the value of ${ item.label }}`,
 								  } )
 								: null,
 						],
@@ -278,7 +276,7 @@ function buildPicker(
 	paint( '' );
 	search.addEventListener( 'input', () => paint( search.value ) );
 
-	return el( 'div', {
+	const picker = el( 'div', {
 		class: 'atfb-tagpick',
 		attrs: { role: 'dialog', 'aria-label': 'Insert a value' },
 		children: [
@@ -290,11 +288,27 @@ function buildPicker(
 			list,
 		],
 	} );
+	picker.addEventListener( 'keydown', ( event ) => {
+		const items = [ ...list.querySelectorAll< HTMLButtonElement >( 'button' ) ];
+		const index = items.indexOf( document.activeElement as HTMLButtonElement );
+		if ( event.key === 'ArrowDown' || event.key === 'ArrowUp' ) {
+			event.preventDefault();
+			const next = event.key === 'ArrowDown' ? index + 1 : ( index < 0 ? items.length - 1 : index - 1 );
+			items[ ( next + items.length ) % items.length ]?.focus();
+		} else if ( event.key === 'Enter' && event.target === search ) {
+			event.preventDefault();
+			items[ 0 ]?.click();
+		}
+		event.stopPropagation();
+	} );
+	return picker;
 }
 
 /** Options for a tag-aware control. */
 interface TaggableOptions {
-	formId: number;
+	formId?: number;
+	/** Calculation references can supply their own grammar-specific catalogue. */
+	groups?: () => MergeTagGroup[] | Promise< MergeTagGroup[] >;
 	/** Shown under the box as “Reads as: …”. Off for one-line URLs, where it adds noise. */
 	preview?: boolean;
 	/** Extra text under the control, before the preview. */
@@ -313,10 +327,12 @@ export function taggable(
 	field: HTMLInputElement | HTMLTextAreaElement,
 	options: TaggableOptions
 ): HTMLElement {
+	const catalogue = () => Promise.resolve( options.groups ? options.groups() : mergeTags( options.formId ?? 0 ) );
 	const insert = el( 'button', {
 		class: 'atfb-button atfb-button--ghost atfb-tagpick__open',
 		type: 'button',
 		title: 'Insert a value from the submission',
+		attrs: { 'aria-haspopup': 'dialog' },
 		children: [ icon( 'shortcode' ), el( 'span', { text: 'Insert a value' } ) ],
 	} );
 
@@ -345,7 +361,10 @@ export function taggable(
 			return;
 		}
 
-		void mergeTags( options.formId ).then( ( groups ) => {
+		void catalogue().then( ( groups ) => {
+			if ( ! hasTags( field.value ) ) {
+				return;
+			}
 			preview.hidden = false;
 			preview.replaceChildren(
 				el( 'span', { class: 'atfb-taggable__preview-label', text: 'Reads as' } ),
@@ -357,45 +376,53 @@ export function taggable(
 	field.addEventListener( 'input', repaint );
 	repaint();
 
-	insert.addEventListener( 'click', ( event ) => {
-		event.stopPropagation();
-
-		if ( openPicker && wrapper.contains( openPicker ) ) {
-			closePicker();
-
-			return;
-		}
-
+	/** Preserve the replacement range while focus moves into the picker. */
+	const open = ( start: number, end: number ) => {
 		closePicker();
+		const request = pickerRequest;
+		const original = field.value;
+		pickerReturnFocus = field;
 
-		void mergeTags( options.formId ).then( ( groups ) => {
+		void catalogue().then( ( groups ) => {
+			if ( request !== pickerRequest || ! wrapper.isConnected || field.value !== original ) {
+				return;
+			}
 			const picker = buildPicker( groups, ( tag ) => {
+				field.setSelectionRange( start, end );
 				insertAtCursor( field, tag );
-				repaint();
 			} );
-
 			wrapper.append( picker );
 			openPicker = picker;
-
-			// Flip above the button when there is no room below it. The Message box
-			// is the tallest control in the pane and sits near the bottom of the
-			// window, so the picker opened from it is exactly the one that would
-			// otherwise be clipped — and a list whose last rows cannot be reached is
-			// indistinguishable from a list that does not contain them.
-			//
-			// Measured against the scrolling pane, not the viewport. Inside an
-			// OpenStation window the viewport is the whole desktop and is always
-			// roomy, while the pane that actually clips the popover is a few hundred
-			// pixels tall — so a viewport test says "plenty of room" in precisely
-			// the case where there is none.
-			if ( window.innerHeight - picker.getBoundingClientRect().top < picker.offsetHeight ) {
-				picker.classList.add( 'atfb-tagpick--above' );
-			} else if ( picker.getBoundingClientRect().bottom > clipBottom( wrapper ) ) {
-				picker.classList.add( 'atfb-tagpick--above' );
-			}
-
-			picker.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )?.focus();
+			const bounds = pickerBounds( wrapper );
+			picker.style.maxBlockSize = `${ Math.max( 0, Math.min( 320, bounds.bottom - bounds.top - 8 ) ) }px`;
+			const anchor = wrapper.getBoundingClientRect();
+			const height = picker.getBoundingClientRect().height;
+			// Prefer below, otherwise above. Clamp within the pane even when a
+			// tall textarea leaves too little space on either side.
+			const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
+			const top = Math.max( bounds.top + 4, Math.min( preferred, bounds.bottom - height - 4 ) );
+			picker.style.insetBlockStart = `${ top - anchor.top }px`;
+			picker.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )?.focus( { preventScroll: true } );
 		} );
+	};
+
+	insert.addEventListener( 'click', ( event ) => {
+		event.stopPropagation();
+		if ( pickerReturnFocus === field ) {
+			closePicker( true );
+			return;
+		}
+		open( field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length );
+	} );
+
+	field.addEventListener( 'input', ( event ) => {
+		const typed = event as InputEvent;
+		const caret = field.selectionStart ?? 0;
+		if ( ! typed.isComposing && typed.data === '{' && field.value[ caret - 1 ] === '{' ) {
+			// Replace the triggering brace (and an existing closing brace), so
+			// picking a reference never produces {{field:f1} or {field:f1}}.
+			open( caret - 1, caret + ( field.value[ caret ] === '}' ? 1 : 0 ) );
+		}
 	} );
 
 	return wrapper;
