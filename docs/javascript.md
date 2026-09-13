@@ -318,10 +318,13 @@ editor continues to calculate its numeric result using the displayed sample
 answers.
 
 **Conditional** is a compact button beside Required/Optional in each field
-card’s title bar. It opens a dialog with an enable switch, Show/Hide, all/any,
-and the full rule editor. Changes stay in a draft until **Save conditions**;
-Cancel or Escape discards them. Copy condition inside the dialog also edits
-only this draft. An active condition is indicated by the button’s filled dot.
+card’s title bar. It opens a dialog with Show/Hide, all/any,
+and the full rule editor, ready to add conditions without an enable checkbox.
+Changes stay in a draft until **Save conditions**, which enables the condition;
+Cancel or Escape discards them. **Clear** removes the saved rules, disables the
+condition, and closes the dialog. Cancel is absent when neither the saved
+condition nor the draft has rules; Save is disabled for an empty draft. Copy condition inside the dialog also edits
+only this draft and enables the copied rules when saved. An active condition is indicated by the button’s filled dot.
 
 The bottom condition strip remains directly editable. The `+ Add rule` button
 adds a rule, each rule has a Delete button, and Clear removes all rules while

@@ -36,17 +36,11 @@ function open( root: HTMLElement ) {
 	root.querySelector< HTMLButtonElement >( '.atfb-condition-toggle' )!.click();
 	return root.querySelector< HTMLElement >( '[aria-label="Conditional logic"]' )!;
 }
-function enable( dialog: HTMLElement ) {
-	const input = dialog.querySelector< HTMLInputElement >( 'input[type="checkbox"]' )!;
-	input.click();
-}
-
 describe( 'card conditional dialog', () => {
 	it( 'keeps the header compact and applies changes only on Save', () => {
 		const { root, field } = setup();
 		const dialog = open( root );
 		expect( root.querySelector( '[data-atfb-canvas] select' ) ).toBeNull();
-		enable( dialog );
 		clickButton( dialog, 'Add rule' );
 		expect( field.logic.enabled ).toBe( false );
 		expect( field.logic.rules ).toHaveLength( 0 );
@@ -56,19 +50,40 @@ describe( 'card conditional dialog', () => {
 		expect( root.querySelector( '[aria-label="Conditional logic"]' ) ).toBeNull();
 		expect( root.querySelector( '.atfb-condition-toggle.is-on' ) ).not.toBeNull();
 	} );
+	it( 'opens ready to edit, offers Clear instead of Cancel for a new condition', () => {
+		const { root, field } = setup();
+		const dialog = open( root );
+		expect( dialog.textContent ).not.toContain( 'Enable conditions' );
+		expect( dialog.textContent ).not.toContain( 'Cancel' );
+		expect( dialog.querySelector( '[aria-label="Conditional action"]' ) ).not.toBeNull();
+		expect( dialog.querySelector( '.atfb-button--primary' )!.hasAttribute( 'disabled' ) ).toBe( true );
+		clickButton( dialog, 'Clear' );
+		expect( field.logic.enabled ).toBe( false );
+		expect( field.logic.rules ).toEqual( [] );
+		expect( root.querySelector( '[aria-label="Conditional logic"]' ) ).toBeNull();
+	} );
+	it( 'clears existing conditions with undo history and restores focus', () => {
+		const { root, field, builder } = setup( true );
+		field.logic.enabled = true;
+		const dialog = open( root );
+		clickButton( dialog, 'Clear' );
+		expect( field.logic ).toEqual( { enabled: false, action: 'show', match: 'all', rules: [] } );
+		expect( document.activeElement ).toBe( root.querySelector( '.atfb-condition-toggle' ) );
+		const history = Reflect.get( builder, 'history' ) as string[];
+		expect( JSON.parse( history[ 0 ] ).fields[ 1 ].logic.rules ).toHaveLength( 1 );
+		expect( JSON.parse( history[ 1 ] ).fields[ 1 ].logic.rules ).toHaveLength( 0 );
+	} );
 	it( 'discards draft edits on Cancel and Escape without triggering card gestures', () => {
 		const { root, field } = setup( true );
 		const click = vi.fn();
 		root.addEventListener( 'click', click );
 		let dialog = open( root );
 		expect( click ).not.toHaveBeenCalled();
-		enable( dialog );
 		dialog.querySelector< HTMLButtonElement >( '[aria-label="Remove this rule"]' )!.click();
 		clickButton( dialog, 'Cancel' );
 		expect( field.logic.enabled ).toBe( false );
 		expect( field.logic.rules ).toEqual( [ { field: 'score', operator: 'greater_equal', value: '6' } ] );
 		dialog = open( root );
-		enable( dialog );
 		dialog.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ) );
 		expect( field.logic.enabled ).toBe( false );
 		expect( document.activeElement ).toBe( root.querySelector( '.atfb-condition-toggle' ) );
@@ -96,7 +111,6 @@ describe( 'card conditional dialog', () => {
 	it( 'adds, edits, deletes and clears rules directly on the card', () => {
 		const { root, field } = setup( true );
 		const dialog = open( root );
-		enable( dialog );
 		clickButton( dialog, 'Save conditions' );
 		const operator = root.querySelector< HTMLSelectElement >( '[aria-label="How the answer is compared"]' )!;
 		operator.value = 'greater_equal';
@@ -119,7 +133,6 @@ describe( 'card conditional dialog', () => {
 	it( 'saves show/hide and all/any with an undo snapshot', () => {
 		const { root, field, builder } = setup( true );
 		const dialog = open( root );
-		enable( dialog );
 		const action = dialog.querySelector< HTMLSelectElement >( '[aria-label="Conditional action"]' )!;
 		action.value = 'hide';
 		action.dispatchEvent( new Event( 'change' ) );

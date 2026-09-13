@@ -687,6 +687,7 @@ function alltfo_register_builtin_field_types() {
 				'formula'  => '',
 				'currency' => '',
 				'decimals' => 2,
+				'display'  => 'input',
 			),
 			'format'      => 'alltfo_format_total_value',
 			'position'    => 20,

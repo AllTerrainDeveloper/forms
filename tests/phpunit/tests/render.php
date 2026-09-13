@@ -47,6 +47,60 @@ class ALLTFO_Test_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Totals offer a labelled output or disabled input with one submitted value.
+	 *
+	 * @covers ::alltfo_render_total
+	 */
+	public function test_total_display_modes() {
+		foreach ( array( 'input', 'output' ) as $display ) {
+			$html     = $this->render_field(
+				array(
+					'type'     => 'total',
+					'display'  => $display,
+					'formula'  => '2 + 3',
+					'currency' => '€',
+				)
+			);
+			$dom      = new DOMDocument();
+			$previous = libxml_use_internal_errors( true );
+			$dom->loadHTML( $html );
+			libxml_clear_errors();
+			libxml_use_internal_errors( $previous );
+			$xpath = new DOMXPath( $dom );
+			$node  = $xpath->query( '//*[@data-atf-total]' )->item( 0 );
+			$this->assertSame( 1, $xpath->query( '//' . $display . '[@data-atf-total]' )->length );
+			$this->assertSame( 1, $xpath->query( '//label[@for="' . $node->getAttribute( 'id' ) . '"]' )->length );
+			$this->assertSame( 1, $xpath->query( '//input[@name="atf[f1]"]' )->length );
+			$this->assertSame( 1, $xpath->query( '//input[@type="hidden"][@data-atf-total-value]' )->length );
+			if ( 'input' === $display ) {
+				$this->assertTrue( $node->hasAttribute( 'disabled' ) );
+			}
+		}
+	}
+
+	/**
+	 * Rendered amounts and currency cannot inject HTML.
+	 *
+	 * @covers ::alltfo_render_total
+	 */
+	public function test_total_escapes_display_values() {
+		foreach ( array( 'input', 'output' ) as $display ) {
+			$field             = alltfo_normalize_field(
+				array(
+					'id'      => 'total',
+					'type'    => 'total',
+					'display' => $display,
+				),
+				array()
+			);
+			$field['currency'] = '<script>currency</script>';
+			$html              = alltfo_render_total( $field, '<script>amount</script>', array( 'id' => 'total' ) );
+			$this->assertStringNotContainsString( '<script>', $html );
+			$this->assertStringContainsString( '&lt;script&gt;', $html );
+		}
+	}
+
+	/**
 	 * The form posts, with a method and an action.
 	 *
 	 * @covers ::alltfo_render_form

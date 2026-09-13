@@ -264,6 +264,10 @@ function alltfo_normalize_field( $raw, $seen = array() ) {
 		$field[ $key ] = alltfo_coerce_setting( $raw[ $key ], $fallback );
 	}
 
+	if ( 'total' === $type ) {
+		$field['display'] = isset( $field['display'] ) && 'output' === $field['display'] ? 'output' : 'input';
+	}
+
 	// Validation bounds are common enough to live on the field rather than in
 	// every type's settings, and they are all optional: an empty string means
 	// "no bound", which is why they are not cast to int here.

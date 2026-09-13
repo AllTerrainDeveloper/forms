@@ -1280,7 +1280,7 @@ var allTerrainFormsFront = function(exports) {
             }
             return;
           }
-          input.disabled = !show;
+          input.disabled = !show || input.hasAttribute("data-atf-total");
         });
       }
       const calculated = applyCalculations(this.schema.fields, values);
@@ -1295,6 +1295,10 @@ var allTerrainFormsFront = function(exports) {
         const value = calculated[field.id];
         const decimals = typeof field.decimals === "number" ? field.decimals : 2;
         input.value = typeof value === "number" ? value.toFixed(decimals) : "";
+        const submitted = this.fieldElement(field.id)?.querySelector("[data-atf-total-value]");
+        if (submitted) {
+          submitted.value = input.value;
+        }
       }
     }
     /* ---------------------------------------------------------------- Steps */

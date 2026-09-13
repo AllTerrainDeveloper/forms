@@ -4053,6 +4053,59 @@ os-checkbox-label.atfb-check {
 	}
 }
 
+/* Condition dialogs use the shell's dialog palette, including themed textures. */
+.atfb-condition-editor,
+.atfb-condition-copy {
+	--atfb-bg: var( --os-ui-modal-bg, var( --os-window-bg, #fff ) );
+	--atfb-fg: var( --os-ui-modal-text, var( --os-ui-fg, #1e1e1e ) );
+	--atfb-muted: var( --os-ui-modal-text-muted, var( --os-ui-fg-muted, #646970 ) );
+	--atfb-border: var( --os-ui-modal-border, var( --os-ui-border, #dcdcde ) );
+	--atfb-border-strong: var( --os-ui-modal-border-strong, var( --os-ui-border-strong, #c3c4c7 ) );
+	--atfb-well: var( --os-ui-modal-field-bg, var( --os-ui-surface-sunken, #f6f7f7 ) );
+	--atfb-surface: var( --os-ui-modal-surface, var( --os-ui-surface, #fff ) );
+	--atfb-raised: var( --os-ui-modal-surface-elevated, var( --os-ui-surface-elevated, #f6f7f7 ) );
+	--atfb-hover: var( --os-ui-modal-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
+	color: var( --atfb-fg );
+	background-color: var( --atfb-bg );
+	background-image: var( --os-ui-dialog-bg-image, none );
+	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
+	background-size: var( --os-ui-dialog-bg-image-size, auto );
+	background-position: var( --os-ui-dialog-bg-image-position, center );
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --os-window-radius, var( --atfb-radius ) );
+	box-shadow: var( --os-window-shadow-focused, 0 20px 60px rgba( 0, 0, 0, 0.35 ) );
+}
+
+/* Component hosts inherit the same modal palette as the native controls. */
+:is( .atfb-condition-editor, .atfb-condition-copy ) :is( os-select, os-button, os-checkbox-label ) {
+	--os-ui-fg: var( --atfb-fg );
+	--os-ui-fg-muted: var( --atfb-muted );
+	--os-ui-border: var( --atfb-border );
+	--os-ui-border-strong: var( --atfb-border-strong );
+	--os-window-bg: var( --atfb-well );
+	--os-ui-surface: var( --atfb-surface );
+	--os-ui-surface-elevated: var( --atfb-raised );
+	--os-ui-hover: var( --atfb-hover );
+	--os-ui-button-bg-hover: var( --os-ui-modal-button-bg-hover, var( --atfb-hover ) );
+}
+
+:is( .atfb-condition-editor, .atfb-condition-copy ) h2 {
+	color: var( --atfb-fg );
+}
+
+.atfb-logic-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-block-start: var( --atfb-gap );
+}
+
+.atfb-copy-condition {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+}
+
 /* Keep copied conditions readable even when a rule contains a long answer. */
 .atfb-condition-copy__preview {
 	padding: 12px;
@@ -4241,7 +4294,7 @@ os-checkbox-label.atfb-check {
 
 .atfb-condition-editor {
 	inline-size: min( 580px, 100% );
-	padding: 24px;
+	padding: calc( 2 * var( --atfb-gap ) );
 }
 
 .atfb-condition-editor__heading {
@@ -4267,20 +4320,9 @@ os-checkbox-label.atfb-check {
 	place-items: center;
 	inline-size: 40px;
 	block-size: 40px;
-	border-radius: 10px;
+	border-radius: var( --atfb-radius-ctl );
 	background: var( --atfb-accent-soft );
 	color: var( --atfb-accent );
-}
-
-.atfb-condition-editor__switch {
-	padding-block-end: 18px;
-	border-block-end: 1px solid var( --atfb-border );
-}
-
-.atfb-condition-editor__switch p {
-	margin: 6px 0 0;
-	font-size: 12px;
-	color: var( --atfb-muted );
 }
 
 .atfb-condition-editor__sentence {
@@ -4290,13 +4332,6 @@ os-checkbox-label.atfb-check {
 	gap: 6px;
 	margin-block: 18px 12px;
 	font-size: 12px;
-	color: var( --atfb-muted );
-}
-
-.atfb-condition-editor__empty {
-	margin-block: 20px;
-	font-size: 13px;
-	line-height: 1.6;
 	color: var( --atfb-muted );
 }
 
@@ -4328,12 +4363,16 @@ os-checkbox-label.atfb-check {
 }
 
 .atfb-condition-editor__footer .atfb-modal__actions {
+	flex-wrap: wrap;
 	margin: 0;
+	margin-inline-start: auto;
 }
 
 .atfb-condition-editor .atfb-rule input {
+	background: var( --atfb-well );
+	color: var( --atfb-fg );
 	border: 1px solid var( --atfb-border );
-	border-radius: 6px;
+	border-radius: var( --atfb-radius-ctl );
 	min-inline-size: 100px;
 	inline-size: 100%;
 }
@@ -4342,4 +4381,32 @@ os-checkbox-label.atfb-check {
 .atfb-cond__value-select,
 .atfb-rule input {
 	min-inline-size: 100px;
+}
+
+@media ( max-width: 600px ) {
+	.atfb-condition-editor .atfb-rule {
+		grid-template-columns: minmax( 0, 1fr ) auto;
+	}
+
+	.atfb-condition-editor .atfb-rule__top > .atfb-card__action {
+		grid-column: 2;
+	}
+
+	.atfb-condition-editor .atfb-rule > :not( .atfb-rule__top ) {
+		grid-column: 1;
+	}
+}
+
+.atfb-condition-editor .atfb-card__action {
+	color: var( --atfb-muted );
+	border-radius: var( --atfb-radius-ctl );
+}
+
+.atfb-condition-editor .atfb-card__action:hover {
+	color: var( --atfb-danger );
+	background: var( --atfb-danger-soft );
+}
+
+.atfb-condition-editor input::placeholder {
+	color: var( --atfb-muted );
 }
