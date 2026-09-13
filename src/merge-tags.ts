@@ -142,11 +142,37 @@ if ( typeof document !== 'undefined' ) {
 		}
 	} );
 
-	document.addEventListener( 'keydown', ( event ) => {
+	// The desktop shell handles arrows during document capture. A listener on
+	// the picker itself runs too late once an option button has focus. Capture
+	// at the window boundary, scoped to this picker, before desktop shortcuts.
+	window.addEventListener( 'keydown', ( event ) => {
 		if ( 'Escape' === event.key && pickerReturnFocus ) {
 			closePicker( true );
 			event.preventDefault();
 			event.stopImmediatePropagation();
+			return;
+		}
+		if ( ! openPicker?.contains( event.target as Node | null ) ||
+			! [ 'ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter' ].includes( event.key ) ) {
+			return;
+		}
+		event.stopImmediatePropagation();
+		const search = openPicker.querySelector( '.atfb-tagpick__search' );
+		const items = [ ...openPicker.querySelectorAll< HTMLButtonElement >( '.atfb-tagpick__item' ) ];
+		const index = items.indexOf( document.activeElement as HTMLButtonElement );
+		if ( event.key === 'ArrowDown' || event.key === 'ArrowUp' ) {
+			event.preventDefault();
+			const next = event.key === 'ArrowDown' ? index + 1 : ( index < 0 ? items.length - 1 : index - 1 );
+			items[ ( next + items.length ) % items.length ]?.focus();
+		} else if ( event.key === 'Enter' && event.target === search ) {
+			event.preventDefault();
+			items[ 0 ]?.click();
+		} else if ( event.target !== search && event.key !== 'Enter' ) {
+			// Left/right and Home/End retain native caret movement in search.
+			// On result buttons, Home/End jump to the first/last result instead.
+			event.preventDefault();
+			if ( event.key === 'Home' ) items[ 0 ]?.focus();
+			if ( event.key === 'End' ) items[ items.length - 1 ]?.focus();
 		}
 	}, true );
 }
@@ -288,19 +314,7 @@ function buildPicker(
 			list,
 		],
 	} );
-	picker.addEventListener( 'keydown', ( event ) => {
-		const items = [ ...list.querySelectorAll< HTMLButtonElement >( 'button' ) ];
-		const index = items.indexOf( document.activeElement as HTMLButtonElement );
-		if ( event.key === 'ArrowDown' || event.key === 'ArrowUp' ) {
-			event.preventDefault();
-			const next = event.key === 'ArrowDown' ? index + 1 : ( index < 0 ? items.length - 1 : index - 1 );
-			items[ ( next + items.length ) % items.length ]?.focus();
-		} else if ( event.key === 'Enter' && event.target === search ) {
-			event.preventDefault();
-			items[ 0 ]?.click();
-		}
-		event.stopPropagation();
-	} );
+	picker.addEventListener( 'keydown', ( event ) => event.stopPropagation() );
 	return picker;
 }
 

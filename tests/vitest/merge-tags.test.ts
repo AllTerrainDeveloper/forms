@@ -70,6 +70,64 @@ describe( 'brace picker', () => {
 		expect( input.value ).toBe( '{' );
 		expect( document.activeElement ).toBe( input );
 	} );
+	it( 'owns navigation before document capture shortcuts, and releases it on close', async () => {
+		const shellShortcut = vi.fn();
+		document.addEventListener( 'keydown', shellShortcut, true );
+		try {
+			const { input, wrapper } = mount();
+			typeBrace( input );
+			await settle();
+			const search = wrapper.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )!;
+			const items = wrapper.querySelectorAll< HTMLButtonElement >( '.atfb-tagpick__item' );
+			const press = ( key: string ) => {
+				const event = new KeyboardEvent( 'keydown', { key, code: key, bubbles: true, cancelable: true } );
+				document.activeElement!.dispatchEvent( event );
+				return event;
+			};
+			expect( document.activeElement ).toBe( search );
+			expect( press( 'ArrowDown' ).defaultPrevented ).toBe( true );
+			expect( document.activeElement ).toBe( items[ 0 ] );
+			press( 'ArrowDown' );
+			expect( document.activeElement ).toBe( items[ 1 ] );
+			press( 'ArrowUp' );
+			expect( document.activeElement ).toBe( items[ 0 ] );
+			press( 'ArrowLeft' );
+			press( 'ArrowRight' );
+			press( 'End' );
+			expect( document.activeElement ).toBe( items[ 1 ] );
+			press( 'Home' );
+			expect( document.activeElement ).toBe( items[ 0 ] );
+			search.focus();
+			for ( const key of [ 'ArrowLeft', 'ArrowRight', 'Home', 'End' ] ) {
+				expect( press( key ).defaultPrevented ).toBe( false );
+			}
+			expect( shellShortcut ).not.toHaveBeenCalled();
+			press( 'Escape' );
+			expect( document.activeElement ).toBe( input );
+			expect( wrapper.querySelector( '.atfb-tagpick' ) ).toBeNull();
+			expect( shellShortcut ).not.toHaveBeenCalled();
+			press( 'ArrowDown' );
+			expect( shellShortcut ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			document.removeEventListener( 'keydown', shellShortcut, true );
+		}
+	} );
+	it( 'does not intercept arrows outside an open picker', async () => {
+		const { input } = mount();
+		typeBrace( input );
+		await settle();
+		const outside = document.createElement( 'button' );
+		document.body.append( outside );
+		outside.focus();
+		const shellShortcut = vi.fn();
+		document.addEventListener( 'keydown', shellShortcut, true );
+		try {
+			outside.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true } ) );
+			expect( shellShortcut ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			document.removeEventListener( 'keydown', shellShortcut, true );
+		}
+	} );
 	it( 'does not open for pasted formulas or composition', async () => {
 		const { input, wrapper } = mount( '{field:score}' );
 		input.dispatchEvent( new InputEvent( 'input', { data: null, inputType: 'insertFromPaste' } ) );

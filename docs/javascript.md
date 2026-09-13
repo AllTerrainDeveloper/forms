@@ -299,7 +299,9 @@ all.
 
 Typing `{` in any input with **Insert a value** opens its searchable picker next
 to the control. Pick a value with the mouse, or search and press Enter; arrow
-keys move through results and Escape returns to the input. The inserted tag
+keys move through results and Escape returns to the input. Picker navigation
+is captured before desktop shortcuts, so arrows cannot switch desktops, open
+Overview or toggle Show Desktop while selecting a reference. The inserted tag
 replaces the triggering brace at the cursor. Pasting an existing formula does
 not open the picker. The Insert button also remains available.
 

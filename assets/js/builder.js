@@ -1655,11 +1655,31 @@ var allTerrainFormsBuilder = function(exports) {
         closePicker();
       }
     });
-    document.addEventListener("keydown", (event) => {
+    window.addEventListener("keydown", (event) => {
       if ("Escape" === event.key && pickerReturnFocus) {
         closePicker(true);
         event.preventDefault();
         event.stopImmediatePropagation();
+        return;
+      }
+      if (!openPicker?.contains(event.target) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(event.key)) {
+        return;
+      }
+      event.stopImmediatePropagation();
+      const search = openPicker.querySelector(".atfb-tagpick__search");
+      const items = [...openPicker.querySelectorAll(".atfb-tagpick__item")];
+      const index = items.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items.length - 1 : index - 1;
+        items[(next + items.length) % items.length]?.focus();
+      } else if (event.key === "Enter" && event.target === search) {
+        event.preventDefault();
+        items[0]?.click();
+      } else if (event.target !== search && event.key !== "Enter") {
+        event.preventDefault();
+        if (event.key === "Home") items[0]?.focus();
+        if (event.key === "End") items[items.length - 1]?.focus();
       }
     }, true);
   }
@@ -1759,19 +1779,7 @@ var allTerrainFormsBuilder = function(exports) {
         list
       ]
     });
-    picker.addEventListener("keydown", (event) => {
-      const items = [...list.querySelectorAll("button")];
-      const index = items.indexOf(document.activeElement);
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items.length - 1 : index - 1;
-        items[(next + items.length) % items.length]?.focus();
-      } else if (event.key === "Enter" && event.target === search) {
-        event.preventDefault();
-        items[0]?.click();
-      }
-      event.stopPropagation();
-    });
+    picker.addEventListener("keydown", (event) => event.stopPropagation());
     return picker;
   }
   function taggable(field, options) {
