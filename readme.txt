@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 0.1.0
+Stable tag: 1.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -321,14 +321,27 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 3. Entries beside the builder. Search, filter and star submissions; read one beside the list; export to CSV or JSON.
 4. Analytics: submissions over time, conversion and completion, and a Net Promoter Score panel — grouped by any question you ask.
 5. Conditional logic drawn on the canvas — every card states its condition, and a line joins the question that decides to the fields it decides.
-6. The Insert a value picker, listing your own questions by name with an example of what each one will say.
+6. The Insert a value picker, listing your questions by name with descriptive value previews.
 
 == Changelog ==
+
+= 1.0.0 =
+* Open the searchable value selector by typing { in calculation and merge-tag inputs.
+* Preview references as descriptive values instead of invented answers.
+* Edit conditional logic from a compact field-header dialog with Save and Cancel.
+* Copy complete conditions from another field, notification or confirmation.
+* Add, edit, delete and clear rules directly below each field on the canvas.
+* Select predefined condition answers from dropdowns, including opinion scales, ratings and checkbox choices.
+* Widen the form canvas by 100px and give condition value controls a 100px minimum width.
+* Preserve selected references across autosaves and prevent picker arrow keys from triggering desktop shortcuts.
 
 = 0.1.0 =
 * First release.
 
 == Upgrade Notice ==
+
+= 1.0.0 =
+Improved formula selection and conditional editing. Existing forms and saved conditions retain their format and behavior.
 
 = 0.1.0 =
 First release.
