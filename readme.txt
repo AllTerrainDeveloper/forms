@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -327,9 +327,11 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
-= Unreleased =
+= 1.1.0 =
 
 * Added private MIO form creation/editing with linked Markdown help, precise validation errors and two correction retries.
+* Added a Preview reply action on compatible MIO shells, with no extra save or AI request.
+* Guarded assistant updates with revision checks and durable save receipts for read-only recovery after an uncertain response.
 * Added versioned YAML form packages, JSON Schema validation and a local validator command.
 * Packages include a base theme with sparse design-token changes, complete form configuration and embedded image-choice attachments.
 * Imports create a new draft and isolated theme, preserving dark-theme metadata.
@@ -355,6 +357,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Export complete forms as YAML, including their theme changes and image choices. Create and update forms with validated MIO assistance on compatible OpenStation shells. Existing forms retain their configuration and publication status.
 
 = 1.0.1 =
 Improved conditional dialogs and theme support. Totals can display as plain text or disabled inputs; existing totals keep their input presentation.
