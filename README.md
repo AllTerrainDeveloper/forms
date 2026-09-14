@@ -453,3 +453,52 @@ npm run test:php      # 465 PHP tests, inside wp-env
 ## Licence
 
 GPL-2.0-or-later. Every premium feature, free, forever.
+
+## Export, edit and import forms as YAML
+
+Use **Export** in the builder to download the current form with its base theme, only changed theme/advanced CSS settings, all field/settings/logic/action configuration and embedded image-choice attachments. **Validate YAML** checks a file without writing anything. **Import** accepts YAML or versioned JSON and creates a new draft with its own theme.
+
+For LLM-assisted editing, use the [format guide](docs/form-packages.md), [JSON Schema](schemas/form-package-v1.schema.json) and [example YAML](docs/examples/contact-form.yaml). Validate a document locally with:
+
+```bash
+npm run validate:form -- path/to/form.yaml
+```
+
+This checks the portable contract offline. Import also checks installed field types, safe theme tokens and image contents. Entries and external plugin/site configuration are separate from the form definition; see the guide for dependency handling.
+
+The browser round-trip test runs against the local wp-env site with OpenStation and AllTerrain Forms active:
+
+```bash
+npx playwright install chromium
+npm run env:start
+npm run test:e2e
+```
+
+`ATF_E2E_URL`, `ATF_E2E_USER`, and `ATF_E2E_PASSWORD` override the default local URL (`http://localhost:8889`) and `admin` / `password` test account. The test creates its own form/theme and deletes them afterward. On an older development database, reactivate AllTerrain Forms to refresh its capabilities first.
+
+### MIO form editing
+
+With OpenStation's compatible window MIO API, open AllTerrain Forms and use **Ask
+MIO** to create a draft or update the current form. YAML is validated before saving;
+invalid candidates receive precise errors and up to two correction attempts.
+Existing forms keep their publication status. Manual and file workflows remain
+available in classic admin. Provider setup and MIO enablement belong to OpenStation.
+
+- [Detailed linked Markdown knowledge base](docs/mio/index.md)
+- [Developer handoff: review of MIO PR #816](docs/mio-api-feedback.md)
+- [Conditional contact YAML example](docs/examples/mio-conditional-contact.yaml)
+
+Browser tests default to Docker `http://localhost:8889` (`npm run test:e2e`). The MIO
+adapter cases capture the real shell registration and simulate model tool calls.
+The chat case uses the real composer, session and rendered Preview button, replacing
+only provider responses. All use real WordPress validation/saves without invoking
+a paid AI provider.
+
+
+The recovery MIO API adds turn-wide correction limits, compact document history
+and read-only reconciliation of uncertain saves. To exercise the adapter against
+an actual local MIO checkout, run
+`ATF_MIO_SOURCE=../alcazaba-plugin npm test -- --run tests/vitest/mio-contract.test.ts`.
+The [response button handoff](docs/mio-action-buttons-proposal.md) records the plan
+and implementation follow-up. Forms supplies a Preview action after a confirmed
+save when the shell supports the new optional responseActions API.

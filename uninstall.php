@@ -68,13 +68,19 @@ function alltfo_uninstall_site() {
 	}
 
 	wp_clear_scheduled_hook( 'alltfo_apply_retention' );
+	wp_unschedule_hook( 'alltfo_expire_assistant_operation' );
+
+	// Short-lived operation metadata is not form or submission content.
+	global $wpdb;
+	$alltfo_operations = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_alltfo_mio_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Enumerating plugin-owned options for uninstall.
+	foreach ( $alltfo_operations as $alltfo_operation ) {
+		delete_option( $alltfo_operation );
+	}
 
 	// Everything below destroys data, and only on an explicit opt-in.
 	if ( ! defined( 'ALLTFO_REMOVE_ALL_DATA' ) || ! ALLTFO_REMOVE_ALL_DATA ) {
 		return;
 	}
-
-	global $wpdb;
 
 	$alltfo_types = array( 'alltfo_form', 'alltfo_entry', 'alltfo_theme' );
 
@@ -135,8 +141,7 @@ function alltfo_uninstall_site() {
 		}
 	}
 
-	// The rate-limiting transients, which are the only option rows this plugin
-	// writes outside post meta.
+	// The rate-limiting transients; assistant operation options were removed above.
 	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_alltfo_rl_%' OR option_name LIKE '_transient_timeout_alltfo_rl_%'" );
 
 	// The uploads directory, once every file that was in it has been deleted above.

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
 
 /**
  * Four bundles, eight passes.
@@ -63,6 +64,7 @@ export default defineConfig( ( { mode } ) => {
 	const isProd = mode === 'production';
 
 	return {
+		...( process.env.ATF_MIO_SOURCE ? { server: { fs: { allow: [ process.cwd(), resolve( process.env.ATF_MIO_SOURCE ) ] } } } : {} ),
 		build: {
 			outDir: 'assets/js',
 			emptyOutDir: false,

@@ -766,7 +766,7 @@ function alltfo_get_custom_themes() {
 			'label'       => $post->post_title,
 			'description' => $post->post_excerpt,
 			'tokens'      => alltfo_sanitize_tokens( is_array( $tokens ) ? $tokens : array() ),
-			'dark'        => false,
+			'dark'        => (bool) get_post_meta( $post->ID, '_alltfo_theme_dark', true ),
 			'custom'      => true,
 			'id'          => $post->ID,
 		);
@@ -955,6 +955,7 @@ function alltfo_tokens_to_declarations( $tokens ) {
  *     @type string $slug        Slug. Derived from the label when empty.
  *     @type string $description One line.
  *     @type array  $tokens      Token map.
+ *     @type bool   $dark        Dark surface hint. Preserved when omitted on updates.
  * }
  * @return array|WP_Error The saved theme record.
  */
@@ -992,9 +993,9 @@ function alltfo_save_theme( $args ) {
 
 	if ( $id ) {
 		$postarr['ID'] = $id;
-		$result        = wp_update_post( $postarr, true );
+		$result        = wp_update_post( wp_slash( $postarr ), true );
 	} else {
-		$result = wp_insert_post( $postarr, true );
+		$result = wp_insert_post( wp_slash( $postarr ), true );
 	}
 
 	if ( is_wp_error( $result ) ) {
@@ -1002,6 +1003,9 @@ function alltfo_save_theme( $args ) {
 	}
 
 	update_post_meta( $result, ALLTFO_META_TOKENS, wp_slash( wp_json_encode( $tokens ) ) );
+	if ( array_key_exists( 'dark', $args ) ) {
+		update_post_meta( $result, '_alltfo_theme_dark', ! empty( $args['dark'] ) );
+	}
 
 	/**
 	 * Fires after a user-made theme is saved.
@@ -1021,7 +1025,7 @@ function alltfo_save_theme( $args ) {
 		'description' => $post->post_excerpt,
 		'tokens'      => $tokens,
 		'custom'      => true,
-		'dark'        => false,
+		'dark'        => (bool) get_post_meta( $result, '_alltfo_theme_dark', true ),
 		'id'          => $result,
 	);
 }

@@ -29,12 +29,14 @@ const config: RuntimeConfig | undefined = ( window as unknown as { allTerrainFor
 export class ApiError extends Error {
 	public readonly status: number;
 	public readonly code: string;
+	public readonly data: unknown;
 
-	public constructor( message: string, status: number, code = '' ) {
+	public constructor( message: string, status: number, code = '', data?: unknown ) {
 		super( message );
 		this.name = 'ApiError';
 		this.status = status;
 		this.code = code;
+		this.data = data;
 	}
 }
 
@@ -84,18 +86,20 @@ async function request< T >( path: string, init: RequestInit = {} ): Promise< T 
 	if ( ! response.ok ) {
 		let message = `Request failed with status ${ response.status }.`;
 		let code = '';
+		let data: unknown;
 
 		try {
-			const body = ( await response.json() ) as { message?: string; code?: string };
+			const body = ( await response.json() ) as { message?: string; code?: string; data?: unknown };
 
 			message = body.message ?? message;
 			code = body.code ?? '';
+			data = body.data;
 		} catch {
 			// A non-JSON error body — a PHP fatal, an HTML error page from a
 			// proxy. The status code is all there is to report.
 		}
 
-		throw new ApiError( message, response.status, code );
+		throw new ApiError( message, response.status, code, data );
 	}
 
 	// A 204 has no body, and `response.json()` on one throws.
@@ -203,6 +207,11 @@ export function withObjectOverrides( form: Form ): Form {
 }
 
 export const api = {
+	assistantRevision: ( id: number, signal?: AbortSignal ) => request< { revision: string } >( `/assistant/forms/${ id }`, { signal } ),
+	assistantValidate: ( draft: unknown, signal?: AbortSignal ) => request< { valid: boolean } >( '/assistant/validate', { method: 'POST', body: JSON.stringify( { draft } ), signal } ),
+	assistantApply: ( draft: unknown, formId: number, revision: string, signal?: AbortSignal, operationKey?: string ) => request< import('./mio/types').AssistantSavedForm >( '/assistant/apply', { method: 'POST', body: JSON.stringify( { draft, formId, revision, operationKey } ), signal } ).then( ( form ): import('./mio/types').AssistantSavedForm => ( { ...withObjectOverrides( form ), operation: form.operation } ) ),
+	assistantOperation: ( key: string, signal?: AbortSignal ) => request< import('./mio/types').MioOperationOutcome >( `/assistant/operations/${ encodeURIComponent( key ) }`, { signal } ),
+
 	config: () => get< BuilderConfig >( '/config' ),
 
 	/** MailPoet's presence, lists and logo — what the MailPoet window boots from. */
@@ -219,13 +228,23 @@ export const api = {
 	/** Brings an archived form back, entries and stats included, in its pre-archive status. */
 	unarchiveForm: ( id: number ) => post< FormSummary >( `/forms/${ id }/unarchive`, {} ),
 
-	getForm: ( id: number ) => get< Form >( `/forms/${ id }` ).then( withObjectOverrides ),
+	getForm: ( id: number, signal?: AbortSignal ) => request< Form >( `/forms/${ id }`, { signal } ).then( withObjectOverrides ),
 
 	createForm: ( body: { template?: string; title?: string; schema?: unknown } ) =>
 		post< Form >( '/forms', body ).then( withObjectOverrides ),
 
 	updateForm: ( id: number, body: { title?: string; schema?: unknown } ) =>
 		post< Form >( `/forms/${ id }`, body ).then( withObjectOverrides ),
+
+	exportForm: ( id: number, body: { title: string; schema: unknown } ) =>
+		post< unknown >( `/forms/${ id }/export`, body ),
+
+	validateFormPackage: ( value: unknown ) =>
+		post< { valid: boolean; warnings: string[] } >( '/form-packages/validate', { package: value } ),
+
+	importFormPackage: ( value: unknown ) =>
+		post< Form & { importWarnings?: string[] } >( '/form-packages/import', { package: value } )
+			.then( ( form ) => ( { ...withObjectOverrides( form ), importWarnings: form.importWarnings } ) ),
 
 	duplicateForm: ( id: number ) => post< Form >( `/forms/${ id }/duplicate`, {} ).then( withObjectOverrides ),
 

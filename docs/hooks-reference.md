@@ -1100,3 +1100,61 @@ apply_filters( 'alltfo_script_config', array $config );
 ```
 
 The blob printed as `window.allTerrainForms`.
+
+## Portable form packages (Experimental)
+
+See [form-packages.md](form-packages.md) for the YAML/JSON model and REST routes.
+
+| Hook | Kind | Arguments | Contract |
+|---|---|---|---|
+| `alltfo_form_package_export` | Filter | `$package, $form_id` | Modify the exported model before final validation. Must retain the version-1 contract. |
+| `alltfo_form_package_validated` | Filter | `$result, $package` | `$result` is `{ package, warnings }` or `WP_Error`. Add warnings or reject unavailable dependencies. Runs in dry-run, export and import. Keep it side-effect free. |
+| `alltfo_form_package_imported` | Action | `$form_id, $package, $media` | Fires after successful import. `$package` contains source IDs; `$media` maps source attachment IDs to new IDs. The form is a draft. |
+
+Example: require an integration before importing its actions, including dry-run validation:
+
+```php
+add_filter( 'alltfo_form_package_validated', static function ( $result, $package ) {
+    if ( is_wp_error( $result ) ) {
+        return $result;
+    }
+    foreach ( $package['form']['schema']['actions'] as $action ) {
+        if ( 'my_integration' === $action['type'] && ! function_exists( 'my_integration_init' ) ) {
+            return new WP_Error( 'missing_integration', 'Install My Integration first.', array( 'status' => 400 ) );
+        }
+    }
+    return $result;
+}, 10, 2 );
+```
+
+### `alltfo_assistant_draft_validated` — Experimental
+
+Filters a validated local editor definition before MIO validation/apply proceeds.
+Arguments: `$result` (`array{title:string,schema:array}|WP_Error`) and `$draft`
+(the original decoded array). Return WP_Error to reject an unavailable extension
+or invalid integration setting. Validation is read-only: callbacks must not write
+posts, send mail or run integrations. Do not mutate a successful definition here;
+use this gate to reject unsupported configuration, preserving exactly what the
+user validated. Both dry-run and apply call the same validator.
+
+```php
+add_filter( 'alltfo_assistant_draft_validated', function ( $result, $draft ) {
+    if ( is_wp_error( $result ) ) {
+        return $result;
+    }
+    foreach ( $draft['schema']['actions'] ?? array() as $action ) {
+        if ( 'my_crm' === $action['type'] && ! my_crm_is_configured() ) {
+            return new WP_Error( 'crm_unavailable', 'Configure the CRM before using this action.', array( 'status' => 400 ) );
+        }
+    }
+    return $result;
+}, 10, 2 );
+```
+
+### `alltfo_expire_assistant_operation` — Internal / Experimental
+
+Scheduled once per logical assistant write for seven days later. Receives the
+plugin-generated option name as its sole argument. The callback deletes only
+names matching the assistant metadata prefix plus SHA-256 hash. It never deletes
+a form or entry. This is a cleanup event, not an integration API for replaying
+operations. See the operation retention contract in architecture.md.

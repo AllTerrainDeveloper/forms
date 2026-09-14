@@ -283,8 +283,10 @@ uninstalling should do — export your entries to CSV first if you want them.
 
 = Can I move a form to another site? =
 
-Yes. Export the form as JSON and import it on the other site. Themes export
-and import the same way.
+Yes. Export the form as YAML and import it on the other site. The package
+includes its base theme, only changed design tokens, form settings and image-choice
+attachments. Validate YAML checks a file first; import creates a new draft.
+Versioned JSON packages are accepted too. Standalone Theme Studio exports remain JSON.
 
 = Does it work with page builders and the block editor? =
 
@@ -324,6 +326,14 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 6. The Insert a value picker, listing your questions by name with descriptive value previews.
 
 == Changelog ==
+
+= Unreleased =
+
+* Added private MIO form creation/editing with linked Markdown help, precise validation errors and two correction retries.
+* Added versioned YAML form packages, JSON Schema validation and a local validator command.
+* Packages include a base theme with sparse design-token changes, complete form configuration and embedded image-choice attachments.
+* Imports create a new draft and isolated theme, preserving dark-theme metadata.
+* Old schema-only JSON files need a new export from their source site to include dependencies; the legacy schema creation API is unchanged.
 
 = 1.0.1 =
 * Align Copy condition with the condition settings and use the desktop theme's dialog palette and textures.

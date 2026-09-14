@@ -20,3 +20,7 @@ node_modules/
 # assets/js is deliberately committed. It is what makes "download the zip from a
 # tag and install it" work with no npm install, and CI fails if the committed
 # bundles stop matching their TypeScript.
+
+# Browser test output.
+/test-results/
+/playwright-report/

@@ -370,3 +370,49 @@ tests/
   vitest/                     TypeScript
   phpunit/tests/              PHP
 ```
+
+## Portable form packages
+
+[Version-1 YAML/JSON packages](form-packages.md) wrap the existing form schema with a built-in theme base, sparse theme changes, form overrides, embedded image-choice dependencies and page URL references. Export uses the current builder snapshot; import validates and creates a new draft plus isolated theme/media resources. Existing form storage stays JSON in `ALLTFO_META_SCHEMA`.
+
+`schemas/form-package-v1.schema.json` is the shared contract. The builder and offline CLI use a bundled YAML 1.2 parser and JSON Schema validator. `includes/portability.php` validates decoded JSON against that contract and installed field/token behavior before writes. REST routes accept decoded JSON; PHP needs no YAML runtime. See [form-packages.md](form-packages.md) for routes, size limits, dependency handling and rollback behavior.
+
+Custom themes now persist their dark-surface hint in `_alltfo_theme_dark` post meta. `alltfo_save_theme()` accepts optional `dark`; omitted values preserve the hint on updates, and existing themes without the meta remain light. This makes imported dark themes render correctly.
+
+## Private MIO form editing (experimental)
+
+When the native shell exposes the PR #816 MIO API, the builder registers a lease
+against its actual window instance. `src/mio/` owns linked bundled Markdown help,
+read/validate/apply tools and single-use in-memory validation receipts. Classic
+admin and older shells keep manual/file workflows. See the [knowledge base](mio/index.md)
+and [MIO API review](mio-api-feedback.md).
+
+All routes below use the existing `alltfo_edit_forms` permission gate and REST
+cookie/nonce authentication. JSON bodies carry a decoded `{title,schema}` draft:
+
+| Route relative to allterrain-forms/v1 | Request | Response |
+|---|---|---|
+| GET /assistant/forms/{id} | Form ID | `{revision}` hash of stored title/status/schema |
+| POST /assistant/validate | `{draft}` | `{valid:true}`, or WP_Error with path/message/suggestion |
+| POST /assistant/apply | `{draft,formId,revision,operationKey?}` | Saved form plus operation receipt when keyed; formId=0 creates a draft |
+| GET /assistant/operations/{key} | User-scoped operation key | Confirmed receipt/form ID, known rejection, or unknown outcome; never writes |
+
+Apply revalidates and rejects a stale stored revision with HTTP 409; updates retain
+publication status. The check is optimistic, not a transaction across all legacy
+writers. Client cancellation cannot roll back an already accepted request. Unknown
+write outcomes must be inspected, never automatically retried. The assistant YAML
+limit is 40,000 bytes on the recovery API and 16,000 on the original API; the server draft limit is 60,000 bytes. None of these routes reads
+submissions or invokes mail/actions. No new user meta, global ability or query flag
+is introduced.
+
+Operation records use non-autoloaded `_alltfo_mio_{sha256(userId:key)}` options in
+the current site. Each contains a normalized-payload hash, state and timestamps;
+confirmed records also carry form ID, saved revision and a UUID receipt. There is
+no YAML, credential or submission content in the ledger. `add_option` atomically
+claims the key before any form write. The same key cannot accept a different
+payload; an in-flight record stays unknown until a confirmed receipt is stored.
+An identical completed replay returns the original result only while that saved
+revision remains current. This deduplication does not lock out unrelated form
+writers. Single cron events expire records after seven days; uninstall removes
+these transient operation records and their scheduled events even when retaining
+forms/entries. A missing or expired record means unknown, never permission to retry.

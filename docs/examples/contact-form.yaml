@@ -1,0 +1,51 @@
+# AllTerrain Forms portable form v1.
+# Theme tokens and per-form overrides contain only changed values.
+format: allterrain-forms
+formatVersion: 1
+form:
+  title: Contact us
+  schema:
+    version: 1
+    fields:
+      - id: name
+        type: text
+        label: Your name
+        required: true
+      - id: email
+        type: email
+        label: Email address
+        required: true
+      - id: message
+        type: textarea
+        label: How can we help?
+        required: true
+    settings:
+      theme: contact-brand
+      themeOverrides:
+        radius-field: 8px
+      submitLabel: Send message
+    notifications:
+      - id: notify
+        to: hello@example.com
+        replyTo: '{field:email}'
+        subject: New message from {field:name}
+        message: |-
+          <p>{field:message}</p>
+          <p>From {field:name}, {field:email}</p>
+    confirmations:
+      - id: thanks
+        type: message
+        message: Thank you. We will be in touch.
+        success:
+          style: confetti
+    actions: []
+theme:
+  slug: contact-brand
+  base: clean
+  label: Contact brand
+  description: Clean with a brand accent.
+  dark: false
+  tokens:
+    accent: '#2255cc'
+assets: []
+pages: []

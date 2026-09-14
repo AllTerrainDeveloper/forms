@@ -258,3 +258,7 @@ ground rather than assume the page has one.**
 | Soft | 8.01 | 8.01 |
 | Editorial | 18.16 | 18.16 |
 | Holo | 9.33 | 15.90 |
+
+## Portable themes
+
+Form [YAML exports](form-packages.md) store a built-in `base` and only the `tokens` changed from that base. Form-level `themeOverrides` remain separate and omit values identical to the selected theme. Import creates a distinct saved theme; it never overwrites a matching name or slug. This includes every advanced Theme Studio setting. `alltfo_save_theme()` also accepts `dark` (boolean); omitting it on updates preserves the existing value.
