@@ -213,6 +213,8 @@ require_once ALLTFO_DIR . 'includes/importer-cf7.php';
 require_once ALLTFO_DIR . 'includes/importer-wpforms.php';
 require_once ALLTFO_DIR . 'includes/importer-gravityforms.php';
 require_once ALLTFO_DIR . 'includes/import-notice.php';
+require_once ALLTFO_DIR . 'includes/portability.php';
+require_once ALLTFO_DIR . 'includes/assistant.php';
 require_once ALLTFO_DIR . 'includes/rest.php';
 require_once ALLTFO_DIR . 'includes/abilities.php';
 require_once ALLTFO_DIR . 'includes/preview.php';

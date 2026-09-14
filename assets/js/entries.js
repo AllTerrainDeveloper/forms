@@ -382,11 +382,12 @@ var allTerrainFormsEntries = function(exports) {
   }
   const config = window.allTerrainForms;
   class ApiError extends Error {
-    constructor(message, status, code = "") {
+    constructor(message, status, code = "", data) {
       super(message);
       this.name = "ApiError";
       this.status = status;
       this.code = code;
+      this.data = data;
     }
   }
   function joinPath(base, path) {
@@ -414,13 +415,15 @@ var allTerrainFormsEntries = function(exports) {
     if (!response.ok) {
       let message = `Request failed with status ${response.status}.`;
       let code = "";
+      let data;
       try {
         const body = await response.json();
         message = body.message ?? message;
         code = body.code ?? "";
+        data = body.data;
       } catch {
       }
-      throw new ApiError(message, response.status, code);
+      throw new ApiError(message, response.status, code, data);
     }
     if (response.status === 204) {
       return void 0;
@@ -470,6 +473,10 @@ var allTerrainFormsEntries = function(exports) {
     return form;
   }
   const api = {
+    assistantRevision: (id, signal) => request(`/assistant/forms/${id}`, { signal }),
+    assistantValidate: (draft, signal) => request("/assistant/validate", { method: "POST", body: JSON.stringify({ draft }), signal }),
+    assistantApply: (draft, formId, revision, signal, operationKey) => request("/assistant/apply", { method: "POST", body: JSON.stringify({ draft, formId, revision, operationKey }), signal }).then((form) => ({ ...withObjectOverrides(form), operation: form.operation })),
+    assistantOperation: (key, signal) => request(`/assistant/operations/${encodeURIComponent(key)}`, { signal }),
     config: () => get("/config"),
     /** MailPoet's presence, lists and logo — what the MailPoet window boots from. */
     mailpoet: () => get("/mailpoet"),
@@ -480,9 +487,12 @@ var allTerrainFormsEntries = function(exports) {
     archiveForm: (id) => post(`/forms/${id}/archive`, {}),
     /** Brings an archived form back, entries and stats included, in its pre-archive status. */
     unarchiveForm: (id) => post(`/forms/${id}/unarchive`, {}),
-    getForm: (id) => get(`/forms/${id}`).then(withObjectOverrides),
+    getForm: (id, signal) => request(`/forms/${id}`, { signal }).then(withObjectOverrides),
     createForm: (body) => post("/forms", body).then(withObjectOverrides),
     updateForm: (id, body) => post(`/forms/${id}`, body).then(withObjectOverrides),
+    exportForm: (id, body) => post(`/forms/${id}/export`, body),
+    validateFormPackage: (value) => post("/form-packages/validate", { package: value }),
+    importFormPackage: (value) => post("/form-packages/import", { package: value }).then((form) => ({ ...withObjectOverrides(form), importWarnings: form.importWarnings })),
     duplicateForm: (id) => post(`/forms/${id}/duplicate`, {}).then(withObjectOverrides),
     deleteForm: (id) => del(`/forms/${id}`),
     preview: (id, body) => post(`/forms/${id}/preview`, body),

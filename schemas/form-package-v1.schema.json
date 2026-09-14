@@ -1,0 +1,709 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AllTerrain Forms portable form, version 1",
+  "description": "YAML 1.2 or JSON. Complete form configuration, base theme and sparse styling overrides and embedded image-choice attachments. No submissions or site credentials.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": [
+        "allterrain-forms"
+      ]
+    },
+    "formatVersion": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "pluginVersion": {
+          "type": "string"
+        },
+        "siteUrl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "pluginVersion",
+        "siteUrl"
+      ]
+    },
+    "form": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "$ref": "#/definitions/formSchema"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "schema"
+      ]
+    },
+    "theme": {
+      "$ref": "#/definitions/theme"
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/asset"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "url"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "formatVersion",
+    "form",
+    "theme",
+    "assets",
+    "pages"
+  ],
+  "definitions": {
+    "tokens": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 400
+      }
+    },
+    "logic": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "show",
+            "hide"
+          ]
+        },
+        "match": {
+          "type": "string",
+          "enum": [
+            "all",
+            "any"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "is",
+                  "is_not",
+                  "contains",
+                  "not_contains",
+                  "starts_with",
+                  "ends_with",
+                  "greater",
+                  "less",
+                  "greater_equal",
+                  "less_equal",
+                  "empty",
+                  "not_empty"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "field",
+              "operator"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "choice": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "selected": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "points": {
+          "type": "number"
+        },
+        "price": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "value"
+      ]
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "cssClass": {
+          "type": "string"
+        },
+        "prefill": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "confirm": {
+          "type": "boolean"
+        },
+        "other": {
+          "type": "boolean"
+        },
+        "inline": {
+          "type": "boolean"
+        },
+        "multiple": {
+          "type": "boolean"
+        },
+        "searchable": {
+          "type": "boolean"
+        },
+        "counter": {
+          "type": "boolean"
+        },
+        "width": {
+          "type": "string",
+          "enum": [
+            "full",
+            "half",
+            "third",
+            "two-thirds",
+            "quarter"
+          ]
+        },
+        "default": {},
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/choice"
+          }
+        },
+        "logic": {
+          "$ref": "#/definitions/logic"
+        },
+        "messages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/field"
+          }
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "success": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "accent": {
+          "type": "string"
+        },
+        "buttonLabel": {
+          "type": "string"
+        },
+        "intensity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "showButton": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "cc": {
+          "type": "string"
+        },
+        "bcc": {
+          "type": "string"
+        },
+        "replyTo": {
+          "type": "string"
+        },
+        "fromName": {
+          "type": "string"
+        },
+        "fromEmail": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "attachFiles": {
+          "type": "boolean"
+        },
+        "logic": {
+          "$ref": "#/definitions/logic"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ]
+    },
+    "confirmation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "message",
+            "redirect",
+            "page"
+          ]
+        },
+        "pageId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "success": {
+          "$ref": "#/definitions/success"
+        },
+        "logic": {
+          "$ref": "#/definitions/logic"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "logic": {
+          "$ref": "#/definitions/logic"
+        },
+        "settings": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "theme": {
+          "type": "string"
+        },
+        "themeOverrides": {
+          "$ref": "#/definitions/tokens"
+        },
+        "submitLabel": {
+          "type": "string"
+        },
+        "labelPosition": {
+          "type": "string"
+        },
+        "loginMessage": {
+          "type": "string"
+        },
+        "ajax": {
+          "type": "boolean"
+        },
+        "requireLogin": {
+          "type": "boolean"
+        },
+        "progressBar": {
+          "type": "string",
+          "enum": [
+            "steps",
+            "bar",
+            "none"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limit": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "perUser": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "spam": {
+          "type": "object",
+          "properties": {
+            "honeypot": {
+              "type": "boolean"
+            },
+            "akismet": {
+              "type": "boolean"
+            },
+            "challenge": {
+              "type": "boolean"
+            },
+            "timeTrap": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rateLimit": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocklist": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "entries": {
+              "type": "boolean"
+            },
+            "ip": {
+              "type": "boolean"
+            },
+            "userAgent": {
+              "type": "boolean"
+            },
+            "anonymise": {
+              "type": "boolean"
+            },
+            "retention": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "analytics": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "tech": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "resume": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "quiz": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "passMark": {
+              "type": "number",
+              "minimum": 0
+            },
+            "showScore": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "theme"
+      ]
+    },
+    "formSchema": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/field"
+          }
+        },
+        "settings": {
+          "$ref": "#/definitions/settings"
+        },
+        "notifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/notification"
+          }
+        },
+        "confirmations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/confirmation"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/action"
+          }
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "version",
+        "fields",
+        "settings"
+      ]
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "dark": {
+          "type": "boolean"
+        },
+        "tokens": {
+          "$ref": "#/definitions/tokens"
+        },
+        "base": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Built-in theme slug. tokens contains only differences from this base."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "slug",
+        "label",
+        "dark",
+        "tokens",
+        "base"
+      ]
+    },
+    "asset": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "filename": {
+          "type": "string"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "filename",
+        "mime",
+        "title",
+        "alt",
+        "url",
+        "data"
+      ]
+    }
+  }
+}

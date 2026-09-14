@@ -353,3 +353,40 @@ The desktop canvas preview now allows up to 820px (100px wider than before).
 The desktop palette and inspector reserve 100px less combined, giving that space
 to the draggable previews while preserving the narrower-window layouts. Shell button hosts receive no extra
 padding on hover; their internal components own the button dimensions.
+
+## Form package transport
+
+The builder's Export, Import and Validate YAML controls use [portable form packages](form-packages.md). `src/shared/form-package.mjs` provides `parsePackage(text)`, `stringifyPackage(value)`, `packageValidator(schema)`, and `packageObjects(value, schema)` for the builder and offline validator. These are development modules, not new properties on `window.wp`. The shared JSON Schema lives in `schemas/form-package-v1.schema.json`. File parsing is local; the existing authenticated REST client handles server export, dry-run validation and import.
+
+## MIO adapter (experimental)
+
+`src/mio/assistant.ts` registers private window tools through the feature-detected
+`wp.os.mio.registerWindow(instanceId, context)` API reviewed in OpenStation PR #816.
+`begin_form_edit`, `list_form_options`, `validate_form_yaml` and `apply_form_edit`
+are scoped to the native builder lease. They are not global WordPress abilities.
+The actual lease is disposed when the root disconnects or the builder is destroyed.
+Help sources in `docs/mio/` are compiled as raw Markdown through Vite; update these
+files alongside field/setting changes and rebuild the builder bundle.
+
+See [workflow](mio/workflow.md), [error and retry contract](mio/validation.md),
+[REST routes](architecture.md) and [upstream API feedback](mio-api-feedback.md).
+
+
+The recovery API adapter declares tool effects and supplies turn lifecycle,
+opaque editor revisions, document metadata, bounded history compaction and an
+operation-status resolver. Newer MIO receives structured no-effect validation
+rejections and confirmed server receipts. Older MIO keeps its original argument
+and result shapes. The integration tests can run against the sibling API source:
+
+```bash
+ATF_MIO_SOURCE=../alcazaba-plugin npm test -- --run tests/vitest/mio-contract.test.ts
+```
+
+The environment variable temporarily allows Vite to read that source directory
+for tests; it introduces no runtime or published-package dependency. Without it,
+only the two optional upstream conformance tests are skipped.
+
+The [response action handoff](mio-action-buttons-proposal.md) records the button
+proposal and its implementation in the developer’s unmerged working checkout.
+
+The optional MIO `responseActions` callback offers Preview only after a confirmed save. Its callback captures the saved form ID, calls `api.getForm(id, signal)` to refresh the authorized URL, and opens the existing native preview without autosaving. The shell owns button rendering, pending/error state and callback disposal. See [the response action handoff and implementation status](mio-action-buttons-proposal.md).

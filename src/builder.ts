@@ -20,6 +20,11 @@
  */
 
 import { api, runtime } from './api';
+import { mountFormMio } from './mio/assistant';
+import type { EditorSnapshot, FormAssistantHost } from './mio/types';
+import { MAX_PACKAGE_BYTES, parsePackage, stringifyPackage, packageValidator, packageObjects } from './shared/form-package.mjs';
+import packageContract from '../schemas/form-package-v1.schema.json';
+
 import { conditionValueOptions } from './condition-values';
 import { buildPayload, getDragManager, insertionIndex, watchShellDragVisuals } from './dnd';
 import {
@@ -468,6 +473,7 @@ import type {
 import { FIELD_PAYLOAD_TYPE, MEDIA_PAYLOAD_TYPES } from './types';
 
 const i18n = ( key: string, fallback: string ): string => runtime?.i18n?.[ key ] ?? fallback;
+const validatePackage = packageValidator( packageContract );
 
 /** The builder, mounted into one root element. */
 export class Builder {
@@ -532,6 +538,8 @@ export class Builder {
 
 	/** Whether a save request is out right now. Saves are serialised, never raced. */
 	private saveInFlight = false;
+
+	private assistantSaving = false;
 
 	/**
 	 * At most one save waiting behind the in-flight one.
@@ -681,7 +689,68 @@ export class Builder {
 		} else {
 			this.renderFormsList();
 		}
+		this.teardowns.push( mountFormMio( {
+			root: this.root,
+			read: () => this.assistantSnapshot(),
+			prepare: async () => {
+				if ( this.saveInFlight || this.assistantSaving ) throw new Error( 'Wait for the current save to finish.' );
+			},
+			options: () => ( { config: this.config, themes: this.themes } ),
+			apply: this.applyAssistant,
+		} ) );
 	}
+
+	/** Snapshot includes the form identity, all settings and edits since the last read. */
+	private assistantSnapshot(): EditorSnapshot {
+		const draft = { title: this.form?.title ?? 'Untitled form', schema: this.schema ?? { version: 1, fields: [], settings: {}, notifications: [], confirmations: [], actions: [] } };
+		return {
+			formId: this.form?.id ?? 0,
+			fingerprint: JSON.stringify( [ this.form?.id, this.editGeneration, draft ] ),
+			draft: structuredClone( draft ) as EditorSnapshot['draft'],
+			busy: this.saveInFlight || this.assistantSaving,
+			dirty: this.dirty,
+		};
+	}
+
+	/** Saves only a validated receipt while keeping late responses out of another form. */
+	private readonly applyAssistant: FormAssistantHost['apply'] = async ( draft, mode, snapshot, revision, signal, operationKey ) => {
+		if ( signal.aborted || ! this.root.isConnected || this.assistantSnapshot().fingerprint !== snapshot.fingerprint || this.saveInFlight || this.assistantSaving ) {
+			throw new Error( 'The editor changed or is saving. Read it again before applying.' );
+		}
+		this.assistantSaving = true;
+		const wasInert = this.root.inert;
+		this.root.inert = true;
+		try {
+			const saved = await api.assistantApply( draft, mode === 'update' ? snapshot.formId : 0, revision, signal, operationKey );
+			if ( signal.aborted || ! this.root.isConnected || this.assistantSnapshot().fingerprint !== snapshot.fingerprint ) {
+				// Preserve the authoritative receipt without painting into a stale editor.
+				return saved;
+			}
+			this.form = saved;
+			this.schema = saved.schema;
+			this.dirty = false;
+			this.selected = null;
+			this.editGeneration++;
+			if ( mode === 'create' ) { this.history = []; this.historyAt = -1; }
+			this.snapshot();
+			const previous = this.forms.find( ( item ) => item.id === saved.id );
+			this.forms = [ {
+				unread: 0, views: 0, submissions: 0, ...previous,
+				id: saved.id, title: saved.title, status: saved.status, modified: saved.modified,
+				fields: saved.schema.fields.length, theme: saved.schema.settings.theme, entries: saved.entries, shortcode: saved.shortcode,
+			}, ...this.forms.filter( ( item ) => item.id !== saved.id ) ];
+			forgetMergeTags( saved.id );
+			refreshPreview( saved.id, saved.title, saved.previewUrl );
+			this.renderBar();
+			this.renderCanvas();
+			this.renderInspector();
+			this.announceIdentity();
+			return saved;
+		} finally {
+			this.assistantSaving = false;
+			this.root.inert = wasInert;
+		}
+	};
 
 	/** Releases every listener this instance registered. */
 	public destroy(): void {
@@ -793,6 +862,7 @@ export class Builder {
 					button( 'New', () => void this.showTemplates(), 'secondary', 'plus-alt2' ),
 					button( 'Export', () => void this.exportForm(), 'secondary', 'download' ),
 					button( 'Import', () => void this.importForm(), 'secondary', 'upload' ),
+					button( 'Validate YAML', () => void this.importForm( true ), 'secondary', 'yes-alt' ),
 					// The same action the title bar's eye performs, for the admin
 					// page — where there is no title bar to put an eye in.
 					button( 'Preview', () => void this.preview(), 'secondary', 'visibility' ),
@@ -1074,73 +1144,74 @@ export class Builder {
 		}
 	}
 
-	/**
-	 * Downloads the current form as JSON.
-	 *
-	 * The exported document is the schema and the title — the same shape
-	 * `/forms` accepts on the way back in, so an export from one site is an
-	 * import on another with nothing in between. Entry data is deliberately not
-	 * in it: this is the form, not what people said in it.
-	 */
-	private exportForm(): void {
-		if ( ! this.form || ! this.schema ) {
-			return;
-		}
-
-		const payload = {
-			plugin: 'allterrain-forms',
-			version: runtime?.version ?? '',
-			title: this.form.title,
-			schema: this.schema,
-		};
-
-		const blob = new Blob( [ JSON.stringify( payload, null, '\t' ) ], { type: 'application/json' } );
-		const url = URL.createObjectURL( blob );
-		const link = el( 'a', {
-			href: url,
-			attrs: { download: `${ this.form.title.replace( /[^a-z0-9]+/gi, '-' ).toLowerCase() || 'form' }.json` },
-		} );
-
-		document.body.append( link );
-		link.click();
-		link.remove();
-
-		// Revoked on a later tick: some browsers have not finished reading the
-		// blob when `click()` returns.
-		window.setTimeout( () => URL.revokeObjectURL( url ), 1000 );
+	/** Keeps validation details visible and copyable until dismissed. */
+	private showPackageResult( title: string, message: string ): void {
+		if ( ! this.root.isConnected ) return;
+		const dialog = el( 'dialog', { class: 'atfb-package-dialog', attrs: { 'aria-label': title } } );
+		dialog.append(
+			el( 'h2', { text: title } ),
+			el( 'pre', { text: message } ),
+			button( 'Close', () => dialog.close() )
+		);
+		dialog.addEventListener( 'close', () => dialog.remove(), { once: true } );
+		this.root.append( dialog );
+		dialog.showModal();
 	}
 
-	/**
-	 * Creates a form from an exported JSON document.
-	 *
-	 * A new form rather than an overwrite of the open one. Import is the sort of
-	 * action people try to see what happens, and "see what happens" must never
-	 * mean "replace the form I spent an afternoon on".
-	 *
-	 * The schema is normalised server-side on the way in, so a hand-edited or
-	 * out-of-date document cannot put anything unusable into the database.
-	 */
-	private async importForm(): Promise< void > {
-		const picker = el( 'input', { type: 'file', attrs: { accept: 'application/json,.json' } } );
+	/** Downloads the current editor snapshot with its theme and image assets. */
+	private async exportForm(): Promise< void > {
+		if ( ! this.form || ! this.schema ) return;
+		const id = this.form.id;
+		const title = this.form.title;
+		const schema = JSON.parse( JSON.stringify( this.schema ) ) as FormSchema;
+		try {
+			const payload = packageObjects( await api.exportForm( id, { title, schema } ), packageContract );
+			validatePackage( payload );
+			const yaml = stringifyPackage( payload );
+			// The exported file must satisfy the same byte limit as the picker.
+			if ( new TextEncoder().encode( yaml ).length > MAX_PACKAGE_BYTES ) {
+				throw new Error( 'The form package exceeds the 16 MiB limit.' );
+			}
+			const url = URL.createObjectURL( new Blob( [ yaml ], { type: 'application/yaml' } ) );
+			const link = el( 'a', {
+				href: url,
+				attrs: { download: `${ title.replace( /[^a-z0-9]+/gi, '-' ).toLowerCase() || 'form' }.yaml` },
+			} );
+			document.body.append( link );
+			link.click();
+			link.remove();
+			window.setTimeout( () => URL.revokeObjectURL( url ), 1000 );
+		} catch ( error ) {
+			this.showPackageResult( 'Could not export this form', error instanceof Error ? error.message : '' );
+		}
+	}
 
+	/** Validates YAML/JSON before importing a new draft, or performs a dry run. */
+	private async importForm( validateOnly = false ): Promise< void > {
+		const picker = el( 'input', { type: 'file', attrs: { accept: '.yaml,.yml,.json,application/yaml,application/json' } } );
 		picker.addEventListener( 'change', async () => {
 			const file = picker.files?.[ 0 ];
-
-			if ( ! file ) {
-				return;
-			}
-
+			if ( ! file ) return;
 			try {
-				const parsed = JSON.parse( await file.text() ) as { title?: string; schema?: unknown };
-
-				if ( ! parsed.schema ) {
-					throw new Error( 'That file does not contain a form.' );
+				if ( file.size > MAX_PACKAGE_BYTES ) throw new Error( 'The form package exceeds the 16 MiB limit.' );
+				const parsed = parsePackage( await file.text() );
+				validatePackage( parsed );
+				const checked = await api.validateFormPackage( parsed );
+				if ( validateOnly ) {
+					this.showPackageResult( 'Valid form package', checked.warnings.join( '\n' ) || 'The form, theme and images are ready to import.' );
+					return;
 				}
-
-				const created = await api.createForm( {
-					title: parsed.title ?? file.name.replace( /\.json$/i, '' ),
-					schema: parsed.schema,
-				} );
+				// Do not discard the open form's unsaved work when adopting the import.
+				if ( this.dirty ) {
+					await this.save();
+					if ( this.dirty || this.saveInFlight ) throw new Error( 'Wait for the current form to finish saving before importing another one.' );
+				}
+				if ( this.saveInFlight ) throw new Error( 'Wait for the current form to finish saving before importing another one.' );
+				const sourceId = this.form?.id;
+				const generation = this.editGeneration;
+				const created = await api.importFormPackage( parsed );
+				// A failed theme-list refresh must not make a completed import look failed.
+				try { this.themes = await api.listThemes(); } catch { /* Refreshed on the next open. */ }
 
 				this.forms.unshift( {
 					id: created.id,
@@ -1156,6 +1227,12 @@ export class Builder {
 					shortcode: created.shortcode,
 				} );
 
+				if ( this.form?.id !== sourceId || this.editGeneration !== generation || this.dirty || this.saveInFlight ) {
+					this.renderBar();
+					notify( 'Form imported as a draft', `${ created.title } is available in the form picker. Your current edits are still open.` );
+					return;
+				}
+
 				this.form = created;
 				this.schema = created.schema;
 				this.selected = null;
@@ -1168,9 +1245,10 @@ export class Builder {
 				this.renderCanvas();
 				this.renderInspector();
 
-				notify( 'Form imported', created.title );
+				this.announceIdentity();
+				this.showPackageResult( 'Form imported as a draft', [ created.title, ...( created.importWarnings ?? [] ) ].join( '\n' ) );
 			} catch ( error ) {
-				notify( 'Could not import that file', error instanceof Error ? error.message : '', 'error' );
+				this.showPackageResult( validateOnly ? 'Validation failed' : 'Could not import that file', error instanceof Error ? error.message : '' );
 			}
 		} );
 
@@ -1220,7 +1298,7 @@ export class Builder {
 
 	/** Writes the form back. */
 	private async save( silent = false ): Promise< void > {
-		if ( ! this.form || ! this.schema ) {
+		if ( ! this.form || ! this.schema || this.assistantSaving || ( silent && ! this.dirty ) ) {
 			return;
 		}
 
@@ -1332,6 +1410,7 @@ export class Builder {
 	}
 
 	private async open( id: number ): Promise< void > {
+		if ( this.assistantSaving ) return;
 		if ( this.dirty && ! ( await confirmAction( 'You have unsaved changes. Discard them?' ) ) ) {
 			return;
 		}

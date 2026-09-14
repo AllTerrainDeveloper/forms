@@ -33,6 +33,27 @@ function alltfo_register_rest_routes() {
 
 	register_rest_route(
 		$ns,
+		'/forms/(?P<id>\d+)/export',
+		array(
+			'methods'             => array( WP_REST_Server::READABLE, WP_REST_Server::CREATABLE ),
+			'callback'            => 'alltfo_rest_export_form_package',
+			'permission_callback' => 'alltfo_rest_can_edit',
+		)
+	);
+	foreach ( array( 'validate', 'import' ) as $operation ) {
+		register_rest_route(
+			$ns,
+			'/form-packages/' . $operation,
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => 'alltfo_rest_' . $operation . '_form_package',
+				'permission_callback' => 'alltfo_rest_can_edit',
+			)
+		);
+	}
+
+	register_rest_route(
+		$ns,
 		'/submit',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -1281,4 +1302,54 @@ function alltfo_rest_demo_seed( $request ) {
  */
 function alltfo_rest_demo_remove() {
 	return rest_ensure_response( alltfo_demo_remove() );
+}
+
+/**
+ * Exports a portable model, with an optional unsaved builder snapshot.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function alltfo_rest_export_form_package( $request ) {
+	$title = $request->get_param( 'title' );
+	if ( null !== $title && ! is_string( $title ) ) {
+		return new WP_Error( 'alltfo_package_invalid', 'title must be a string.', array( 'status' => 400 ) );
+	}
+	$package = alltfo_export_form_package( absint( $request['id'] ), $request->get_param( 'schema' ), $title );
+	return is_wp_error( $package ) ? $package : rest_ensure_response( (array) alltfo_package_object_maps( $package ) );
+}
+
+/**
+ * Dry-run validation: no persistent changes.
+ *
+ * @param WP_REST_Request $request Request containing a decoded package.
+ * @return WP_REST_Response|WP_Error
+ */
+function alltfo_rest_validate_form_package( $request ) {
+	$result = alltfo_validate_form_package( $request->get_param( 'package' ) );
+	return is_wp_error( $result ) ? $result : rest_ensure_response(
+		array(
+			'valid'    => true,
+			'warnings' => $result['warnings'],
+		)
+	);
+}
+
+/**
+ * Imports a package and returns the builder's normal form response.
+ *
+ * @param WP_REST_Request $request Request containing a decoded package.
+ * @return WP_REST_Response|WP_Error
+ */
+function alltfo_rest_import_form_package( $request ) {
+	$result = alltfo_import_form_package( $request->get_param( 'package' ) );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	$response               = alltfo_rest_form_response( $result['formId'] );
+	$data                   = $response->get_data();
+	$data['importWarnings'] = $result['warnings'];
+	$response->set_data( $data );
+	$response->set_status( 201 );
+	return $response;
 }

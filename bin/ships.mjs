@@ -25,6 +25,9 @@ export const EXCLUDED = new Set( [
 	'vite.config.js',
 	'.wp-env.json',
 	'tsconfig.json',
+	'playwright.config.ts',
+	'test-results',
+	'playwright-report',
 
 	// Developer documentation. `readme.txt` is the one users see, and it ships;
 	// `docs/` is the contract with plugin authors and lives in the repository.

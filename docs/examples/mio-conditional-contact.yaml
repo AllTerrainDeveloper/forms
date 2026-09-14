@@ -1,0 +1,40 @@
+title: How did you hear about us?
+schema:
+  version: 1
+  fields:
+    - id: name
+      type: text
+      label: Name
+      required: true
+      width: half
+    - id: surname
+      type: text
+      label: Surname
+      required: true
+      width: half
+    - id: heard
+      type: select
+      label: How did you hear about us?
+      required: true
+      placeholder: Choose an option
+      choices:
+        - {value: search, label: Search engine}
+        - {value: friend, label: Friend or colleague}
+        - {value: other, label: Other}
+    - id: details
+      type: textarea
+      label: Please tell us how you heard about us
+      required: true
+      rows: 4
+      logic:
+        enabled: true
+        action: show
+        match: all
+        rules:
+          - {field: heard, operator: is, value: other}
+  settings:
+    theme: clean
+    themeOverrides: {}
+  notifications: []
+  confirmations: []
+  actions: []
