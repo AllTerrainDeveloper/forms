@@ -142,6 +142,7 @@ if ( existsSync( target ) && ! existsSync( join( target, OWNERSHIP_MARKER ) ) ) 
 for ( const required of [
 	'assets/js/form.min.js',
 	'assets/js/builder.min.js',
+	'assets/js/titlebar.min.js',
 	'assets/js/entries.min.js',
 	'assets/js/widget.min.js',
 ] ) {

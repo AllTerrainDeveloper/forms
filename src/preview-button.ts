@@ -14,7 +14,7 @@
  * change one thing, and open it again.
  *
  * All of it degrades. Without a shell there is no title bar to put a button in,
- * so `register()` returns a teardown that does nothing and the builder's own
+ * so `registerPreviewButton()` returns a teardown that does nothing and the builder's own
  * Preview button opens the same URL in a tab.
  */
 
@@ -49,13 +49,47 @@ export interface PreviewSource {
 	save(): Promise< void >;
 }
 
+/** Where builders publish their sources, shared across bundles on `window`. */
+const SOURCES_KEY = 'allTerrainFormsPreviewSources';
+
+function sources(): PreviewSource[] {
+	const host = window as unknown as Record< string, PreviewSource[] | undefined >;
+
+	return ( host[ SOURCES_KEY ] ??= [] );
+}
+
+/**
+ * Tells the title-bar button which form to preview.
+ *
+ * The button itself lives in the small `titlebar` bundle, which the shell runs
+ * at boot so the eye can paint before any builder has loaded. The builder, when
+ * it does load, hands over a view onto itself here. The most recent builder
+ * wins, which is what a single registered button meant before the split.
+ *
+ * Returns a teardown that withdraws this source.
+ */
+export function providePreviewSource( source: PreviewSource ): () => void {
+	sources().push( source );
+
+	return () => {
+		const list = sources();
+		const index = list.lastIndexOf( source );
+
+		if ( index !== -1 ) {
+			list.splice( index, 1 );
+		}
+	};
+}
+
 /**
  * Adds the eye to the builder window's title bar.
  *
- * Returns a teardown. Safe to call with no shell present — it registers nothing
- * and the teardown is a no-op.
+ * Called once, from the `titlebar` bundle. The click previews whichever form
+ * the most recently loaded builder has open, and does nothing before a builder
+ * has loaded. Returns a teardown. Safe to call with no shell present: it
+ * registers nothing and the teardown is a no-op.
  */
-export function registerPreviewButton( source: PreviewSource ): () => void {
+export function registerPreviewButton(): () => void {
 	const os = shell() as ( ShellApi & TitleBarApi ) | null;
 
 	if ( ! os?.registerTitleBarButton ) {
@@ -81,8 +115,15 @@ export function registerPreviewButton( source: PreviewSource ): () => void {
 
 					return id === 'allterrain-forms' || id.startsWith( 'allterrain-forms#' );
 				},
-				onClick: () => void openPreview( source ),
-				owner: 'allterrain-forms-builder',
+				onClick: () => {
+					const list = sources();
+					const source = list[ list.length - 1 ];
+
+					if ( source ) {
+						void openPreview( source );
+					}
+				},
+				owner: 'allterrain-forms-titlebar',
 			} );
 		} catch {
 			// `registerTitleBarButton` throws a RegistrationError on a shell

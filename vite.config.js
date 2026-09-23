@@ -44,6 +44,11 @@ const TARGETS = {
 		fileBase: 'analytics',
 		iifeName: 'allTerrainFormsAnalytics',
 	},
+	titlebar: {
+		entry: 'src/titlebar.ts',
+		fileBase: 'titlebar',
+		iifeName: 'allTerrainFormsTitlebar',
+	},
 	dock: {
 		entry: 'src/dock.ts',
 		fileBase: 'dock',

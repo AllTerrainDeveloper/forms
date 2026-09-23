@@ -121,6 +121,16 @@ function alltfo_register_assets() {
 		true
 	);
 
+	// The title-bar provider. Like the dock tile it runs at every boot, so it
+	// holds only the preview button and never the builder.
+	wp_register_script(
+		'allterrain-forms-titlebar',
+		ALLTFO_URL . "assets/js/titlebar{$suffix}.js",
+		array(),
+		alltfo_asset_version( "assets/js/titlebar{$suffix}.js" ),
+		true
+	);
+
 	wp_register_script(
 		'allterrain-forms-widget',
 		ALLTFO_URL . "assets/js/widget{$suffix}.js",
