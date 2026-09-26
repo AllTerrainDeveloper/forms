@@ -2,13 +2,14 @@ import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 
 /**
- * Four bundles, eight passes.
+ * Separate bundles for the plugin's different loading schedules.
  *
  * They are separate because they load on entirely different schedules: `form`
  * ships to every visitor on a page with a form on it, `builder` only to somebody
  * editing one, `entries` only to somebody reading submissions, and `widget` only
- * to somebody who has put the widget on their desktop. A single bundle would
- * make every visitor download the form builder.
+ * to somebody who has put the widget on their desktop. The small `dock` and
+ * `titlebar` bundles load with OpenStation, without pulling in the builder.
+ * A single bundle would make every visitor download the form builder.
  *
  * Each target builds twice: `--mode development` emits the readable file
  * WordPress serves under `SCRIPT_DEBUG`, `--mode production` the minified one.

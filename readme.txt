@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -327,6 +327,12 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
+= 1.2.2 =
+
+* Loads a dedicated, 1 KB title-bar preview provider at OpenStation startup instead of the 505 KB form builder bundle.
+* Keeps the Preview button available on builder windows and saves unsaved edits before opening the preview.
+* Thanks to Juan Lentino for the performance improvement in PR #58.
+
 = 1.2.1 =
 
 * Fixed the Recent submissions desktop widget failing to mount in OpenStation because its callback was absent from the widget registry.
@@ -372,6 +378,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.2.2 =
+Faster OpenStation startup when no form builder is open. Form and entry data are unchanged.
 
 = 1.2.1 =
 Restores the Recent submissions desktop widget in OpenStation. No form or entry data changes.
