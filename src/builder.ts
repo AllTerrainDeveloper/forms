@@ -62,7 +62,7 @@ import { formulaInput, openFormulaEditor } from './formula-editor';
 import { openConditionCopy } from './condition-copy';
 import { compileRecipe, describeRecipe, openValidationEditor, parseRecipe } from './validation-editor';
 import { VALIDATION_GROUPS, VALIDATION_PRESETS, validationPreset } from './shared/validation';
-import { openPreview, refreshPreview, registerPreviewButton } from './preview-button';
+import { openPreview, providePreviewSource, refreshPreview } from './preview-button';
 import { formIdentity, setIdentity } from './relations';
 
 /**
@@ -661,11 +661,11 @@ export class Builder {
 		this.teardowns.push( watchShellDragVisuals( [ FIELD_PAYLOAD_TYPE ] ) );
 
 		// The eye in the window's title bar, matching the shell's own
-		// editor-preview convention. Registered with a view onto this builder
-		// rather than a snapshot, so the button always previews whichever form
-		// is open now.
+		// editor-preview convention. The button is registered by the small
+		// titlebar bundle; this hands it a view onto this builder rather than a
+		// snapshot, so it always previews whichever form is open now.
 		this.teardowns.push(
-			registerPreviewButton( {
+			providePreviewSource( {
 				current: () =>
 					this.form
 						? { id: this.form.id, title: this.form.title, previewUrl: this.form.previewUrl }

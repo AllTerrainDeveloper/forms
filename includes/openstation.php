@@ -234,8 +234,10 @@ function alltfo_register_shell_surfaces() {
 	// *script* here is what makes the button paint for a session that was
 	// already open when this plugin was activated -- without it, the button only
 	// appears after a reload, which is exactly when nobody is looking for it.
+	// The shell runs this script at every boot, so it is the small titlebar
+	// bundle rather than the builder, which loads with its window.
 	if ( $has_builder && alltfo_shell_has( 'register_titlebar_button_script' ) ) {
-		alltfo_shell_call( 'register_titlebar_button_script', 'allterrain-forms-builder' );
+		alltfo_shell_call( 'register_titlebar_button_script', 'allterrain-forms-titlebar' );
 	}
 
 	if ( $has_builder && alltfo_shell_has( 'register_icon' ) ) {

@@ -14064,47 +14064,19 @@ ${end.comment}` : end.comment;
   function shell() {
     return window.wp?.os ?? null;
   }
-  const BUTTON_ID = "allterrain-forms/preview";
   const PREVIEW_WINDOW_ID = "allterrain-forms-preview";
-  function registerPreviewButton(source) {
-    const os = shell();
-    if (!os?.registerTitleBarButton) {
-      return () => {
-      };
-    }
-    const register = () => {
-      try {
-        os.registerTitleBarButton({
-          id: BUTTON_ID,
-          label: "Preview this form",
-          icon: "dashicons-visibility",
-          placement: "right",
-          // Just before the shell's own Related button, so the builder's
-          // eye lands where every other window's eye is.
-          order: 90,
-          // Only the builder window. The predicate is called against a live
-          // `Window`, and a throw counts as "does not match" — so a shell
-          // whose `Window` shape differs simply does not show the button
-          // rather than erroring on every repaint.
-          match: (window2) => {
-            const id2 = window2?.id ?? window2?.config?.id ?? "";
-            return id2 === "allterrain-forms" || id2.startsWith("allterrain-forms#");
-          },
-          onClick: () => void openPreview(source),
-          owner: "allterrain-forms-builder"
-        });
-      } catch {
-      }
-    };
-    if (os.ready) {
-      os.ready(register);
-    } else {
-      register();
-    }
+  const SOURCES_KEY = "allTerrainFormsPreviewSources";
+  function sources() {
+    const host = window;
+    return host[SOURCES_KEY] ?? (host[SOURCES_KEY] = []);
+  }
+  function providePreviewSource(source) {
+    sources().push(source);
     return () => {
-      try {
-        os.unregisterTitleBarButton?.(BUTTON_ID);
-      } catch {
+      const list = sources();
+      const index = list.lastIndexOf(source);
+      if (index !== -1) {
+        list.splice(index, 1);
       }
     };
   }
@@ -17989,9 +17961,9 @@ ${end.comment}` : end.comment;
       }
       const sections = conditionSections(schema2);
       const target = sections.find((item) => item.key === to);
-      const sources = sections.filter((item) => item.logic.rules.length && target && canCopyCondition(item, target, schema2));
-      const source = sources.find((item) => item.key === from);
-      const sourcePicker = select(from, [{ value: "", label: "Choose a section…" }, ...sources.map((item) => ({ value: item.key, label: item.label }))], (value) => {
+      const sources2 = sections.filter((item) => item.logic.rules.length && target && canCopyCondition(item, target, schema2));
+      const source = sources2.find((item) => item.key === from);
+      const sourcePicker = select(from, [{ value: "", label: "Choose a section…" }, ...sources2.map((item) => ({ value: item.key, label: item.label }))], (value) => {
         from = value;
         paint();
         dialog.querySelector('[aria-label="Copy from"]')?.focus();
@@ -18012,7 +17984,7 @@ ${end.comment}` : end.comment;
         el("h2", { text: "Copy condition" }),
         row("Copy from", sourcePicker),
         el("p", { class: "atfb-hint", text: `Apply to ${destination?.label ?? "this section"}.` }),
-        el("p", { class: "atfb-condition-copy__preview", attrs: { "aria-live": "polite" }, text: source ? `${source.logic.enabled ? "Enabled" : "Disabled"} · ${source.logic.action === "hide" ? "Hide" : "Show"} · Match ${source.logic.match}: ` + source.logic.rules.map((rule) => tokensToText(ruleTokens(rule, schema2.fields))).join(source.logic.match === "all" ? " and " : " or ") : sources.length ? "Choose the section whose condition you want to reuse." : "No conditions are available to copy here yet." }),
+        el("p", { class: "atfb-condition-copy__preview", attrs: { "aria-live": "polite" }, text: source ? `${source.logic.enabled ? "Enabled" : "Disabled"} · ${source.logic.action === "hide" ? "Hide" : "Show"} · Match ${source.logic.match}: ` + source.logic.rules.map((rule) => tokensToText(ruleTokens(rule, schema2.fields))).join(source.logic.match === "all" ? " and " : " or ") : sources2.length ? "Choose the section whose condition you want to reuse." : "No conditions are available to copy here yet." }),
         el("p", { class: "atfb-hint", text: destination?.logic.rules.length ? "This replaces the destination’s entire condition. You can edit the copy independently." : "Copies every rule, all/any matching, show/hide and enabled state. You can edit the copy independently." }),
         el("div", { class: "atfb-modal__actions", children: [button("Cancel", close), apply] })
       );
@@ -19285,7 +19257,7 @@ ${end.comment}` : end.comment;
       }
       this.teardowns.push(watchShellDragVisuals([FIELD_PAYLOAD_TYPE]));
       this.teardowns.push(
-        registerPreviewButton({
+        providePreviewSource({
           current: () => this.form ? { id: this.form.id, title: this.form.title, previewUrl: this.form.previewUrl } : null,
           isDirty: () => this.dirty,
           save: () => this.save(true)

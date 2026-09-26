@@ -63,6 +63,7 @@ function fail( message ) {
 const required = [
 	'assets/js/form.min.js',
 	'assets/js/builder.min.js',
+	'assets/js/titlebar.min.js',
 	'assets/js/entries.min.js',
 	'assets/js/dock.min.js',
 	'assets/js/widget.min.js',
