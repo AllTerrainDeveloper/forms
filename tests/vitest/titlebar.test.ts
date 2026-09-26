@@ -33,6 +33,7 @@ describe( 'the title-bar provider', () => {
 describe( 'the preview button', () => {
 	afterEach( () => {
 		delete ( window as unknown as { wp?: unknown } ).wp;
+		delete ( window as unknown as { allTerrainFormsPreviewSources?: unknown } ).allTerrainFormsPreviewSources;
 	} );
 
 	function stubShell() {
@@ -73,5 +74,24 @@ describe( 'the preview button', () => {
 		shell.click();
 		await Promise.resolve();
 		expect( shell.open ).not.toHaveBeenCalled();
+	} );
+
+	it( 'shares the preview source with the separately built titlebar bundle', async () => {
+		const shell = stubShell();
+		const bundle = readFileSync( resolve( root, 'assets/js/titlebar.min.js' ), 'utf8' );
+
+		new Function( 'window', bundle )( window );
+
+		const withdraw = providePreviewSource( {
+			current: () => ( { id: 9, title: 'Quote', previewUrl: 'https://example.test/?p=9' } ),
+			isDirty: () => false,
+			save: async () => {},
+		} );
+
+		shell.click();
+		await Promise.resolve();
+		expect( shell.open ).toHaveBeenCalledWith( expect.objectContaining( { id: 'allterrain-forms-preview-9' } ) );
+
+		withdraw();
 	} );
 } );

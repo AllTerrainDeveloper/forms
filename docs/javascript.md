@@ -131,20 +131,17 @@ widget subscribe to, so a new submission appears without a refresh.
 
 Registered through the shell's public `registerTitleBarButton` surface as
 `allterrain-forms/preview` — the same seam the shell's own editor→preview pairing
-uses.
+uses. OpenStation loads the `allterrain-forms-titlebar` script at startup, so
+the eye appears on restored builder windows without downloading the builder.
+The button keeps its label, icon, right-hand placement, and order before the
+shell's Related button. Its `owner` is `allterrain-forms-titlebar`, allowing
+OpenStation to unregister it if the plugin is deactivated mid-session.
 
-```javascript
-wp.os.registerTitleBarButton( {
-	id:        'allterrain-forms/preview',
-	label:     'Preview this form',
-	icon:      'dashicons-visibility',
-	placement: 'right',
-	order:     90,                    // just before the shell's Related button
-	match:     ( w ) => w.id === 'allterrain-forms',
-	onClick:   () => openPreview( source ),
-	owner:     'allterrain-forms-builder',
-} );
-```
+When a builder opens, it calls `providePreviewSource()` with live access to its
+current form, dirty state, and save method. The title-bar button uses the most
+recently provided source; closing that builder withdraws it. This shared state lives
+on `window` so the separately built title-bar and builder bundles can exchange
+it without loading each other.
 
 Pressing it saves any unsaved work first — the preview is a render of the
 *stored* form, so previewing without saving would quietly show the last saved
@@ -154,9 +151,8 @@ version and look like the builder had lost the edit — then opens
 Saving again refreshes that window rather than stacking a second copy, which is
 what makes the builder-and-preview-side-by-side loop work.
 
-Everything degrades: with no shell there is no title bar, `registerPreviewButton`
-returns a no-op teardown, and the builder's own Preview button opens the same URL
-in a tab.
+Everything degrades: with no shell there is no title bar, and the builder's own
+Preview button opens the same URL in a tab.
 
 ---
 

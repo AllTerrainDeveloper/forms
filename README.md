@@ -326,6 +326,7 @@ Place a form with the shortcode the builder shows you:
 | Command | What it does |
 |---|---|
 | `npm run build` | Builds every bundle, dev and minified, then mirrors into a local site |
+| `npm run build:titlebar` | Builds the small title-bar preview provider, dev and minified |
 | `npm run dev` | Rebuilds the builder bundle on save |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest — the shared conformance suites |
