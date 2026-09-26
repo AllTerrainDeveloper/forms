@@ -284,6 +284,10 @@ var allTerrainFormsWidget = function(exports) {
       unsubscribe?.();
     };
   }
+  const registryHost = window;
+  const registry = registryHost.openStationWidgets || registryHost.desktopModeWidgets || {};
+  registry["allterrain-forms/recent"] = renderWidget;
+  registryHost.openStationWidgets = registryHost.desktopModeWidgets = registry;
   function mountStandalone() {
     document.querySelectorAll("[data-atfw-root]").forEach((host) => {
       if (host.dataset.atfwMounted) {

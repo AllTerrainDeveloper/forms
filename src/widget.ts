@@ -135,11 +135,21 @@ export function renderWidget( host: HTMLElement ): () => void {
  * overwritten a moment later by the bundle itself, which is a bug that only
  * shows up in the built file and never in a test.
  *
- * So the contract is expressed as an export instead: the shell finds
- * `window.allTerrainFormsWidget.render` because `render` is what this module
- * exports.
+ * The export stays for anything that reads that global. The shell itself does
+ * not: OpenStation looks up mount callbacks by widget id in
+ * `window.openStationWidgets` (`window.desktopModeWidgets` on older Desktop
+ * Mode builds), so the callback is registered there too. That is a different
+ * global from the one the IIFE overwrites, so assigning it here is safe.
  */
 export { renderWidget as render };
+
+type WidgetRegistry = Record< string, ( host: HTMLElement ) => ( () => void ) | void >;
+
+// Merge, never replace: other plugins' widgets live in the same object.
+const registryHost = window as unknown as { openStationWidgets?: WidgetRegistry; desktopModeWidgets?: WidgetRegistry };
+const registry: WidgetRegistry = registryHost.openStationWidgets || registryHost.desktopModeWidgets || {};
+registry[ 'allterrain-forms/recent' ] = renderWidget;
+registryHost.openStationWidgets = registryHost.desktopModeWidgets = registry;
 
 /**
  * Mounts into a plain container, for the admin page.
