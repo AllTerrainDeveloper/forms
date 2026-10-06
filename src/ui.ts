@@ -158,6 +158,194 @@ export function textInput( value: string, onChange: ( value: string ) => void, p
 	} );
 }
 
+/** The three shapes a date-ish setting can take, as native input types. */
+export type DateKind = 'date' | 'time' | 'datetime-local';
+
+/** What each kind looks like, for the note under a value the picker cannot show. */
+const DATE_EXAMPLES: Record< DateKind, string > = {
+	date: 'a date',
+	time: 'a time',
+	'datetime-local': 'a date and time',
+};
+
+/**
+ * Whether a background colour is dark enough to want a dark picker.
+ *
+ * @param color A computed `rgb()`/`rgba()` string.
+ * @return True for a dark ground; false for light, transparent or unparsable.
+ */
+export function isDarkColor( color: string ): boolean {
+	const match = color.match( /rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+))?/ );
+
+	if ( ! match || ( match[ 4 ] !== undefined && Number( match[ 4 ] ) < 0.5 ) ) {
+		return false;
+	}
+
+	const [ r, g, b ] = [ match[ 1 ], match[ 2 ], match[ 3 ] ].map( Number );
+
+	// Rec. 601 luma: cheap, and the threshold only has to tell night from day.
+	return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+}
+
+/**
+ * A date, time or date-and-time setting, picked from a calendar.
+ *
+ * Feedback was blunt: nobody knew what to type into "Earliest date", or in
+ * what format. So nothing is typed. The box is the browser's own date control,
+ * which stores the ISO shape the server compares against (`2026-10-31`,
+ * `09:30`, `2026-10-31T09:30`) while *showing* it in the reader's own locale,
+ * and a click anywhere on it opens the calendar rather than only on the tiny
+ * native icon. The icon itself is replaced by a dashicon in the builder's own
+ * ink, because the native one is painted black and vanished on a dark desktop.
+ *
+ * A value saved before this control existed — typed by hand, in whatever
+ * shape — is kept, never silently blanked, and named under the box so it can
+ * be replaced with a real date.
+ *
+ * @param value    The stored value, `''` for none.
+ * @param onChange Receives the new value, `''` when cleared.
+ * @param kind     Which picker.
+ * @return The control.
+ */
+export function dateInput( value: string, onChange: ( value: string ) => void, kind: DateKind = 'date' ): HTMLElement {
+	const input = el( 'input', { class: 'atfb-input atfb-datefield__input', type: kind } );
+
+	input.value = value;
+
+	const unreadable = '' !== value && '' === input.value;
+	const note = el( 'p', {
+		class: 'atfb-datefield__note',
+		text: unreadable ? `Saved as “${ value }”, which is not ${ DATE_EXAMPLES[ kind ] }. Pick one to replace it.` : '',
+		attrs: { hidden: ! unreadable },
+	} );
+
+	const openPicker = (): void => {
+		// The calendar popup follows `color-scheme`, not the page's colours, so
+		// it is told which one the box is actually sitting on.
+		input.style.colorScheme = isDarkColor( getComputedStyle( input ).backgroundColor ) ? 'dark' : 'light';
+
+		try {
+			input.showPicker?.();
+		} catch {
+			// Refused outside a user gesture, or unsupported: the box still
+			// takes typing, and focus is where the person expects to be.
+		}
+	};
+
+	const clearButton = el( 'button', {
+		class: 'atfb-datefield__clear',
+		type: 'button',
+		title: 'Clear',
+		attrs: { 'aria-label': 'Clear', hidden: '' === value },
+		children: [ icon( 'no-alt' ) ],
+		on: {
+			click: () => {
+				input.value = '';
+				clearButton.hidden = true;
+				note.hidden = true;
+				onChange( '' );
+				input.focus();
+			},
+		},
+	} );
+
+	input.addEventListener( 'click', openPicker );
+	input.addEventListener( 'change', () => {
+		clearButton.hidden = '' === input.value;
+		note.hidden = true;
+		onChange( input.value );
+	} );
+
+	return el( 'div', {
+		class: 'atfb-datefield',
+		children: [
+			el( 'div', {
+				class: 'atfb-datefield__box',
+				children: [
+					input,
+					el( 'button', {
+						class: 'atfb-datefield__open',
+						type: 'button',
+						title: 'Open the calendar',
+						attrs: { 'aria-hidden': 'true', tabindex: -1 },
+						children: [ icon( 'time' === kind ? 'clock' : 'calendar-alt' ) ],
+						on: { click: openPicker },
+					} ),
+					clearButton,
+				],
+			} ),
+			note,
+		],
+	} );
+}
+
+/**
+ * A colour setting: a swatch that opens the browser's picker, the hex code
+ * beside it for typing or pasting, and a way back to "none".
+ *
+ * Builder chrome, so the native dialog is fine here — it is the *front end*
+ * that needed its own picker. What the native control cannot do on its own is
+ * be empty, which a default colour must be able to be.
+ *
+ * @param value    A hex code, or `''`.
+ * @param onChange Receives a normalised `#rrggbb`, or `''`.
+ * @return The control.
+ */
+export function colorInput( value: string, onChange: ( value: string ) => void ): HTMLElement {
+	const normalize = ( raw: string ): string => {
+		const hex = raw.trim().replace( /^#/, '' );
+
+		if ( ! /^([0-9a-f]{3}){1,2}$/i.test( hex ) ) {
+			return '';
+		}
+
+		return `#${ ( 3 === hex.length ? hex.replace( /./g, '$&$&' ) : hex ).toLowerCase() }`;
+	};
+
+	const swatch = el( 'input', { class: 'atfb-colorfield__swatch', type: 'color', attrs: { 'aria-label': 'Pick a colour' } } );
+	const text = el( 'input', {
+		class: 'atfb-input atfb-colorfield__hex',
+		type: 'text',
+		value,
+		placeholder: '#000000',
+		attrs: { spellcheck: 'false', autocomplete: 'off', maxlength: 7 },
+	} );
+
+	const paint = ( hex: string ): void => {
+		swatch.value = hex || '#000000';
+		swatch.classList.toggle( 'is-empty', ! hex );
+	};
+
+	paint( normalize( value ) );
+
+	swatch.addEventListener( 'input', () => {
+		text.value = swatch.value;
+		paint( swatch.value );
+		onChange( swatch.value );
+	} );
+
+	text.addEventListener( 'input', () => {
+		const hex = normalize( text.value );
+
+		// An empty box is a real answer ("no default"); a half-typed code is
+		// not saved until it is a colour.
+		if ( hex || '' === text.value.trim() ) {
+			paint( hex );
+			onChange( hex );
+		}
+	} );
+
+	text.addEventListener( 'change', () => {
+		const hex = normalize( text.value );
+
+		text.value = hex;
+		paint( hex );
+		onChange( hex );
+	} );
+
+	return el( 'div', { class: 'atfb-colorfield', children: [ text, swatch ] } );
+}
+
 /** A number input. Empty stays empty rather than becoming zero. */
 export function numberInput( value: string, onChange: ( value: string ) => void ): HTMLElement {
 	if ( hasComponent( 'os-number-field' ) ) {

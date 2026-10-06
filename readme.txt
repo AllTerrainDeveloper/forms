@@ -327,6 +327,12 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
+= Unreleased =
+
+* New colour picker for Colour fields on the front end: a hex box with a colour chip that opens a picker built from the form theme's own tokens, so it fits every theme. Optional colours can now be left empty instead of posting black.
+* Colour fields can offer suggested colours as one-click swatches.
+* Date and time settings in the builder (earliest/latest date and time, defaults, and the form's open/close schedule) are now picked from a calendar instead of typed, and can be cleared with one click.
+
 = 1.2.2 =
 
 * Loads a dedicated, 1 KB title-bar preview provider at OpenStation startup instead of the 505 KB form builder bundle.

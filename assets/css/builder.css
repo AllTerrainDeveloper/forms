@@ -1042,6 +1042,139 @@ html body.atf-drag-active [contenteditable="true"] {
 	font-family: inherit;
 }
 
+/* --- Date and time settings ------------------------------------------------ */
+
+/* The browser's date box with its own calendar icon swapped for a dashicon in
+   the builder's ink — the native icon is painted black and disappeared on a
+   dark desktop — plus a clear button, because a native date box offers no
+   obvious way back to "no limit". */
+.atfb-datefield__box {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+/* Two classes: wp-admin's `input[type=date]` padding weighs (0,1,1) and
+   would otherwise slide the value under the buttons. */
+.atfb-datefield .atfb-datefield__input {
+	padding-inline-end: 52px;
+	cursor: pointer;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfb-datefield__input::-webkit-calendar-picker-indicator {
+	display: none;
+}
+
+.atfb-datefield__open,
+.atfb-datefield__clear {
+	position: absolute;
+	inset-block-start: 50%;
+	display: grid;
+	place-items: center;
+	inline-size: 22px;
+	block-size: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: var( --atfb-radius-ctl );
+	background: transparent;
+	color: var( --atfb-muted );
+	cursor: pointer;
+	transform: translateY( -50% );
+}
+
+.atfb-datefield__open {
+	inset-inline-end: 4px;
+}
+
+.atfb-datefield__clear {
+	inset-inline-end: 26px;
+}
+
+.atfb-datefield__clear[ hidden ] {
+	display: none;
+}
+
+.atfb-datefield__open:hover,
+.atfb-datefield__clear:hover {
+	background: var( --atfb-hover );
+	color: var( --atfb-fg );
+}
+
+.atfb-datefield__clear:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 0;
+}
+
+.atfb-datefield__open .dashicons,
+.atfb-datefield__clear .dashicons {
+	inline-size: 16px;
+	block-size: 16px;
+	font-size: 16px;
+}
+
+.atfb-datefield__note {
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var( --atfb-danger );
+}
+
+.atfb-datefield__note[ hidden ] {
+	display: none;
+}
+
+/* --- Colour settings ------------------------------------------------------- */
+
+.atfb-colorfield {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.atfb-colorfield .atfb-colorfield__hex {
+	padding-inline-start: 36px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The native swatch, stripped to a plain rounded square inside the box. */
+.atfb-colorfield__swatch {
+	position: absolute;
+	inset-inline-start: 6px;
+	inline-size: 22px;
+	block-size: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 5px;
+	background: none;
+	box-shadow: inset 0 0 0 1px var( --atfb-border-strong );
+	cursor: pointer;
+	appearance: none;
+}
+
+.atfb-colorfield__swatch::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.atfb-colorfield__swatch::-webkit-color-swatch {
+	border: 1px solid var( --atfb-border-strong );
+	border-radius: 5px;
+}
+
+.atfb-colorfield__swatch::-moz-color-swatch {
+	border: 1px solid var( --atfb-border-strong );
+	border-radius: 5px;
+}
+
+/* No default yet: the swatch shows a strike rather than the black the native
+   control would otherwise claim. */
+.atfb-colorfield__swatch.is-empty::-webkit-color-swatch {
+	background: linear-gradient( to top right, transparent 46%, var( --atfb-muted ) 46%, var( --atfb-muted ) 54%, transparent 54% ) !important;
+}
+
+.atfb-colorfield__swatch.is-empty::-moz-color-swatch {
+	background: linear-gradient( to top right, transparent 46%, var( --atfb-muted ) 46%, var( --atfb-muted ) 54%, transparent 54% ) !important;
+}
+
 .atfb-check {
 	display: flex;
 	align-items: center;

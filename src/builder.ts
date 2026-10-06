@@ -35,6 +35,8 @@ import {
 	debounce,
 	el,
 	hasComponent,
+	colorInput,
+	dateInput,
 	icon,
 	notify,
 	numberInput,
@@ -51,6 +53,7 @@ import {
 import { handOffToWindow, watchHandoffButton, takeFormFor } from './handoff';
 import { LogicMap, OPERATOR_LABELS, VALUELESS_OPERATORS, controlCounts, logicEdges, logicTokens, ruleTokens, tokensToText } from './logic-map';
 import { boundValue, renderFieldPreview } from './field-preview';
+import type { DateKind } from './ui';
 import type { LogicToken } from './logic-map';
 import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
 import { mountThemeControls } from './theme-studio';
@@ -248,6 +251,12 @@ export const SETTING_CONTROLS: Record< string, SettingControl > = {
 		key: 'points',
 		label: 'Points if correct',
 		control: 'number',
+	},
+	swatches: {
+		key: 'swatches',
+		label: 'Suggested colours',
+		control: 'commas',
+		hint: 'Hex codes, separated by commas — #1d4ed8, #f59e0b. Offered as one-click swatches in the picker.',
 	},
 	minchoices: {
 		key: 'minChoices',
@@ -4271,6 +4280,26 @@ export class Builder {
 			);
 		}
 
+		// Typed to match what the field stores: a date default is picked from a
+		// calendar for the same reason the date bounds are.
+		const pickers: Record< string, DateKind > = { date: 'date', time: 'time', datetime: 'datetime-local' };
+
+		if ( pickers[ field.type ] ) {
+			return row(
+				'Default answer',
+				dateInput( String( field.default ?? '' ), ( value ) => update( 'default', value ), pickers[ field.type ] ),
+				`${ hint } To start on today, use Pre-fill with date:today instead.`
+			);
+		}
+
+		if ( 'color' === field.type ) {
+			return row(
+				'Default answer',
+				colorInput( String( field.default ?? '' ), ( value ) => update( 'default', value ) ),
+				hint
+			);
+		}
+
 		return row(
 			'Default answer',
 			textInput( String( field.default ?? '' ), ( value ) => update( 'default', value ) ),
@@ -4539,19 +4568,37 @@ export class Builder {
 			pairs.push( [ 'step', 'Steps of' ] );
 		}
 
-		if ( supports.includes( 'mindate' ) ) {
-			pairs.push( [ 'minDate', 'Earliest date' ], [ 'maxDate', 'Latest date' ] );
-		}
-
-		if ( supports.includes( 'mintime' ) ) {
-			pairs.push( [ 'minTime', 'Earliest time' ], [ 'maxTime', 'Latest time' ] );
-		}
-
 		for ( const [ key, label ] of pairs ) {
 			rows.push(
 				row(
 					label,
 					textInput( String( field[ key ] ?? '' ), ( value ) => update( key, value ) )
+				)
+			);
+		}
+
+		// Date and time bounds are picked, not typed: the format the server
+		// compares against is nobody's business but the calendar's. A
+		// date-and-time field bounds on a moment, so it gets the picker that
+		// has both halves — a date alone is not a valid `min` for it.
+		const dateBounds: Array< [ string, string, DateKind ] > = [];
+
+		if ( supports.includes( 'mindate' ) ) {
+			const kind: DateKind = 'datetime' === field.type ? 'datetime-local' : 'date';
+
+			dateBounds.push( [ 'minDate', 'Earliest date', kind ], [ 'maxDate', 'Latest date', kind ] );
+		}
+
+		if ( supports.includes( 'mintime' ) ) {
+			dateBounds.push( [ 'minTime', 'Earliest time', 'time' ], [ 'maxTime', 'Latest time', 'time' ] );
+		}
+
+		for ( const [ key, label, kind ] of dateBounds ) {
+			rows.push(
+				row(
+					label,
+					dateInput( String( field[ key ] ?? '' ), ( value ) => update( key, value ), kind ),
+					key.startsWith( 'min' ) ? 'Leave empty for no limit.' : undefined
 				)
 			);
 		}
@@ -5342,26 +5389,13 @@ export class Builder {
 						),
 						row(
 							'Open from',
-							el( 'input', {
-								class: 'atfb-input',
-								type: 'datetime-local',
-								value: settings.schedule.start,
-								on: {
-									input: ( event: Event ) =>
-										set( 'schedule.start', ( event.target as HTMLInputElement ).value ),
-								},
-							} )
+							dateInput( settings.schedule.start, ( value ) => set( 'schedule.start', value ), 'datetime-local' ),
+							'Empty means open now.'
 						),
 						row(
 							'Closes',
-							el( 'input', {
-								class: 'atfb-input',
-								type: 'datetime-local',
-								value: settings.schedule.end,
-								on: {
-									input: ( event: Event ) => set( 'schedule.end', ( event.target as HTMLInputElement ).value ),
-								},
-							} )
+							dateInput( settings.schedule.end, ( value ) => set( 'schedule.end', value ), 'datetime-local' ),
+							'Empty means it never closes on its own.'
 						),
 						row(
 							'Message when closed',

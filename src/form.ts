@@ -9,13 +9,15 @@
  *
  * What it adds: conditional logic as you type, live calculated totals, step
  * navigation on multi-page forms, inline validation, repeater rows, the
- * signature pad, and an AJAX submit that does not reload the page.
+ * signature pad, the colour picker, and an AJAX submit that does not reload
+ * the page.
  *
  * Nothing decided here is trusted by the server. The server recomputes
  * visibility, recomputes every total, and revalidates everything.
  */
 
 import { applyCalculations } from './shared/calc';
+import { enhanceColorField, normalizeHex } from './color-picker';
 import { playSuccessEffects, renderSuccessScreen } from './success';
 import { isEmptyValue, visibleFields } from './shared/logic';
 import { presetPasses, validationPreset } from './shared/validation';
@@ -125,6 +127,10 @@ class AllTerrainForm {
 					output.textContent = range.value;
 				}
 			} );
+		} );
+
+		this.form.querySelectorAll< HTMLElement >( '[data-atf-color]' ).forEach( ( wrapper ) => {
+			enhanceColorField( wrapper, i18n );
 		} );
 
 		this.initOtherToggles();
@@ -615,6 +621,10 @@ class AllTerrainForm {
 
 			if ( field.type === 'url' && ! /^https?:\/\/[^\s]+$/i.test( value ) ) {
 				return messages.invalid || i18n( 'invalidUrl', 'That does not look like a web address.' );
+			}
+
+			if ( field.type === 'color' && ! normalizeHex( value ) ) {
+				return messages.invalid || i18n( 'invalidColor', 'That is not a colour. Use a hex code like #3366ff.' );
 			}
 
 			const min = Number( field.minlength );
@@ -1207,6 +1217,10 @@ class AllTerrainForm {
 		rows.appendChild( clone );
 
 		const added = rows.lastElementChild as HTMLElement | null;
+
+		added?.querySelectorAll< HTMLElement >( '[data-atf-color]' ).forEach( ( wrapper ) => {
+			enhanceColorField( wrapper, i18n );
+		} );
 
 		added?.querySelector< HTMLElement >( 'input, select, textarea' )?.focus();
 

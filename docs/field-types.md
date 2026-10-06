@@ -109,12 +109,13 @@ reach, and `tests/vitest/field-settings.test.ts` fails if one appears.
 | `min` / `max` | `min`, `max` | A pair, or `max` alone where a type has no floor |
 | `step` | `step` | The interval a number or time moves in |
 | `minlength` / `maxlength` | `minlength`, `maxlength` | A pair |
-| `mindate` / `maxdate` | `minDate`, `maxDate` | A pair |
-| `mintime` / `maxtime` | `minTime`, `maxTime` | A pair |
+| `mindate` / `maxdate` | `minDate`, `maxDate` | A pair of calendar pickers, stored as `YYYY-MM-DD` — or `YYYY-MM-DDTHH:MM` on a date-and-time field, whose bounds are moments |
+| `mintime` / `maxtime` | `minTime`, `maxTime` | A pair of time pickers, stored as `HH:MM` |
 | `minchoices` / `maxchoices` | `minChoices`, `maxChoices` | How many may be picked |
 | `minrows` / `maxrows` | `minRows`, `maxRows` | How many repeater rows |
 | `maxsize` / `maxfiles` | `maxsize`, `maxfiles` | Largest file, and how many |
 | `filetypes` | `filetypes` | Accepted extensions, typed with commas |
+| `swatches` | `swatches` | Suggested colours offered as one-click swatches in the colour picker, typed as hex codes with commas. Cleaned and capped at 16 when rendered |
 | `pattern` | `validation`, `pattern`, `validationRecipe` | "The answer should be" — a preset shape (email, phone, ZIP code, IBAN, card number, …) or a custom rule built in the rule builder. The preset slug lives in `validation`; a custom rule compiles into `pattern`, with the builder's blocks kept in `validationRecipe` |
 | `unique` | `unique` | No two submissions may share the value |
 | `formula` / `currency` | `formula`, `currency` | A calculation and its symbol |

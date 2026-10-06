@@ -103,6 +103,9 @@ function alltfo_render_field_control( $field, $value, $context ) {
 		case 'country':
 			return alltfo_render_country( $field, $value, $context );
 
+		case 'color':
+			return alltfo_render_color( $field, $value, $context );
+
 		case 'repeater':
 			return alltfo_render_repeater( $field, $value, $context );
 
@@ -156,7 +159,6 @@ function alltfo_render_field_control( $field, $value, $context ) {
 		case 'tel':
 		case 'number':
 		case 'password':
-		case 'color':
 		case 'text':
 		default:
 			return alltfo_render_text_input( $field, $value, $context );
@@ -183,7 +185,6 @@ function alltfo_render_text_input( $field, $value, $context ) {
 		'date'     => 'date',
 		'time'     => 'time',
 		'datetime' => 'datetime-local',
-		'color'    => 'color',
 	);
 
 	$type       = isset( $types[ $field['type'] ] ) ? $types[ $field['type'] ] : 'text';
@@ -208,6 +209,64 @@ function alltfo_render_text_input( $field, $value, $context ) {
 		esc_attr( $type ),
 		$attributes,
 		esc_attr( is_scalar( $value ) ? (string) $value : '' )
+	);
+}
+
+/**
+ * A colour.
+ *
+ * Deliberately *not* `<input type="color">`. The native control is a swatch the
+ * browser paints however it likes -- with this stylesheet's `.atf-input` on it,
+ * a full-width bar that reads as a broken checkbox -- and it cannot be empty: an
+ * optional colour nobody touched posted `#000000`, an answer nobody gave.
+ *
+ * What renders instead is a text box for the hex code, which is a complete
+ * control on its own with no JavaScript, and a chip beside it showing the
+ * colour. `form.js` turns the chip into a button that opens a picker drawn
+ * entirely from the theme's tokens, so it sits in every theme the form can
+ * wear. The text box stays the one named input: it is what posts, what the
+ * logic engine reads, and what the server sanitises.
+ *
+ * @since 1.3.0
+ *
+ * @param array $field   The field.
+ * @param mixed $value   Its value.
+ * @param array $context The render context.
+ * @return string
+ */
+function alltfo_render_color( $field, $value, $context ) {
+	$hex = alltfo_normalize_hex_color( is_scalar( $value ) ? (string) $value : '' );
+
+	// Suggested colours, cleaned here rather than trusted: they arrive from a
+	// schema that may have been imported, and they land in a style attribute.
+	$swatches = array();
+
+	foreach ( isset( $field['swatches'] ) && is_array( $field['swatches'] ) ? $field['swatches'] : array() as $swatch ) {
+		$clean = is_scalar( $swatch ) ? alltfo_normalize_hex_color( (string) $swatch ) : '';
+
+		if ( '' !== $clean ) {
+			$swatches[] = $clean;
+		}
+	}
+
+	$swatches = array_slice( array_values( array_unique( $swatches ) ), 0, 16 );
+
+	// The field's own placeholder, or a hex code -- which doubles as the hint
+	// for anyone without the picker about what shape the answer takes.
+	if ( '' === $field['placeholder'] ) {
+		$field['placeholder'] = '#000000';
+	}
+
+	return alltfo_render_label( $field, $context['id'] ) . sprintf(
+		'<div class="atf-color" data-atf-color%1$s>'
+			. '<span class="atf-color__chip%2$s" aria-hidden="true"%3$s></span>'
+			. '<input type="text" class="atf-input atf-color__input"%4$s value="%5$s" maxlength="7" pattern="#?([0-9a-fA-F]{3}){1,2}" autocomplete="off" spellcheck="false" autocapitalize="off" data-atf-input>'
+			. '</div>',
+		$swatches ? sprintf( ' data-atf-swatches="%s"', esc_attr( implode( ',', $swatches ) ) ) : '',
+		'' === $hex ? ' is-empty' : '',
+		'' === $hex ? '' : sprintf( ' style="background-color:%s"', esc_attr( $hex ) ),
+		alltfo_control_attributes( $field, $context ),
+		esc_attr( $hex )
 	);
 }
 
