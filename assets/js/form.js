@@ -386,6 +386,303 @@ var allTerrainFormsFront = function(exports) {
     }
     return next;
   }
+  function normalizeHex(raw) {
+    const trimmed = raw.trim().replace(/^#/, "");
+    if (!/^([0-9a-f]{3}){1,2}$/i.test(trimmed)) {
+      return "";
+    }
+    const six = 3 === trimmed.length ? trimmed.split("").map((digit) => digit + digit).join("") : trimmed;
+    return `#${six.toLowerCase()}`;
+  }
+  function hexToHsv(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b);
+    const delta = max - Math.min(r, g, b);
+    let h = 0;
+    if (delta) {
+      if (max === r) {
+        h = (g - b) / delta % 6;
+      } else if (max === g) {
+        h = (b - r) / delta + 2;
+      } else {
+        h = (r - g) / delta + 4;
+      }
+      h = (h * 60 + 360) % 360;
+    }
+    return { h, s: max ? delta / max : 0, v: max };
+  }
+  function hsvToHex({ h, s, v }) {
+    const channel = (n) => {
+      const k = (n + h / 60) % 6;
+      const value = v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+      return Math.round(value * 255).toString(16).padStart(2, "0");
+    };
+    return `#${channel(5)}${channel(3)}${channel(1)}`;
+  }
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  let instances = 0;
+  function enhanceColorField(wrapper, t) {
+    if (wrapper.dataset.atfColorReady || wrapper.closest("template")) {
+      return;
+    }
+    const input = wrapper.querySelector(".atf-color__input");
+    const chip = wrapper.querySelector(".atf-color__chip");
+    if (!input || !chip) {
+      return;
+    }
+    wrapper.dataset.atfColorReady = "1";
+    instances++;
+    const panelId = `${input.id || "atf-color"}-panel-${instances}`;
+    const make = (tag, className) => {
+      const node = document.createElement(tag);
+      node.className = className;
+      return node;
+    };
+    const toggle = make("button", "atf-color__swatch");
+    toggle.type = "button";
+    toggle.setAttribute("aria-label", t("chooseColor", "Choose a colour"));
+    toggle.setAttribute("aria-haspopup", "dialog");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-controls", panelId);
+    chip.replaceWith(toggle);
+    toggle.append(chip);
+    const panel = make("div", "atf-color__panel");
+    panel.id = panelId;
+    panel.hidden = true;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", t("chooseColor", "Choose a colour"));
+    const area = make("div", "atf-color__area");
+    const areaThumb = make("span", "atf-color__thumb");
+    area.tabIndex = 0;
+    area.setAttribute("role", "slider");
+    area.setAttribute("aria-roledescription", "2D slider");
+    area.setAttribute("aria-label", t("colorArea", "Saturation and brightness"));
+    area.setAttribute("aria-valuemin", "0");
+    area.setAttribute("aria-valuemax", "100");
+    area.append(areaThumb);
+    const hue = make("div", "atf-color__hue");
+    const hueThumb = make("span", "atf-color__thumb");
+    hue.tabIndex = 0;
+    hue.setAttribute("role", "slider");
+    hue.setAttribute("aria-label", t("colorHue", "Hue"));
+    hue.setAttribute("aria-valuemin", "0");
+    hue.setAttribute("aria-valuemax", "359");
+    hue.append(hueThumb);
+    panel.append(area, hue);
+    const swatches = (wrapper.dataset.atfSwatches ?? "").split(",").map(normalizeHex).filter(Boolean);
+    const swatchButtons = [];
+    if (swatches.length) {
+      const group = make("div", "atf-color__swatches");
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", t("colorSwatches", "Suggested colours"));
+      for (const hex of swatches) {
+        const button = make("button", "atf-color__preset");
+        button.type = "button";
+        button.value = hex;
+        button.style.backgroundColor = hex;
+        button.setAttribute("aria-label", hex);
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+          hsv = hexToHsv(hex);
+          commit(hex);
+        });
+        swatchButtons.push(button);
+        group.append(button);
+      }
+      panel.append(group);
+    }
+    const actions = make("div", "atf-color__actions");
+    const EyeDropperApi = window.EyeDropper;
+    if (EyeDropperApi) {
+      const pick = make("button", "atf-color__action");
+      pick.type = "button";
+      pick.textContent = t("colorPick", "Pick a colour from the screen");
+      pick.addEventListener("click", () => {
+        new EyeDropperApi().open().then((result) => {
+          const hex = normalizeHex(result.sRGBHex);
+          if (hex) {
+            hsv = hexToHsv(hex);
+            commit(hex);
+          }
+        }).catch(() => void 0);
+      });
+      actions.append(pick);
+    }
+    if (!input.required) {
+      const none = make("button", "atf-color__action");
+      none.type = "button";
+      none.textContent = t("colorNone", "No colour");
+      none.addEventListener("click", () => {
+        commit("");
+        close(true);
+      });
+      actions.append(none);
+    }
+    if (actions.childElementCount) {
+      panel.append(actions);
+    }
+    wrapper.append(panel);
+    const initial = normalizeHex(input.value);
+    let hsv = initial ? hexToHsv(initial) : { h: 210, s: 0.65, v: 0.85 };
+    let valueAtOpen = input.value;
+    const paint = () => {
+      const current = normalizeHex(input.value);
+      chip.classList.toggle("is-empty", !current);
+      chip.style.backgroundColor = current;
+      area.style.backgroundColor = `hsl(${Math.round(hsv.h)}, 100%, 50%)`;
+      areaThumb.style.left = `${hsv.s * 100}%`;
+      areaThumb.style.top = `${(1 - hsv.v) * 100}%`;
+      areaThumb.style.backgroundColor = hsvToHex(hsv);
+      hueThumb.style.left = `${hsv.h / 360 * 100}%`;
+      hueThumb.style.backgroundColor = `hsl(${Math.round(hsv.h)}, 100%, 50%)`;
+      area.setAttribute("aria-valuenow", String(Math.round(hsv.s * 100)));
+      area.setAttribute(
+        "aria-valuetext",
+        `${Math.round(hsv.s * 100)}%, ${Math.round(hsv.v * 100)}% · ${current || hsvToHex(hsv)}`
+      );
+      hue.setAttribute("aria-valuenow", String(Math.round(hsv.h)));
+      hue.setAttribute("aria-valuetext", `${Math.round(hsv.h)}°`);
+      for (const button of swatchButtons) {
+        button.setAttribute("aria-pressed", String(button.value === current));
+      }
+    };
+    const commit = (hex) => {
+      if (input.value !== hex) {
+        input.value = hex;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      paint();
+    };
+    const fromHsv = () => commit(hsvToHex(hsv));
+    const open = () => {
+      const current = normalizeHex(input.value);
+      if (current) {
+        const next = hexToHsv(current);
+        hsv = next.s ? next : { ...next, h: hsv.h };
+      }
+      valueAtOpen = input.value;
+      panel.hidden = false;
+      toggle.setAttribute("aria-expanded", "true");
+      wrapper.classList.add("is-open");
+      paint();
+      area.focus();
+    };
+    const close = (returnFocus = false) => {
+      if (panel.hidden) {
+        return;
+      }
+      panel.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+      wrapper.classList.remove("is-open");
+      if (input.value !== valueAtOpen) {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (returnFocus) {
+        toggle.focus();
+      }
+    };
+    toggle.addEventListener("click", () => panel.hidden ? open() : close(true));
+    panel.addEventListener("keydown", (event) => {
+      if ("Escape" === event.key) {
+        event.preventDefault();
+        event.stopPropagation();
+        close(true);
+      }
+    });
+    wrapper.addEventListener("focusout", () => {
+      requestAnimationFrame(() => {
+        if (!wrapper.contains(document.activeElement)) {
+          close();
+        }
+      });
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!panel.hidden && !wrapper.contains(event.target)) {
+        close();
+      }
+    });
+    const track = (surface, apply) => {
+      const move = (event) => {
+        const box = surface.getBoundingClientRect();
+        apply(
+          clamp((event.clientX - box.left) / (box.width || 1)),
+          clamp((event.clientY - box.top) / (box.height || 1))
+        );
+        fromHsv();
+      };
+      surface.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        surface.focus();
+        surface.setPointerCapture?.(event.pointerId);
+        move(event);
+      });
+      surface.addEventListener("pointermove", (event) => {
+        if (surface.hasPointerCapture?.(event.pointerId)) {
+          move(event);
+        }
+      });
+    };
+    track(area, (x, y) => {
+      hsv = { ...hsv, s: x, v: 1 - y };
+    });
+    track(hue, (x) => {
+      hsv = { ...hsv, h: Math.min(359.9, x * 360) };
+    });
+    area.addEventListener("keydown", (event) => {
+      const step = event.shiftKey ? 0.1 : 0.01;
+      const moves = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, step],
+        ArrowDown: [0, -step]
+      };
+      const delta = moves[event.key];
+      if (!delta) {
+        return;
+      }
+      event.preventDefault();
+      hsv = { ...hsv, s: clamp(hsv.s + delta[0]), v: clamp(hsv.v + delta[1]) };
+      fromHsv();
+    });
+    hue.addEventListener("keydown", (event) => {
+      const step = event.shiftKey ? 10 : 1;
+      const next = {
+        ArrowLeft: hsv.h - step,
+        ArrowDown: hsv.h - step,
+        ArrowRight: hsv.h + step,
+        ArrowUp: hsv.h + step,
+        PageDown: hsv.h - 10,
+        PageUp: hsv.h + 10,
+        Home: 0,
+        End: 359
+      };
+      if (!(event.key in next)) {
+        return;
+      }
+      event.preventDefault();
+      hsv = { ...hsv, h: clamp(next[event.key], 0, 359) };
+      fromHsv();
+    });
+    input.addEventListener("input", () => {
+      const current = normalizeHex(input.value);
+      if (current) {
+        const next = hexToHsv(current);
+        hsv = next.s ? next : { ...next, h: hsv.h };
+      }
+      paint();
+    });
+    input.addEventListener("change", () => {
+      const current = normalizeHex(input.value);
+      if (current && current !== input.value) {
+        input.value = current;
+      }
+      paint();
+    });
+    input.form?.addEventListener("reset", () => setTimeout(paint));
+    paint();
+  }
   const SUCCESS_STYLE_ICONS = {
     plain: "",
     simple: "✓",
@@ -1113,6 +1410,9 @@ var allTerrainFormsFront = function(exports) {
           }
         });
       });
+      this.form.querySelectorAll("[data-atf-color]").forEach((wrapper) => {
+        enhanceColorField(wrapper, i18n);
+      });
       this.initOtherToggles();
     }
     /** Reads every value out of the DOM. */
@@ -1457,6 +1757,9 @@ var allTerrainFormsFront = function(exports) {
         }
         if (field.type === "url" && !/^https?:\/\/[^\s]+$/i.test(value)) {
           return messages.invalid || i18n("invalidUrl", "That does not look like a web address.");
+        }
+        if (field.type === "color" && !normalizeHex(value)) {
+          return messages.invalid || i18n("invalidColor", "That is not a colour. Use a hex code like #3366ff.");
         }
         const min = Number(field.minlength);
         const max = Number(field.maxlength);
@@ -1845,6 +2148,9 @@ var allTerrainFormsFront = function(exports) {
       });
       rows.appendChild(clone);
       const added = rows.lastElementChild;
+      added?.querySelectorAll("[data-atf-color]").forEach((wrapper) => {
+        enhanceColorField(wrapper, i18n);
+      });
       added?.querySelector("input, select, textarea")?.focus();
       this.renumberRepeater(repeater);
       this.update();

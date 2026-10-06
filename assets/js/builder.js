@@ -14492,6 +14492,159 @@ ${end.comment}` : end.comment;
       }
     });
   }
+  const DATE_EXAMPLES = {
+    date: "a date",
+    time: "a time",
+    "datetime-local": "a date and time"
+  };
+  function isDarkColor(color) {
+    const match = color.match(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+))?/);
+    if (!match || match[4] !== void 0 && Number(match[4]) < 0.5) {
+      return false;
+    }
+    const [r, g, b] = [match[1], match[2], match[3]].map(Number);
+    return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+  }
+  function dateInput(value, onChange, kind = "date") {
+    const input = el("input", { class: "atfb-input atfb-datefield__input", type: kind });
+    input.value = value;
+    const unreadable = "" !== value && "" === input.value;
+    const note = el("p", {
+      class: "atfb-datefield__note",
+      text: unreadable ? `Saved as “${value}”, which is not ${DATE_EXAMPLES[kind]}. Pick one to replace it.` : "",
+      attrs: { hidden: !unreadable }
+    });
+    const openPicker2 = () => {
+      input.style.colorScheme = isDarkColor(getComputedStyle(input).backgroundColor) ? "dark" : "light";
+      try {
+        input.showPicker?.();
+      } catch {
+      }
+    };
+    const clearButton = el("button", {
+      class: "atfb-datefield__clear",
+      type: "button",
+      title: "Clear",
+      attrs: { "aria-label": "Clear", hidden: "" === value },
+      children: [icon("no-alt")],
+      on: {
+        click: () => {
+          input.value = "";
+          clearButton.hidden = true;
+          note.hidden = true;
+          onChange("");
+          input.focus();
+        }
+      }
+    });
+    input.addEventListener("click", openPicker2);
+    input.addEventListener("change", () => {
+      clearButton.hidden = "" === input.value;
+      note.hidden = true;
+      onChange(input.value);
+    });
+    return el("div", {
+      class: "atfb-datefield",
+      children: [
+        el("div", {
+          class: "atfb-datefield__box",
+          children: [
+            input,
+            el("button", {
+              class: "atfb-datefield__open",
+              type: "button",
+              title: "Open the calendar",
+              attrs: { "aria-hidden": "true", tabindex: -1 },
+              children: [icon("time" === kind ? "clock" : "calendar-alt")],
+              on: { click: openPicker2 }
+            }),
+            clearButton
+          ]
+        }),
+        note
+      ]
+    });
+  }
+  function colorInput(value, onChange) {
+    const normalize = (raw) => {
+      const hex = raw.trim().replace(/^#/, "");
+      if (!/^([0-9a-f]{3}){1,2}$/i.test(hex)) {
+        return "";
+      }
+      return `#${(3 === hex.length ? hex.replace(/./g, "$&$&") : hex).toLowerCase()}`;
+    };
+    const component = hasComponent("os-color-field");
+    const swatch = component ? document.createElement("os-color-field") : el("input", { type: "color", attrs: { "aria-label": "Pick a colour" } });
+    swatch.classList.add("atfb-colorfield__swatch");
+    const text = el("input", {
+      class: "atfb-input atfb-colorfield__hex",
+      type: "text",
+      value,
+      placeholder: "#000000",
+      attrs: { spellcheck: "false", autocomplete: "off", maxlength: 7 }
+    });
+    const paint = (hex) => {
+      if (component) {
+        swatch.setAttribute("value", hex || "#000000");
+      } else {
+        swatch.value = hex || "#000000";
+      }
+      swatch.classList.toggle("is-empty", !hex);
+      clearButton.hidden = !hex;
+    };
+    const write = (hex) => {
+      paint(hex);
+      onChange(hex);
+    };
+    const clearButton = el("button", {
+      class: "atfb-datefield__clear atfb-colorfield__clear",
+      type: "button",
+      title: "No default colour",
+      attrs: { "aria-label": "No default colour" },
+      children: [icon("no-alt")],
+      on: {
+        click: () => {
+          text.value = "";
+          write("");
+          text.focus();
+        }
+      }
+    });
+    const picked = (hex) => {
+      const clean = normalize(hex);
+      if (clean) {
+        text.value = clean;
+        write(clean);
+      }
+    };
+    if (component) {
+      swatch.addEventListener(
+        "os-color-change",
+        (event) => picked(String(event.detail?.value ?? ""))
+      );
+    } else {
+      swatch.addEventListener("input", () => picked(swatch.value));
+    }
+    text.addEventListener("input", () => {
+      const hex = normalize(text.value);
+      if (hex || "" === text.value.trim()) {
+        write(hex);
+      }
+    });
+    text.addEventListener("change", () => {
+      const hex = normalize(text.value);
+      text.value = hex;
+      write(hex);
+    });
+    paint(normalize(value));
+    return el("div", {
+      class: "atfb-colorfield",
+      children: [
+        swatch,
+        el("div", { class: "atfb-datefield__box atfb-colorfield__box", children: [text, clearButton] })
+      ]
+    });
+  }
   function numberInput(value, onChange) {
     if (hasComponent("os-number-field")) {
       const host = document.createElement("os-number-field");
@@ -18809,6 +18962,12 @@ ${end.comment}` : end.comment;
       label: "Points if correct",
       control: "number"
     },
+    swatches: {
+      key: "swatches",
+      label: "Suggested colours",
+      control: "commas",
+      hint: "Hex codes, separated by commas — #1d4ed8, #f59e0b. Offered as one-click swatches in the picker."
+    },
     minchoices: {
       key: "minChoices",
       label: "Fewest they may pick",
@@ -21745,6 +21904,21 @@ ${end.comment}` : end.comment;
           hint2
         );
       }
+      const pickers = { date: "date", time: "time", datetime: "datetime-local" };
+      if (pickers[field.type]) {
+        return row(
+          "Default answer",
+          dateInput(String(field.default ?? ""), (value) => update("default", value), pickers[field.type]),
+          `${hint2} To start on today, use Pre-fill with date:today instead.`
+        );
+      }
+      if ("color" === field.type) {
+        return row(
+          "Default answer",
+          colorInput(String(field.default ?? ""), (value) => update("default", value)),
+          hint2
+        );
+      }
       return row(
         "Default answer",
         textInput(String(field.default ?? ""), (value) => update("default", value)),
@@ -21942,17 +22116,28 @@ ${end.comment}` : end.comment;
       if (supports.includes("step")) {
         pairs2.push(["step", "Steps of"]);
       }
-      if (supports.includes("mindate")) {
-        pairs2.push(["minDate", "Earliest date"], ["maxDate", "Latest date"]);
-      }
-      if (supports.includes("mintime")) {
-        pairs2.push(["minTime", "Earliest time"], ["maxTime", "Latest time"]);
-      }
       for (const [key, label] of pairs2) {
         rows.push(
           row(
             label,
             textInput(String(field[key] ?? ""), (value) => update(key, value))
+          )
+        );
+      }
+      const dateBounds = [];
+      if (supports.includes("mindate")) {
+        const kind = "datetime" === field.type ? "datetime-local" : "date";
+        dateBounds.push(["minDate", "Earliest date", kind], ["maxDate", "Latest date", kind]);
+      }
+      if (supports.includes("mintime")) {
+        dateBounds.push(["minTime", "Earliest time", "time"], ["maxTime", "Latest time", "time"]);
+      }
+      for (const [key, label, kind] of dateBounds) {
+        rows.push(
+          row(
+            label,
+            dateInput(String(field[key] ?? ""), (value) => update(key, value), kind),
+            key.startsWith("min") ? "Leave empty for no limit." : void 0
           )
         );
       }
@@ -22577,25 +22762,13 @@ ${decls}
               ),
               row(
                 "Open from",
-                el("input", {
-                  class: "atfb-input",
-                  type: "datetime-local",
-                  value: settings.schedule.start,
-                  on: {
-                    input: (event) => set2("schedule.start", event.target.value)
-                  }
-                })
+                dateInput(settings.schedule.start, (value) => set2("schedule.start", value), "datetime-local"),
+                "Empty means open now."
               ),
               row(
                 "Closes",
-                el("input", {
-                  class: "atfb-input",
-                  type: "datetime-local",
-                  value: settings.schedule.end,
-                  on: {
-                    input: (event) => set2("schedule.end", event.target.value)
-                  }
-                })
+                dateInput(settings.schedule.end, (value) => set2("schedule.end", value), "datetime-local"),
+                "Empty means it never closes on its own."
               ),
               row(
                 "Message when closed",

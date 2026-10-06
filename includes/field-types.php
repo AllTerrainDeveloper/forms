@@ -467,11 +467,15 @@ function alltfo_register_builtin_field_types() {
 			'group'    => 'advanced',
 			'icon'     => 'dashicons-art',
 			'value'    => 'string',
-			'supports' => alltfo_input_supports(),
+			'supports' => alltfo_input_supports( array( 'swatches' ) ),
+			// Suggested colours offered in the picker, as hex codes. Empty
+			// offers none -- the picker alone is a complete control.
+			'settings' => array( 'swatches' => array() ),
+			// Lower-cased and expanded to six digits, so `#ABC`, `abc` and
+			// `#aabbcc` are one answer in the entries list and in analytics
+			// rather than three. The leading `#` is optional to type.
 			'sanitize' => static function ( $raw ) {
-				$hex = sanitize_hex_color( (string) ( is_scalar( $raw ) ? $raw : '' ) );
-
-				return $hex ? $hex : '';
+				return alltfo_normalize_hex_color( is_scalar( $raw ) ? (string) $raw : '' );
 			},
 			'position' => 70,
 		)
@@ -974,6 +978,39 @@ function alltfo_repeater_item_label( $field ) {
 	return isset( $field['itemLabel'] ) && '' !== $field['itemLabel']
 		? (string) $field['itemLabel']
 		: __( 'Row', 'allterrain-forms' );
+}
+
+/**
+ * Normalises a typed colour to a lower-case, six-digit hex code.
+ *
+ * Mirrors `normalizeHex()` in `src/color-picker.ts`, which does the same as somebody
+ * types, so what they see in the box is what is stored.
+ *
+ * @since 1.3.0
+ *
+ * @param string $raw What was typed: `#3366ff`, `3366FF`, `#36f`.
+ * @return string The code, or an empty string when it is not one.
+ */
+function alltfo_normalize_hex_color( $raw ) {
+	$raw = trim( (string) $raw );
+
+	if ( '' === $raw ) {
+		return '';
+	}
+
+	$hex = sanitize_hex_color( '#' . ltrim( $raw, '#' ) );
+
+	if ( ! $hex ) {
+		return '';
+	}
+
+	$hex = strtolower( $hex );
+
+	if ( 4 === strlen( $hex ) ) {
+		$hex = '#' . $hex[1] . $hex[1] . $hex[2] . $hex[2] . $hex[3] . $hex[3];
+	}
+
+	return $hex;
 }
 
 /**

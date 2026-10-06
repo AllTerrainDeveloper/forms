@@ -1042,6 +1042,166 @@ html body.atf-drag-active [contenteditable="true"] {
 	font-family: inherit;
 }
 
+/* --- Date and time settings ------------------------------------------------ */
+
+/* The browser's date box with its own calendar icon swapped for a dashicon in
+   the builder's ink — the native icon is painted black and disappeared on a
+   dark desktop — plus a clear button, because a native date box offers no
+   obvious way back to "no limit". */
+.atfb-datefield__box {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+/* Two classes: wp-admin's `input[type=date]` padding weighs (0,1,1) and
+   would otherwise slide the value under the buttons. */
+.atfb-datefield .atfb-datefield__input {
+	padding-inline-end: 52px;
+	cursor: pointer;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfb-datefield__input::-webkit-calendar-picker-indicator {
+	display: none;
+}
+
+.atfb-datefield__open,
+.atfb-datefield__clear {
+	position: absolute;
+	inset-block-start: 50%;
+	display: grid;
+	place-items: center;
+	inline-size: 22px;
+	block-size: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: var( --atfb-radius-ctl );
+	background: transparent;
+	color: var( --atfb-muted );
+	cursor: pointer;
+	transform: translateY( -50% );
+}
+
+.atfb-datefield__open {
+	inset-inline-end: 4px;
+}
+
+.atfb-datefield__clear {
+	inset-inline-end: 26px;
+}
+
+.atfb-datefield__clear[ hidden ] {
+	display: none;
+}
+
+.atfb-datefield__open:hover,
+.atfb-datefield__clear:hover {
+	background: var( --atfb-hover );
+	color: var( --atfb-fg );
+}
+
+.atfb-datefield__clear:focus-visible {
+	outline: 2px solid var( --atfb-accent );
+	outline-offset: 0;
+}
+
+.atfb-datefield__open .dashicons,
+.atfb-datefield__clear .dashicons {
+	inline-size: 16px;
+	block-size: 16px;
+	font-size: 16px;
+}
+
+.atfb-datefield__note {
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var( --atfb-danger );
+}
+
+.atfb-datefield__note[ hidden ] {
+	display: none;
+}
+
+/* --- Colour settings ------------------------------------------------------- */
+
+/* Swatch and hex box side by side with the shell's own spacing, rather than
+   the swatch overlaid on the box: an overlay fought wp-admin's input padding
+   and left the code jammed against the colour. */
+.atfb-colorfield {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.atfb-colorfield__box {
+	flex: 1;
+	min-inline-size: 0;
+}
+
+/* Room for the clear button only — the date box's 52px holds two. */
+.atfb-colorfield .atfb-colorfield__hex {
+	padding-inline-end: 30px;
+	font-variant-numeric: tabular-nums;
+}
+
+.atfb-colorfield .atfb-colorfield__clear {
+	inset-inline-end: 4px;
+}
+
+.atfb-colorfield__swatch {
+	position: relative;
+	flex: none;
+}
+
+/* The fallback when the kit is not loaded: a raw native swatch, held at two
+   classes so wp-admin's `input[type=color]` (0,1,1) cannot frame it. */
+.atfb-colorfield input.atfb-colorfield__swatch {
+	inline-size: 30px;
+	block-size: 30px;
+	padding: 2px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background: var( --atfb-well );
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.atfb-colorfield input.atfb-colorfield__swatch::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.atfb-colorfield input.atfb-colorfield__swatch::-webkit-color-swatch {
+	border: 0;
+	border-radius: 3px;
+}
+
+.atfb-colorfield input.atfb-colorfield__swatch::-moz-color-swatch {
+	border: 0;
+	border-radius: 3px;
+}
+
+/* No default yet. Neither swatch can be empty, so a struck tile is laid over
+   whichever one is there, in the shell's own well and muted ink. It ignores
+   the pointer, so a click still opens the picker underneath. */
+.atfb-colorfield__swatch.is-empty::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background:
+		linear-gradient(
+			to top right,
+			transparent calc( 50% - 1px ),
+			var( --atfb-muted ) calc( 50% - 1px ),
+			var( --atfb-muted ) calc( 50% + 1px ),
+			transparent calc( 50% + 1px )
+		),
+		var( --atfb-well );
+	pointer-events: none;
+}
+
 .atfb-check {
 	display: flex;
 	align-items: center;
