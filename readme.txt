@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.2.2
+Stable tag: 1.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -327,7 +327,7 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
-= Unreleased =
+= 1.3.0 =
 
 * New colour picker for Colour fields on the front end: a hex box with a colour chip that opens a picker built from the form theme's own tokens, so it fits every theme. Optional colours can now be left empty instead of posting black.
 * Colour fields can offer suggested colours as one-click swatches.
@@ -384,6 +384,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+A theme-aware colour picker for Colour fields, and calendar pickers for every date and time setting in the builder. Existing forms and entries are unchanged; new colour answers are stored as lower-case six-digit hex codes.
 
 = 1.2.2 =
 Faster OpenStation startup when no form builder is open. Form and entry data are unchanged.
