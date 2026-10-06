@@ -1125,54 +1125,81 @@ html body.atf-drag-active [contenteditable="true"] {
 
 /* --- Colour settings ------------------------------------------------------- */
 
+/* Swatch and hex box side by side with the shell's own spacing, rather than
+   the swatch overlaid on the box: an overlay fought wp-admin's input padding
+   and left the code jammed against the colour. */
 .atfb-colorfield {
-	position: relative;
 	display: flex;
 	align-items: center;
+	gap: 8px;
 }
 
+.atfb-colorfield__box {
+	flex: 1;
+	min-inline-size: 0;
+}
+
+/* Room for the clear button only — the date box's 52px holds two. */
 .atfb-colorfield .atfb-colorfield__hex {
-	padding-inline-start: 36px;
+	padding-inline-end: 30px;
 	font-variant-numeric: tabular-nums;
 }
 
-/* The native swatch, stripped to a plain rounded square inside the box. */
+.atfb-colorfield .atfb-colorfield__clear {
+	inset-inline-end: 4px;
+}
+
 .atfb-colorfield__swatch {
-	position: absolute;
-	inset-inline-start: 6px;
-	inline-size: 22px;
-	block-size: 22px;
-	padding: 0;
-	border: 0;
-	border-radius: 5px;
-	background: none;
-	box-shadow: inset 0 0 0 1px var( --atfb-border-strong );
+	position: relative;
+	flex: none;
+}
+
+/* The fallback when the kit is not loaded: a raw native swatch, held at two
+   classes so wp-admin's `input[type=color]` (0,1,1) cannot frame it. */
+.atfb-colorfield input.atfb-colorfield__swatch {
+	inline-size: 30px;
+	block-size: 30px;
+	padding: 2px;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background: var( --atfb-well );
+	box-shadow: none;
 	cursor: pointer;
-	appearance: none;
 }
 
-.atfb-colorfield__swatch::-webkit-color-swatch-wrapper {
+.atfb-colorfield input.atfb-colorfield__swatch::-webkit-color-swatch-wrapper {
 	padding: 0;
 }
 
-.atfb-colorfield__swatch::-webkit-color-swatch {
-	border: 1px solid var( --atfb-border-strong );
-	border-radius: 5px;
+.atfb-colorfield input.atfb-colorfield__swatch::-webkit-color-swatch {
+	border: 0;
+	border-radius: 3px;
 }
 
-.atfb-colorfield__swatch::-moz-color-swatch {
-	border: 1px solid var( --atfb-border-strong );
-	border-radius: 5px;
+.atfb-colorfield input.atfb-colorfield__swatch::-moz-color-swatch {
+	border: 0;
+	border-radius: 3px;
 }
 
-/* No default yet: the swatch shows a strike rather than the black the native
-   control would otherwise claim. */
-.atfb-colorfield__swatch.is-empty::-webkit-color-swatch {
-	background: linear-gradient( to top right, transparent 46%, var( --atfb-muted ) 46%, var( --atfb-muted ) 54%, transparent 54% ) !important;
-}
-
-.atfb-colorfield__swatch.is-empty::-moz-color-swatch {
-	background: linear-gradient( to top right, transparent 46%, var( --atfb-muted ) 46%, var( --atfb-muted ) 54%, transparent 54% ) !important;
+/* No default yet. Neither swatch can be empty, so a struck tile is laid over
+   whichever one is there, in the shell's own well and muted ink. It ignores
+   the pointer, so a click still opens the picker underneath. */
+.atfb-colorfield__swatch.is-empty::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 1px solid var( --atfb-border );
+	border-radius: var( --atfb-radius-ctl );
+	background:
+		linear-gradient(
+			to top right,
+			transparent calc( 50% - 1px ),
+			var( --atfb-muted ) calc( 50% - 1px ),
+			var( --atfb-muted ) calc( 50% + 1px ),
+			transparent calc( 50% + 1px )
+		),
+		var( --atfb-well );
+	pointer-events: none;
 }
 
 .atfb-check {

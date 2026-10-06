@@ -101,4 +101,30 @@ describe( 'colorInput', () => {
 		text.dispatchEvent( new Event( 'input' ) );
 		expect( seen[ seen.length - 1 ] ).toBe( '' );
 	} );
+
+	it( 'clears back to no default, and strikes the swatch through', () => {
+		const seen: string[] = [];
+		const control = colorInput( '#e11d48', ( value ) => seen.push( value ) );
+		const clear = control.querySelector< HTMLButtonElement >( '.atfb-colorfield__clear' )!;
+		const swatch = control.querySelector< HTMLElement >( '.atfb-colorfield__swatch' )!;
+
+		expect( clear.hidden ).toBe( false );
+		expect( swatch.classList.contains( 'is-empty' ) ).toBe( false );
+
+		clear.click();
+
+		expect( seen ).toEqual( [ '' ] );
+		expect( control.querySelector< HTMLInputElement >( '.atfb-colorfield__hex' )!.value ).toBe( '' );
+		expect( swatch.classList.contains( 'is-empty' ) ).toBe( true );
+		expect( clear.hidden ).toBe( true );
+	} );
+
+	it( 'puts the swatch beside the hex box, not on top of it', () => {
+		const control = colorInput( '', () => {} );
+
+		expect( Array.from( control.children ).map( ( child ) => child.className ) ).toEqual( [
+			'atfb-colorfield__swatch is-empty',
+			'atfb-datefield__box atfb-colorfield__box',
+		] );
+	} );
 } );

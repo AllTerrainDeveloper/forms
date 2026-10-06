@@ -14573,7 +14573,9 @@ ${end.comment}` : end.comment;
       }
       return `#${(3 === hex.length ? hex.replace(/./g, "$&$&") : hex).toLowerCase()}`;
     };
-    const swatch = el("input", { class: "atfb-colorfield__swatch", type: "color", attrs: { "aria-label": "Pick a colour" } });
+    const component = hasComponent("os-color-field");
+    const swatch = component ? document.createElement("os-color-field") : el("input", { type: "color", attrs: { "aria-label": "Pick a colour" } });
+    swatch.classList.add("atfb-colorfield__swatch");
     const text = el("input", {
       class: "atfb-input atfb-colorfield__hex",
       type: "text",
@@ -14582,29 +14584,66 @@ ${end.comment}` : end.comment;
       attrs: { spellcheck: "false", autocomplete: "off", maxlength: 7 }
     });
     const paint = (hex) => {
-      swatch.value = hex || "#000000";
+      if (component) {
+        swatch.setAttribute("value", hex || "#000000");
+      } else {
+        swatch.value = hex || "#000000";
+      }
       swatch.classList.toggle("is-empty", !hex);
+      clearButton.hidden = !hex;
     };
-    paint(normalize(value));
-    swatch.addEventListener("input", () => {
-      text.value = swatch.value;
-      paint(swatch.value);
-      onChange(swatch.value);
+    const write = (hex) => {
+      paint(hex);
+      onChange(hex);
+    };
+    const clearButton = el("button", {
+      class: "atfb-datefield__clear atfb-colorfield__clear",
+      type: "button",
+      title: "No default colour",
+      attrs: { "aria-label": "No default colour" },
+      children: [icon("no-alt")],
+      on: {
+        click: () => {
+          text.value = "";
+          write("");
+          text.focus();
+        }
+      }
     });
+    const picked = (hex) => {
+      const clean = normalize(hex);
+      if (clean) {
+        text.value = clean;
+        write(clean);
+      }
+    };
+    if (component) {
+      swatch.addEventListener(
+        "os-color-change",
+        (event) => picked(String(event.detail?.value ?? ""))
+      );
+    } else {
+      swatch.addEventListener("input", () => picked(swatch.value));
+    }
     text.addEventListener("input", () => {
       const hex = normalize(text.value);
       if (hex || "" === text.value.trim()) {
-        paint(hex);
-        onChange(hex);
+        write(hex);
       }
     });
     text.addEventListener("change", () => {
       const hex = normalize(text.value);
       text.value = hex;
-      paint(hex);
-      onChange(hex);
+      write(hex);
     });
-    return el("div", { class: "atfb-colorfield", children: [text, swatch] });
+    paint(normalize(value));
+    return el("div", {
+      class: "atfb-colorfield",
+      children: [
+        swatch,
+        el("div", { class: "atfb-datefield__box atfb-colorfield__box", children: [text, clearButton] })
+      ]
+    });
   }
   function numberInput(value, onChange) {
     if (hasComponent("os-number-field")) {

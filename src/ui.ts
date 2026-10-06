@@ -280,12 +280,17 @@ export function dateInput( value: string, onChange: ( value: string ) => void, k
 }
 
 /**
- * A colour setting: a swatch that opens the browser's picker, the hex code
- * beside it for typing or pasting, and a way back to "none".
+ * A colour setting: OpenStation's swatch, the hex code beside it for typing or
+ * pasting, and a way back to "none".
  *
- * Builder chrome, so the native dialog is fine here — it is the *front end*
- * that needed its own picker. What the native control cannot do on its own is
- * be empty, which a default colour must be able to be.
+ * `<os-color-field>` when the kit is loaded, for the same reason `select()`
+ * prefers `<os-select>`: it draws in shadow DOM from the shell's own tokens, so
+ * wp-admin's `input[type=color]` rules cannot frame it in grey, and it matches
+ * every other swatch on the desktop. The raw native input is the fallback.
+ *
+ * Neither can be empty, which a default colour must be able to be — so an
+ * empty value shows the swatch struck through, and the clear button is the way
+ * back to it.
  *
  * @param value    A hex code, or `''`.
  * @param onChange Receives a normalised `#rrggbb`, or `''`.
@@ -302,7 +307,13 @@ export function colorInput( value: string, onChange: ( value: string ) => void )
 		return `#${ ( 3 === hex.length ? hex.replace( /./g, '$&$&' ) : hex ).toLowerCase() }`;
 	};
 
-	const swatch = el( 'input', { class: 'atfb-colorfield__swatch', type: 'color', attrs: { 'aria-label': 'Pick a colour' } } );
+	const component = hasComponent( 'os-color-field' );
+	const swatch: HTMLElement = component
+		? document.createElement( 'os-color-field' )
+		: el( 'input', { type: 'color', attrs: { 'aria-label': 'Pick a colour' } } );
+
+	swatch.classList.add( 'atfb-colorfield__swatch' );
+
 	const text = el( 'input', {
 		class: 'atfb-input atfb-colorfield__hex',
 		type: 'text',
@@ -312,17 +323,52 @@ export function colorInput( value: string, onChange: ( value: string ) => void )
 	} );
 
 	const paint = ( hex: string ): void => {
-		swatch.value = hex || '#000000';
+		if ( component ) {
+			swatch.setAttribute( 'value', hex || '#000000' );
+		} else {
+			( swatch as HTMLInputElement ).value = hex || '#000000';
+		}
+
 		swatch.classList.toggle( 'is-empty', ! hex );
+		clearButton.hidden = ! hex;
 	};
 
-	paint( normalize( value ) );
+	const write = ( hex: string ): void => {
+		paint( hex );
+		onChange( hex );
+	};
 
-	swatch.addEventListener( 'input', () => {
-		text.value = swatch.value;
-		paint( swatch.value );
-		onChange( swatch.value );
+	const clearButton = el( 'button', {
+		class: 'atfb-datefield__clear atfb-colorfield__clear',
+		type: 'button',
+		title: 'No default colour',
+		attrs: { 'aria-label': 'No default colour' },
+		children: [ icon( 'no-alt' ) ],
+		on: {
+			click: () => {
+				text.value = '';
+				write( '' );
+				text.focus();
+			},
+		},
 	} );
+
+	const picked = ( hex: string ): void => {
+		const clean = normalize( hex );
+
+		if ( clean ) {
+			text.value = clean;
+			write( clean );
+		}
+	};
+
+	if ( component ) {
+		swatch.addEventListener( 'os-color-change', ( event: Event ) =>
+			picked( String( ( event as CustomEvent< { value?: string } > ).detail?.value ?? '' ) )
+		);
+	} else {
+		swatch.addEventListener( 'input', () => picked( ( swatch as HTMLInputElement ).value ) );
+	}
 
 	text.addEventListener( 'input', () => {
 		const hex = normalize( text.value );
@@ -330,8 +376,7 @@ export function colorInput( value: string, onChange: ( value: string ) => void )
 		// An empty box is a real answer ("no default"); a half-typed code is
 		// not saved until it is a colour.
 		if ( hex || '' === text.value.trim() ) {
-			paint( hex );
-			onChange( hex );
+			write( hex );
 		}
 	} );
 
@@ -339,11 +384,18 @@ export function colorInput( value: string, onChange: ( value: string ) => void )
 		const hex = normalize( text.value );
 
 		text.value = hex;
-		paint( hex );
-		onChange( hex );
+		write( hex );
 	} );
 
-	return el( 'div', { class: 'atfb-colorfield', children: [ text, swatch ] } );
+	paint( normalize( value ) );
+
+	return el( 'div', {
+		class: 'atfb-colorfield',
+		children: [
+			swatch,
+			el( 'div', { class: 'atfb-datefield__box atfb-colorfield__box', children: [ text, clearButton ] } ),
+		],
+	} );
 }
 
 /** A number input. Empty stays empty rather than becoming zero. */
