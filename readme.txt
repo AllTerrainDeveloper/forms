@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -327,6 +327,13 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
+= 1.4.0 =
+
+* Type { in any box that takes a value to pick it from a list: labels, hints, placeholders, headings, HTML blocks and consent text — in the field settings and directly on the canvas — as well as notifications, confirmations, the success screen and formulas.
+* Show a visitor's earlier answers inside the form: "Nice to meet you, {field:name}" in a label, hint or placeholder fills in live as they answer. Choices show the option they picked; passwords, files and signatures are never shown.
+* The value list now explains every entry and shows an example of what it becomes. Formula references say what they count as (an option's price, 1 or 0 for a switch, quiz points), and the formula editor explains every function.
+* Required-field errors read a label with its recalled answer filled in.
+
 = 1.3.0 =
 
 * New colour picker for Colour fields on the front end: a hex box with a colour chip that opens a picker built from the form theme's own tokens, so it fits every theme. Optional colours can now be left empty instead of posting black.
@@ -384,6 +391,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+Type { anywhere a value belongs, and show earlier answers in labels, hints and placeholders. Existing forms and entries are unchanged.
 
 = 1.3.0 =
 A theme-aware colour picker for Colour fields, and calendar pickers for every date and time setting in the builder. Existing forms and entries are unchanged; new colour answers are stored as lower-case six-digit hex codes.
