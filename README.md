@@ -189,6 +189,14 @@ questions *by the label you wrote*, grouped with the submitter, the submission,
 the form and the site — each row showing what it actually resolves to on this
 site. Under the box, a "reads as" line with the tags filled in.
 
+Typing `{` in any of those boxes opens the same list in place — and it is not
+only for emails. Labels, hints, placeholders, headings and HTML blocks take it too, from the
+inspector or straight on the canvas, where it offers the visitor's **earlier
+answers**: "Nice to meet you, {field:name}" fills in live as they type, and is
+blank until they do. Formula boxes offer the number-shaped questions, each with a
+line on what it counts as (a dropdown counts as its option's price, a switch as
+one or zero), and the formula editor explains every function.
+
 **Send it to** is asked in plain language too: whoever runs this site, the person
 who filled it in (naming your email question), a specific address, or free text
 for the rest. The common cases need no tags at all.

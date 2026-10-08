@@ -38,6 +38,7 @@
  * being subtly wrong is worse than being visibly a summary.
  */
 
+import { isPickingFor } from './merge-tags';
 import { el } from './ui';
 
 import type { Field, FieldType } from './types';
@@ -143,6 +144,14 @@ export interface PreviewHandlers {
 	types?: ( type: string ) => FieldType | undefined;
 	/** The id of the field currently selected in the builder, for highlighting. */
 	selectedId?: string | null;
+	/**
+	 * Gives a piece of display text the `{` shortcut for recalling an answer.
+	 *
+	 * Supplied by the builder, which knows the rest of the form; the preview
+	 * only knows which of its texts are shown to the visitor and so can carry
+	 * one. Called with the editable and the field it belongs to.
+	 */
+	picker?: ( node: HTMLElement, field: Field ) => void;
 }
 
 /** What an inline-editable piece of text needs to know about itself. */
@@ -168,6 +177,8 @@ interface Editable {
 	onInput: ( value: string ) => void;
 	/** Called on blur, when a change needs the rest of the builder repainted. */
 	onCommit?: () => void;
+	/** Offers recalled answers on `{` — for text the visitor reads, not button wording. */
+	recall?: { handlers: PreviewHandlers; field: Field };
 }
 
 /**
@@ -245,7 +256,18 @@ function editableText( options: Editable ): HTMLElement {
 		event.stopPropagation();
 	} );
 
-	node.addEventListener( 'blur', () => onCommit?.() );
+	// Focus is in the picker's search box while it is open; committing here
+	// would repaint the canvas and take this node — where the tag is about to
+	// go — with it. The picker re-dispatches `blur` once it is done.
+	node.addEventListener( 'blur', () => {
+		if ( ! isPickingFor( node ) ) {
+			onCommit?.();
+		}
+	} );
+
+	if ( options.recall ) {
+		options.recall.handlers.picker?.( node, options.recall.field );
+	}
 
 	return node;
 }
@@ -285,6 +307,7 @@ export function renderFieldPreview( field: Field, type: FieldType | undefined, h
 		// cards' condition chips and in the merge-tag picker, and repainting the
 		// canvas on every character would take the caret with it.
 		onCommit: () => handlers.restructure( () => {} ),
+		recall: { handlers, field },
 	} );
 
 	const parts: Array< HTMLElement | null > = [
@@ -333,6 +356,7 @@ function hint( field: Field, type: FieldType | undefined, handlers: PreviewHandl
 		class: 'atf-hint',
 		bind: 'hint',
 		onInput: ( value ) => handlers.edit( ( live ) => { live.hint = value; } ),
+		recall: { handlers, field },
 	} );
 
 	node.setAttribute( 'aria-label', 'Hint' );
@@ -392,6 +416,7 @@ function control(
 						bind: 'label',
 						onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 						onCommit: () => handlers.restructure( () => {} ),
+						recall: { handlers, field },
 					} ),
 				],
 			} );
@@ -581,6 +606,7 @@ function placeholderBox(
 		class: `${ className } atfb-preview__box${ tall ? ' atfb-preview__box--tall' : '' }`,
 		bind: 'placeholder',
 		onInput: ( value ) => handlers.edit( ( live ) => { live.placeholder = value; } ),
+		recall: { handlers, field },
 	} );
 
 	box.setAttribute( 'aria-label', 'Placeholder' );
@@ -748,6 +774,7 @@ function staticBlock( field: Field, type: FieldType | undefined, handlers: Previ
 			bind: 'label',
 			onInput: ( value ) => handlers.edit( ( live ) => { live.label = value; } ),
 			onCommit: () => handlers.restructure( () => {} ),
+			recall: { handlers, field },
 		} );
 	}
 

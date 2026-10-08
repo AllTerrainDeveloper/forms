@@ -21,6 +21,7 @@ import { enhanceColorField, normalizeHex } from './color-picker';
 import { playSuccessEffects, renderSuccessScreen } from './success';
 import { isEmptyValue, visibleFields } from './shared/logic';
 import { presetPasses, validationPreset } from './shared/validation';
+import { fillRecall, recallText, recallable } from './shared/recall';
 import type { Field, FieldValue, RuntimeConfig, SubmissionResult, Values } from './types';
 
 /** The reduced schema the renderer prints beside each form. */
@@ -411,6 +412,70 @@ class AllTerrainForm {
 				submitted.value = input.value;
 			}
 		}
+
+		this.recall( values, calculated );
+	}
+
+	/**
+	 * Fills every recalled answer — `{field:name}` in a label, hint or heading.
+	 *
+	 * The server prints an empty `.atf-recall` span per tag; this writes the
+	 * answer into it on every change. A placeholder or a dropdown's first
+	 * option cannot hold a span, so those carry their whole template in
+	 * `data-atf-recall-template` and get the resolved text written back — into
+	 * the attribute named by `data-atf-recall-attr`, or as text.
+	 *
+	 * A total reads its computed value, since its input is disabled and never
+	 * part of `values()`. A tag naming a field the form does not have is put
+	 * back as typed, which is what a notification does with it too — a typo
+	 * should be visible, not silently blank.
+	 */
+	private recall( values: Values, calculated: Values ): void {
+		const words = { yes: i18n( 'yes', 'Yes' ), no: i18n( 'no', 'No' ) };
+
+		const answer = ( id: string ): string => {
+			const field = this.schema.fields.find( ( candidate ) => candidate.id === id );
+
+			if ( ! field ) {
+				return `{field:${ id }}`;
+			}
+
+			if ( ! recallable( field ) ) {
+				return '';
+			}
+
+			const computed = calculated[ id ];
+			const decimals = typeof field.decimals === 'number' ? field.decimals : 2;
+
+			return field.formula && typeof computed === 'number'
+				? computed.toFixed( decimals )
+				: recallText( field, values[ id ], words );
+		};
+
+		this.form.querySelectorAll< HTMLElement >( '[data-atf-recall]' ).forEach( ( span ) => {
+			const text = answer( span.dataset.atfRecall ?? '' );
+
+			if ( span.textContent !== text ) {
+				span.textContent = text;
+			}
+		} );
+
+		this.form.querySelectorAll< HTMLElement >( '[data-atf-recall-template]' ).forEach( ( element ) => {
+			const text = fillRecall( element.dataset.atfRecallTemplate ?? '', answer );
+			const attribute = element.dataset.atfRecallAttr;
+
+			if ( attribute ) {
+				// A placeholder of one space keeps `:placeholder-shown` answerable
+				// for the floating-label theme, exactly as the renderer does.
+				const next = text.trim() ? text : ' ';
+
+				if ( element.getAttribute( attribute ) !== next ) {
+					element.setAttribute( attribute, next );
+				}
+			} else if ( element.textContent !== text ) {
+				element.textContent = text;
+			}
+		} );
 	}
 
 	/* ---------------------------------------------------------------- Steps */

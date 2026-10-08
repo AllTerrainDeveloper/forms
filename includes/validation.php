@@ -43,6 +43,9 @@ function alltfo_validate_submission( $schema, $values, $context = array() ) {
 		)
 	);
 
+	// Messages name fields by label, and a label can recall an earlier answer.
+	$context['values'] = $values;
+
 	$errors  = array();
 	$visible = alltfo_visible_fields( $schema, $values );
 
@@ -110,12 +113,14 @@ function alltfo_validate_field( $field, $value, $schema, $context = array() ) {
 			}
 		}
 
+		$label = trim( alltfo_recall_text( $field['label'], $schema, isset( $context['values'] ) ? $context['values'] : array() ) );
+
 		return alltfo_field_message(
 			$field,
 			'required',
-			$field['label']
+			$label
 				/* translators: %s: the field's label. */
-				? sprintf( __( '%s is required.', 'allterrain-forms' ), $field['label'] )
+				? sprintf( __( '%s is required.', 'allterrain-forms' ), $label )
 				: __( 'This is required.', 'allterrain-forms' )
 		);
 	}

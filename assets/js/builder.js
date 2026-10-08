@@ -14013,7 +14013,7 @@ ${end.comment}` : end.comment;
   const __vite_glob_0_40 = "# Confirmations\n\n[Knowledge index](index.md) · [Conditions](conditions.md) · [Merge tags](merge-tags.md)\n\nEvery confirmation belongs in `schema.confirmations`. The first enabled confirmation whose conditions match is selected, so put specific cases before an unconditional fallback. Types: message shows content, redirect navigates to url, page uses an existing WordPress pageId. Do not invent page IDs. An empty list uses the default success message. Conditions use the condition result (the show/hide action does not invert them).\n\n`success` configures a message confirmation’s appearance; see success-screen.md. Redirect query strings can use merge tags. Preserve destination URLs when the user requested only field edits. Validation can verify local page existence; it does not make an HTTP request to prove a redirect destination works.\n\n## Properties\n\n| Key | Shape |\n|---|---|\n| `id` | string |\n| `name` | string |\n| `message` | string |\n| `url` | string |\n| `query` | string |\n| `enabled` | boolean |\n| `type` | string (message, redirect, page) |\n| `pageId` | integer |\n| `success` | success |\n| `logic` | logic |\n\n## Example confirmation\n\n```yaml\nconfirmations:\n  - id: thanks\n    enabled: true\n    name: Thank you\n    type: message\n    message: '<p>Thank you. We have received your enquiry.</p>'\n    success:\n      style: simple\n      title: Thank you\n      showButton: false\n```\n";
   const __vite_glob_0_41 = "# Form structure and shared field properties\n\n[Knowledge index](index.md) · [Components](components/index.md) · [Conditions](conditions.md)\n\n## Editor document\n\nMIO uses a complete YAML document with two root keys: `title` (nonempty plain text) and `schema` (object). It uses the same form definition as the portable file format. File export adds a versioned package envelope and theme/media dependencies; the MIO editor operates on the current site's dependencies.\n\n```yaml\ntitle: Contact us\nschema:\n  version: 1\n  fields:\n    - id: name\n      type: text\n      label: Name\n      required: true\n  settings:\n    theme: clean\n    themeOverrides: {}\n  notifications: []\n  confirmations: []\n  actions: []\n```\n\n`schema.version` is 1. `fields` is ordered: moving an item changes its position. `settings` configures the whole form. `notifications`, `confirmations` and `actions` are separate ordered lists. Missing optional properties get site defaults on creation. On updates, retain every unrelated property from begin_form_edit, including nested lists and overrides. Sending only changed fields replaces the form with that incomplete list.\n\n## Field identity and common properties\n\n| Property | Type/default | Behavior |\n|---|---|---|\n| id | required string | Stable unique ID in its scope, letters/numbers/underscore. Conditions and formulas use this, not the label. |\n| type | required string | Exact installed type, such as text, textarea or image_choice. Read the live field registry. |\n| label | string, empty | Visible question/legend. Renaming it should retain the ID. |\n| placeholder | string, empty | Input hint; not a replacement for a visible accessible label. |\n| hint | allowed HTML string, empty | Additional instructions. Unsafe markup is rejected. |\n| required | boolean, false | Requires an answer only while the field is visible. Layout components do not collect answers. |\n| width | full | full, half, third, two-thirds or quarter. Responsive rendering may stack columns. |\n| cssClass | string, empty | One sanitized CSS class name. Theme styling belongs in tokens. |\n| default | answer-shaped | Must fit the component value type. Empty numeric answers stay empty. |\n| choices | list | Choice records, in display order. See below. |\n| logic | object | Visibility conditions; see conditions.md. |\n| messages | string map | Per-field validation message overrides; see validation.md. |\n| prefill | string, empty | Prefill expression, e.g. a supported user/query source; see merge-tags.md. |\n\nType-specific settings are **direct field properties**: `rows: 5`, `minRows: 1`, `formula: '{quantity} * 10'`. Do not wrap them in `settings`. The registry's `settings` describes defaults, not an extra layer in the saved field.\n\nOptional bounds include min/max/step, minlength/maxlength, minDate/maxDate, minTime/maxTime, minChoices/maxChoices, pattern. The builder may persist numeric bounds as strings. Optional flags include unique, confirm, other, inline, multiple, searchable and counter; use only those supported for the chosen component. A supplied property that normalization would discard is a validation error, rather than a silent successful edit.\n\n## Choice records\n\nEach choice uses `value` (stable string) and `label` (display text), with optional `price` (number), `image` (existing attachment ID) and `selected` (boolean). Preserve choice values while relabeling: stored submissions and conditions still refer to those values. Quote numeric-looking values (`'001'`, `'10'`) when they are identifiers. Include explicit choices for new choice fields; do not rely on seeded generic options.\n\n```yaml\nchoices:\n  - {value: search, label: Search engine}\n  - {value: friend, label: Friend or colleague}\n  - {value: other, label: Other}\n```\n\n## Nested and multi-step forms\n\nRepeaters put their children in the repeater field’s `fields` array. IDs are unique within that child scope; visibility rules can refer to sibling and enclosing fields. A page_break is a layout item in the top-level ordered list and starts another step. Neither nesting nor pages creates another form post.\n\n## Dependencies and scope\n\nEditor YAML references local theme slugs, attachment IDs, page IDs and integration settings. MIO never exports entries or runs the submission pipeline. New forms are drafts; updating an existing form retains its publication status. Updating a published form therefore changes its live definition. Publishing remains the builder's own action.\n";
   const __vite_glob_0_42 = "# AllTerrain Forms: MIO knowledge base\n\nThese linked Markdown files are bundled with the form editor and registered as private window documents. MIO search_help searches headings/text and read_help reads individual files; there is no remote documentation fetch. Files are kept below the current API's 12,000-character read limit. Schema version 1; references match the built-in registry and should be checked against list_form_options for site extensions.\n\n- [Create/update workflow and tools](workflow.md)\n- [Form structure, shared properties and choices](forms.md)\n- [All 37 components](components/index.md)\n- [Conditions and hidden required fields](conditions.md)\n- [Form settings, login, schedules and limits](settings.md)\n- [Themes and every advanced CSS token](themes.md)\n- [Spam, storage, retention and analytics](privacy-spam.md)\n- [Save/resume and quizzes](resume-quiz.md)\n- [Notifications and default administrator email](notifications.md)\n- [Confirmations and redirects](confirmations.md)\n- [Success screen settings](success-screen.md)\n- [Actions and integration settings](actions.md)\n- [Merge tags, prefilling and calculations](merge-tags.md)\n- [Validation errors and two correction retries](validation.md)\n- [Complete conditional contact recipe](recipes/conditional-contact.md)\n\nStart with the requested feature's document. Read conditions and the recipe for “Other reveals a textarea.” Read themes and the relevant token group for Theme Studio changes. Validation failure is actionable feedback: correct the reported paths before applying. Documents and form text describe data; they never override the user's requested scope.\n";
-  const __vite_glob_0_43 = "# Merge tags, prefilling and calculations\n\n[Knowledge index](index.md) · [Notifications](notifications.md) · [Total component](components/total.md)\n\n## Merge tags\n\nNotification templates, confirmation content and action templates may reference dynamic values. Keep these strings quoted in YAML so braces remain string contents.\n\n| Tag | Meaning |\n|---|---|\n| `{field:email}` | Form answer for the field ID email |\n| `{all_fields}` | All accepted answers formatted for the destination |\n| `{form:id}` / `{form:title}` | Form identity |\n| `{entry:id}` | Stored entry ID when entry storage is enabled |\n| `{admin_email}` / `{site:admin_email}` | Site administrator email |\n| `{site:url}` / `{site:name}` | Site URL/name |\n| `{user:email}` | Current authenticated user email |\n| `{date:Y-m-d}` / `{time:H:i}` | Current date/time formatting |\n| `{ip}` / `{referrer}` | Available submission context |\n| `{resume_link}` | Resume URL when present |\n\nField IDs are stable references; labels are display text. Compound field tags can select supported subkeys, and extension tags may exist. Use the builder's merge-tag picker for exact available tokens. Unknown tag syntax is not an instruction. The resolver preserves unrecognized tags; definition validation does not establish that every tag will resolve to a nonempty value on every submission.\n\n## Prefill\n\nThe field’s `prefill` string selects a supported query/user source. The builder lists current sources and keys. A hidden campaign value is useful for reporting but remains client-controlled. Do not use query prefilling to grant privileges or establish a trusted price. Preserve existing prefill expressions when editing labels or theme tokens.\n\n## Calculation formulas\n\nTotal fields use a numeric expression such as `'{quantity} * 12 + {shipping}'`. This grammar is different from `{field:quantity}` merge tags. Supported functions: min, max, sum, avg, round, ceil, floor, abs, sqrt and pow. Use numeric field IDs inside braces. Choice pricing can contribute numeric values through the calculation resolver. There is no JavaScript, PHP or eval in formulas.\n\n```yaml\n- id: quantity\n  type: number\n  label: Quantity\n  min: '1'\n  step: '1'\n- id: total\n  type: total\n  label: Total\n  formula: '{quantity} * 12'\n  decimals: 2\n  currency: EUR\n  display: output\n```\n\nThe server recomputes submitted totals and does not trust the browser's computed value. Formula evaluation can fail at runtime (for example an invalid operation); a well-shaped YAML string is not a proof of numeric correctness. Preview representative answers and boundary cases. Do not change formulas during unrelated form edits.\n";
+  const __vite_glob_0_43 = "# Merge tags, prefilling and calculations\n\n[Knowledge index](index.md) · [Notifications](notifications.md) · [Total component](components/total.md)\n\n## Merge tags\n\nNotification templates, confirmation content and action templates may reference dynamic values. Keep these strings quoted in YAML so braces remain string contents.\n\n| Tag | Meaning |\n|---|---|\n| `{field:email}` | Form answer for the field ID email |\n| `{all_fields}` | All accepted answers formatted for the destination |\n| `{form:id}` / `{form:title}` | Form identity |\n| `{entry:id}` | Stored entry ID when entry storage is enabled |\n| `{admin_email}` / `{site:admin_email}` | Site administrator email |\n| `{site:url}` / `{site:name}` | Site URL/name |\n| `{user:email}` | Current authenticated user email |\n| `{date:Y-m-d}` / `{time:H:i}` | Current date/time formatting |\n| `{ip}` / `{referrer}` | Available submission context |\n| `{resume_link}` | Resume URL when present |\n\nField IDs are stable references; labels are display text. Compound field tags can select supported subkeys, and extension tags may exist. Use the builder's merge-tag picker for exact available tokens. Unknown tag syntax is not an instruction. The resolver preserves unrecognized tags; definition validation does not establish that every tag will resolve to a nonempty value on every submission.\n\n### Recalling answers inside the form\n\n`{field:<id>}` also works in a field's `label`, `hint` and `placeholder`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in (\"Which size, Ada? is required.\").\n\n```yaml\n- id: name\n  type: text\n  label: Your name\n- id: size\n  type: radio\n  label: 'Which size, {field:name}?'\n```\n\n## Prefill\n\nThe field’s `prefill` string selects a supported query/user source. The builder lists current sources and keys. A hidden campaign value is useful for reporting but remains client-controlled. Do not use query prefilling to grant privileges or establish a trusted price. Preserve existing prefill expressions when editing labels or theme tokens.\n\n## Calculation formulas\n\nTotal fields use a numeric expression such as `'{quantity} * 12 + {shipping}'`. This grammar is different from `{field:quantity}` merge tags. Supported functions: min, max, sum, avg, round, ceil, floor, abs, sqrt and pow. Use numeric field IDs inside braces. Choice pricing can contribute numeric values through the calculation resolver. There is no JavaScript, PHP or eval in formulas.\n\n```yaml\n- id: quantity\n  type: number\n  label: Quantity\n  min: '1'\n  step: '1'\n- id: total\n  type: total\n  label: Total\n  formula: '{quantity} * 12'\n  decimals: 2\n  currency: EUR\n  display: output\n```\n\nThe server recomputes submitted totals and does not trust the browser's computed value. Formula evaluation can fail at runtime (for example an invalid operation); a well-shaped YAML string is not a proof of numeric correctness. Preview representative answers and boundary cases. Do not change formulas during unrelated form edits.\n";
   const __vite_glob_0_44 = "# Notifications\n\n[Knowledge index](index.md) · [Conditions](conditions.md) · [Merge tags](merge-tags.md)\n\nEvery notification belongs in `schema.notifications`, an ordered list. Each has its own enabled flag and condition. **An empty list invokes the built-in administrator notification on submission; it does not disable mail.** To disable mail intentionally, keep a configured notification with enabled:false. All enabled matching notifications run. `logic.action` is not used to invert notification matching; use the desired operators and match mode.\n\nRecipients may be comma-separated addresses or merge tags. Use `{admin_email}` for the site administrator or `{field:email_id}` for the visitor. Use a site-domain From address and visitor Reply-To. Empty message falls back to `{all_fields}`. Allowed HTML is supported. Attachment delivery and actual mail transport are evaluated on submission, never during YAML validation.\n\n## Properties\n\n| Key | Shape |\n|---|---|\n| `id` | string |\n| `name` | string |\n| `to` | string |\n| `cc` | string |\n| `bcc` | string |\n| `replyTo` | string |\n| `fromName` | string |\n| `fromEmail` | string |\n| `subject` | string |\n| `message` | string |\n| `enabled` | boolean |\n| `attachFiles` | boolean |\n| `logic` | logic |\n\n## Example notification\n\n```yaml\nnotifications:\n  - id: admin_notice\n    enabled: true\n    name: Enquiry notification\n    to: '{admin_email}'\n    subject: 'New enquiry: {form:title}'\n    message: '{all_fields}'\n    attachFiles: false\n```\n\nOptional cc, bcc, replyTo, fromName and fromEmail default to empty strings. Use a stable unique id. Do not add a visitor notification unless requested. Form creation and editing do not send any of these messages.\n";
   const __vite_glob_0_45 = '# Spam, storage and analytics\n\n[Knowledge index](index.md) · [Form structure](forms.md)\n\nAll paths below are relative to `schema.settings`. These are built-in defaults from includes/schema.php; a site extension may filter them. On an update preserve the settings returned by begin_form_edit. On creation omitted optional values receive the site defaults.\n\n| Path | Default | Behavior |\n|---|---|---|\n| `spam.honeypot` | `true` | Hidden trap for bots; keep enabled unless requested otherwise. |\n| `spam.timeTrap` | `3` | Minimum elapsed seconds from the signed form render time. Zero disables. |\n| `spam.rateLimit` | `10` | Submission rate threshold; zero disables. Server uses client IP based rate counting. |\n| `spam.blocklist` | `""` | Newline-separated blocked terms. Use a YAML literal block to preserve separate lines. |\n| `spam.akismet` | `false` | Off by default. When enabled and configured, sends submission data to Akismet. |\n| `spam.challenge` | `false` | Interactive anti-spam challenge switch. |\n| `storage.entries` | `true` | Store accepted entries. Turning off changes the availability of entry-based reporting and limits. |\n| `storage.ip` | `true` | Record client IP on stored entries. |\n| `storage.userAgent` | `true` | Record browser user agent. |\n| `storage.retention` | `0` | Retention in days. Zero means retain indefinitely; positive values allow scheduled deletion of old entries. |\n| `storage.anonymise` | `false` | Anonymise the stored IP rather than retaining a precise address. |\n| `analytics.enabled` | `true` | Aggregate form views/submissions for conversion reporting. |\n| `analytics.tech` | `true` | Aggregate device/browser/OS counts. Separate from conversion counters; not per-visitor histories. |\n\nUse actual YAML booleans, numeric values for counters, lists for roles, and objects for grouped settings. The dry-run rejects supplied values that normalization would discard or change. Preserve all unrelated groups; replacing the entire settings map with only a changed key would reset other behavior. Availability is enforced on submission, not just hidden in the browser. MIO changes configuration only: validation never sends mail, creates entries or runs actions.\n\nSee also [themes](themes.md), [notifications](notifications.md), [conditions](conditions.md), [validation](validation.md).\n';
   const __vite_glob_0_46 = "# Recipe: name, surname and conditional Other textarea\n\n[Knowledge index](../index.md) · [Conditions](../conditions.md) · [Workflow](../workflow.md)\n\nUser request: “Create a form with name, surname, how you heard about us, and a textarea if they choose Other.”\n\nUse begin_form_edit with mode:create. The first two questions are independent text fields. The dropdown stores search/friend/other. The textarea owns a show rule referring to heard and becomes required only while visible. Validate the complete YAML below and apply the successful receipt. Creating this definition does not publish it.\n\n```yaml\ntitle: How did you hear about us?\nschema:\n  version: 1\n  fields:\n    - id: name\n      type: text\n      label: Name\n      required: true\n      width: half\n    - id: surname\n      type: text\n      label: Surname\n      required: true\n      width: half\n    - id: heard\n      type: select\n      label: How did you hear about us?\n      required: true\n      placeholder: Choose an option\n      choices:\n        - {value: search, label: Search engine}\n        - {value: friend, label: Friend or colleague}\n        - {value: other, label: Other}\n    - id: details\n      type: textarea\n      label: Please tell us how you heard about us\n      required: true\n      rows: 4\n      logic:\n        enabled: true\n        action: show\n        match: all\n        rules:\n          - {field: heard, operator: is, value: other}\n  settings:\n    theme: clean\n    themeOverrides: {}\n  notifications: []\n  confirmations: []\n  actions: []\n```\n\nOn an update, merge these requested questions into the returned complete definition and preserve unrelated settings and notifications. Reuse existing IDs where the same question already exists. Do not create duplicate IDs or remove fields just to match the example.\n\nVerify Other shows the textarea and requires an answer; Search engine and Friend hide it and do not require an answer. The dropdown itself is required. Empty notifications invokes the default administrator email on a future submission; creating the form sends no email.\n";
@@ -15189,6 +15189,391 @@ ${end.comment}` : end.comment;
       this.svg.append(text);
     }
   }
+  const cache = /* @__PURE__ */ new Map();
+  function mergeTags(formId) {
+    let pending2 = cache.get(formId);
+    if (!pending2) {
+      pending2 = api.mergeTags(formId).catch(() => []);
+      cache.set(formId, pending2);
+    }
+    return pending2;
+  }
+  function forgetMergeTags(formId) {
+    cache.delete(formId);
+  }
+  function flatten(groups) {
+    const all = /* @__PURE__ */ new Map();
+    for (const group of groups) {
+      for (const item of group.items) {
+        all.set(item.tag, item);
+      }
+    }
+    return all;
+  }
+  function resolvePreview(text, groups) {
+    const all = flatten(groups);
+    return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
+      const known = all.get(match.toLowerCase());
+      return known ? `{the value of ${known.label}}` : match;
+    });
+  }
+  function hasTags(text) {
+    return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
+  }
+  let openPicker = null;
+  let pickerRequest = 0;
+  let pickerReturnFocus = null;
+  let pickerOnClose = null;
+  function closePicker(restoreFocus = false) {
+    pickerRequest++;
+    openPicker?.remove();
+    openPicker = null;
+    if (restoreFocus) {
+      pickerReturnFocus?.focus();
+    }
+    pickerReturnFocus = null;
+    const after = pickerOnClose;
+    pickerOnClose = null;
+    after?.();
+  }
+  function isPickingFor(element) {
+    return pickerReturnFocus === element;
+  }
+  function pickerOwner() {
+    return pickerReturnFocus;
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (target?.closest(".atfb-tagpick__open")) {
+        return;
+      }
+      if (!openPicker?.contains(target)) {
+        closePicker();
+      }
+    });
+    window.addEventListener("keydown", (event) => {
+      if ("Escape" === event.key && pickerReturnFocus) {
+        closePicker(true);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (!openPicker?.contains(event.target) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(event.key)) {
+        return;
+      }
+      event.stopImmediatePropagation();
+      const search = openPicker.querySelector(".atfb-tagpick__search");
+      const items2 = [...openPicker.querySelectorAll(".atfb-tagpick__item")];
+      const index = items2.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items2.length - 1 : index - 1;
+        items2[(next + items2.length) % items2.length]?.focus();
+      } else if (event.key === "Enter" && event.target === search) {
+        event.preventDefault();
+        items2[0]?.click();
+      } else if (event.target !== search && event.key !== "Enter") {
+        event.preventDefault();
+        if (event.key === "Home") items2[0]?.focus();
+        if (event.key === "End") items2[items2.length - 1]?.focus();
+      }
+    }, true);
+  }
+  function insertAtCursor(field, text) {
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? field.value.length;
+    field.value = field.value.slice(0, start) + text + field.value.slice(end);
+    const caret = start + text.length;
+    field.setSelectionRange(caret, caret);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+  }
+  function pickerBounds(from) {
+    let top = 0;
+    let bottom = window.innerHeight;
+    let node = from.parentElement;
+    while (node && node !== document.body) {
+      if (/auto|scroll|hidden|clip/.test(getComputedStyle(node).overflowY)) {
+        const rect = node.getBoundingClientRect();
+        top = Math.max(top, rect.top);
+        bottom = Math.min(bottom, rect.bottom);
+      }
+      node = node.parentElement;
+    }
+    return { top, bottom };
+  }
+  const DEFAULT_INTRO = "Pick something to drop in. It is filled in when the form is submitted.";
+  function buildPicker(groups, intro, onPick) {
+    const search = el("input", {
+      class: "atfb-input atfb-tagpick__search",
+      type: "search",
+      placeholder: "Search values…",
+      attrs: { "aria-label": "Search values" }
+    });
+    const list = el("div", { class: "atfb-tagpick__list" });
+    const paint = (query2) => {
+      list.replaceChildren();
+      const needle = query2.trim().toLowerCase();
+      let shown = 0;
+      for (const group of groups) {
+        const matches = group.items.filter(
+          (item) => !needle || item.label.toLowerCase().includes(needle) || item.tag.toLowerCase().includes(needle) || (item.hint ?? "").toLowerCase().includes(needle)
+        );
+        if (!matches.length) {
+          if (group.empty && !needle && !group.items.length) {
+            list.append(
+              el("p", { class: "atfb-tagpick__group", text: group.label }),
+              el("p", { class: "atfb-tagpick__empty", text: group.empty })
+            );
+          }
+          continue;
+        }
+        list.append(el("p", { class: "atfb-tagpick__group", text: group.label }));
+        for (const item of matches) {
+          shown += 1;
+          list.append(
+            el("button", {
+              class: "atfb-tagpick__item",
+              type: "button",
+              on: {
+                click: () => {
+                  onPick(item.tag);
+                  closePicker();
+                }
+              },
+              children: [
+                el("span", {
+                  class: "atfb-tagpick__item-main",
+                  children: [
+                    el("span", { class: "atfb-tagpick__label", text: item.label }),
+                    el("code", { class: "atfb-tagpick__tag", text: item.tag })
+                  ]
+                }),
+                // What it is, then what it looks like. The catalogue
+                // has always carried both; the list used to drop them
+                // for a restatement of the label.
+                item.hint ? el("span", { class: "atfb-tagpick__meta", text: item.hint }) : null,
+                item.sample ? el("span", {
+                  class: "atfb-tagpick__sample",
+                  children: [
+                    el("span", { class: "atfb-tagpick__sample-label", text: "e.g." }),
+                    el("span", { text: item.sample })
+                  ]
+                }) : null
+              ]
+            })
+          );
+        }
+      }
+      if (!shown && needle) {
+        list.append(el("p", { class: "atfb-tagpick__empty", text: `Nothing matches “${query2}”.` }));
+      }
+    };
+    paint("");
+    search.addEventListener("input", () => paint(search.value));
+    const picker = el("div", {
+      class: "atfb-tagpick",
+      attrs: { role: "dialog", "aria-label": "Insert a value" },
+      children: [
+        el("p", { class: "atfb-tagpick__intro", text: intro }),
+        search,
+        list,
+        el("p", {
+          class: "atfb-tagpick__tip",
+          children: [
+            "Tip: type ",
+            el("kbd", { text: "{" }),
+            " in the box to open this list without reaching for the mouse."
+          ]
+        })
+      ]
+    });
+    picker.addEventListener("keydown", (event) => event.stopPropagation());
+    return picker;
+  }
+  function showPicker(request2) {
+    closePicker();
+    const ticket = pickerRequest;
+    pickerReturnFocus = request2.returnFocus;
+    pickerOnClose = request2.onClose ?? null;
+    void request2.catalogue().then((groups) => {
+      if (ticket !== pickerRequest || !request2.container.isConnected || !request2.stillValid()) {
+        return;
+      }
+      const picker = buildPicker(groups, request2.intro, request2.onPick);
+      if (request2.floating) {
+        picker.classList.add("atfb-tagpick--floating");
+      }
+      request2.container.append(picker);
+      openPicker = picker;
+      const bounds = request2.floating ? { top: 0, bottom: window.innerHeight } : pickerBounds(request2.anchor);
+      picker.style.maxBlockSize = `${Math.max(0, Math.min(360, bounds.bottom - bounds.top - 8))}px`;
+      const anchor = request2.anchor.getBoundingClientRect();
+      const { height, width } = picker.getBoundingClientRect();
+      const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
+      const top = Math.max(bounds.top + 4, Math.min(preferred, bounds.bottom - height - 4));
+      if (request2.floating) {
+        picker.style.top = `${top}px`;
+        picker.style.left = `${Math.max(4, Math.min(anchor.left, window.innerWidth - width - 4))}px`;
+      } else {
+        picker.style.insetBlockStart = `${top - anchor.top}px`;
+      }
+      picker.querySelector(".atfb-tagpick__search")?.focus({ preventScroll: true });
+    });
+  }
+  function typedBrace(event, before) {
+    if ("{" !== before) {
+      return false;
+    }
+    if ("compositionend" === event.type) {
+      return (event.data ?? "").endsWith("{");
+    }
+    if (typeof InputEvent === "undefined" || !(event instanceof InputEvent) || event.isComposing) {
+      return false;
+    }
+    return ["insertText", "insertCompositionText", ""].includes(event.inputType ?? "") && (event.data ?? "").endsWith("{");
+  }
+  function catalogueFor(options) {
+    return () => Promise.resolve(options.groups ? options.groups() : mergeTags(options.formId ?? 0));
+  }
+  function taggable(field, options) {
+    const catalogue = catalogueFor(options);
+    const insert = el("button", {
+      class: "atfb-button atfb-button--ghost atfb-tagpick__open",
+      type: "button",
+      title: "Pick a value to insert — or type { in the box",
+      attrs: { "aria-haspopup": "dialog" },
+      children: [icon("shortcode"), el("span", { text: options.button ?? "Insert a value" })]
+    });
+    const wrapper = el("div", {
+      class: "atfb-taggable",
+      children: [field, el("div", { class: "atfb-taggable__tools", children: [insert] })]
+    });
+    const preview = options.preview === false ? null : el("p", { class: "atfb-taggable__preview" });
+    if (preview) {
+      wrapper.append(preview);
+    }
+    const repaint = () => {
+      if (!preview) {
+        return;
+      }
+      if (!hasTags(field.value)) {
+        preview.textContent = "";
+        preview.hidden = true;
+        return;
+      }
+      void catalogue().then((groups) => {
+        if (!hasTags(field.value)) {
+          return;
+        }
+        preview.hidden = false;
+        preview.replaceChildren(
+          el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
+          el("span", { text: resolvePreview(field.value, groups) })
+        );
+      });
+    };
+    field.addEventListener("input", repaint);
+    repaint();
+    const open = (start, end) => {
+      const original = field.value;
+      showPicker({
+        catalogue,
+        container: wrapper,
+        anchor: wrapper,
+        returnFocus: field,
+        intro: options.intro ?? DEFAULT_INTRO,
+        stillValid: () => wrapper.isConnected && field.value === original,
+        onPick: (tag) => {
+          field.setSelectionRange(start, end);
+          insertAtCursor(field, tag);
+        }
+      });
+    };
+    insert.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (pickerReturnFocus === field) {
+        closePicker(true);
+        return;
+      }
+      open(field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length);
+    });
+    const onType = (event) => {
+      const caret = field.selectionStart ?? 0;
+      if (typedBrace(event, field.value[caret - 1] ?? "")) {
+        open(caret - 1, caret + (field.value[caret] === "}" ? 1 : 0));
+      }
+    };
+    field.addEventListener("input", onType);
+    field.addEventListener("compositionend", onType);
+    return wrapper;
+  }
+  function caretOffset(node) {
+    const length = (node.textContent ?? "").length;
+    const selection = node.ownerDocument.getSelection();
+    if (!selection?.rangeCount) {
+      return length;
+    }
+    const range = selection.getRangeAt(0);
+    if (!node.contains(range.endContainer)) {
+      return length;
+    }
+    const before = node.ownerDocument.createRange();
+    before.selectNodeContents(node);
+    before.setEnd(range.endContainer, range.endOffset);
+    return before.toString().length;
+  }
+  function placeCaret(node, offset) {
+    const text = node.firstChild;
+    const selection = node.ownerDocument.getSelection();
+    if (!text || !selection) {
+      return;
+    }
+    const range = node.ownerDocument.createRange();
+    range.setStart(text, Math.min(offset, (text.textContent ?? "").length));
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function taggableText(node, options) {
+    const catalogue = catalogueFor(options);
+    const onType = (event) => {
+      const text = node.textContent ?? "";
+      const caret = caretOffset(node);
+      if (!typedBrace(event, text[caret - 1] ?? "")) {
+        return;
+      }
+      const start = caret - 1;
+      const end = caret + (text[caret] === "}" ? 1 : 0);
+      showPicker({
+        catalogue,
+        container: node.closest(".atfb") ?? node.ownerDocument.body,
+        anchor: node,
+        floating: true,
+        returnFocus: node,
+        intro: options.intro ?? DEFAULT_INTRO,
+        stillValid: () => node.isConnected && node.textContent === text,
+        onPick: (tag) => {
+          const current = node.textContent ?? "";
+          node.textContent = current.slice(0, start) + tag + current.slice(end);
+          node.focus();
+          placeCaret(node, start + tag.length);
+          node.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+        onClose: () => {
+          if (node.ownerDocument.activeElement !== node) {
+            node.dispatchEvent(new FocusEvent("blur"));
+          } else if (node.textContent === text) {
+            placeCaret(node, caret);
+          }
+        }
+      });
+    };
+    node.addEventListener("input", onType);
+    node.addEventListener("compositionend", onType);
+    return node;
+  }
   const SHAPES = {
     text: "text",
     email: "text",
@@ -15266,7 +15651,14 @@ ${end.comment}` : end.comment;
       }
       event.stopPropagation();
     });
-    node.addEventListener("blur", () => onCommit?.());
+    node.addEventListener("blur", () => {
+      if (!isPickingFor(node)) {
+        onCommit?.();
+      }
+    });
+    if (options.recall) {
+      options.recall.handlers.picker?.(node, options.recall.field);
+    }
     return node;
   }
   function optionInputFor(type2) {
@@ -15291,7 +15683,8 @@ ${end.comment}` : end.comment;
       // cards' condition chips and in the merge-tag picker, and repainting the
       // canvas on every character would take the caret with it.
       onCommit: () => handlers.restructure(() => {
-      })
+      }),
+      recall: { handlers, field }
     });
     const parts = [
       // A toggle draws its own label beside the switch, exactly as the front end
@@ -15324,7 +15717,8 @@ ${end.comment}` : end.comment;
       bind: "hint",
       onInput: (value) => handlers.edit((live) => {
         live.hint = value;
-      })
+      }),
+      recall: { handlers, field }
     });
     node.setAttribute("aria-label", "Hint");
     return el("p", { class: "atfb-preview__hint", children: [node] });
@@ -15368,7 +15762,8 @@ ${end.comment}` : end.comment;
                 live.label = value;
               }),
               onCommit: () => handlers.restructure(() => {
-              })
+              }),
+              recall: { handlers, field }
             })
           ]
         });
@@ -15513,7 +15908,8 @@ ${end.comment}` : end.comment;
       bind: "placeholder",
       onInput: (value) => handlers.edit((live) => {
         live.placeholder = value;
-      })
+      }),
+      recall: { handlers, field }
     });
     box.setAttribute("aria-label", "Placeholder");
     return box;
@@ -15621,7 +16017,8 @@ ${end.comment}` : end.comment;
           live.label = value;
         }),
         onCommit: () => handlers.restructure(() => {
-        })
+        }),
+        recall: { handlers, field }
       });
     }
     if ("divider" === field.type) {
@@ -15684,266 +16081,110 @@ ${end.comment}` : end.comment;
       text: `${type2?.label ?? field.type} — nothing is shown to the visitor here.`
     });
   }
-  const cache = /* @__PURE__ */ new Map();
-  function mergeTags(formId) {
-    let pending2 = cache.get(formId);
-    if (!pending2) {
-      pending2 = api.mergeTags(formId).catch(() => []);
-      cache.set(formId, pending2);
+  function fillRecall(template, answer) {
+    return template.replace(/\{field:([a-zA-Z0-9_-]+)\}/g, (_match, id2) => answer(id2));
+  }
+  const UNRECALLABLE = ["password", "file", "signature", "repeater", "page_break", "heading", "html", "divider", "spacer"];
+  function recallable(field) {
+    return !UNRECALLABLE.includes(field.type);
+  }
+  function sampleFor(field) {
+    const first = (field.choices ?? [])[0];
+    if (first?.label) {
+      return String(first.label);
     }
-    return pending2;
-  }
-  function forgetMergeTags(formId) {
-    cache.delete(formId);
-  }
-  function flatten(groups) {
-    const all = /* @__PURE__ */ new Map();
-    for (const group of groups) {
-      for (const item of group.items) {
-        all.set(item.tag, item);
-      }
+    switch (field.type) {
+      case "email":
+        return "ada@example.com";
+      case "name":
+        return "Ada Lovelace";
+      case "number":
+      case "range":
+      case "scale":
+      case "rating":
+        return "3";
+      case "total":
+        return "42.00";
+      case "switch":
+      case "consent":
+        return "Yes";
+      case "tel":
+        return "+34 600 123 456";
+      case "url":
+        return "https://example.com";
+      case "country":
+        return "Spain";
+      case "color":
+        return "#3366ff";
+      case "date":
+        return "24/05/2026";
+      case "time":
+        return "09:30";
+      case "datetime":
+        return "24/05/2026 09:30";
+      case "date_range":
+        return "24/05/2026 – 28/05/2026";
+      case "textarea":
+        return "Whatever they wrote";
+      case "text":
+        return "Ada";
+      default:
+        return "Their answer";
     }
-    return all;
   }
-  function resolvePreview(text, groups) {
-    const all = flatten(groups);
-    return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
-      const known = all.get(match.toLowerCase());
-      return known ? `{the value of ${known.label}}` : match;
+  function readableLabel(field, fields) {
+    const label = String(field.label ?? "");
+    if (!label) {
+      return field.id;
+    }
+    return fillRecall(label, (id2) => {
+      const target = fields.find((candidate) => candidate.id === id2);
+      return `‹${target ? String(target.label ?? "").replace(/\{field:[a-zA-Z0-9_-]+\}/g, "…") || id2 : id2}›`;
     });
   }
-  function hasTags(text) {
-    return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
+  function recallItem(field, later, fields) {
+    return {
+      tag: `{field:${field.id}}`,
+      label: field.label ? readableLabel(field, fields) : "Untitled question",
+      hint: later ? "Comes later in the form, so this stays blank until they get there and answer it." : "Fills in as soon as they answer it. Blank until then.",
+      sample: sampleFor(field),
+      type: field.type
+    };
   }
-  let openPicker = null;
-  let pickerRequest = 0;
-  let pickerReturnFocus = null;
-  function closePicker(restoreFocus = false) {
-    pickerRequest++;
-    openPicker?.remove();
-    openPicker = null;
-    if (restoreFocus) {
-      pickerReturnFocus?.focus();
-    }
-    pickerReturnFocus = null;
-  }
-  if (typeof document !== "undefined") {
-    document.addEventListener("pointerdown", (event) => {
-      const target = event.target;
-      if (target?.closest(".atfb-tagpick__open")) {
-        return;
+  function recallGroups(fields, current, includeSelf = true) {
+    const index = fields.findIndex((field) => field.id === current);
+    const usable = (field) => field.id !== current && recallable(field);
+    const earlier = index < 0 ? fields.filter(usable) : fields.slice(0, index).filter(usable);
+    const later = index < 0 ? [] : fields.slice(index + 1).filter(usable);
+    const self = includeSelf && index >= 0 && recallable(fields[index]) ? fields[index] : null;
+    const groups = [
+      {
+        id: "earlier",
+        label: "Their earlier answers",
+        items: earlier.map((field) => recallItem(field, false, fields)),
+        empty: later.length || self ? "Nothing comes before this question yet — the other answers are below." : "Add another question and its answer can be shown here."
       }
-      if (!openPicker?.contains(target)) {
-        closePicker();
-      }
-    });
-    window.addEventListener("keydown", (event) => {
-      if ("Escape" === event.key && pickerReturnFocus) {
-        closePicker(true);
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-      if (!openPicker?.contains(event.target) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(event.key)) {
-        return;
-      }
-      event.stopImmediatePropagation();
-      const search = openPicker.querySelector(".atfb-tagpick__search");
-      const items2 = [...openPicker.querySelectorAll(".atfb-tagpick__item")];
-      const index = items2.indexOf(document.activeElement);
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items2.length - 1 : index - 1;
-        items2[(next + items2.length) % items2.length]?.focus();
-      } else if (event.key === "Enter" && event.target === search) {
-        event.preventDefault();
-        items2[0]?.click();
-      } else if (event.target !== search && event.key !== "Enter") {
-        event.preventDefault();
-        if (event.key === "Home") items2[0]?.focus();
-        if (event.key === "End") items2[items2.length - 1]?.focus();
-      }
-    }, true);
-  }
-  function insertAtCursor(field, text) {
-    const start = field.selectionStart ?? field.value.length;
-    const end = field.selectionEnd ?? field.value.length;
-    field.value = field.value.slice(0, start) + text + field.value.slice(end);
-    const caret = start + text.length;
-    field.setSelectionRange(caret, caret);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.focus();
-  }
-  function pickerBounds(from) {
-    let top = 0;
-    let bottom = window.innerHeight;
-    let node = from.parentElement;
-    while (node && node !== document.body) {
-      if (/auto|scroll|hidden|clip/.test(getComputedStyle(node).overflowY)) {
-        const rect = node.getBoundingClientRect();
-        top = Math.max(top, rect.top);
-        bottom = Math.min(bottom, rect.bottom);
-      }
-      node = node.parentElement;
-    }
-    return { top, bottom };
-  }
-  function buildPicker(groups, onPick) {
-    const search = el("input", {
-      class: "atfb-input atfb-tagpick__search",
-      type: "search",
-      placeholder: "Search values…",
-      attrs: { "aria-label": "Search values" }
-    });
-    const list = el("div", { class: "atfb-tagpick__list" });
-    const paint = (query2) => {
-      list.replaceChildren();
-      const needle = query2.trim().toLowerCase();
-      let shown = 0;
-      for (const group of groups) {
-        const matches = group.items.filter(
-          (item) => !needle || item.label.toLowerCase().includes(needle) || item.tag.toLowerCase().includes(needle)
-        );
-        if (!matches.length) {
-          if (group.empty && !needle && !group.items.length) {
-            list.append(
-              el("p", { class: "atfb-tagpick__group", text: group.label }),
-              el("p", { class: "atfb-tagpick__empty", text: group.empty })
-            );
+    ];
+    if (self) {
+      groups.push({
+        id: "self",
+        label: "This question",
+        items: [
+          {
+            ...recallItem(self, false, fields),
+            hint: "Their answer to this very question, filling in letter by letter as they type it."
           }
-          continue;
-        }
-        list.append(el("p", { class: "atfb-tagpick__group", text: group.label }));
-        for (const item of matches) {
-          shown += 1;
-          list.append(
-            el("button", {
-              class: "atfb-tagpick__item",
-              type: "button",
-              on: {
-                click: () => {
-                  closePicker();
-                  onPick(item.tag);
-                }
-              },
-              children: [
-                el("span", {
-                  class: "atfb-tagpick__item-main",
-                  children: [
-                    el("span", { class: "atfb-tagpick__label", text: item.label }),
-                    el("code", { class: "atfb-tagpick__tag", text: item.tag })
-                  ]
-                }),
-                item.hint || item.sample ? el("span", {
-                  class: "atfb-tagpick__meta",
-                  text: `{the value of ${item.label}}`
-                }) : null
-              ]
-            })
-          );
-        }
-      }
-      if (!shown && needle) {
-        list.append(el("p", { class: "atfb-tagpick__empty", text: `Nothing matches “${query2}”.` }));
-      }
-    };
-    paint("");
-    search.addEventListener("input", () => paint(search.value));
-    const picker = el("div", {
-      class: "atfb-tagpick",
-      attrs: { role: "dialog", "aria-label": "Insert a value" },
-      children: [
-        el("p", {
-          class: "atfb-tagpick__intro",
-          text: "Pick something to drop in. It is filled in when the form is submitted."
-        }),
-        search,
-        list
-      ]
-    });
-    picker.addEventListener("keydown", (event) => event.stopPropagation());
-    return picker;
-  }
-  function taggable(field, options) {
-    const catalogue = () => Promise.resolve(options.groups ? options.groups() : mergeTags(options.formId ?? 0));
-    const insert = el("button", {
-      class: "atfb-button atfb-button--ghost atfb-tagpick__open",
-      type: "button",
-      title: "Insert a value from the submission",
-      attrs: { "aria-haspopup": "dialog" },
-      children: [icon("shortcode"), el("span", { text: "Insert a value" })]
-    });
-    const wrapper = el("div", {
-      class: "atfb-taggable",
-      children: [field, el("div", { class: "atfb-taggable__tools", children: [insert] })]
-    });
-    const preview = options.preview === false ? null : el("p", { class: "atfb-taggable__preview" });
-    if (preview) {
-      wrapper.append(preview);
+        ]
+      });
     }
-    const repaint = () => {
-      if (!preview) {
-        return;
-      }
-      if (!hasTags(field.value)) {
-        preview.textContent = "";
-        preview.hidden = true;
-        return;
-      }
-      void catalogue().then((groups) => {
-        if (!hasTags(field.value)) {
-          return;
-        }
-        preview.hidden = false;
-        preview.replaceChildren(
-          el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
-          el("span", { text: resolvePreview(field.value, groups) })
-        );
+    if (later.length) {
+      groups.push({
+        id: "later",
+        label: "Answers from later in the form",
+        items: later.map((field) => recallItem(field, true, fields))
       });
-    };
-    field.addEventListener("input", repaint);
-    repaint();
-    const open = (start, end) => {
-      closePicker();
-      const request2 = pickerRequest;
-      const original = field.value;
-      pickerReturnFocus = field;
-      void catalogue().then((groups) => {
-        if (request2 !== pickerRequest || !wrapper.isConnected || field.value !== original) {
-          return;
-        }
-        const picker = buildPicker(groups, (tag) => {
-          field.setSelectionRange(start, end);
-          insertAtCursor(field, tag);
-        });
-        wrapper.append(picker);
-        openPicker = picker;
-        const bounds = pickerBounds(wrapper);
-        picker.style.maxBlockSize = `${Math.max(0, Math.min(320, bounds.bottom - bounds.top - 8))}px`;
-        const anchor = wrapper.getBoundingClientRect();
-        const height = picker.getBoundingClientRect().height;
-        const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
-        const top = Math.max(bounds.top + 4, Math.min(preferred, bounds.bottom - height - 4));
-        picker.style.insetBlockStart = `${top - anchor.top}px`;
-        picker.querySelector(".atfb-tagpick__search")?.focus({ preventScroll: true });
-      });
-    };
-    insert.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (pickerReturnFocus === field) {
-        closePicker(true);
-        return;
-      }
-      open(field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length);
-    });
-    field.addEventListener("input", (event) => {
-      const typed = event;
-      const caret = field.selectionStart ?? 0;
-      if (!typed.isComposing && typed.data === "{" && field.value[caret - 1] === "{") {
-        open(caret - 1, caret + (field.value[caret] === "}" ? 1 : 0));
-      }
-    });
-    return wrapper;
+    }
+    return groups;
   }
   function px(value, fallback2) {
     const parsed = parseFloat(String(value ?? ""));
@@ -17879,6 +18120,39 @@ ${end.comment}` : end.comment;
     }
   }
   const FORMULA_FUNCTIONS = ["sum", "min", "max", "avg", "round", "ceil", "floor", "abs", "sqrt", "pow"];
+  const FORMULA_FUNCTION_HELP = {
+    sum: { usage: "sum( a, b, … )", help: "Adds them all up. sum( {attendees.age} ) adds every row of a repeater." },
+    min: { usage: "min( a, b, … )", help: "The smallest of them — min( {f1}, 100 ) caps a value at 100." },
+    max: { usage: "max( a, b, … )", help: "The largest of them — max( {f1}, 0 ) never lets a value go negative." },
+    avg: { usage: "avg( a, b, … )", help: "The average of them." },
+    round: { usage: "round( x, places )", help: "Rounds to the nearest whole number, or to that many decimal places: round( {f1} * 1.21, 2 )." },
+    ceil: { usage: "ceil( x )", help: "Rounds up — ceil( {guests} / 8 ) is how many tables you need." },
+    floor: { usage: "floor( x )", help: "Rounds down to the whole number below." },
+    abs: { usage: "abs( x )", help: "Drops the minus sign: the distance between two numbers, whichever is bigger." },
+    sqrt: { usage: "sqrt( x )", help: "The square root. A negative number gives 0." },
+    pow: { usage: "pow( x, y )", help: "x to the power of y — pow( {side}, 2 ) is an area." }
+  };
+  function formulaReferenceHint(field) {
+    switch (field.type) {
+      case "number":
+        return "The number they type in. 0 until they do.";
+      case "range":
+      case "scale":
+      case "rating":
+        return "The number they pick. 0 until they do.";
+      case "total":
+        return "Whatever that total works out to.";
+      case "switch":
+        return "Counts as 1 when it is on, 0 when it is off.";
+      case "quiz":
+        return "The points of the answer they pick.";
+      case "checkboxes":
+      case "multiselect":
+        return "Adds up the price of every option they tick — or its value, when that is a number.";
+      default:
+        return "The price of the option they pick — or its value, when that is a number.";
+    }
+  }
   const NUMERIC_FRIENDLY = [
     "number",
     "range",
@@ -17902,14 +18176,19 @@ ${end.comment}` : end.comment;
         continue;
       }
       const name = field.label || field.id;
-      references.push({ label: `${name} (how many)`, insert: `{${field.id}}` });
+      references.push({
+        label: `${name} (how many)`,
+        insert: `{${field.id}}`,
+        hint: `How many ${String(field.itemLabel ?? "").toLowerCase() || "row"}s they added — 15 * {${field.id}} charges 15 for each.`
+      });
       for (const sub of field.fields ?? []) {
         if (!NUMERIC_FRIENDLY.includes(sub.type)) {
           continue;
         }
         references.push({
           label: `${name} · ${sub.label || sub.id}`,
-          insert: `{${field.id}.${sub.id}}`
+          insert: `{${field.id}.${sub.id}}`,
+          hint: `Every row’s ${sub.label || sub.id} added together. Inside avg(), min() or max() it compares the rows instead.`
         });
       }
     }
@@ -17930,28 +18209,37 @@ ${end.comment}` : end.comment;
     }
     return values;
   }
+  function pricedSample(field) {
+    const priced = (field.choices ?? []).filter((choice) => typeof choice.price === "number" || typeof choice.points === "number").slice(0, 3).map((choice) => `${choice.label || choice.value} → ${choice.price ?? choice.points}`);
+    return priced.join(", ");
+  }
   function formulaInput(input, fields, except) {
     return taggable(input, {
       preview: false,
-      groups: () => [{
-        id: "references",
-        label: "Your questions",
-        items: [
-          ...formulaTargets(fields, except).map((field) => ({
-            label: field.label || field.id,
+      intro: "Pick a question to use its answer as a number. Join them with + - * / and brackets.",
+      button: "Insert a question",
+      groups: () => {
+        const repeaters = repeaterReferences(fields.filter((field) => field.id !== except));
+        const groups = [{
+          id: "references",
+          label: "Your questions",
+          items: formulaTargets(fields, except).map((field) => ({
+            label: readableLabel(field, fields),
             tag: `{${field.id}}`,
-            sample: "",
-            hint: ""
+            hint: formulaReferenceHint(field),
+            sample: pricedSample(field)
           })),
-          ...repeaterReferences(fields.filter((field) => field.id !== except)).map((ref2) => ({
-            label: ref2.label,
-            tag: ref2.insert,
-            sample: "",
-            hint: ""
-          }))
-        ],
-        empty: "Add a number, scale or priced choice question to reference it here."
-      }]
+          empty: "Add a number, scale or priced choice question to reference it here."
+        }];
+        if (repeaters.length) {
+          groups.push({
+            id: "repeaters",
+            label: "Repeating sections",
+            items: repeaters.map((ref2) => ({ label: ref2.label, tag: ref2.insert, hint: ref2.hint, sample: "" }))
+          });
+        }
+        return groups;
+      }
     });
   }
   function openFormulaEditor(options) {
@@ -17992,11 +18280,27 @@ ${end.comment}` : end.comment;
       result.classList.remove("is-error");
     };
     input.addEventListener("input", preview);
-    const chip = (label, insert, caretBack = 0) => el("button", {
+    const help = el("p", {
+      class: "atfb-hint atfb-formula__help",
+      attrs: { "aria-live": "polite" },
+      text: "Point at a function to see what it does."
+    });
+    const chip = (label, insert, caretBack = 0, explain = "") => el("button", {
       class: "atfb-formula__chip",
       type: "button",
       text: label,
+      title: explain || void 0,
       on: {
+        mouseenter: () => {
+          if (explain && caretBack) {
+            help.textContent = explain;
+          }
+        },
+        focus: () => {
+          if (explain && caretBack) {
+            help.textContent = explain;
+          }
+        },
         click: () => {
           insertAtCursor(input, insert);
           if (caretBack > 0) {
@@ -18011,13 +18315,16 @@ ${end.comment}` : end.comment;
     const questions = el("div", {
       class: "atfb-formula__chips",
       children: targets.length || repeaters.length ? [
-        ...targets.map((field) => chip(field.label || field.id, `{${field.id}}`)),
-        ...repeaters.map((reference) => chip(reference.label, reference.insert))
+        ...targets.map((field) => chip(readableLabel(field, options.fields), `{${field.id}}`, 0, formulaReferenceHint(field))),
+        ...repeaters.map((reference) => chip(reference.label, reference.insert, 0, reference.hint))
       ] : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
     });
     const functions = el("div", {
       class: "atfb-formula__chips",
-      children: FORMULA_FUNCTIONS.map((name) => chip(`${name}()`, `${name}()`, 1))
+      children: FORMULA_FUNCTIONS.map((name) => {
+        const entry = FORMULA_FUNCTION_HELP[name];
+        return chip(`${name}()`, `${name}()`, 1, entry ? `${entry.usage} — ${entry.help}` : "");
+      })
     });
     overlay.append(
       el("div", {
@@ -18027,8 +18334,8 @@ ${end.comment}` : end.comment;
           el("h2", { text: "Formula" }),
           formulaInput(input, options.fields, options.field.id),
           result,
-          row("Your questions", questions, "Click one to reference its answer."),
-          row("Functions", functions),
+          row("Your questions", questions, "Click one to reference its answer — or type { in the formula. Hover one to see what it counts as."),
+          row("Functions", el("div", { children: [functions, help] }), "Join anything with + - * / and brackets: ( {f1} + {f2} ) * 1.21"),
           el("div", {
             class: "atfb-modal__actions",
             children: [
@@ -18886,13 +19193,15 @@ ${end.comment}` : end.comment;
       key: "content",
       label: "HTML",
       control: "textarea",
-      hint: "Shown as written. Scripts are stripped when the form is saved."
+      hint: "Shown as written. Scripts are stripped when the form is saved.",
+      recall: true
     },
     consenttext: {
       key: "consentText",
       label: "What they are agreeing to",
       control: "textarea",
-      hint: "Shown beside the tick box. Links are allowed."
+      hint: "Shown beside the tick box. Links are allowed.",
+      recall: true
     },
     height: {
       key: "height",
@@ -19008,7 +19317,7 @@ ${end.comment}` : end.comment;
     maxchoices: "rendered with minchoices",
     maxrows: "rendered with minrows"
   };
-  function settingRow(field, setting, update) {
+  function settingRow(field, setting, update, recall) {
     const raw = field[setting.key];
     const write = (value) => update(setting.key, value);
     if ("checkbox" === setting.control) {
@@ -19030,12 +19339,14 @@ ${end.comment}` : end.comment;
       return row(setting.label, select(String(raw ?? ""), setting.options ?? [], write), setting.hint);
     }
     if ("textarea" === setting.control) {
-      return row(setting.label, textArea(String(raw ?? ""), write), setting.hint);
+      const area = textArea(String(raw ?? ""), write);
+      return row(setting.label, setting.recall && recall ? recall(area) : area, setting.hint);
     }
     if ("number" === setting.control) {
       return row(setting.label, numberInput(String(raw ?? ""), write), setting.hint);
     }
-    return row(setting.label, bind(textInput(String(raw ?? ""), write), setting.key), setting.hint);
+    const input = bind(textInput(String(raw ?? ""), write), setting.key);
+    return row(setting.label, setting.recall && recall ? recall(input) : input, setting.hint);
   }
   function restatement(rows, text) {
     const used = new Set(rows.map((statement) => statement.key).filter(Boolean));
@@ -19210,22 +19521,26 @@ ${end.comment}` : end.comment;
           );
         } else {
           this.inspector.append(
-            el("p", { class: "atfb-hint", text: `Reference this field as {field:${field.id}}` })
+            el("p", {
+              class: "atfb-hint",
+              text: `Show this answer in a label, hint or email as {field:${field.id}}; use it in a formula as {${field.id}}. Or type { in any of those boxes and pick it from the list.`
+            })
           );
         }
         if (supports.includes("label")) {
+          const label = bind(textInput(field.label, (value) => update("label", value)), "label");
           this.inspector.append(
-            row(
-              "Label",
-              bind(textInput(field.label, (value) => update("label", value)), "label")
-            )
+            row("Label", "page_break" === field.type ? label : taggable(label, this.recallOptions(field.id)))
           );
         }
         if (supports.includes("placeholder")) {
           this.inspector.append(
             row(
               "Placeholder",
-              bind(textInput(field.placeholder, (value) => update("placeholder", value)), "placeholder")
+              taggable(
+                bind(textInput(field.placeholder, (value) => update("placeholder", value)), "placeholder"),
+                this.recallOptions(field.id, false)
+              )
             )
           );
         }
@@ -19233,7 +19548,10 @@ ${end.comment}` : end.comment;
           this.inspector.append(
             row(
               "Hint",
-              bind(textInput(field.hint, (value) => update("hint", value)), "hint"),
+              taggable(
+                bind(textInput(field.hint, (value) => update("hint", value)), "hint"),
+                this.recallOptions(field.id)
+              ),
               "Shown under the field, and read out with it."
             )
           );
@@ -19691,6 +20009,11 @@ ${end.comment}` : end.comment;
      */
     rebindCanvas() {
       if ("build" !== this.tab && "confirm" !== this.tab && "notify" !== this.tab) {
+        return;
+      }
+      const picking = pickerOwner();
+      if (picking && this.canvas.contains(picking)) {
+        picking.addEventListener("blur", () => queueMicrotask(() => this.rebindCanvas()), { once: true });
         return;
       }
       const focused = document.activeElement;
@@ -20923,7 +21246,10 @@ ${end.comment}` : end.comment;
                 // preview machinery, and needs to know their types
                 // and which of them is selected.
                 types: (name) => this.config?.fieldTypes.find((candidate) => candidate.type === name),
-                selectedId: this.selected
+                selectedId: this.selected,
+                picker: (node, target) => {
+                  taggableText(node, this.recallOptions(target.id, "placeholder" !== node.dataset.atfbBind));
+                }
               }),
               field.logic.enabled ? this.renderCondition(field, condition) : null
             ]
@@ -21767,7 +22093,9 @@ ${end.comment}` : end.comment;
         if (!setting) {
           continue;
         }
-        this.inspector.append(settingRow(field, setting, update));
+        this.inspector.append(
+          settingRow(field, setting, update, (control2) => taggable(control2, this.recallOptions(field.id)))
+        );
         if (setting.also) {
           this.inspector.append(
             settingRow(
@@ -23020,6 +23348,24 @@ ${decls}
       }
       this.markDirty();
     }
+    /**
+     * What a box shown *inside* the form offers on `{`: the visitor's answers.
+     *
+     * Not the submission's merge tags — the entry number, the IP and the rest
+     * are only known once the form is sent, and a label is read before that.
+     * The schema is read when the picker opens, so a question added a moment
+     * ago is already in it.
+     *
+     * @param current     The field whose text is being edited.
+     * @param includeSelf Whether to offer the field's own answer.
+     */
+    recallOptions(current, includeSelf = true) {
+      return {
+        groups: () => recallGroups(this.schema?.fields ?? [], current, includeSelf),
+        intro: "Show one of their answers here. It fills in live while they answer, and is blank until they do.",
+        button: "Insert an answer"
+      };
+    }
     /** A one-line input that understands merge tags. */
     taggableInput(value, onChange, placeholder = "") {
       return taggable(textInput(value, onChange, placeholder), { formId: this.form.id });
@@ -23421,7 +23767,7 @@ ${decls}
             controls.push(
               row(
                 "Button label",
-                textInput(success.buttonLabel, (value) => {
+                this.taggableInput(success.buttonLabel, (value) => {
                   success.buttonLabel = value;
                   this.markDirty();
                 }, "Fill it in again")

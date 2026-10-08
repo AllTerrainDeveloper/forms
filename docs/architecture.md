@@ -327,7 +327,7 @@ includes/
   themes.php                  tokens, ten themes, CSS emitter
   logic.php                   conditional logic      ← twin of src/shared/logic.ts
   calc.php                    the expression evaluator ← twin of src/shared/calc.ts
-  merge-tags.php              {field:f1}, {all_fields}, quiz scoring
+  merge-tags.php              {field:f1}, {all_fields}, quiz scoring, answer recall slots
   render.php                  form chrome, client schema
   render-controls.php         one control per field type
   availability.php            scheduling, limits, prefill
@@ -358,13 +358,14 @@ src/
   widget.ts                   the desktop widget
   preview-button.ts           the eye in the title bar
   logic-map.ts                conditions in words + the curves that draw them
-  merge-tags.ts               the Insert-a-value picker
+  merge-tags.ts               the Insert-a-value picker, and the `{` shortcut on canvas text
   handoff.ts                  admin URL → native window
   dock.ts                     the one dock tile and its flyout
   relations.ts                the window content graph
   dnd.ts                      drag manager + fallback
   api.ts / ui.ts / types.ts
   shared/logic.ts, shared/calc.ts
+  shared/recall.ts            which answers {field:…} can show inside the form, and how they read
 tests/
   fixtures/*.json             the shared conformance tables
   vitest/                     TypeScript

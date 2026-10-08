@@ -1346,6 +1346,37 @@ var allTerrainFormsFront = function(exports) {
     }
     return true;
   }
+  function fillRecall(template, answer) {
+    return template.replace(/\{field:([a-zA-Z0-9_-]+)\}/g, (_match, id) => answer(id));
+  }
+  const UNRECALLABLE = ["password", "file", "signature", "repeater", "page_break", "heading", "html", "divider", "spacer"];
+  function recallable(field) {
+    return !UNRECALLABLE.includes(field.type);
+  }
+  function choiceLabel(field, value) {
+    const match = (field.choices ?? []).find((choice) => String(choice.value) === String(value));
+    return match && match.label ? String(match.label) : String(value ?? "");
+  }
+  function recallText(field, value, words = { yes: "Yes", no: "No" }) {
+    if (null === value || void 0 === value || "" === value) {
+      return "";
+    }
+    if (typeof value === "boolean") {
+      return value ? words.yes : words.no;
+    }
+    const hasChoices = Array.isArray(field.choices) && field.choices.length > 0;
+    if (Array.isArray(value)) {
+      return value.map((item) => (hasChoices ? choiceLabel(field, item) : String(item ?? "")).trim()).filter(Boolean).join(", ");
+    }
+    if (typeof value === "object") {
+      const parts = Object.values(value).map((item) => (hasChoices ? choiceLabel(field, item) : String(item ?? "")).trim()).filter(Boolean);
+      if ("date_range" === field.type) {
+        return parts.join(" – ");
+      }
+      return parts.join("name" === field.type ? " " : ", ");
+    }
+    return hasChoices ? choiceLabel(field, value) : String(value);
+  }
   const config = window.allTerrainForms;
   const i18n = (key, fallback) => config?.i18n?.[key] ?? fallback;
   class AllTerrainForm {
@@ -1600,6 +1631,54 @@ var allTerrainFormsFront = function(exports) {
           submitted.value = input.value;
         }
       }
+      this.recall(values, calculated);
+    }
+    /**
+     * Fills every recalled answer — `{field:name}` in a label, hint or heading.
+     *
+     * The server prints an empty `.atf-recall` span per tag; this writes the
+     * answer into it on every change. A placeholder or a dropdown's first
+     * option cannot hold a span, so those carry their whole template in
+     * `data-atf-recall-template` and get the resolved text written back — into
+     * the attribute named by `data-atf-recall-attr`, or as text.
+     *
+     * A total reads its computed value, since its input is disabled and never
+     * part of `values()`. A tag naming a field the form does not have is put
+     * back as typed, which is what a notification does with it too — a typo
+     * should be visible, not silently blank.
+     */
+    recall(values, calculated) {
+      const words = { yes: i18n("yes", "Yes"), no: i18n("no", "No") };
+      const answer = (id) => {
+        const field = this.schema.fields.find((candidate) => candidate.id === id);
+        if (!field) {
+          return `{field:${id}}`;
+        }
+        if (!recallable(field)) {
+          return "";
+        }
+        const computed = calculated[id];
+        const decimals = typeof field.decimals === "number" ? field.decimals : 2;
+        return field.formula && typeof computed === "number" ? computed.toFixed(decimals) : recallText(field, values[id], words);
+      };
+      this.form.querySelectorAll("[data-atf-recall]").forEach((span) => {
+        const text = answer(span.dataset.atfRecall ?? "");
+        if (span.textContent !== text) {
+          span.textContent = text;
+        }
+      });
+      this.form.querySelectorAll("[data-atf-recall-template]").forEach((element) => {
+        const text = fillRecall(element.dataset.atfRecallTemplate ?? "", answer);
+        const attribute = element.dataset.atfRecallAttr;
+        if (attribute) {
+          const next = text.trim() ? text : " ";
+          if (element.getAttribute(attribute) !== next) {
+            element.setAttribute(attribute, next);
+          }
+        } else if (element.textContent !== text) {
+          element.textContent = text;
+        }
+      });
     }
     /* ---------------------------------------------------------------- Steps */
     /** Shows one page of a multi-page form. */
