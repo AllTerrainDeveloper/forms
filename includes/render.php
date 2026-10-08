@@ -442,13 +442,17 @@ function alltfo_client_field( $field ) {
 		}
 	}
 
-	// Only the parts of a choice a calculation or a logic rule needs. The
-	// label is already in the DOM beside the control that carries it.
+	// Only the parts of a choice a calculation, a logic rule or a recalled
+	// answer (`{field:size}` in a later label) needs.
 	if ( ! empty( $field['choices'] ) ) {
 		$client['choices'] = array();
 
 		foreach ( $field['choices'] as $choice ) {
-			$entry = array( 'value' => $choice['value'] );
+			$entry = array(
+				'value' => $choice['value'],
+				// Recalled answers read as the label the visitor picked.
+				'label' => isset( $choice['label'] ) ? $choice['label'] : '',
+			);
 
 			if ( isset( $choice['price'] ) ) {
 				$entry['price'] = $choice['price'];
@@ -859,7 +863,7 @@ function alltfo_render_field( $field, $schema, $values, $errors, $instance ) {
 		$out .= sprintf(
 			'<p class="atf-hint" id="%s-hint">%s</p>',
 			esc_attr( $id ),
-			wp_kses_post( $field['hint'] )
+			alltfo_recall_markup( wp_kses_post( $field['hint'] ) )
 		);
 	}
 
@@ -910,13 +914,13 @@ function alltfo_render_label( $field, $id, $tag = 'label' ) {
 		: '';
 
 	if ( 'legend' === $tag ) {
-		return sprintf( '<legend class="atf-label">%s%s</legend>', esc_html( $field['label'] ), $mark );
+		return sprintf( '<legend class="atf-label">%s%s</legend>', alltfo_recall_markup( esc_html( $field['label'] ) ), $mark );
 	}
 
 	return sprintf(
 		'<label class="atf-label" for="%s">%s%s</label>',
 		esc_attr( $id ),
-		esc_html( $field['label'] ),
+		alltfo_recall_markup( esc_html( $field['label'] ) ),
 		$mark
 	);
 }

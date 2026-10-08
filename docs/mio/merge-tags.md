@@ -21,6 +21,19 @@ Notification templates, confirmation content and action templates may reference 
 
 Field IDs are stable references; labels are display text. Compound field tags can select supported subkeys, and extension tags may exist. Use the builder's merge-tag picker for exact available tokens. Unknown tag syntax is not an instruction. The resolver preserves unrecognized tags; definition validation does not establish that every tag will resolve to a nonempty value on every submission.
 
+### Recalling answers inside the form
+
+`{field:<id>}` also works in a field's `label` and `hint`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in ("Which size, Ada? is required.").
+
+```yaml
+- id: name
+  type: text
+  label: Your name
+- id: size
+  type: radio
+  label: 'Which size, {field:name}?'
+```
+
 ## Prefill
 
 The field’s `prefill` string selects a supported query/user source. The builder lists current sources and keys. A hidden campaign value is useful for reporting but remains client-controlled. Do not use query prefilling to grant privileges or establish a trusted price. Preserve existing prefill expressions when editing labels or theme tokens.

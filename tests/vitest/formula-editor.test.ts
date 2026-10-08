@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { formulaSampleValues, formulaTargets, openFormulaEditor, repeaterReferences } from '../../src/formula-editor';
+import { FORMULA_FUNCTIONS, FORMULA_FUNCTION_HELP, formulaReferenceHint, formulaSampleValues, formulaTargets, openFormulaEditor, repeaterReferences } from '../../src/formula-editor';
 import { calculate } from '../../src/shared/calc';
 import type { Field } from '../../src/types';
 
@@ -44,10 +44,17 @@ describe( 'repeaterReferences', () => {
 	it( 'offers the row count and every number-shaped sub-field, never prose', () => {
 		const refs = repeaterReferences( [ ...FIELDS, attendees ] );
 
-		expect( refs ).toEqual( [
+		expect( refs.map( ( { label, insert } ) => ( { label, insert } ) ) ).toEqual( [
 			{ label: 'Attendees (how many)', insert: '{att}' },
 			{ label: 'Attendees · Age', insert: '{att.age}' },
 		] );
+	} );
+
+	it( 'explains what each reference adds up to', () => {
+		const [ count, age ] = repeaterReferences( [ ...FIELDS, attendees ] );
+
+		expect( count.hint ).toContain( '15 * {att}' );
+		expect( age.hint ).toContain( 'Every row’s Age added together' );
 	} );
 
 	it( 'previews against two sample rows, so an aggregate is visibly an aggregate', () => {
@@ -107,5 +114,34 @@ describe( 'openFormulaEditor', () => {
 
 		expect( onSave ).toHaveBeenCalledWith( '{f1} * 2' );
 		expect( root.querySelector( '.atfb-formula' ) ).toBeNull();
+	} );
+} );
+
+describe( 'explanations', () => {
+	it( 'says how every kind of reference becomes a number', () => {
+		expect( formulaReferenceHint( field( 'q', 'number' ) ) ).toMatch( /number they type/ );
+		expect( formulaReferenceHint( field( 'q', 'switch' ) ) ).toMatch( /1 when it is on/ );
+		expect( formulaReferenceHint( field( 'q', 'checkboxes' ) ) ).toMatch( /every option they tick/ );
+		expect( formulaReferenceHint( field( 'q', 'radio' ) ) ).toMatch( /price of the option/ );
+	} );
+
+	it( 'documents every function the engine offers', () => {
+		for ( const name of FORMULA_FUNCTIONS ) {
+			expect( FORMULA_FUNCTION_HELP[ name ]?.usage ).toContain( `${ name }(` );
+			expect( FORMULA_FUNCTION_HELP[ name ]?.help.length ).toBeGreaterThan( 10 );
+		}
+	} );
+
+	it( 'shows a function’s explanation when its chip is pointed at', () => {
+		const root = document.createElement( 'div' );
+		document.body.append( root );
+		openFormulaEditor( { root, fields: FIELDS, field: FIELDS[ 3 ], onSave: () => {} } );
+
+		const round = [ ...root.querySelectorAll< HTMLButtonElement >( '.atfb-formula__chip' ) ].find( ( chip ) => chip.textContent === 'round()' )!;
+		round.dispatchEvent( new Event( 'mouseenter' ) );
+
+		expect( root.querySelector( '.atfb-formula__help' )!.textContent ).toContain( 'round( x, places )' );
+		expect( round.title ).toContain( 'decimal places' );
+		root.remove();
 	} );
 } );

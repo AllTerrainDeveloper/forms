@@ -126,7 +126,7 @@ function alltfo_render_field_control( $field, $value, $context ) {
 			return sprintf(
 				'<h%1$d class="atf-heading">%2$s</h%1$d>%3$s',
 				$level,
-				esc_html( $field['label'] ),
+				alltfo_recall_markup( esc_html( $field['label'] ) ),
 				'' !== $field['hint'] ? '' : ''
 			);
 
@@ -134,7 +134,7 @@ function alltfo_render_field_control( $field, $value, $context ) {
 			// Already run through `wp_kses_post()` at normalisation, which is
 			// the right moment: sanitising on output would re-filter trusted
 			// stored markup on every page view for no further safety.
-			return sprintf( '<div class="atf-html">%s</div>', isset( $field['content'] ) ? $field['content'] : '' );
+			return sprintf( '<div class="atf-html">%s</div>', isset( $field['content'] ) ? alltfo_recall_markup( $field['content'] ) : '' );
 
 		case 'divider':
 			return '<hr class="atf-divider">';
@@ -500,7 +500,7 @@ function alltfo_render_single_checkbox( $field, $value, $context ) {
 		$attributes,
 		$value ? ' checked' : '',
 		esc_attr( $context['id'] ),
-		wp_kses_post( $text ),
+		alltfo_recall_markup( wp_kses_post( $text ) ),
 		$field['required'] ? '<span class="atf-required" aria-hidden="true">*</span>' : ''
 	);
 }

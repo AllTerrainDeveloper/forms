@@ -222,6 +222,8 @@ function alltfo_client_strings() {
 		'colorSwatches' => __( 'Suggested colours', 'allterrain-forms' ),
 		'colorPick'     => __( 'Pick a colour from the screen', 'allterrain-forms' ),
 		'colorNone'     => __( 'No colour', 'allterrain-forms' ),
+		'yes'           => __( 'Yes', 'allterrain-forms' ),
+		'no'            => __( 'No', 'allterrain-forms' ),
 		'sending'       => __( 'Sending…', 'allterrain-forms' ),
 		'sent'          => __( 'Sent.', 'allterrain-forms' ),
 		'failed'        => __( 'That did not send. Please try again.', 'allterrain-forms' ),

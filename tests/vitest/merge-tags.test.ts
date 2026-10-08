@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resolvePreview, taggable } from '../../src/merge-tags';
+import { isPickingFor, resolvePreview, taggable, taggableText } from '../../src/merge-tags';
 import { formulaInput } from '../../src/formula-editor';
 import type { Field, MergeTagGroup } from '../../src/types';
 
@@ -169,5 +169,119 @@ describe( 'brace picker', () => {
 		expect( tags ).toEqual( [ '{score}', '{attendees}', '{attendees.age}' ] );
 		wrapper.querySelector< HTMLButtonElement >( '.atfb-tagpick__item' )!.click();
 		expect( input.value ).toBe( '{score}' );
+	} );
+} );
+
+describe( 'explained values', () => {
+	it( 'shows what each value is and what it looks like', async () => {
+		const explained: MergeTagGroup[] = [ { id: 'site', label: 'Your site', items: [
+			{ tag: '{admin_email}', label: 'The site administrator’s email', hint: 'Set in Settings → General.', sample: 'admin@example.com' },
+		] } ];
+		const { input, wrapper } = mount( '', () => Promise.resolve( explained ) );
+		typeBrace( input );
+		await settle();
+		const item = wrapper.querySelector( '.atfb-tagpick__item' )!;
+		expect( item.querySelector( '.atfb-tagpick__meta' )!.textContent ).toBe( 'Set in Settings → General.' );
+		expect( item.querySelector( '.atfb-tagpick__sample' )!.textContent ).toBe( 'e.g.admin@example.com' );
+		expect( wrapper.querySelector( '.atfb-tagpick__tip' )!.textContent ).toContain( 'type {' );
+	} );
+
+	it( 'finds a value by what it does, not only by its name', async () => {
+		const { input, wrapper } = mount( '', () => Promise.resolve( [ { id: 'x', label: 'X', items: [
+			{ tag: '{entry:id}', label: 'The reference number', hint: 'Worth putting in a subject line.', sample: '' },
+		] } ] ) );
+		typeBrace( input );
+		await settle();
+		const search = wrapper.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )!;
+		search.value = 'subject';
+		search.dispatchEvent( new Event( 'input' ) );
+		expect( wrapper.querySelectorAll( '.atfb-tagpick__item' ) ).toHaveLength( 1 );
+	} );
+
+	it( 'takes its own intro and button wording', async () => {
+		const input = document.createElement( 'input' );
+		const wrapper = taggable( input, { groups: () => groups, intro: 'Show one of their answers.', button: 'Insert an answer' } );
+		document.body.append( wrapper );
+		expect( wrapper.querySelector( '.atfb-tagpick__open' )!.textContent ).toBe( 'Insert an answer' );
+		wrapper.querySelector< HTMLButtonElement >( '.atfb-tagpick__open' )!.click();
+		await settle();
+		expect( wrapper.querySelector( '.atfb-tagpick__intro' )!.textContent ).toBe( 'Show one of their answers.' );
+	} );
+} );
+
+describe( 'brace picker on canvas text', () => {
+	function editable( text: string ) {
+		const root = document.createElement( 'div' );
+		root.className = 'atfb';
+		const node = document.createElement( 'span' );
+		node.contentEditable = 'true';
+		// jsdom only focuses a contenteditable that is also tabbable; browsers
+		// focus it either way.
+		node.tabIndex = 0;
+		node.textContent = text;
+		root.append( node );
+		document.body.append( root );
+		const inputs = vi.fn();
+		const blurs = vi.fn();
+		node.addEventListener( 'input', () => inputs( node.textContent ) );
+		node.addEventListener( 'blur', () => {
+			if ( ! isPickingFor( node ) ) {
+				blurs();
+			}
+		} );
+		taggableText( node, { groups: () => groups } );
+		node.focus();
+		return { root, node, inputs, blurs };
+	}
+	function typeBraceAt( node: HTMLElement, offset: number ) {
+		const text = node.textContent ?? '';
+		node.textContent = text.slice( 0, offset ) + '{' + text.slice( offset );
+		const range = document.createRange();
+		range.setStart( node.firstChild!, offset + 1 );
+		range.collapse( true );
+		getSelection()!.removeAllRanges();
+		getSelection()!.addRange( range );
+		node.dispatchEvent( new InputEvent( 'input', { bubbles: true, data: '{', inputType: 'insertText' } ) );
+	}
+
+	it( 'floats a picker beside the text and swaps the brace for the tag', async () => {
+		const { root, node, inputs, blurs } = editable( 'Thanks, !' );
+		typeBraceAt( node, 8 );
+		await settle();
+		const picker = root.querySelector( '.atfb-tagpick--floating' );
+		expect( picker ).not.toBeNull();
+		expect( isPickingFor( node ) ).toBe( true );
+		root.querySelectorAll< HTMLButtonElement >( '.atfb-tagpick__item' )[ 1 ].click();
+		expect( node.textContent ).toBe( 'Thanks, {field:name}!' );
+		expect( inputs ).toHaveBeenLastCalledWith( 'Thanks, {field:name}!' );
+		expect( document.activeElement ).toBe( node );
+		expect( root.querySelector( '.atfb-tagpick' ) ).toBeNull();
+		// Focus came straight back, so there is nothing to commit yet.
+		expect( blurs ).not.toHaveBeenCalled();
+	} );
+
+	it( 'commits the text it held back once the picker is dismissed elsewhere', async () => {
+		const { node, blurs } = editable( 'Hi ' );
+		typeBraceAt( node, 3 );
+		await settle();
+		const elsewhere = document.createElement( 'button' );
+		document.body.append( elsewhere );
+		elsewhere.focus();
+		elsewhere.dispatchEvent( new MouseEvent( 'pointerdown', { bubbles: true } ) );
+		expect( isPickingFor( node ) ).toBe( false );
+		expect( blurs ).toHaveBeenCalled();
+		expect( node.textContent ).toBe( 'Hi {' );
+	} );
+} );
+
+describe( 'picker ownership', () => {
+	it( 'names the text an open picker is writing into, so a host can hold a repaint', async () => {
+		const { pickerOwner } = await import( '../../src/merge-tags' );
+		const { input } = mount();
+		expect( pickerOwner() ).toBeNull();
+		typeBrace( input );
+		expect( pickerOwner() ).toBe( input );
+		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
+		expect( pickerOwner() ).toBeNull();
 	} );
 } );

@@ -55,7 +55,8 @@ import { LogicMap, OPERATOR_LABELS, VALUELESS_OPERATORS, controlCounts, logicEdg
 import { boundValue, renderFieldPreview } from './field-preview';
 import type { DateKind } from './ui';
 import type { LogicToken } from './logic-map';
-import { forgetMergeTags, mergeTags, taggable } from './merge-tags';
+import { forgetMergeTags, mergeTags, pickerOwner, taggable, taggableText } from './merge-tags';
+import { recallGroups } from './shared/recall';
 import { mountThemeControls } from './theme-studio';
 // For its side effects: the MailPoet window rides this bundle the same way the
 // standalone Theme Studio does, and mounts itself when its root is present.
@@ -150,6 +151,8 @@ interface SettingControl {
 	options?: Array< { value: string; label: string } >;
 	/** A companion setting rendered directly after — the natural pairs. */
 	also?: { key: string; label: string; hint?: string };
+	/** Shown to the visitor, so it can recall an earlier answer with `{field:…}`. */
+	recall?: boolean;
 }
 
 /**
@@ -177,12 +180,14 @@ export const SETTING_CONTROLS: Record< string, SettingControl > = {
 		label: 'HTML',
 		control: 'textarea',
 		hint: 'Shown as written. Scripts are stripped when the form is saved.',
+		recall: true,
 	},
 	consenttext: {
 		key: 'consentText',
 		label: 'What they are agreeing to',
 		control: 'textarea',
 		hint: 'Shown beside the tick box. Links are allowed.',
+		recall: true,
 	},
 	height: {
 		key: 'height',
@@ -317,12 +322,14 @@ export const SETTINGS_HANDLED_ELSEWHERE: Record< string, string > = {
  * @param field   The field.
  * @param setting The table entry.
  * @param update  Writes one property.
+ * @param recall  Wraps a text control so it offers recalled answers on `{`.
  * @return The row.
  */
 function settingRow(
 	field: Field,
 	setting: SettingControl,
-	update: ( key: string, value: unknown ) => void
+	update: ( key: string, value: unknown ) => void,
+	recall?: ( control: HTMLInputElement | HTMLTextAreaElement ) => HTMLElement
 ): HTMLElement {
 	const raw = field[ setting.key ];
 	const write = ( value: unknown ) => update( setting.key, value );
@@ -353,14 +360,18 @@ function settingRow(
 	}
 
 	if ( 'textarea' === setting.control ) {
-		return row( setting.label, textArea( String( raw ?? '' ), write ), setting.hint );
+		const area = textArea( String( raw ?? '' ), write );
+
+		return row( setting.label, setting.recall && recall ? recall( area ) : area, setting.hint );
 	}
 
 	if ( 'number' === setting.control ) {
 		return row( setting.label, numberInput( String( raw ?? '' ), write ), setting.hint );
 	}
 
-	return row( setting.label, bind( textInput( String( raw ?? '' ), write ), setting.key ), setting.hint );
+	const input = bind( textInput( String( raw ?? '' ), write ), setting.key );
+
+	return row( setting.label, setting.recall && recall ? recall( input ) : input, setting.hint );
 }
 
 /** One row of a Likert matrix: the statement, and the key its answers are stored against. */
@@ -472,6 +483,7 @@ import type {
 	Field,
 	FieldType,
 	Form,
+	MergeTagGroup,
 	FormSchema,
 	FormSummary,
 	Logic,
@@ -1066,6 +1078,18 @@ export class Builder {
 		// controls write through `this.schema` — rebuilding it after every
 		// autosave threw all of that away to fix a problem it does not have.
 		if ( 'build' !== this.tab && 'confirm' !== this.tab && 'notify' !== this.tab ) {
+			return;
+		}
+
+		// The `{` picker floats outside the canvas, so focus in its search box
+		// does not count as "in the canvas" — but the text it is about to write
+		// into is. Repainting now would detach that text and drop the pick.
+		// The picker hands focus back (or re-dispatches `blur`) when it closes.
+		const picking = pickerOwner();
+
+		if ( picking && this.canvas.contains( picking ) ) {
+			picking.addEventListener( 'blur', () => queueMicrotask( () => this.rebindCanvas() ), { once: true } );
+
 			return;
 		}
 
@@ -2674,6 +2698,9 @@ export class Builder {
 							// and which of them is selected.
 							types: ( name ) => this.config?.fieldTypes.find( ( candidate ) => candidate.type === name ),
 							selectedId: this.selected,
+							picker: ( node, target ) => {
+								taggableText( node, this.recallOptions( target.id ) );
+							},
 						} ),
 						field.logic.enabled ? this.renderCondition( field, condition ) : null,
 					],
@@ -3911,17 +3938,24 @@ export class Builder {
 				} )
 			);
 		} else {
+			// Two grammars, and the inspector used to name only one of them —
+			// the one a formula does not understand.
 			this.inspector.append(
-				el( 'p', { class: 'atfb-hint', text: `Reference this field as {field:${ field.id }}` } )
+				el( 'p', {
+					class: 'atfb-hint',
+					text: `Show this answer in a label, hint or email as {field:${ field.id }}; use it in a formula as {${ field.id }}. Or type { in any of those boxes and pick it from the list.`,
+				} )
 			);
 		}
 
 		if ( supports.includes( 'label' ) ) {
+			const label = bind( textInput( field.label, ( value ) => update( 'label', value ) ), 'label' );
+
+			// A step's name is printed in the progress bar, which never
+			// recalls — offering answers there would offer something that
+			// shows up as braces.
 			this.inspector.append(
-				row(
-					'Label',
-					bind( textInput( field.label, ( value ) => update( 'label', value ) ), 'label' )
-				)
+				row( 'Label', 'page_break' === field.type ? label : taggable( label, this.recallOptions( field.id ) ) )
 			);
 		}
 
@@ -3938,7 +3972,10 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Hint',
-					bind( textInput( field.hint, ( value ) => update( 'hint', value ) ), 'hint' ),
+					taggable(
+						bind( textInput( field.hint, ( value ) => update( 'hint', value ) ), 'hint' ),
+						this.recallOptions( field.id )
+					),
 					'Shown under the field, and read out with it.'
 				)
 			);
@@ -4110,7 +4147,9 @@ export class Builder {
 				continue;
 			}
 
-			this.inspector.append( settingRow( field, setting, update ) );
+			this.inspector.append(
+				settingRow( field, setting, update, ( control ) => taggable( control, this.recallOptions( field.id ) ) )
+			);
 
 			if ( setting.also ) {
 				this.inspector.append(
@@ -5702,6 +5741,24 @@ export class Builder {
 		this.markDirty();
 	}
 
+	/**
+	 * What a box shown *inside* the form offers on `{`: the visitor's answers.
+	 *
+	 * Not the submission's merge tags — the entry number, the IP and the rest
+	 * are only known once the form is sent, and a label is read before that.
+	 * The schema is read when the picker opens, so a question added a moment
+	 * ago is already in it.
+	 *
+	 * @param except The field being edited.
+	 */
+	private recallOptions( except: string ): { groups: () => MergeTagGroup[]; intro: string; button: string } {
+		return {
+			groups: () => recallGroups( this.schema?.fields ?? [], except ),
+			intro: 'Show one of their answers here. It fills in live while they answer, and is blank until they do.',
+			button: 'Insert an answer',
+		};
+	}
+
 	/** A one-line input that understands merge tags. */
 	private taggableInput(
 		value: string,
@@ -6175,7 +6232,7 @@ export class Builder {
 					controls.push(
 						row(
 							'Button label',
-							textInput( success.buttonLabel, ( value ) => {
+							this.taggableInput( success.buttonLabel, ( value ) => {
 								success.buttonLabel = value;
 								this.markDirty();
 							}, 'Fill it in again' )

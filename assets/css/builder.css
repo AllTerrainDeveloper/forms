@@ -2520,8 +2520,64 @@ html[data-os-mode='mobile'] :is( .atfb, .atfe, .atfs, .atfa ) :is( input, textar
 
 .atfb-tagpick__meta {
 	display: block;
+	margin-block-start: 2px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var( --atfb-muted );
+}
+
+/* What it looks like once filled in. Quieter than the explanation above it, and
+   cut to one line: a long sample (a whole URL, every answer as a table) is there
+   to be recognised, not read. */
+.atfb-tagpick__sample {
+	display: flex;
+	gap: 4px;
+	margin-block-start: 2px;
 	font-size: 11px;
 	color: var( --atfb-muted );
+	opacity: 0.85;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.atfb-tagpick__sample > span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-style: italic;
+}
+
+.atfb-tagpick__sample-label {
+	flex: 0 0 auto;
+	font-weight: 600;
+}
+
+.atfb-tagpick__tip {
+	flex-shrink: 0;
+	margin: 0;
+	padding-block-start: 6px;
+	border-block-start: 1px solid var( --atfb-border );
+	font-size: 10px;
+	color: var( --atfb-muted );
+}
+
+.atfb-tagpick__tip kbd {
+	padding: 0 4px;
+	border: 1px solid var( --atfb-border );
+	border-radius: 3px;
+	background: var( --atfb-surface );
+	font-size: 10px;
+}
+
+/* Beside text on the canvas. A card clips its overflow and is a drag handle, so
+   the picker cannot sit inside one; it floats at the caret's line instead, and
+   `showPicker()` sets `top` / `left` from the text's own box. */
+.atfb-tagpick--floating {
+	position: fixed;
+	inset-inline-end: auto;
+	inline-size: 340px;
+	max-inline-size: calc( 100vw - 8px );
+	z-index: 1000;
 }
 
 .atfb-recipient {

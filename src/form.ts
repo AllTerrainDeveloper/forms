@@ -21,6 +21,7 @@ import { enhanceColorField, normalizeHex } from './color-picker';
 import { playSuccessEffects, renderSuccessScreen } from './success';
 import { isEmptyValue, visibleFields } from './shared/logic';
 import { presetPasses, validationPreset } from './shared/validation';
+import { recallText, recallable } from './shared/recall';
 import type { Field, FieldValue, RuntimeConfig, SubmissionResult, Values } from './types';
 
 /** The reduced schema the renderer prints beside each form. */
@@ -411,6 +412,42 @@ class AllTerrainForm {
 				submitted.value = input.value;
 			}
 		}
+
+		this.recall( values, calculated );
+	}
+
+	/**
+	 * Fills every recalled answer — `{field:name}` in a label, hint or heading.
+	 *
+	 * The server prints an empty `.atf-recall` span per tag; this writes the
+	 * answer into it on every change. A total reads its computed value, since its
+	 * input is disabled and never part of `values()`. A tag naming a field the
+	 * form does not have is put back as typed, which is what a notification does
+	 * with it too — a typo should be visible, not silently blank.
+	 */
+	private recall( values: Values, calculated: Values ): void {
+		const words = { yes: i18n( 'yes', 'Yes' ), no: i18n( 'no', 'No' ) };
+
+		this.form.querySelectorAll< HTMLElement >( '[data-atf-recall]' ).forEach( ( span ) => {
+			const id = span.dataset.atfRecall ?? '';
+			const field = this.schema.fields.find( ( candidate ) => candidate.id === id );
+			let text = `{field:${ id }}`;
+
+			if ( field && ! recallable( field ) ) {
+				text = '';
+			} else if ( field ) {
+				const computed = calculated[ id ];
+				const decimals = typeof field.decimals === 'number' ? field.decimals : 2;
+
+				text = field.formula && typeof computed === 'number'
+					? computed.toFixed( decimals )
+					: recallText( field, values[ id ], words );
+			}
+
+			if ( span.textContent !== text ) {
+				span.textContent = text;
+			}
+		} );
 	}
 
 	/* ---------------------------------------------------------------- Steps */

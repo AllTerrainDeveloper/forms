@@ -111,6 +111,7 @@ export function hasTags( text: string ): boolean {
 let openPicker: HTMLElement | null = null;
 let pickerRequest = 0;
 let pickerReturnFocus: HTMLElement | null = null;
+let pickerOnClose: ( () => void ) | null = null;
 
 /** Closes whatever picker is open. */
 function closePicker( restoreFocus = false ): void {
@@ -121,6 +122,33 @@ function closePicker( restoreFocus = false ): void {
 		pickerReturnFocus?.focus();
 	}
 	pickerReturnFocus = null;
+
+	const after = pickerOnClose;
+
+	pickerOnClose = null;
+	after?.();
+}
+
+/**
+ * Whether a picker is open on behalf of this element.
+ *
+ * Focus moves into the picker's search box while it is open, so the element
+ * the tag is going into sees a `blur`. An inline-editable label commits — and
+ * repaints the canvas — on blur, which would destroy the very node the tag is
+ * about to be written into. It asks this first.
+ */
+export function isPickingFor( element: HTMLElement ): boolean {
+	return pickerReturnFocus === element;
+}
+
+/**
+ * The element an open picker is writing into, if any.
+ *
+ * For hosts that repaint on their own schedule — the canvas after an autosave
+ * — to hold off until the pick has landed.
+ */
+export function pickerOwner(): HTMLElement | null {
+	return pickerReturnFocus;
 }
 
 if ( typeof document !== 'undefined' ) {
@@ -217,9 +245,13 @@ function pickerBounds( from: HTMLElement ): { top: number; bottom: number } {
 	return { top, bottom };
 }
 
+/** What the picker says above its list, unless the box asks for other words. */
+const DEFAULT_INTRO = 'Pick something to drop in. It is filled in when the form is submitted.';
+
 /** Builds the popover list. */
 function buildPicker(
 	groups: MergeTagGroup[],
+	intro: string,
 	onPick: ( tag: string ) => void
 ): HTMLElement {
 	const search = el( 'input', {
@@ -242,7 +274,8 @@ function buildPicker(
 				( item ) =>
 					! needle ||
 					item.label.toLowerCase().includes( needle ) ||
-					item.tag.toLowerCase().includes( needle )
+					item.tag.toLowerCase().includes( needle ) ||
+					( item.hint ?? '' ).toLowerCase().includes( needle )
 			);
 
 			if ( ! matches.length ) {
@@ -270,8 +303,11 @@ function buildPicker(
 						type: 'button',
 						on: {
 							click: () => {
-								closePicker();
+								// Inserted while the picker is still the open one,
+								// so the box it belongs to is never told the picker
+								// went away before the tag arrived.
 								onPick( item.tag );
+								closePicker();
 							},
 						},
 						children: [
@@ -282,10 +318,17 @@ function buildPicker(
 									el( 'code', { class: 'atfb-tagpick__tag', text: item.tag } ),
 								],
 							} ),
-							item.hint || item.sample
+							// What it is, then what it looks like. The catalogue
+							// has always carried both; the list used to drop them
+							// for a restatement of the label.
+							item.hint ? el( 'span', { class: 'atfb-tagpick__meta', text: item.hint } ) : null,
+							item.sample
 								? el( 'span', {
-										class: 'atfb-tagpick__meta',
-										text: `{the value of ${ item.label }}`,
+										class: 'atfb-tagpick__sample',
+										children: [
+											el( 'span', { class: 'atfb-tagpick__sample-label', text: 'e.g.' } ),
+											el( 'span', { text: item.sample } ),
+										],
 								  } )
 								: null,
 						],
@@ -306,27 +349,99 @@ function buildPicker(
 		class: 'atfb-tagpick',
 		attrs: { role: 'dialog', 'aria-label': 'Insert a value' },
 		children: [
-			el( 'p', {
-				class: 'atfb-tagpick__intro',
-				text: 'Pick something to drop in. It is filled in when the form is submitted.',
-			} ),
+			el( 'p', { class: 'atfb-tagpick__intro', text: intro } ),
 			search,
 			list,
+			el( 'p', {
+				class: 'atfb-tagpick__tip',
+				children: [
+					'Tip: type ',
+					el( 'kbd', { text: '{' } ),
+					' in the box to open this list without reaching for the mouse.',
+				],
+			} ),
 		],
 	} );
 	picker.addEventListener( 'keydown', ( event ) => event.stopPropagation() );
 	return picker;
 }
 
+/** Everything `showPicker()` needs to open, place and fill one picker. */
+interface PickerRequest {
+	catalogue: () => Promise< MergeTagGroup[] >;
+	/** What the picker is appended to. */
+	container: HTMLElement;
+	/** What it sits beside. */
+	anchor: HTMLElement;
+	/**
+	 * Fixed to the viewport rather than absolute inside `container`.
+	 *
+	 * For text on the canvas: a card clips its overflow and is itself a drag
+	 * handle, so the picker cannot live inside it.
+	 */
+	floating?: boolean;
+	/** Where focus goes back to on Escape. */
+	returnFocus: HTMLElement;
+	intro: string;
+	/** False once the text changed under the picker while it was loading. */
+	stillValid: () => boolean;
+	onPick: ( tag: string ) => void;
+	onClose?: () => void;
+}
+
+/** Opens a picker, replacing any that is already open. */
+function showPicker( request: PickerRequest ): void {
+	closePicker();
+	const ticket = pickerRequest;
+	pickerReturnFocus = request.returnFocus;
+	pickerOnClose = request.onClose ?? null;
+
+	void request.catalogue().then( ( groups ) => {
+		if ( ticket !== pickerRequest || ! request.container.isConnected || ! request.stillValid() ) {
+			return;
+		}
+		const picker = buildPicker( groups, request.intro, request.onPick );
+		if ( request.floating ) {
+			picker.classList.add( 'atfb-tagpick--floating' );
+		}
+		request.container.append( picker );
+		openPicker = picker;
+
+		const bounds = request.floating ? { top: 0, bottom: window.innerHeight } : pickerBounds( request.anchor );
+		picker.style.maxBlockSize = `${ Math.max( 0, Math.min( 360, bounds.bottom - bounds.top - 8 ) ) }px`;
+		const anchor = request.anchor.getBoundingClientRect();
+		const { height, width } = picker.getBoundingClientRect();
+		// Prefer below, otherwise above. Clamp within the pane even when a
+		// tall textarea leaves too little space on either side.
+		const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
+		const top = Math.max( bounds.top + 4, Math.min( preferred, bounds.bottom - height - 4 ) );
+
+		if ( request.floating ) {
+			picker.style.top = `${ top }px`;
+			picker.style.left = `${ Math.max( 4, Math.min( anchor.left, window.innerWidth - width - 4 ) ) }px`;
+		} else {
+			picker.style.insetBlockStart = `${ top - anchor.top }px`;
+		}
+		picker.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )?.focus( { preventScroll: true } );
+	} );
+}
+
 /** Options for a tag-aware control. */
 interface TaggableOptions {
 	formId?: number;
-	/** Calculation references can supply their own grammar-specific catalogue. */
+	/** A catalogue other than the submission's merge tags: formula references, recalled answers. */
 	groups?: () => MergeTagGroup[] | Promise< MergeTagGroup[] >;
 	/** Shown under the box as “Reads as: …”. Off for one-line URLs, where it adds noise. */
 	preview?: boolean;
-	/** Extra text under the control, before the preview. */
-	hint?: string;
+	/** What the picker says above its list — when the values are filled in, mainly. */
+	intro?: string;
+	/** The Insert button's wording. */
+	button?: string;
+}
+
+/** The catalogue a tag-aware control offers. */
+function catalogueFor( options: TaggableOptions ): () => Promise< MergeTagGroup[] > {
+	return () => Promise.resolve( options.groups ? options.groups() : mergeTags( options.formId ?? 0 ) );
 }
 
 /**
@@ -341,13 +456,13 @@ export function taggable(
 	field: HTMLInputElement | HTMLTextAreaElement,
 	options: TaggableOptions
 ): HTMLElement {
-	const catalogue = () => Promise.resolve( options.groups ? options.groups() : mergeTags( options.formId ?? 0 ) );
+	const catalogue = catalogueFor( options );
 	const insert = el( 'button', {
 		class: 'atfb-button atfb-button--ghost atfb-tagpick__open',
 		type: 'button',
-		title: 'Insert a value from the submission',
+		title: 'Pick a value to insert — or type { in the box',
 		attrs: { 'aria-haspopup': 'dialog' },
-		children: [ icon( 'shortcode' ), el( 'span', { text: 'Insert a value' } ) ],
+		children: [ icon( 'shortcode' ), el( 'span', { text: options.button ?? 'Insert a value' } ) ],
 	} );
 
 	const wrapper = el( 'div', {
@@ -392,31 +507,19 @@ export function taggable(
 
 	/** Preserve the replacement range while focus moves into the picker. */
 	const open = ( start: number, end: number ) => {
-		closePicker();
-		const request = pickerRequest;
 		const original = field.value;
-		pickerReturnFocus = field;
 
-		void catalogue().then( ( groups ) => {
-			if ( request !== pickerRequest || ! wrapper.isConnected || field.value !== original ) {
-				return;
-			}
-			const picker = buildPicker( groups, ( tag ) => {
+		showPicker( {
+			catalogue,
+			container: wrapper,
+			anchor: wrapper,
+			returnFocus: field,
+			intro: options.intro ?? DEFAULT_INTRO,
+			stillValid: () => wrapper.isConnected && field.value === original,
+			onPick: ( tag ) => {
 				field.setSelectionRange( start, end );
 				insertAtCursor( field, tag );
-			} );
-			wrapper.append( picker );
-			openPicker = picker;
-			const bounds = pickerBounds( wrapper );
-			picker.style.maxBlockSize = `${ Math.max( 0, Math.min( 320, bounds.bottom - bounds.top - 8 ) ) }px`;
-			const anchor = wrapper.getBoundingClientRect();
-			const height = picker.getBoundingClientRect().height;
-			// Prefer below, otherwise above. Clamp within the pane even when a
-			// tall textarea leaves too little space on either side.
-			const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
-			const top = Math.max( bounds.top + 4, Math.min( preferred, bounds.bottom - height - 4 ) );
-			picker.style.insetBlockStart = `${ top - anchor.top }px`;
-			picker.querySelector< HTMLInputElement >( '.atfb-tagpick__search' )?.focus( { preventScroll: true } );
+			},
 		} );
 	};
 
@@ -440,4 +543,108 @@ export function taggable(
 	} );
 
 	return wrapper;
+}
+
+/** Where the caret sits inside an editable element, as a character offset. */
+function caretOffset( node: HTMLElement ): number {
+	const length = ( node.textContent ?? '' ).length;
+	const selection = node.ownerDocument.getSelection();
+
+	if ( ! selection?.rangeCount ) {
+		return length;
+	}
+
+	const range = selection.getRangeAt( 0 );
+
+	if ( ! node.contains( range.endContainer ) ) {
+		return length;
+	}
+
+	const before = node.ownerDocument.createRange();
+
+	before.selectNodeContents( node );
+	before.setEnd( range.endContainer, range.endOffset );
+
+	return before.toString().length;
+}
+
+/** Puts the caret at a character offset inside a single-text-node editable. */
+function placeCaret( node: HTMLElement, offset: number ): void {
+	const text = node.firstChild;
+	const selection = node.ownerDocument.getSelection();
+
+	if ( ! text || ! selection ) {
+		return;
+	}
+
+	const range = node.ownerDocument.createRange();
+
+	range.setStart( text, Math.min( offset, ( text.textContent ?? '' ).length ) );
+	range.collapse( true );
+	selection.removeAllRanges();
+	selection.addRange( range );
+}
+
+/**
+ * The same `{` shortcut, for text edited where it sits on the canvas.
+ *
+ * The canvas edits a label as the label — a `contenteditable` in the theme's
+ * own type — so there is no room for an Insert button and nothing to wrap.
+ * Typing `{` opens the picker floating beside the text instead, and the tag
+ * replaces the brace exactly as it does in a text box.
+ *
+ * The editable should check {@link isPickingFor} before committing on blur:
+ * focus is in the picker's search box while it is open. When the picker
+ * closes without a pick and focus has gone elsewhere, a `blur` is dispatched
+ * on the editable so the commit it skipped still happens.
+ *
+ * @param node    A single-line `contenteditable`.
+ * @param options What it offers.
+ * @return The same node.
+ */
+export function taggableText< T extends HTMLElement >( node: T, options: TaggableOptions ): T {
+	const catalogue = catalogueFor( options );
+
+	node.addEventListener( 'input', ( event ) => {
+		const typed = event as InputEvent;
+
+		if ( typed.isComposing || typed.data !== '{' ) {
+			return;
+		}
+
+		const text = node.textContent ?? '';
+		const caret = caretOffset( node );
+
+		if ( text[ caret - 1 ] !== '{' ) {
+			return;
+		}
+
+		const start = caret - 1;
+		const end = caret + ( text[ caret ] === '}' ? 1 : 0 );
+
+		showPicker( {
+			catalogue,
+			container: node.closest< HTMLElement >( '.atfb' ) ?? node.ownerDocument.body,
+			anchor: node,
+			floating: true,
+			returnFocus: node,
+			intro: options.intro ?? DEFAULT_INTRO,
+			stillValid: () => node.isConnected && node.textContent === text,
+			onPick: ( tag ) => {
+				const current = node.textContent ?? '';
+
+				node.textContent = current.slice( 0, start ) + tag + current.slice( end );
+				node.focus();
+				placeCaret( node, start + tag.length );
+				node.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+			},
+			onClose: () => {
+				if ( node.ownerDocument.activeElement !== node ) {
+					node.dispatchEvent( new FocusEvent( 'blur' ) );
+				}
+			},
+		} );
+	} );
+
+	return node;
 }

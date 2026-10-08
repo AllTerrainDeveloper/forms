@@ -15189,6 +15189,378 @@ ${end.comment}` : end.comment;
       this.svg.append(text);
     }
   }
+  const cache = /* @__PURE__ */ new Map();
+  function mergeTags(formId) {
+    let pending2 = cache.get(formId);
+    if (!pending2) {
+      pending2 = api.mergeTags(formId).catch(() => []);
+      cache.set(formId, pending2);
+    }
+    return pending2;
+  }
+  function forgetMergeTags(formId) {
+    cache.delete(formId);
+  }
+  function flatten(groups) {
+    const all = /* @__PURE__ */ new Map();
+    for (const group of groups) {
+      for (const item of group.items) {
+        all.set(item.tag, item);
+      }
+    }
+    return all;
+  }
+  function resolvePreview(text, groups) {
+    const all = flatten(groups);
+    return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
+      const known = all.get(match.toLowerCase());
+      return known ? `{the value of ${known.label}}` : match;
+    });
+  }
+  function hasTags(text) {
+    return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
+  }
+  let openPicker = null;
+  let pickerRequest = 0;
+  let pickerReturnFocus = null;
+  let pickerOnClose = null;
+  function closePicker(restoreFocus = false) {
+    pickerRequest++;
+    openPicker?.remove();
+    openPicker = null;
+    if (restoreFocus) {
+      pickerReturnFocus?.focus();
+    }
+    pickerReturnFocus = null;
+    const after = pickerOnClose;
+    pickerOnClose = null;
+    after?.();
+  }
+  function isPickingFor(element) {
+    return pickerReturnFocus === element;
+  }
+  function pickerOwner() {
+    return pickerReturnFocus;
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (target?.closest(".atfb-tagpick__open")) {
+        return;
+      }
+      if (!openPicker?.contains(target)) {
+        closePicker();
+      }
+    });
+    window.addEventListener("keydown", (event) => {
+      if ("Escape" === event.key && pickerReturnFocus) {
+        closePicker(true);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (!openPicker?.contains(event.target) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(event.key)) {
+        return;
+      }
+      event.stopImmediatePropagation();
+      const search = openPicker.querySelector(".atfb-tagpick__search");
+      const items2 = [...openPicker.querySelectorAll(".atfb-tagpick__item")];
+      const index = items2.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items2.length - 1 : index - 1;
+        items2[(next + items2.length) % items2.length]?.focus();
+      } else if (event.key === "Enter" && event.target === search) {
+        event.preventDefault();
+        items2[0]?.click();
+      } else if (event.target !== search && event.key !== "Enter") {
+        event.preventDefault();
+        if (event.key === "Home") items2[0]?.focus();
+        if (event.key === "End") items2[items2.length - 1]?.focus();
+      }
+    }, true);
+  }
+  function insertAtCursor(field, text) {
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? field.value.length;
+    field.value = field.value.slice(0, start) + text + field.value.slice(end);
+    const caret = start + text.length;
+    field.setSelectionRange(caret, caret);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+  }
+  function pickerBounds(from) {
+    let top = 0;
+    let bottom = window.innerHeight;
+    let node = from.parentElement;
+    while (node && node !== document.body) {
+      if (/auto|scroll|hidden|clip/.test(getComputedStyle(node).overflowY)) {
+        const rect = node.getBoundingClientRect();
+        top = Math.max(top, rect.top);
+        bottom = Math.min(bottom, rect.bottom);
+      }
+      node = node.parentElement;
+    }
+    return { top, bottom };
+  }
+  const DEFAULT_INTRO = "Pick something to drop in. It is filled in when the form is submitted.";
+  function buildPicker(groups, intro, onPick) {
+    const search = el("input", {
+      class: "atfb-input atfb-tagpick__search",
+      type: "search",
+      placeholder: "Search values…",
+      attrs: { "aria-label": "Search values" }
+    });
+    const list = el("div", { class: "atfb-tagpick__list" });
+    const paint = (query2) => {
+      list.replaceChildren();
+      const needle = query2.trim().toLowerCase();
+      let shown = 0;
+      for (const group of groups) {
+        const matches = group.items.filter(
+          (item) => !needle || item.label.toLowerCase().includes(needle) || item.tag.toLowerCase().includes(needle) || (item.hint ?? "").toLowerCase().includes(needle)
+        );
+        if (!matches.length) {
+          if (group.empty && !needle && !group.items.length) {
+            list.append(
+              el("p", { class: "atfb-tagpick__group", text: group.label }),
+              el("p", { class: "atfb-tagpick__empty", text: group.empty })
+            );
+          }
+          continue;
+        }
+        list.append(el("p", { class: "atfb-tagpick__group", text: group.label }));
+        for (const item of matches) {
+          shown += 1;
+          list.append(
+            el("button", {
+              class: "atfb-tagpick__item",
+              type: "button",
+              on: {
+                click: () => {
+                  onPick(item.tag);
+                  closePicker();
+                }
+              },
+              children: [
+                el("span", {
+                  class: "atfb-tagpick__item-main",
+                  children: [
+                    el("span", { class: "atfb-tagpick__label", text: item.label }),
+                    el("code", { class: "atfb-tagpick__tag", text: item.tag })
+                  ]
+                }),
+                // What it is, then what it looks like. The catalogue
+                // has always carried both; the list used to drop them
+                // for a restatement of the label.
+                item.hint ? el("span", { class: "atfb-tagpick__meta", text: item.hint }) : null,
+                item.sample ? el("span", {
+                  class: "atfb-tagpick__sample",
+                  children: [
+                    el("span", { class: "atfb-tagpick__sample-label", text: "e.g." }),
+                    el("span", { text: item.sample })
+                  ]
+                }) : null
+              ]
+            })
+          );
+        }
+      }
+      if (!shown && needle) {
+        list.append(el("p", { class: "atfb-tagpick__empty", text: `Nothing matches “${query2}”.` }));
+      }
+    };
+    paint("");
+    search.addEventListener("input", () => paint(search.value));
+    const picker = el("div", {
+      class: "atfb-tagpick",
+      attrs: { role: "dialog", "aria-label": "Insert a value" },
+      children: [
+        el("p", { class: "atfb-tagpick__intro", text: intro }),
+        search,
+        list,
+        el("p", {
+          class: "atfb-tagpick__tip",
+          children: [
+            "Tip: type ",
+            el("kbd", { text: "{" }),
+            " in the box to open this list without reaching for the mouse."
+          ]
+        })
+      ]
+    });
+    picker.addEventListener("keydown", (event) => event.stopPropagation());
+    return picker;
+  }
+  function showPicker(request2) {
+    closePicker();
+    const ticket = pickerRequest;
+    pickerReturnFocus = request2.returnFocus;
+    pickerOnClose = request2.onClose ?? null;
+    void request2.catalogue().then((groups) => {
+      if (ticket !== pickerRequest || !request2.container.isConnected || !request2.stillValid()) {
+        return;
+      }
+      const picker = buildPicker(groups, request2.intro, request2.onPick);
+      if (request2.floating) {
+        picker.classList.add("atfb-tagpick--floating");
+      }
+      request2.container.append(picker);
+      openPicker = picker;
+      const bounds = request2.floating ? { top: 0, bottom: window.innerHeight } : pickerBounds(request2.anchor);
+      picker.style.maxBlockSize = `${Math.max(0, Math.min(360, bounds.bottom - bounds.top - 8))}px`;
+      const anchor = request2.anchor.getBoundingClientRect();
+      const { height, width } = picker.getBoundingClientRect();
+      const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
+      const top = Math.max(bounds.top + 4, Math.min(preferred, bounds.bottom - height - 4));
+      if (request2.floating) {
+        picker.style.top = `${top}px`;
+        picker.style.left = `${Math.max(4, Math.min(anchor.left, window.innerWidth - width - 4))}px`;
+      } else {
+        picker.style.insetBlockStart = `${top - anchor.top}px`;
+      }
+      picker.querySelector(".atfb-tagpick__search")?.focus({ preventScroll: true });
+    });
+  }
+  function catalogueFor(options) {
+    return () => Promise.resolve(options.groups ? options.groups() : mergeTags(options.formId ?? 0));
+  }
+  function taggable(field, options) {
+    const catalogue = catalogueFor(options);
+    const insert = el("button", {
+      class: "atfb-button atfb-button--ghost atfb-tagpick__open",
+      type: "button",
+      title: "Pick a value to insert — or type { in the box",
+      attrs: { "aria-haspopup": "dialog" },
+      children: [icon("shortcode"), el("span", { text: options.button ?? "Insert a value" })]
+    });
+    const wrapper = el("div", {
+      class: "atfb-taggable",
+      children: [field, el("div", { class: "atfb-taggable__tools", children: [insert] })]
+    });
+    const preview = options.preview === false ? null : el("p", { class: "atfb-taggable__preview" });
+    if (preview) {
+      wrapper.append(preview);
+    }
+    const repaint = () => {
+      if (!preview) {
+        return;
+      }
+      if (!hasTags(field.value)) {
+        preview.textContent = "";
+        preview.hidden = true;
+        return;
+      }
+      void catalogue().then((groups) => {
+        if (!hasTags(field.value)) {
+          return;
+        }
+        preview.hidden = false;
+        preview.replaceChildren(
+          el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
+          el("span", { text: resolvePreview(field.value, groups) })
+        );
+      });
+    };
+    field.addEventListener("input", repaint);
+    repaint();
+    const open = (start, end) => {
+      const original = field.value;
+      showPicker({
+        catalogue,
+        container: wrapper,
+        anchor: wrapper,
+        returnFocus: field,
+        intro: options.intro ?? DEFAULT_INTRO,
+        stillValid: () => wrapper.isConnected && field.value === original,
+        onPick: (tag) => {
+          field.setSelectionRange(start, end);
+          insertAtCursor(field, tag);
+        }
+      });
+    };
+    insert.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (pickerReturnFocus === field) {
+        closePicker(true);
+        return;
+      }
+      open(field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length);
+    });
+    field.addEventListener("input", (event) => {
+      const typed = event;
+      const caret = field.selectionStart ?? 0;
+      if (!typed.isComposing && typed.data === "{" && field.value[caret - 1] === "{") {
+        open(caret - 1, caret + (field.value[caret] === "}" ? 1 : 0));
+      }
+    });
+    return wrapper;
+  }
+  function caretOffset(node) {
+    const length = (node.textContent ?? "").length;
+    const selection = node.ownerDocument.getSelection();
+    if (!selection?.rangeCount) {
+      return length;
+    }
+    const range = selection.getRangeAt(0);
+    if (!node.contains(range.endContainer)) {
+      return length;
+    }
+    const before = node.ownerDocument.createRange();
+    before.selectNodeContents(node);
+    before.setEnd(range.endContainer, range.endOffset);
+    return before.toString().length;
+  }
+  function placeCaret(node, offset) {
+    const text = node.firstChild;
+    const selection = node.ownerDocument.getSelection();
+    if (!text || !selection) {
+      return;
+    }
+    const range = node.ownerDocument.createRange();
+    range.setStart(text, Math.min(offset, (text.textContent ?? "").length));
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function taggableText(node, options) {
+    const catalogue = catalogueFor(options);
+    node.addEventListener("input", (event) => {
+      const typed = event;
+      if (typed.isComposing || typed.data !== "{") {
+        return;
+      }
+      const text = node.textContent ?? "";
+      const caret = caretOffset(node);
+      if (text[caret - 1] !== "{") {
+        return;
+      }
+      const start = caret - 1;
+      const end = caret + (text[caret] === "}" ? 1 : 0);
+      showPicker({
+        catalogue,
+        container: node.closest(".atfb") ?? node.ownerDocument.body,
+        anchor: node,
+        floating: true,
+        returnFocus: node,
+        intro: options.intro ?? DEFAULT_INTRO,
+        stillValid: () => node.isConnected && node.textContent === text,
+        onPick: (tag) => {
+          const current = node.textContent ?? "";
+          node.textContent = current.slice(0, start) + tag + current.slice(end);
+          node.focus();
+          placeCaret(node, start + tag.length);
+          node.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+        onClose: () => {
+          if (node.ownerDocument.activeElement !== node) {
+            node.dispatchEvent(new FocusEvent("blur"));
+          }
+        }
+      });
+    });
+    return node;
+  }
   const SHAPES = {
     text: "text",
     email: "text",
@@ -15266,7 +15638,14 @@ ${end.comment}` : end.comment;
       }
       event.stopPropagation();
     });
-    node.addEventListener("blur", () => onCommit?.());
+    node.addEventListener("blur", () => {
+      if (!isPickingFor(node)) {
+        onCommit?.();
+      }
+    });
+    if (options.recall) {
+      options.recall.handlers.picker?.(node, options.recall.field);
+    }
     return node;
   }
   function optionInputFor(type2) {
@@ -15291,7 +15670,8 @@ ${end.comment}` : end.comment;
       // cards' condition chips and in the merge-tag picker, and repainting the
       // canvas on every character would take the caret with it.
       onCommit: () => handlers.restructure(() => {
-      })
+      }),
+      recall: { handlers, field }
     });
     const parts = [
       // A toggle draws its own label beside the switch, exactly as the front end
@@ -15324,7 +15704,8 @@ ${end.comment}` : end.comment;
       bind: "hint",
       onInput: (value) => handlers.edit((live) => {
         live.hint = value;
-      })
+      }),
+      recall: { handlers, field }
     });
     node.setAttribute("aria-label", "Hint");
     return el("p", { class: "atfb-preview__hint", children: [node] });
@@ -15368,7 +15749,8 @@ ${end.comment}` : end.comment;
                 live.label = value;
               }),
               onCommit: () => handlers.restructure(() => {
-              })
+              }),
+              recall: { handlers, field }
             })
           ]
         });
@@ -15621,7 +16003,8 @@ ${end.comment}` : end.comment;
           live.label = value;
         }),
         onCommit: () => handlers.restructure(() => {
-        })
+        }),
+        recall: { handlers, field }
       });
     }
     if ("divider" === field.type) {
@@ -15684,266 +16067,70 @@ ${end.comment}` : end.comment;
       text: `${type2?.label ?? field.type} — nothing is shown to the visitor here.`
     });
   }
-  const cache = /* @__PURE__ */ new Map();
-  function mergeTags(formId) {
-    let pending2 = cache.get(formId);
-    if (!pending2) {
-      pending2 = api.mergeTags(formId).catch(() => []);
-      cache.set(formId, pending2);
+  const UNRECALLABLE = ["password", "file", "signature", "repeater", "page_break", "heading", "html", "divider", "spacer"];
+  function recallable(field) {
+    return !UNRECALLABLE.includes(field.type);
+  }
+  function sampleFor(field) {
+    const first = (field.choices ?? [])[0];
+    if (first?.label) {
+      return String(first.label);
     }
-    return pending2;
-  }
-  function forgetMergeTags(formId) {
-    cache.delete(formId);
-  }
-  function flatten(groups) {
-    const all = /* @__PURE__ */ new Map();
-    for (const group of groups) {
-      for (const item of group.items) {
-        all.set(item.tag, item);
-      }
+    switch (field.type) {
+      case "email":
+        return "ada@example.com";
+      case "name":
+        return "Ada Lovelace";
+      case "number":
+      case "range":
+      case "scale":
+      case "rating":
+        return "3";
+      case "total":
+        return "42.00";
+      case "switch":
+      case "consent":
+        return "Yes";
+      case "tel":
+        return "+34 600 123 456";
+      case "url":
+        return "https://example.com";
+      case "country":
+        return "Spain";
+      default:
+        return "Ada";
     }
-    return all;
   }
-  function resolvePreview(text, groups) {
-    const all = flatten(groups);
-    return text.replace(/\{[a-z_]+(?::[^}]*)?\}/gi, (match) => {
-      const known = all.get(match.toLowerCase());
-      return known ? `{the value of ${known.label}}` : match;
-    });
-  }
-  function hasTags(text) {
-    return /\{[a-z_]+(?::[^}]*)?\}/i.test(text);
-  }
-  let openPicker = null;
-  let pickerRequest = 0;
-  let pickerReturnFocus = null;
-  function closePicker(restoreFocus = false) {
-    pickerRequest++;
-    openPicker?.remove();
-    openPicker = null;
-    if (restoreFocus) {
-      pickerReturnFocus?.focus();
-    }
-    pickerReturnFocus = null;
-  }
-  if (typeof document !== "undefined") {
-    document.addEventListener("pointerdown", (event) => {
-      const target = event.target;
-      if (target?.closest(".atfb-tagpick__open")) {
-        return;
-      }
-      if (!openPicker?.contains(target)) {
-        closePicker();
-      }
-    });
-    window.addEventListener("keydown", (event) => {
-      if ("Escape" === event.key && pickerReturnFocus) {
-        closePicker(true);
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-      if (!openPicker?.contains(event.target) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(event.key)) {
-        return;
-      }
-      event.stopImmediatePropagation();
-      const search = openPicker.querySelector(".atfb-tagpick__search");
-      const items2 = [...openPicker.querySelectorAll(".atfb-tagpick__item")];
-      const index = items2.indexOf(document.activeElement);
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const next = event.key === "ArrowDown" ? index + 1 : index < 0 ? items2.length - 1 : index - 1;
-        items2[(next + items2.length) % items2.length]?.focus();
-      } else if (event.key === "Enter" && event.target === search) {
-        event.preventDefault();
-        items2[0]?.click();
-      } else if (event.target !== search && event.key !== "Enter") {
-        event.preventDefault();
-        if (event.key === "Home") items2[0]?.focus();
-        if (event.key === "End") items2[items2.length - 1]?.focus();
-      }
-    }, true);
-  }
-  function insertAtCursor(field, text) {
-    const start = field.selectionStart ?? field.value.length;
-    const end = field.selectionEnd ?? field.value.length;
-    field.value = field.value.slice(0, start) + text + field.value.slice(end);
-    const caret = start + text.length;
-    field.setSelectionRange(caret, caret);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.focus();
-  }
-  function pickerBounds(from) {
-    let top = 0;
-    let bottom = window.innerHeight;
-    let node = from.parentElement;
-    while (node && node !== document.body) {
-      if (/auto|scroll|hidden|clip/.test(getComputedStyle(node).overflowY)) {
-        const rect = node.getBoundingClientRect();
-        top = Math.max(top, rect.top);
-        bottom = Math.min(bottom, rect.bottom);
-      }
-      node = node.parentElement;
-    }
-    return { top, bottom };
-  }
-  function buildPicker(groups, onPick) {
-    const search = el("input", {
-      class: "atfb-input atfb-tagpick__search",
-      type: "search",
-      placeholder: "Search values…",
-      attrs: { "aria-label": "Search values" }
-    });
-    const list = el("div", { class: "atfb-tagpick__list" });
-    const paint = (query2) => {
-      list.replaceChildren();
-      const needle = query2.trim().toLowerCase();
-      let shown = 0;
-      for (const group of groups) {
-        const matches = group.items.filter(
-          (item) => !needle || item.label.toLowerCase().includes(needle) || item.tag.toLowerCase().includes(needle)
-        );
-        if (!matches.length) {
-          if (group.empty && !needle && !group.items.length) {
-            list.append(
-              el("p", { class: "atfb-tagpick__group", text: group.label }),
-              el("p", { class: "atfb-tagpick__empty", text: group.empty })
-            );
-          }
-          continue;
-        }
-        list.append(el("p", { class: "atfb-tagpick__group", text: group.label }));
-        for (const item of matches) {
-          shown += 1;
-          list.append(
-            el("button", {
-              class: "atfb-tagpick__item",
-              type: "button",
-              on: {
-                click: () => {
-                  closePicker();
-                  onPick(item.tag);
-                }
-              },
-              children: [
-                el("span", {
-                  class: "atfb-tagpick__item-main",
-                  children: [
-                    el("span", { class: "atfb-tagpick__label", text: item.label }),
-                    el("code", { class: "atfb-tagpick__tag", text: item.tag })
-                  ]
-                }),
-                item.hint || item.sample ? el("span", {
-                  class: "atfb-tagpick__meta",
-                  text: `{the value of ${item.label}}`
-                }) : null
-              ]
-            })
-          );
-        }
-      }
-      if (!shown && needle) {
-        list.append(el("p", { class: "atfb-tagpick__empty", text: `Nothing matches “${query2}”.` }));
-      }
+  function recallItem(field, later) {
+    return {
+      tag: `{field:${field.id}}`,
+      label: field.label || "Untitled question",
+      hint: later ? "Comes later in the form, so this stays blank until they get there and answer it." : "Fills in as soon as they answer it. Blank until then.",
+      sample: sampleFor(field),
+      type: field.type
     };
-    paint("");
-    search.addEventListener("input", () => paint(search.value));
-    const picker = el("div", {
-      class: "atfb-tagpick",
-      attrs: { role: "dialog", "aria-label": "Insert a value" },
-      children: [
-        el("p", {
-          class: "atfb-tagpick__intro",
-          text: "Pick something to drop in. It is filled in when the form is submitted."
-        }),
-        search,
-        list
-      ]
-    });
-    picker.addEventListener("keydown", (event) => event.stopPropagation());
-    return picker;
   }
-  function taggable(field, options) {
-    const catalogue = () => Promise.resolve(options.groups ? options.groups() : mergeTags(options.formId ?? 0));
-    const insert = el("button", {
-      class: "atfb-button atfb-button--ghost atfb-tagpick__open",
-      type: "button",
-      title: "Insert a value from the submission",
-      attrs: { "aria-haspopup": "dialog" },
-      children: [icon("shortcode"), el("span", { text: "Insert a value" })]
-    });
-    const wrapper = el("div", {
-      class: "atfb-taggable",
-      children: [field, el("div", { class: "atfb-taggable__tools", children: [insert] })]
-    });
-    const preview = options.preview === false ? null : el("p", { class: "atfb-taggable__preview" });
-    if (preview) {
-      wrapper.append(preview);
-    }
-    const repaint = () => {
-      if (!preview) {
-        return;
+  function recallGroups(fields, except) {
+    const index = fields.findIndex((field) => field.id === except);
+    const usable = (field) => field.id !== except && recallable(field);
+    const earlier = index < 0 ? fields.filter(usable) : fields.slice(0, index).filter(usable);
+    const later = index < 0 ? [] : fields.slice(index + 1).filter(usable);
+    const groups = [
+      {
+        id: "earlier",
+        label: "Their earlier answers",
+        items: earlier.map((field) => recallItem(field, false)),
+        empty: later.length ? "Nothing comes before this question yet — answers from later in the form are below." : "Add another question and its answer can be shown here."
       }
-      if (!hasTags(field.value)) {
-        preview.textContent = "";
-        preview.hidden = true;
-        return;
-      }
-      void catalogue().then((groups) => {
-        if (!hasTags(field.value)) {
-          return;
-        }
-        preview.hidden = false;
-        preview.replaceChildren(
-          el("span", { class: "atfb-taggable__preview-label", text: "Reads as" }),
-          el("span", { text: resolvePreview(field.value, groups) })
-        );
+    ];
+    if (later.length) {
+      groups.push({
+        id: "later",
+        label: "Answers from later in the form",
+        items: later.map((field) => recallItem(field, true))
       });
-    };
-    field.addEventListener("input", repaint);
-    repaint();
-    const open = (start, end) => {
-      closePicker();
-      const request2 = pickerRequest;
-      const original = field.value;
-      pickerReturnFocus = field;
-      void catalogue().then((groups) => {
-        if (request2 !== pickerRequest || !wrapper.isConnected || field.value !== original) {
-          return;
-        }
-        const picker = buildPicker(groups, (tag) => {
-          field.setSelectionRange(start, end);
-          insertAtCursor(field, tag);
-        });
-        wrapper.append(picker);
-        openPicker = picker;
-        const bounds = pickerBounds(wrapper);
-        picker.style.maxBlockSize = `${Math.max(0, Math.min(320, bounds.bottom - bounds.top - 8))}px`;
-        const anchor = wrapper.getBoundingClientRect();
-        const height = picker.getBoundingClientRect().height;
-        const preferred = anchor.bottom + height <= bounds.bottom ? anchor.bottom : anchor.top - height;
-        const top = Math.max(bounds.top + 4, Math.min(preferred, bounds.bottom - height - 4));
-        picker.style.insetBlockStart = `${top - anchor.top}px`;
-        picker.querySelector(".atfb-tagpick__search")?.focus({ preventScroll: true });
-      });
-    };
-    insert.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (pickerReturnFocus === field) {
-        closePicker(true);
-        return;
-      }
-      open(field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length);
-    });
-    field.addEventListener("input", (event) => {
-      const typed = event;
-      const caret = field.selectionStart ?? 0;
-      if (!typed.isComposing && typed.data === "{" && field.value[caret - 1] === "{") {
-        open(caret - 1, caret + (field.value[caret] === "}" ? 1 : 0));
-      }
-    });
-    return wrapper;
+    }
+    return groups;
   }
   function px(value, fallback2) {
     const parsed = parseFloat(String(value ?? ""));
@@ -17879,6 +18066,39 @@ ${end.comment}` : end.comment;
     }
   }
   const FORMULA_FUNCTIONS = ["sum", "min", "max", "avg", "round", "ceil", "floor", "abs", "sqrt", "pow"];
+  const FORMULA_FUNCTION_HELP = {
+    sum: { usage: "sum( a, b, … )", help: "Adds them all up. sum( {attendees.age} ) adds every row of a repeater." },
+    min: { usage: "min( a, b, … )", help: "The smallest of them — min( {f1}, 100 ) caps a value at 100." },
+    max: { usage: "max( a, b, … )", help: "The largest of them — max( {f1}, 0 ) never lets a value go negative." },
+    avg: { usage: "avg( a, b, … )", help: "The average of them." },
+    round: { usage: "round( x, places )", help: "Rounds to the nearest whole number, or to that many decimal places: round( {f1} * 1.21, 2 )." },
+    ceil: { usage: "ceil( x )", help: "Rounds up — ceil( {guests} / 8 ) is how many tables you need." },
+    floor: { usage: "floor( x )", help: "Rounds down to the whole number below." },
+    abs: { usage: "abs( x )", help: "Drops the minus sign: the distance between two numbers, whichever is bigger." },
+    sqrt: { usage: "sqrt( x )", help: "The square root. A negative number gives 0." },
+    pow: { usage: "pow( x, y )", help: "x to the power of y — pow( {side}, 2 ) is an area." }
+  };
+  function formulaReferenceHint(field) {
+    switch (field.type) {
+      case "number":
+        return "The number they type in. 0 until they do.";
+      case "range":
+      case "scale":
+      case "rating":
+        return "The number they pick. 0 until they do.";
+      case "total":
+        return "Whatever that total works out to.";
+      case "switch":
+        return "Counts as 1 when it is on, 0 when it is off.";
+      case "quiz":
+        return "The points of the answer they pick.";
+      case "checkboxes":
+      case "multiselect":
+        return "Adds up the price of every option they tick — or its value, when that is a number.";
+      default:
+        return "The price of the option they pick — or its value, when that is a number.";
+    }
+  }
   const NUMERIC_FRIENDLY = [
     "number",
     "range",
@@ -17902,14 +18122,19 @@ ${end.comment}` : end.comment;
         continue;
       }
       const name = field.label || field.id;
-      references.push({ label: `${name} (how many)`, insert: `{${field.id}}` });
+      references.push({
+        label: `${name} (how many)`,
+        insert: `{${field.id}}`,
+        hint: `How many ${String(field.itemLabel ?? "").toLowerCase() || "row"}s they added — 15 * {${field.id}} charges 15 for each.`
+      });
       for (const sub of field.fields ?? []) {
         if (!NUMERIC_FRIENDLY.includes(sub.type)) {
           continue;
         }
         references.push({
           label: `${name} · ${sub.label || sub.id}`,
-          insert: `{${field.id}.${sub.id}}`
+          insert: `{${field.id}.${sub.id}}`,
+          hint: `Every row’s ${sub.label || sub.id} added together. Inside avg(), min() or max() it compares the rows instead.`
         });
       }
     }
@@ -17930,28 +18155,37 @@ ${end.comment}` : end.comment;
     }
     return values;
   }
+  function pricedSample(field) {
+    const priced = (field.choices ?? []).filter((choice) => typeof choice.price === "number" || typeof choice.points === "number").slice(0, 3).map((choice) => `${choice.label || choice.value} → ${choice.price ?? choice.points}`);
+    return priced.join(", ");
+  }
   function formulaInput(input, fields, except) {
     return taggable(input, {
       preview: false,
-      groups: () => [{
-        id: "references",
-        label: "Your questions",
-        items: [
-          ...formulaTargets(fields, except).map((field) => ({
+      intro: "Pick a question to use its answer as a number. Join them with + - * / and brackets.",
+      button: "Insert a question",
+      groups: () => {
+        const repeaters = repeaterReferences(fields.filter((field) => field.id !== except));
+        const groups = [{
+          id: "references",
+          label: "Your questions",
+          items: formulaTargets(fields, except).map((field) => ({
             label: field.label || field.id,
             tag: `{${field.id}}`,
-            sample: "",
-            hint: ""
+            hint: formulaReferenceHint(field),
+            sample: pricedSample(field)
           })),
-          ...repeaterReferences(fields.filter((field) => field.id !== except)).map((ref2) => ({
-            label: ref2.label,
-            tag: ref2.insert,
-            sample: "",
-            hint: ""
-          }))
-        ],
-        empty: "Add a number, scale or priced choice question to reference it here."
-      }]
+          empty: "Add a number, scale or priced choice question to reference it here."
+        }];
+        if (repeaters.length) {
+          groups.push({
+            id: "repeaters",
+            label: "Repeating sections",
+            items: repeaters.map((ref2) => ({ label: ref2.label, tag: ref2.insert, hint: ref2.hint, sample: "" }))
+          });
+        }
+        return groups;
+      }
     });
   }
   function openFormulaEditor(options) {
@@ -17992,11 +18226,27 @@ ${end.comment}` : end.comment;
       result.classList.remove("is-error");
     };
     input.addEventListener("input", preview);
-    const chip = (label, insert, caretBack = 0) => el("button", {
+    const help = el("p", {
+      class: "atfb-hint atfb-formula__help",
+      attrs: { "aria-live": "polite" },
+      text: "Point at a function to see what it does."
+    });
+    const chip = (label, insert, caretBack = 0, explain = "") => el("button", {
       class: "atfb-formula__chip",
       type: "button",
       text: label,
+      title: explain || void 0,
       on: {
+        mouseenter: () => {
+          if (explain && caretBack) {
+            help.textContent = explain;
+          }
+        },
+        focus: () => {
+          if (explain && caretBack) {
+            help.textContent = explain;
+          }
+        },
         click: () => {
           insertAtCursor(input, insert);
           if (caretBack > 0) {
@@ -18011,13 +18261,16 @@ ${end.comment}` : end.comment;
     const questions = el("div", {
       class: "atfb-formula__chips",
       children: targets.length || repeaters.length ? [
-        ...targets.map((field) => chip(field.label || field.id, `{${field.id}}`)),
-        ...repeaters.map((reference) => chip(reference.label, reference.insert))
+        ...targets.map((field) => chip(field.label || field.id, `{${field.id}}`, 0, formulaReferenceHint(field))),
+        ...repeaters.map((reference) => chip(reference.label, reference.insert, 0, reference.hint))
       ] : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
     });
     const functions = el("div", {
       class: "atfb-formula__chips",
-      children: FORMULA_FUNCTIONS.map((name) => chip(`${name}()`, `${name}()`, 1))
+      children: FORMULA_FUNCTIONS.map((name) => {
+        const entry = FORMULA_FUNCTION_HELP[name];
+        return chip(`${name}()`, `${name}()`, 1, entry ? `${entry.usage} — ${entry.help}` : "");
+      })
     });
     overlay.append(
       el("div", {
@@ -18027,8 +18280,8 @@ ${end.comment}` : end.comment;
           el("h2", { text: "Formula" }),
           formulaInput(input, options.fields, options.field.id),
           result,
-          row("Your questions", questions, "Click one to reference its answer."),
-          row("Functions", functions),
+          row("Your questions", questions, "Click one to reference its answer — or type { in the formula. Hover one to see what it counts as."),
+          row("Functions", el("div", { children: [functions, help] }), "Join anything with + - * / and brackets: ( {f1} + {f2} ) * 1.21"),
           el("div", {
             class: "atfb-modal__actions",
             children: [
@@ -18886,13 +19139,15 @@ ${end.comment}` : end.comment;
       key: "content",
       label: "HTML",
       control: "textarea",
-      hint: "Shown as written. Scripts are stripped when the form is saved."
+      hint: "Shown as written. Scripts are stripped when the form is saved.",
+      recall: true
     },
     consenttext: {
       key: "consentText",
       label: "What they are agreeing to",
       control: "textarea",
-      hint: "Shown beside the tick box. Links are allowed."
+      hint: "Shown beside the tick box. Links are allowed.",
+      recall: true
     },
     height: {
       key: "height",
@@ -19008,7 +19263,7 @@ ${end.comment}` : end.comment;
     maxchoices: "rendered with minchoices",
     maxrows: "rendered with minrows"
   };
-  function settingRow(field, setting, update) {
+  function settingRow(field, setting, update, recall) {
     const raw = field[setting.key];
     const write = (value) => update(setting.key, value);
     if ("checkbox" === setting.control) {
@@ -19030,12 +19285,14 @@ ${end.comment}` : end.comment;
       return row(setting.label, select(String(raw ?? ""), setting.options ?? [], write), setting.hint);
     }
     if ("textarea" === setting.control) {
-      return row(setting.label, textArea(String(raw ?? ""), write), setting.hint);
+      const area = textArea(String(raw ?? ""), write);
+      return row(setting.label, setting.recall && recall ? recall(area) : area, setting.hint);
     }
     if ("number" === setting.control) {
       return row(setting.label, numberInput(String(raw ?? ""), write), setting.hint);
     }
-    return row(setting.label, bind(textInput(String(raw ?? ""), write), setting.key), setting.hint);
+    const input = bind(textInput(String(raw ?? ""), write), setting.key);
+    return row(setting.label, setting.recall && recall ? recall(input) : input, setting.hint);
   }
   function restatement(rows, text) {
     const used = new Set(rows.map((statement) => statement.key).filter(Boolean));
@@ -19210,15 +19467,16 @@ ${end.comment}` : end.comment;
           );
         } else {
           this.inspector.append(
-            el("p", { class: "atfb-hint", text: `Reference this field as {field:${field.id}}` })
+            el("p", {
+              class: "atfb-hint",
+              text: `Show this answer in a label, hint or email as {field:${field.id}}; use it in a formula as {${field.id}}. Or type { in any of those boxes and pick it from the list.`
+            })
           );
         }
         if (supports.includes("label")) {
+          const label = bind(textInput(field.label, (value) => update("label", value)), "label");
           this.inspector.append(
-            row(
-              "Label",
-              bind(textInput(field.label, (value) => update("label", value)), "label")
-            )
+            row("Label", "page_break" === field.type ? label : taggable(label, this.recallOptions(field.id)))
           );
         }
         if (supports.includes("placeholder")) {
@@ -19233,7 +19491,10 @@ ${end.comment}` : end.comment;
           this.inspector.append(
             row(
               "Hint",
-              bind(textInput(field.hint, (value) => update("hint", value)), "hint"),
+              taggable(
+                bind(textInput(field.hint, (value) => update("hint", value)), "hint"),
+                this.recallOptions(field.id)
+              ),
               "Shown under the field, and read out with it."
             )
           );
@@ -19691,6 +19952,11 @@ ${end.comment}` : end.comment;
      */
     rebindCanvas() {
       if ("build" !== this.tab && "confirm" !== this.tab && "notify" !== this.tab) {
+        return;
+      }
+      const picking = pickerOwner();
+      if (picking && this.canvas.contains(picking)) {
+        picking.addEventListener("blur", () => queueMicrotask(() => this.rebindCanvas()), { once: true });
         return;
       }
       const focused = document.activeElement;
@@ -20923,7 +21189,10 @@ ${end.comment}` : end.comment;
                 // preview machinery, and needs to know their types
                 // and which of them is selected.
                 types: (name) => this.config?.fieldTypes.find((candidate) => candidate.type === name),
-                selectedId: this.selected
+                selectedId: this.selected,
+                picker: (node, target) => {
+                  taggableText(node, this.recallOptions(target.id));
+                }
               }),
               field.logic.enabled ? this.renderCondition(field, condition) : null
             ]
@@ -21767,7 +22036,9 @@ ${end.comment}` : end.comment;
         if (!setting) {
           continue;
         }
-        this.inspector.append(settingRow(field, setting, update));
+        this.inspector.append(
+          settingRow(field, setting, update, (control2) => taggable(control2, this.recallOptions(field.id)))
+        );
         if (setting.also) {
           this.inspector.append(
             settingRow(
@@ -23020,6 +23291,23 @@ ${decls}
       }
       this.markDirty();
     }
+    /**
+     * What a box shown *inside* the form offers on `{`: the visitor's answers.
+     *
+     * Not the submission's merge tags — the entry number, the IP and the rest
+     * are only known once the form is sent, and a label is read before that.
+     * The schema is read when the picker opens, so a question added a moment
+     * ago is already in it.
+     *
+     * @param except The field being edited.
+     */
+    recallOptions(except) {
+      return {
+        groups: () => recallGroups(this.schema?.fields ?? [], except),
+        intro: "Show one of their answers here. It fills in live while they answer, and is blank until they do.",
+        button: "Insert an answer"
+      };
+    }
     /** A one-line input that understands merge tags. */
     taggableInput(value, onChange, placeholder = "") {
       return taggable(textInput(value, onChange, placeholder), { formId: this.form.id });
@@ -23421,7 +23709,7 @@ ${decls}
             controls.push(
               row(
                 "Button label",
-                textInput(success.buttonLabel, (value) => {
+                this.taggableInput(success.buttonLabel, (value) => {
                   success.buttonLabel = value;
                   this.markDirty();
                 }, "Fill it in again")

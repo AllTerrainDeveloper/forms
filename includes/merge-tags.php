@@ -738,3 +738,91 @@ function alltfo_merge_tag_placeholder_for( $field ) {
 function alltfo_merge_tag_sample( $tag ) {
 	return alltfo_replace_merge_tags( $tag, array( 'format' => 'text' ) );
 }
+
+/**
+ * Turns `{field:…}` in text shown inside a form into live answer slots.
+ *
+ * A label, hint, heading or HTML block is read long before anything is
+ * submitted, so the only tag that means anything there is an earlier answer.
+ * Each becomes an empty `<span class="atf-recall">` the form bundle fills as the
+ * visitor answers. Every other brace is left as written.
+ *
+ * Takes **already escaped or sanitised** markup and only touches text between
+ * tags: a `{field:x}` inside an attribute — a link's `href` in an HTML block —
+ * would otherwise have a `<span>` written into the middle of it.
+ *
+ * @since 1.4.0
+ *
+ * @param string $html Escaped or sanitised HTML.
+ * @return string The same HTML with recall slots.
+ */
+function alltfo_recall_markup( $html ) {
+	$html = (string) $html;
+
+	if ( false === strpos( $html, '{field:' ) ) {
+		return $html;
+	}
+
+	$chunks = preg_split( '/(<[^>]*>)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+
+	foreach ( $chunks as $index => $chunk ) {
+		if ( '' === $chunk || '<' === $chunk[0] ) {
+			continue;
+		}
+
+		$chunks[ $index ] = preg_replace_callback(
+			'/\{field:([a-zA-Z0-9_-]+)\}/',
+			static function ( $matches ) {
+				return sprintf( '<span class="atf-recall" data-atf-recall="%s"></span>', esc_attr( $matches[1] ) );
+			},
+			$chunk
+		);
+	}
+
+	return implode( '', $chunks );
+}
+
+/**
+ * Text with recalled answers filled in, for messages written on the server.
+ *
+ * "How old is {field:name}? is required" is what a validation error would say
+ * about a label that recalls an answer. The server has the answers by then, so
+ * it says "How old is Ada? is required" instead — the same words the visitor
+ * is looking at above the box.
+ *
+ * @since 1.4.0
+ *
+ * @param string $text   Plain text, e.g. a field label.
+ * @param array  $schema The form schema.
+ * @param array  $values Field id => value.
+ * @return string
+ */
+function alltfo_recall_text( $text, $schema, $values ) {
+	$text = (string) $text;
+
+	if ( false === strpos( $text, '{field:' ) ) {
+		return $text;
+	}
+
+	return (string) preg_replace_callback(
+		'/\{field:([a-zA-Z0-9_-]+)\}/',
+		static function ( $matches ) use ( $schema, $values ) {
+			$field = alltfo_find_field( $schema, $matches[1] );
+
+			if ( ! $field ) {
+				return $matches[0];
+			}
+
+			// Never echoed back, whatever the label asks for — the same list
+			// `recallable()` in src/shared/recall.ts keeps out of the picker.
+			if ( in_array( $field['type'], array( 'password', 'file', 'signature', 'repeater' ), true ) ) {
+				return '';
+			}
+
+			$value = isset( $values[ $matches[1] ] ) ? $values[ $matches[1] ] : '';
+
+			return alltfo_value_is_empty( $value ) ? '' : alltfo_format_field_value( $value, $field, 'text' );
+		},
+		$text
+	);
+}
