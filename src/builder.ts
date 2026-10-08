@@ -3963,7 +3963,10 @@ export class Builder {
 			this.inspector.append(
 				row(
 					'Placeholder',
-					bind( textInput( field.placeholder, ( value ) => update( 'placeholder', value ) ), 'placeholder' )
+					taggable(
+						bind( textInput( field.placeholder, ( value ) => update( 'placeholder', value ) ), 'placeholder' ),
+						this.recallOptions( field.id )
+					)
 				)
 			);
 		}

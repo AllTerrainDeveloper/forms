@@ -260,6 +260,15 @@ describe( 'brace picker on canvas text', () => {
 		expect( blurs ).not.toHaveBeenCalled();
 	} );
 
+	it( 'puts the caret back after the brace when Escape closes it', async () => {
+		const { node } = editable( 'Hi ' );
+		typeBraceAt( node, 3 );
+		await settle();
+		document.activeElement!.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ) );
+		expect( document.activeElement ).toBe( node );
+		expect( getSelection()!.getRangeAt( 0 ).startOffset ).toBe( 4 );
+	} );
+
 	it( 'commits the text it held back once the picker is dismissed elsewhere', async () => {
 		const { node, blurs } = editable( 'Hi ' );
 		typeBraceAt( node, 3 );
@@ -283,5 +292,29 @@ describe( 'picker ownership', () => {
 		expect( pickerOwner() ).toBe( input );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
 		expect( pickerOwner() ).toBeNull();
+	} );
+} );
+
+describe( 'any keyboard layout', () => {
+	it( 'opens when the brace arrives as the end of a composition', async () => {
+		const { input, wrapper } = mount();
+		input.value = '{';
+		input.setSelectionRange( 1, 1 );
+		input.dispatchEvent( new CompositionEvent( 'compositionend', { data: '{' } ) );
+		await settle();
+		expect( wrapper.querySelector( '.atfb-tagpick' ) ).not.toBeNull();
+	} );
+
+	it( 'opens for a composed insertText, and never for a dropped or synthetic one', async () => {
+		const { input, wrapper } = mount();
+		input.value = '{';
+		input.setSelectionRange( 1, 1 );
+		input.dispatchEvent( new InputEvent( 'input', { data: '{', inputType: 'insertFromDrop' } ) );
+		input.dispatchEvent( new Event( 'input' ) );
+		await settle();
+		expect( wrapper.querySelector( '.atfb-tagpick' ) ).toBeNull();
+		input.dispatchEvent( new InputEvent( 'input', { data: '{', inputType: 'insertCompositionText' } ) );
+		await settle();
+		expect( wrapper.querySelector( '.atfb-tagpick' ) ).not.toBeNull();
 	} );
 } );

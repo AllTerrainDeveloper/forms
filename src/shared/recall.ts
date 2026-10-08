@@ -19,6 +19,17 @@ import type { Field, FieldValue, MergeTag, MergeTagGroup } from '../types';
 export const RECALL_PATTERN = /\{field:([a-zA-Z0-9_-]+)\}/g;
 
 /**
+ * Text with every recall tag replaced.
+ *
+ * @param template The text as written.
+ * @param answer   Resolves one field id to its shown answer.
+ * @return The filled text.
+ */
+export function fillRecall( template: string, answer: ( id: string ) => string ): string {
+	return template.replace( /\{field:([a-zA-Z0-9_-]+)\}/g, ( _match, id: string ) => answer( id ) );
+}
+
+/**
  * Types whose answer is never echoed back into the form.
  *
  * A password must never appear on screen, a file or signature has no text worth
@@ -120,8 +131,22 @@ function sampleFor( field: Field ): string {
 			return 'https://example.com';
 		case 'country':
 			return 'Spain';
-		default:
+		case 'color':
+			return '#3366ff';
+		case 'date':
+			return '24/05/2026';
+		case 'time':
+			return '09:30';
+		case 'datetime':
+			return '24/05/2026 09:30';
+		case 'date_range':
+			return '24/05/2026 – 28/05/2026';
+		case 'textarea':
+			return 'Whatever they wrote';
+		case 'text':
 			return 'Ada';
+		default:
+			return 'Their answer';
 	}
 }
 

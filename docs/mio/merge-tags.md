@@ -23,7 +23,7 @@ Field IDs are stable references; labels are display text. Compound field tags ca
 
 ### Recalling answers inside the form
 
-`{field:<id>}` also works in a field's `label` and `hint`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in ("Which size, Ada? is required.").
+`{field:<id>}` also works in a field's `label`, `hint` and `placeholder`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in ("Which size, Ada? is required.").
 
 ```yaml
 - id: name

@@ -606,6 +606,7 @@ function placeholderBox(
 		class: `${ className } atfb-preview__box${ tall ? ' atfb-preview__box--tall' : '' }`,
 		bind: 'placeholder',
 		onInput: ( value ) => handlers.edit( ( live ) => { live.placeholder = value; } ),
+		recall: { handlers, field },
 	} );
 
 	box.setAttribute( 'aria-label', 'Placeholder' );

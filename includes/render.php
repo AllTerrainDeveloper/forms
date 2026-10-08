@@ -953,8 +953,11 @@ function alltfo_control_attributes( $field, $context ) {
 		$attributes .= sprintf( ' aria-describedby="%s"', esc_attr( $context['describedby'] ) );
 	}
 
-	if ( '' !== $field['placeholder'] ) {
-		$attributes .= sprintf( ' placeholder="%s"', esc_attr( $field['placeholder'] ) );
+	$placeholder = alltfo_recall_strip( $field['placeholder'] );
+
+	if ( '' !== trim( $placeholder ) ) {
+		$attributes .= sprintf( ' placeholder="%s"', esc_attr( $placeholder ) );
+		$attributes .= alltfo_recall_template( $field['placeholder'], 'placeholder' );
 	} else {
 		// A single space, reserved: `:placeholder-shown` is the only selector
 		// that can tell an empty input from a filled one without JavaScript,

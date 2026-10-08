@@ -190,7 +190,7 @@ the form and the site — each row showing what it actually resolves to on this
 site. Under the box, a "reads as" line with the tags filled in.
 
 Typing `{` in any of those boxes opens the same list in place — and it is not
-only for emails. Labels, hints, headings and HTML blocks take it too, from the
+only for emails. Labels, hints, placeholders, headings and HTML blocks take it too, from the
 inspector or straight on the canvas, where it offers the visitor's **earlier
 answers**: "Nice to meet you, {field:name}" fills in live as they type, and is
 blank until they do. Formula boxes offer the number-shaped questions, each with a

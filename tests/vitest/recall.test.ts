@@ -81,6 +81,7 @@ describe( 'the form fills recalled answers live', () => {
 					<label class="atf-label">Which size, <span class="atf-recall" data-atf-recall="name"></span>?</label>
 					<input type="radio" name="atf[size]" value="s"><input type="radio" name="atf[size]" value="l">
 				</div>
+				<input type="text" placeholder="Your email" data-atf-recall-template="{field:name}’s email" data-atf-recall-attr="placeholder">
 				<p class="atf-hint">You chose <span class="atf-recall" data-atf-recall="size"></span>, <span class="atf-recall" data-atf-recall="nope"></span></p>
 			</form>
 			<script type="application/json" id="atf-9-schema">${ JSON.stringify( schema ) }</script>
@@ -90,11 +91,14 @@ describe( 'the form fills recalled answers live', () => {
 		const [ nameSlot, sizeSlot, typo ] = document.querySelectorAll< HTMLElement >( '[data-atf-recall]' );
 		expect( nameSlot.textContent ).toBe( '' );
 		expect( typo.textContent ).toBe( '{field:nope}' );
+		// Before any answer the tag reads as nothing, as it does in a label.
+		expect( document.querySelector( '[data-atf-recall-template]' )!.getAttribute( 'placeholder' ) ).toBe( '’s email' );
 
 		const input = document.querySelector< HTMLInputElement >( 'input[name="atf[name]"]' )!;
 		input.value = 'Ada';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 		expect( nameSlot.textContent ).toBe( 'Ada' );
+		expect( document.querySelector( '[data-atf-recall-template]' )!.getAttribute( 'placeholder' ) ).toBe( 'Ada’s email' );
 
 		const large = document.querySelector< HTMLInputElement >( 'input[value="l"]' )!;
 		large.checked = true;

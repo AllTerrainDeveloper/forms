@@ -426,6 +426,35 @@ function showPicker( request: PickerRequest ): void {
 	} );
 }
 
+/**
+ * Whether an edit just typed a `{` — on any keyboard.
+ *
+ * Not `data === '{'` alone: on a Spanish or German layout the brace comes from
+ * Option/AltGr, and some input methods deliver it as the end of a composition
+ * (`insertCompositionText`, or a `compositionend` with no `input` after it).
+ * What every route has in common is a brace that was just inserted, sitting
+ * right before the caret. A paste, a drop or the synthetic `input` this module
+ * dispatches after inserting a tag are not typing, so they never open it.
+ *
+ * @param event  The `input` or `compositionend` event.
+ * @param before The character now immediately before the caret.
+ */
+function typedBrace( event: Event, before: string ): boolean {
+	if ( '{' !== before ) {
+		return false;
+	}
+
+	if ( 'compositionend' === event.type ) {
+		return ( ( event as CompositionEvent ).data ?? '' ).endsWith( '{' );
+	}
+
+	if ( typeof InputEvent === 'undefined' || ! ( event instanceof InputEvent ) || event.isComposing ) {
+		return false;
+	}
+
+	return [ 'insertText', 'insertCompositionText', '' ].includes( event.inputType ?? '' ) && ( event.data ?? '' ).endsWith( '{' );
+}
+
 /** Options for a tag-aware control. */
 interface TaggableOptions {
 	formId?: number;
@@ -532,15 +561,17 @@ export function taggable(
 		open( field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length );
 	} );
 
-	field.addEventListener( 'input', ( event ) => {
-		const typed = event as InputEvent;
+	const onType = ( event: Event ) => {
 		const caret = field.selectionStart ?? 0;
-		if ( ! typed.isComposing && typed.data === '{' && field.value[ caret - 1 ] === '{' ) {
+		if ( typedBrace( event, field.value[ caret - 1 ] ?? '' ) ) {
 			// Replace the triggering brace (and an existing closing brace), so
 			// picking a reference never produces {{field:f1} or {field:f1}}.
 			open( caret - 1, caret + ( field.value[ caret ] === '}' ? 1 : 0 ) );
 		}
-	} );
+	};
+
+	field.addEventListener( 'input', onType );
+	field.addEventListener( 'compositionend', onType );
 
 	return wrapper;
 }
@@ -605,17 +636,11 @@ function placeCaret( node: HTMLElement, offset: number ): void {
 export function taggableText< T extends HTMLElement >( node: T, options: TaggableOptions ): T {
 	const catalogue = catalogueFor( options );
 
-	node.addEventListener( 'input', ( event ) => {
-		const typed = event as InputEvent;
-
-		if ( typed.isComposing || typed.data !== '{' ) {
-			return;
-		}
-
+	const onType = ( event: Event ) => {
 		const text = node.textContent ?? '';
 		const caret = caretOffset( node );
 
-		if ( text[ caret - 1 ] !== '{' ) {
+		if ( ! typedBrace( event, text[ caret - 1 ] ?? '' ) ) {
 			return;
 		}
 
@@ -641,10 +666,18 @@ export function taggableText< T extends HTMLElement >( node: T, options: Taggabl
 			onClose: () => {
 				if ( node.ownerDocument.activeElement !== node ) {
 					node.dispatchEvent( new FocusEvent( 'blur' ) );
+				} else if ( node.textContent === text ) {
+					// Escape: focus is back, but `focus()` on an editable puts
+					// the caret at the start. Put it after the brace, where the
+					// person was typing.
+					placeCaret( node, caret );
 				}
 			},
 		} );
-	} );
+	};
+
+	node.addEventListener( 'input', onType );
+	node.addEventListener( 'compositionend', onType );
 
 	return node;
 }

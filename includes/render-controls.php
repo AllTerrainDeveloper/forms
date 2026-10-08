@@ -288,9 +288,10 @@ function alltfo_render_select( $field, $value, $context ) {
 	// "nothing chosen" after choosing something.
 	if ( '' !== $field['placeholder'] ) {
 		$options .= sprintf(
-			'<option value=""%s>%s</option>',
+			'<option value=""%s%s>%s</option>',
 			$field['required'] ? ' disabled' : '',
-			esc_html( $field['placeholder'] )
+			alltfo_recall_template( $field['placeholder'] ),
+			esc_html( alltfo_recall_strip( $field['placeholder'] ) )
 		);
 	}
 
@@ -956,9 +957,10 @@ function alltfo_address_parts() {
  */
 function alltfo_render_country( $field, $value, $context ) {
 	$options = sprintf(
-		'<option value=""%s>%s</option>',
+		'<option value=""%s%s>%s</option>',
 		$field['required'] ? ' disabled' : '',
-		esc_html( '' !== $field['placeholder'] ? $field['placeholder'] : __( 'Choose a country', 'allterrain-forms' ) )
+		alltfo_recall_template( $field['placeholder'] ),
+		esc_html( '' !== $field['placeholder'] ? alltfo_recall_strip( $field['placeholder'] ) : __( 'Choose a country', 'allterrain-forms' ) )
 	);
 
 	foreach ( alltfo_countries() as $code => $name ) {

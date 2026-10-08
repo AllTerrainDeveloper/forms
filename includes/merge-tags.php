@@ -826,3 +826,44 @@ function alltfo_recall_text( $text, $schema, $values ) {
 		$text
 	);
 }
+
+/**
+ * Text with its recall tags removed — what a placeholder shows before any
+ * answer exists.
+ *
+ * @since 1.4.0
+ *
+ * @param string $text Plain text.
+ * @return string
+ */
+function alltfo_recall_strip( $text ) {
+	return (string) preg_replace( '/\{field:[a-zA-Z0-9_-]+\}/', '', (string) $text );
+}
+
+/**
+ * Attributes that let the form bundle re-fill text it cannot put a `<span>` in.
+ *
+ * A placeholder is an attribute and a dropdown's first option is text-only, so
+ * neither can carry a recall slot. Instead the element carries its template;
+ * the bundle resolves it on every change and writes the result into the named
+ * attribute, or into the element's text when none is named.
+ *
+ * @since 1.4.0
+ *
+ * @param string $text      The text as written, tags included.
+ * @param string $attribute Optional. The attribute to fill, e.g. `placeholder`.
+ * @return string Attribute markup with a leading space, or '' without tags.
+ */
+function alltfo_recall_template( $text, $attribute = '' ) {
+	if ( false === strpos( (string) $text, '{field:' ) ) {
+		return '';
+	}
+
+	$out = sprintf( ' data-atf-recall-template="%s"', esc_attr( $text ) );
+
+	if ( '' !== $attribute ) {
+		$out .= sprintf( ' data-atf-recall-attr="%s"', esc_attr( $attribute ) );
+	}
+
+	return $out;
+}

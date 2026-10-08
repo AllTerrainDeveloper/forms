@@ -108,6 +108,38 @@ class ALLTFO_Test_Recall extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A placeholder cannot hold a slot, so it carries its template and shows
+	 * the text without tags until there is an answer.
+	 *
+	 * @covers ::alltfo_recall_template
+	 * @covers ::alltfo_recall_strip
+	 */
+	public function test_placeholder_carries_its_template() {
+		$html = alltfo_render_form(
+			alltfo_test_form(
+				array(
+					'fields' => array(
+						array(
+							'id'    => 'name',
+							'type'  => 'text',
+							'label' => 'Name',
+						),
+						array(
+							'id'          => 'mail',
+							'type'        => 'email',
+							'label'       => 'Email',
+							'placeholder' => '{field:name}@example.com',
+						),
+					),
+				)
+			)
+		);
+
+		$this->assertStringContainsString( 'placeholder="@example.com" data-atf-recall-template="{field:name}@example.com" data-atf-recall-attr="placeholder"', $html );
+		$this->assertSame( '', alltfo_recall_template( 'No tags' ) );
+	}
+
+	/**
 	 * Choice labels travel in the client schema, so a recalled choice reads as
 	 * what the visitor picked rather than its stored value.
 	 *
