@@ -150,11 +150,37 @@ function sampleFor( field: Field ): string {
 	}
 }
 
+/**
+ * A label as a person reads it in a list, with its own recall tags named.
+ *
+ * "{field:name} choose the brand colour" is a label that recalls an answer,
+ * and in a picker or a chip the raw tag is noise. It reads as "‹Your name›
+ * choose the brand colour" instead — the question it points at, marked as a
+ * stand-in.
+ *
+ * @param field  The field whose label is shown.
+ * @param fields Every field, to name the ones the label recalls.
+ * @return The readable label, or its id when it has none.
+ */
+export function readableLabel( field: Field, fields: Field[] ): string {
+	const label = String( field.label ?? '' );
+
+	if ( ! label ) {
+		return field.id;
+	}
+
+	return fillRecall( label, ( id ) => {
+		const target = fields.find( ( candidate ) => candidate.id === id );
+
+		return `‹${ target ? String( target.label ?? '' ).replace( /\{field:[a-zA-Z0-9_-]+\}/g, '…' ) || id : id }›`;
+	} );
+}
+
 /** One picker entry for a recallable field. */
-function recallItem( field: Field, later: boolean ): MergeTag {
+function recallItem( field: Field, later: boolean, fields: Field[] ): MergeTag {
 	return {
 		tag: `{field:${ field.id }}`,
-		label: field.label || 'Untitled question',
+		label: field.label ? readableLabel( field, fields ) : 'Untitled question',
 		hint: later
 			? 'Comes later in the form, so this stays blank until they get there and answer it.'
 			: 'Fills in as soon as they answer it. Blank until then.',
@@ -169,36 +195,53 @@ function recallItem( field: Field, later: boolean ): MergeTag {
  * Only answers: the site name, the entry number and the visitor's IP are
  * resolved when the form is *submitted*, and a label is read long before that.
  * Earlier questions come first, since "Thanks, {name}" on the question after
- * Name is what this is nearly always for; later ones are offered too, with a
- * note saying why they start blank.
+ * Name is what this is nearly always for. The question being edited comes
+ * next, because recall is live — a hint under Name reading "We will write to
+ * you as {field:name}" fills in while they type. Later ones close the list,
+ * with a note saying why they start blank.
  *
- * @param fields The form's top-level fields.
- * @param except The field being edited — a label recalling its own answer is
- *               blank exactly when it is read.
+ * @param fields      The form's top-level fields.
+ * @param current     The field whose text is being edited.
+ * @param includeSelf Whether to offer the field's own answer. Off for its
+ *                    placeholder, which is gone the moment there is an answer.
  * @return Picker groups.
  */
-export function recallGroups( fields: Field[], except: string ): MergeTagGroup[] {
-	const index = fields.findIndex( ( field ) => field.id === except );
-	const usable = ( field: Field ) => field.id !== except && recallable( field );
+export function recallGroups( fields: Field[], current: string, includeSelf = true ): MergeTagGroup[] {
+	const index = fields.findIndex( ( field ) => field.id === current );
+	const usable = ( field: Field ) => field.id !== current && recallable( field );
 	const earlier = index < 0 ? fields.filter( usable ) : fields.slice( 0, index ).filter( usable );
 	const later = index < 0 ? [] : fields.slice( index + 1 ).filter( usable );
+	const self = includeSelf && index >= 0 && recallable( fields[ index ] ) ? fields[ index ] : null;
 
 	const groups: MergeTagGroup[] = [
 		{
 			id: 'earlier',
 			label: 'Their earlier answers',
-			items: earlier.map( ( field ) => recallItem( field, false ) ),
-			empty: later.length
-				? 'Nothing comes before this question yet — answers from later in the form are below.'
+			items: earlier.map( ( field ) => recallItem( field, false, fields ) ),
+			empty: later.length || self
+				? 'Nothing comes before this question yet — the other answers are below.'
 				: 'Add another question and its answer can be shown here.',
 		},
 	];
+
+	if ( self ) {
+		groups.push( {
+			id: 'self',
+			label: 'This question',
+			items: [
+				{
+					...recallItem( self, false, fields ),
+					hint: 'Their answer to this very question, filling in letter by letter as they type it.',
+				},
+			],
+		} );
+	}
 
 	if ( later.length ) {
 		groups.push( {
 			id: 'later',
 			label: 'Answers from later in the form',
-			items: later.map( ( field ) => recallItem( field, true ) ),
+			items: later.map( ( field ) => recallItem( field, true, fields ) ),
 		} );
 	}
 

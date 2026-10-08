@@ -140,6 +140,16 @@ class ALLTFO_Test_Recall extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The value picker names a recalled question instead of printing its tag.
+	 *
+	 * @covers ::alltfo_recall_readable
+	 */
+	public function test_picker_labels_name_recalled_questions() {
+		$this->assertSame( 'Which size, ‹Your name›?', alltfo_recall_readable( 'Which size, {field:name}?', $this->schema() ) );
+		$this->assertSame( 'Hi ‹gone›', alltfo_recall_readable( 'Hi {field:gone}', $this->schema() ) );
+	}
+
+	/**
 	 * Choice labels travel in the client schema, so a recalled choice reads as
 	 * what the visitor picked rather than its stored value.
 	 *

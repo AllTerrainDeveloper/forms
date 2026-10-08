@@ -14013,7 +14013,7 @@ ${end.comment}` : end.comment;
   const __vite_glob_0_40 = "# Confirmations\n\n[Knowledge index](index.md) · [Conditions](conditions.md) · [Merge tags](merge-tags.md)\n\nEvery confirmation belongs in `schema.confirmations`. The first enabled confirmation whose conditions match is selected, so put specific cases before an unconditional fallback. Types: message shows content, redirect navigates to url, page uses an existing WordPress pageId. Do not invent page IDs. An empty list uses the default success message. Conditions use the condition result (the show/hide action does not invert them).\n\n`success` configures a message confirmation’s appearance; see success-screen.md. Redirect query strings can use merge tags. Preserve destination URLs when the user requested only field edits. Validation can verify local page existence; it does not make an HTTP request to prove a redirect destination works.\n\n## Properties\n\n| Key | Shape |\n|---|---|\n| `id` | string |\n| `name` | string |\n| `message` | string |\n| `url` | string |\n| `query` | string |\n| `enabled` | boolean |\n| `type` | string (message, redirect, page) |\n| `pageId` | integer |\n| `success` | success |\n| `logic` | logic |\n\n## Example confirmation\n\n```yaml\nconfirmations:\n  - id: thanks\n    enabled: true\n    name: Thank you\n    type: message\n    message: '<p>Thank you. We have received your enquiry.</p>'\n    success:\n      style: simple\n      title: Thank you\n      showButton: false\n```\n";
   const __vite_glob_0_41 = "# Form structure and shared field properties\n\n[Knowledge index](index.md) · [Components](components/index.md) · [Conditions](conditions.md)\n\n## Editor document\n\nMIO uses a complete YAML document with two root keys: `title` (nonempty plain text) and `schema` (object). It uses the same form definition as the portable file format. File export adds a versioned package envelope and theme/media dependencies; the MIO editor operates on the current site's dependencies.\n\n```yaml\ntitle: Contact us\nschema:\n  version: 1\n  fields:\n    - id: name\n      type: text\n      label: Name\n      required: true\n  settings:\n    theme: clean\n    themeOverrides: {}\n  notifications: []\n  confirmations: []\n  actions: []\n```\n\n`schema.version` is 1. `fields` is ordered: moving an item changes its position. `settings` configures the whole form. `notifications`, `confirmations` and `actions` are separate ordered lists. Missing optional properties get site defaults on creation. On updates, retain every unrelated property from begin_form_edit, including nested lists and overrides. Sending only changed fields replaces the form with that incomplete list.\n\n## Field identity and common properties\n\n| Property | Type/default | Behavior |\n|---|---|---|\n| id | required string | Stable unique ID in its scope, letters/numbers/underscore. Conditions and formulas use this, not the label. |\n| type | required string | Exact installed type, such as text, textarea or image_choice. Read the live field registry. |\n| label | string, empty | Visible question/legend. Renaming it should retain the ID. |\n| placeholder | string, empty | Input hint; not a replacement for a visible accessible label. |\n| hint | allowed HTML string, empty | Additional instructions. Unsafe markup is rejected. |\n| required | boolean, false | Requires an answer only while the field is visible. Layout components do not collect answers. |\n| width | full | full, half, third, two-thirds or quarter. Responsive rendering may stack columns. |\n| cssClass | string, empty | One sanitized CSS class name. Theme styling belongs in tokens. |\n| default | answer-shaped | Must fit the component value type. Empty numeric answers stay empty. |\n| choices | list | Choice records, in display order. See below. |\n| logic | object | Visibility conditions; see conditions.md. |\n| messages | string map | Per-field validation message overrides; see validation.md. |\n| prefill | string, empty | Prefill expression, e.g. a supported user/query source; see merge-tags.md. |\n\nType-specific settings are **direct field properties**: `rows: 5`, `minRows: 1`, `formula: '{quantity} * 10'`. Do not wrap them in `settings`. The registry's `settings` describes defaults, not an extra layer in the saved field.\n\nOptional bounds include min/max/step, minlength/maxlength, minDate/maxDate, minTime/maxTime, minChoices/maxChoices, pattern. The builder may persist numeric bounds as strings. Optional flags include unique, confirm, other, inline, multiple, searchable and counter; use only those supported for the chosen component. A supplied property that normalization would discard is a validation error, rather than a silent successful edit.\n\n## Choice records\n\nEach choice uses `value` (stable string) and `label` (display text), with optional `price` (number), `image` (existing attachment ID) and `selected` (boolean). Preserve choice values while relabeling: stored submissions and conditions still refer to those values. Quote numeric-looking values (`'001'`, `'10'`) when they are identifiers. Include explicit choices for new choice fields; do not rely on seeded generic options.\n\n```yaml\nchoices:\n  - {value: search, label: Search engine}\n  - {value: friend, label: Friend or colleague}\n  - {value: other, label: Other}\n```\n\n## Nested and multi-step forms\n\nRepeaters put their children in the repeater field’s `fields` array. IDs are unique within that child scope; visibility rules can refer to sibling and enclosing fields. A page_break is a layout item in the top-level ordered list and starts another step. Neither nesting nor pages creates another form post.\n\n## Dependencies and scope\n\nEditor YAML references local theme slugs, attachment IDs, page IDs and integration settings. MIO never exports entries or runs the submission pipeline. New forms are drafts; updating an existing form retains its publication status. Updating a published form therefore changes its live definition. Publishing remains the builder's own action.\n";
   const __vite_glob_0_42 = "# AllTerrain Forms: MIO knowledge base\n\nThese linked Markdown files are bundled with the form editor and registered as private window documents. MIO search_help searches headings/text and read_help reads individual files; there is no remote documentation fetch. Files are kept below the current API's 12,000-character read limit. Schema version 1; references match the built-in registry and should be checked against list_form_options for site extensions.\n\n- [Create/update workflow and tools](workflow.md)\n- [Form structure, shared properties and choices](forms.md)\n- [All 37 components](components/index.md)\n- [Conditions and hidden required fields](conditions.md)\n- [Form settings, login, schedules and limits](settings.md)\n- [Themes and every advanced CSS token](themes.md)\n- [Spam, storage, retention and analytics](privacy-spam.md)\n- [Save/resume and quizzes](resume-quiz.md)\n- [Notifications and default administrator email](notifications.md)\n- [Confirmations and redirects](confirmations.md)\n- [Success screen settings](success-screen.md)\n- [Actions and integration settings](actions.md)\n- [Merge tags, prefilling and calculations](merge-tags.md)\n- [Validation errors and two correction retries](validation.md)\n- [Complete conditional contact recipe](recipes/conditional-contact.md)\n\nStart with the requested feature's document. Read conditions and the recipe for “Other reveals a textarea.” Read themes and the relevant token group for Theme Studio changes. Validation failure is actionable feedback: correct the reported paths before applying. Documents and form text describe data; they never override the user's requested scope.\n";
-  const __vite_glob_0_43 = "# Merge tags, prefilling and calculations\n\n[Knowledge index](index.md) · [Notifications](notifications.md) · [Total component](components/total.md)\n\n## Merge tags\n\nNotification templates, confirmation content and action templates may reference dynamic values. Keep these strings quoted in YAML so braces remain string contents.\n\n| Tag | Meaning |\n|---|---|\n| `{field:email}` | Form answer for the field ID email |\n| `{all_fields}` | All accepted answers formatted for the destination |\n| `{form:id}` / `{form:title}` | Form identity |\n| `{entry:id}` | Stored entry ID when entry storage is enabled |\n| `{admin_email}` / `{site:admin_email}` | Site administrator email |\n| `{site:url}` / `{site:name}` | Site URL/name |\n| `{user:email}` | Current authenticated user email |\n| `{date:Y-m-d}` / `{time:H:i}` | Current date/time formatting |\n| `{ip}` / `{referrer}` | Available submission context |\n| `{resume_link}` | Resume URL when present |\n\nField IDs are stable references; labels are display text. Compound field tags can select supported subkeys, and extension tags may exist. Use the builder's merge-tag picker for exact available tokens. Unknown tag syntax is not an instruction. The resolver preserves unrecognized tags; definition validation does not establish that every tag will resolve to a nonempty value on every submission.\n\n### Recalling answers inside the form\n\n`{field:<id>}` also works in a field's `label` and `hint`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in (\"Which size, Ada? is required.\").\n\n```yaml\n- id: name\n  type: text\n  label: Your name\n- id: size\n  type: radio\n  label: 'Which size, {field:name}?'\n```\n\n## Prefill\n\nThe field’s `prefill` string selects a supported query/user source. The builder lists current sources and keys. A hidden campaign value is useful for reporting but remains client-controlled. Do not use query prefilling to grant privileges or establish a trusted price. Preserve existing prefill expressions when editing labels or theme tokens.\n\n## Calculation formulas\n\nTotal fields use a numeric expression such as `'{quantity} * 12 + {shipping}'`. This grammar is different from `{field:quantity}` merge tags. Supported functions: min, max, sum, avg, round, ceil, floor, abs, sqrt and pow. Use numeric field IDs inside braces. Choice pricing can contribute numeric values through the calculation resolver. There is no JavaScript, PHP or eval in formulas.\n\n```yaml\n- id: quantity\n  type: number\n  label: Quantity\n  min: '1'\n  step: '1'\n- id: total\n  type: total\n  label: Total\n  formula: '{quantity} * 12'\n  decimals: 2\n  currency: EUR\n  display: output\n```\n\nThe server recomputes submitted totals and does not trust the browser's computed value. Formula evaluation can fail at runtime (for example an invalid operation); a well-shaped YAML string is not a proof of numeric correctness. Preview representative answers and boundary cases. Do not change formulas during unrelated form edits.\n";
+  const __vite_glob_0_43 = "# Merge tags, prefilling and calculations\n\n[Knowledge index](index.md) · [Notifications](notifications.md) · [Total component](components/total.md)\n\n## Merge tags\n\nNotification templates, confirmation content and action templates may reference dynamic values. Keep these strings quoted in YAML so braces remain string contents.\n\n| Tag | Meaning |\n|---|---|\n| `{field:email}` | Form answer for the field ID email |\n| `{all_fields}` | All accepted answers formatted for the destination |\n| `{form:id}` / `{form:title}` | Form identity |\n| `{entry:id}` | Stored entry ID when entry storage is enabled |\n| `{admin_email}` / `{site:admin_email}` | Site administrator email |\n| `{site:url}` / `{site:name}` | Site URL/name |\n| `{user:email}` | Current authenticated user email |\n| `{date:Y-m-d}` / `{time:H:i}` | Current date/time formatting |\n| `{ip}` / `{referrer}` | Available submission context |\n| `{resume_link}` | Resume URL when present |\n\nField IDs are stable references; labels are display text. Compound field tags can select supported subkeys, and extension tags may exist. Use the builder's merge-tag picker for exact available tokens. Unknown tag syntax is not an instruction. The resolver preserves unrecognized tags; definition validation does not establish that every tag will resolve to a nonempty value on every submission.\n\n### Recalling answers inside the form\n\n`{field:<id>}` also works in a field's `label`, `hint` and `placeholder`, a heading's `label`, an HTML block's `content` and a consent field's `consentText`. There it shows the visitor's answer to that field live, as they fill the form in, and is empty until they answer. Choices show the label they picked. Only `{field:…}` recalls — every other tag is resolved when the form is submitted, so it would print as written in a label. Password, file, signature and repeater answers are never shown. A required-field error names the field with the answer filled in (\"Which size, Ada? is required.\").\n\n```yaml\n- id: name\n  type: text\n  label: Your name\n- id: size\n  type: radio\n  label: 'Which size, {field:name}?'\n```\n\n## Prefill\n\nThe field’s `prefill` string selects a supported query/user source. The builder lists current sources and keys. A hidden campaign value is useful for reporting but remains client-controlled. Do not use query prefilling to grant privileges or establish a trusted price. Preserve existing prefill expressions when editing labels or theme tokens.\n\n## Calculation formulas\n\nTotal fields use a numeric expression such as `'{quantity} * 12 + {shipping}'`. This grammar is different from `{field:quantity}` merge tags. Supported functions: min, max, sum, avg, round, ceil, floor, abs, sqrt and pow. Use numeric field IDs inside braces. Choice pricing can contribute numeric values through the calculation resolver. There is no JavaScript, PHP or eval in formulas.\n\n```yaml\n- id: quantity\n  type: number\n  label: Quantity\n  min: '1'\n  step: '1'\n- id: total\n  type: total\n  label: Total\n  formula: '{quantity} * 12'\n  decimals: 2\n  currency: EUR\n  display: output\n```\n\nThe server recomputes submitted totals and does not trust the browser's computed value. Formula evaluation can fail at runtime (for example an invalid operation); a well-shaped YAML string is not a proof of numeric correctness. Preview representative answers and boundary cases. Do not change formulas during unrelated form edits.\n";
   const __vite_glob_0_44 = "# Notifications\n\n[Knowledge index](index.md) · [Conditions](conditions.md) · [Merge tags](merge-tags.md)\n\nEvery notification belongs in `schema.notifications`, an ordered list. Each has its own enabled flag and condition. **An empty list invokes the built-in administrator notification on submission; it does not disable mail.** To disable mail intentionally, keep a configured notification with enabled:false. All enabled matching notifications run. `logic.action` is not used to invert notification matching; use the desired operators and match mode.\n\nRecipients may be comma-separated addresses or merge tags. Use `{admin_email}` for the site administrator or `{field:email_id}` for the visitor. Use a site-domain From address and visitor Reply-To. Empty message falls back to `{all_fields}`. Allowed HTML is supported. Attachment delivery and actual mail transport are evaluated on submission, never during YAML validation.\n\n## Properties\n\n| Key | Shape |\n|---|---|\n| `id` | string |\n| `name` | string |\n| `to` | string |\n| `cc` | string |\n| `bcc` | string |\n| `replyTo` | string |\n| `fromName` | string |\n| `fromEmail` | string |\n| `subject` | string |\n| `message` | string |\n| `enabled` | boolean |\n| `attachFiles` | boolean |\n| `logic` | logic |\n\n## Example notification\n\n```yaml\nnotifications:\n  - id: admin_notice\n    enabled: true\n    name: Enquiry notification\n    to: '{admin_email}'\n    subject: 'New enquiry: {form:title}'\n    message: '{all_fields}'\n    attachFiles: false\n```\n\nOptional cc, bcc, replyTo, fromName and fromEmail default to empty strings. Use a stable unique id. Do not add a visitor notification unless requested. Form creation and editing do not send any of these messages.\n";
   const __vite_glob_0_45 = '# Spam, storage and analytics\n\n[Knowledge index](index.md) · [Form structure](forms.md)\n\nAll paths below are relative to `schema.settings`. These are built-in defaults from includes/schema.php; a site extension may filter them. On an update preserve the settings returned by begin_form_edit. On creation omitted optional values receive the site defaults.\n\n| Path | Default | Behavior |\n|---|---|---|\n| `spam.honeypot` | `true` | Hidden trap for bots; keep enabled unless requested otherwise. |\n| `spam.timeTrap` | `3` | Minimum elapsed seconds from the signed form render time. Zero disables. |\n| `spam.rateLimit` | `10` | Submission rate threshold; zero disables. Server uses client IP based rate counting. |\n| `spam.blocklist` | `""` | Newline-separated blocked terms. Use a YAML literal block to preserve separate lines. |\n| `spam.akismet` | `false` | Off by default. When enabled and configured, sends submission data to Akismet. |\n| `spam.challenge` | `false` | Interactive anti-spam challenge switch. |\n| `storage.entries` | `true` | Store accepted entries. Turning off changes the availability of entry-based reporting and limits. |\n| `storage.ip` | `true` | Record client IP on stored entries. |\n| `storage.userAgent` | `true` | Record browser user agent. |\n| `storage.retention` | `0` | Retention in days. Zero means retain indefinitely; positive values allow scheduled deletion of old entries. |\n| `storage.anonymise` | `false` | Anonymise the stored IP rather than retaining a precise address. |\n| `analytics.enabled` | `true` | Aggregate form views/submissions for conversion reporting. |\n| `analytics.tech` | `true` | Aggregate device/browser/OS counts. Separate from conversion counters; not per-visitor histories. |\n\nUse actual YAML booleans, numeric values for counters, lists for roles, and objects for grouped settings. The dry-run rejects supplied values that normalization would discard or change. Preserve all unrelated groups; replacing the entire settings map with only a changed key would reset other behavior. Availability is enforced on submission, not just hidden in the browser. MIO changes configuration only: validation never sends mail, creates entries or runs actions.\n\nSee also [themes](themes.md), [notifications](notifications.md), [conditions](conditions.md), [validation](validation.md).\n';
   const __vite_glob_0_46 = "# Recipe: name, surname and conditional Other textarea\n\n[Knowledge index](../index.md) · [Conditions](../conditions.md) · [Workflow](../workflow.md)\n\nUser request: “Create a form with name, surname, how you heard about us, and a textarea if they choose Other.”\n\nUse begin_form_edit with mode:create. The first two questions are independent text fields. The dropdown stores search/friend/other. The textarea owns a show rule referring to heard and becomes required only while visible. Validate the complete YAML below and apply the successful receipt. Creating this definition does not publish it.\n\n```yaml\ntitle: How did you hear about us?\nschema:\n  version: 1\n  fields:\n    - id: name\n      type: text\n      label: Name\n      required: true\n      width: half\n    - id: surname\n      type: text\n      label: Surname\n      required: true\n      width: half\n    - id: heard\n      type: select\n      label: How did you hear about us?\n      required: true\n      placeholder: Choose an option\n      choices:\n        - {value: search, label: Search engine}\n        - {value: friend, label: Friend or colleague}\n        - {value: other, label: Other}\n    - id: details\n      type: textarea\n      label: Please tell us how you heard about us\n      required: true\n      rows: 4\n      logic:\n        enabled: true\n        action: show\n        match: all\n        rules:\n          - {field: heard, operator: is, value: other}\n  settings:\n    theme: clean\n    themeOverrides: {}\n  notifications: []\n  confirmations: []\n  actions: []\n```\n\nOn an update, merge these requested questions into the returned complete definition and preserve unrelated settings and notifications. Reuse existing IDs where the same question already exists. Do not create duplicate IDs or remove fields just to match the example.\n\nVerify Other shows the textarea and requires an answer; Search engine and Friend hide it and do not require an answer. The dropdown itself is required. Empty notifications invokes the default administrator email on a future submission; creating the form sends no email.\n";
@@ -16081,6 +16081,9 @@ ${end.comment}` : end.comment;
       text: `${type2?.label ?? field.type} — nothing is shown to the visitor here.`
     });
   }
+  function fillRecall(template, answer) {
+    return template.replace(/\{field:([a-zA-Z0-9_-]+)\}/g, (_match, id2) => answer(id2));
+  }
   const UNRECALLABLE = ["password", "file", "signature", "repeater", "page_break", "heading", "html", "divider", "spacer"];
   function recallable(field) {
     return !UNRECALLABLE.includes(field.type);
@@ -16129,33 +16132,56 @@ ${end.comment}` : end.comment;
         return "Their answer";
     }
   }
-  function recallItem(field, later) {
+  function readableLabel(field, fields) {
+    const label = String(field.label ?? "");
+    if (!label) {
+      return field.id;
+    }
+    return fillRecall(label, (id2) => {
+      const target = fields.find((candidate) => candidate.id === id2);
+      return `‹${target ? String(target.label ?? "").replace(/\{field:[a-zA-Z0-9_-]+\}/g, "…") || id2 : id2}›`;
+    });
+  }
+  function recallItem(field, later, fields) {
     return {
       tag: `{field:${field.id}}`,
-      label: field.label || "Untitled question",
+      label: field.label ? readableLabel(field, fields) : "Untitled question",
       hint: later ? "Comes later in the form, so this stays blank until they get there and answer it." : "Fills in as soon as they answer it. Blank until then.",
       sample: sampleFor(field),
       type: field.type
     };
   }
-  function recallGroups(fields, except) {
-    const index = fields.findIndex((field) => field.id === except);
-    const usable = (field) => field.id !== except && recallable(field);
+  function recallGroups(fields, current, includeSelf = true) {
+    const index = fields.findIndex((field) => field.id === current);
+    const usable = (field) => field.id !== current && recallable(field);
     const earlier = index < 0 ? fields.filter(usable) : fields.slice(0, index).filter(usable);
     const later = index < 0 ? [] : fields.slice(index + 1).filter(usable);
+    const self = includeSelf && index >= 0 && recallable(fields[index]) ? fields[index] : null;
     const groups = [
       {
         id: "earlier",
         label: "Their earlier answers",
-        items: earlier.map((field) => recallItem(field, false)),
-        empty: later.length ? "Nothing comes before this question yet — answers from later in the form are below." : "Add another question and its answer can be shown here."
+        items: earlier.map((field) => recallItem(field, false, fields)),
+        empty: later.length || self ? "Nothing comes before this question yet — the other answers are below." : "Add another question and its answer can be shown here."
       }
     ];
+    if (self) {
+      groups.push({
+        id: "self",
+        label: "This question",
+        items: [
+          {
+            ...recallItem(self, false, fields),
+            hint: "Their answer to this very question, filling in letter by letter as they type it."
+          }
+        ]
+      });
+    }
     if (later.length) {
       groups.push({
         id: "later",
         label: "Answers from later in the form",
-        items: later.map((field) => recallItem(field, true))
+        items: later.map((field) => recallItem(field, true, fields))
       });
     }
     return groups;
@@ -18198,7 +18224,7 @@ ${end.comment}` : end.comment;
           id: "references",
           label: "Your questions",
           items: formulaTargets(fields, except).map((field) => ({
-            label: field.label || field.id,
+            label: readableLabel(field, fields),
             tag: `{${field.id}}`,
             hint: formulaReferenceHint(field),
             sample: pricedSample(field)
@@ -18289,7 +18315,7 @@ ${end.comment}` : end.comment;
     const questions = el("div", {
       class: "atfb-formula__chips",
       children: targets.length || repeaters.length ? [
-        ...targets.map((field) => chip(field.label || field.id, `{${field.id}}`, 0, formulaReferenceHint(field))),
+        ...targets.map((field) => chip(readableLabel(field, options.fields), `{${field.id}}`, 0, formulaReferenceHint(field))),
         ...repeaters.map((reference) => chip(reference.label, reference.insert, 0, reference.hint))
       ] : [el("p", { class: "atfb-hint", text: "No number-shaped questions yet — add a number, scale or priced choice field and it appears here." })]
     });
@@ -19513,7 +19539,7 @@ ${end.comment}` : end.comment;
               "Placeholder",
               taggable(
                 bind(textInput(field.placeholder, (value) => update("placeholder", value)), "placeholder"),
-                this.recallOptions(field.id)
+                this.recallOptions(field.id, false)
               )
             )
           );
@@ -21222,7 +21248,7 @@ ${end.comment}` : end.comment;
                 types: (name) => this.config?.fieldTypes.find((candidate) => candidate.type === name),
                 selectedId: this.selected,
                 picker: (node, target) => {
-                  taggableText(node, this.recallOptions(target.id));
+                  taggableText(node, this.recallOptions(target.id, "placeholder" !== node.dataset.atfbBind));
                 }
               }),
               field.logic.enabled ? this.renderCondition(field, condition) : null
@@ -23330,11 +23356,12 @@ ${decls}
      * The schema is read when the picker opens, so a question added a moment
      * ago is already in it.
      *
-     * @param except The field being edited.
+     * @param current     The field whose text is being edited.
+     * @param includeSelf Whether to offer the field's own answer.
      */
-    recallOptions(except) {
+    recallOptions(current, includeSelf = true) {
       return {
-        groups: () => recallGroups(this.schema?.fields ?? [], except),
+        groups: () => recallGroups(this.schema?.fields ?? [], current, includeSelf),
         intro: "Show one of their answers here. It fills in live while they answer, and is blank until they do.",
         button: "Insert an answer"
       };

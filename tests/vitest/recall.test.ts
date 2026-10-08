@@ -3,7 +3,7 @@
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { recallGroups, recallText, recallable } from '../../src/shared/recall';
+import { readableLabel, recallGroups, recallText, recallable } from '../../src/shared/recall';
 import { boot } from '../../src/form';
 import type { Field } from '../../src/types';
 
@@ -32,6 +32,17 @@ describe( 'recallText', () => {
 	} );
 } );
 
+describe( 'readableLabel', () => {
+	it( 'names the question a label recalls instead of printing the tag', () => {
+		const name = field( 'name', 'text', 'Your name' );
+		const brand = field( 'brand', 'color', '{field:name} choose the brand colour' );
+
+		expect( readableLabel( brand, [ name, brand ] ) ).toBe( '‹Your name› choose the brand colour' );
+		expect( readableLabel( field( 'x', 'text', 'Hi {field:gone}' ), [] ) ).toBe( 'Hi ‹gone›' );
+		expect( readableLabel( field( 'x', 'text' ), [] ) ).toBe( 'x' );
+	} );
+} );
+
 describe( 'recallGroups', () => {
 	const fields = [
 		field( 'name', 'text', 'Your name' ),
@@ -41,12 +52,20 @@ describe( 'recallGroups', () => {
 		field( 'size', 'radio', 'Size' ),
 	];
 
-	it( 'offers earlier answers first, later ones apart, and never itself', () => {
-		const [ earlier, later ] = recallGroups( fields, 'age' );
+	it( 'offers earlier answers, then this question, then later ones', () => {
+		const [ earlier, self, later ] = recallGroups( fields, 'age' );
 
 		expect( earlier.items.map( ( item ) => item.tag ) ).toEqual( [ '{field:name}' ] );
+		expect( self.label ).toBe( 'This question' );
+		expect( self.items.map( ( item ) => item.tag ) ).toEqual( [ '{field:age}' ] );
 		expect( later.items.map( ( item ) => item.tag ) ).toEqual( [ '{field:size}' ] );
 		expect( later.items[ 0 ].hint ).toMatch( /later in the form/ );
+	} );
+
+	it( 'leaves the field itself out of its own placeholder', () => {
+		const tags = recallGroups( fields, 'name', false ).flatMap( ( group ) => group.items.map( ( item ) => item.tag ) );
+
+		expect( tags ).toEqual( [ '{field:age}', '{field:size}' ] );
 	} );
 
 	it( 'never offers a password, a file or a layout block', () => {
@@ -58,7 +77,7 @@ describe( 'recallGroups', () => {
 	} );
 
 	it( 'explains an empty list instead of showing nothing', () => {
-		const [ earlier ] = recallGroups( [ field( 'only', 'text', 'Only' ) ], 'only' );
+		const [ earlier ] = recallGroups( [ field( 'only', 'text', 'Only' ) ], 'only', false );
 
 		expect( earlier.items ).toEqual( [] );
 		expect( earlier.empty ).toMatch( /Add another question/ );

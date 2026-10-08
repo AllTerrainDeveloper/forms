@@ -649,7 +649,7 @@ function alltfo_merge_tag_answer_group( $schema ) {
 	$items = array();
 
 	foreach ( alltfo_input_fields( $schema ) as $field ) {
-		$label = isset( $field['label'] ) ? trim( (string) $field['label'] ) : '';
+		$label = isset( $field['label'] ) ? trim( alltfo_recall_readable( (string) $field['label'], $schema ) ) : '';
 
 		$items[] = array(
 			'tag'    => '{field:' . $field['id'] . '}',
@@ -866,4 +866,34 @@ function alltfo_recall_template( $text, $attribute = '' ) {
 	}
 
 	return $out;
+}
+
+/**
+ * A label as a person reads it in a list, with its recall tags named.
+ *
+ * "{field:name} choose the brand colour" reads as "‹Your name› choose the brand
+ * colour" in the value picker. Twin of `readableLabel()` in
+ * src/shared/recall.ts.
+ *
+ * @since 1.4.0
+ *
+ * @param string $label  The label as written.
+ * @param array  $schema The form schema.
+ * @return string
+ */
+function alltfo_recall_readable( $label, $schema ) {
+	if ( false === strpos( $label, '{field:' ) ) {
+		return $label;
+	}
+
+	return (string) preg_replace_callback(
+		'/\{field:([a-zA-Z0-9_-]+)\}/',
+		static function ( $matches ) use ( $schema ) {
+			$target = alltfo_find_field( $schema, $matches[1] );
+			$name   = $target ? alltfo_recall_strip( (string) $target['label'] ) : '';
+
+			return '‹' . ( '' !== trim( $name ) ? trim( $name ) : $matches[1] ) . '›';
+		},
+		$label
+	);
 }

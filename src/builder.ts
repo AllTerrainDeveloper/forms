@@ -2699,7 +2699,10 @@ export class Builder {
 							types: ( name ) => this.config?.fieldTypes.find( ( candidate ) => candidate.type === name ),
 							selectedId: this.selected,
 							picker: ( node, target ) => {
-								taggableText( node, this.recallOptions( target.id ) );
+								// A placeholder vanishes the moment the field has an
+								// answer, so offering the field's own is offering
+								// something nobody would ever see.
+								taggableText( node, this.recallOptions( target.id, 'placeholder' !== node.dataset.atfbBind ) );
 							},
 						} ),
 						field.logic.enabled ? this.renderCondition( field, condition ) : null,
@@ -3965,7 +3968,7 @@ export class Builder {
 					'Placeholder',
 					taggable(
 						bind( textInput( field.placeholder, ( value ) => update( 'placeholder', value ) ), 'placeholder' ),
-						this.recallOptions( field.id )
+						this.recallOptions( field.id, false )
 					)
 				)
 			);
@@ -5752,11 +5755,15 @@ export class Builder {
 	 * The schema is read when the picker opens, so a question added a moment
 	 * ago is already in it.
 	 *
-	 * @param except The field being edited.
+	 * @param current     The field whose text is being edited.
+	 * @param includeSelf Whether to offer the field's own answer.
 	 */
-	private recallOptions( except: string ): { groups: () => MergeTagGroup[]; intro: string; button: string } {
+	private recallOptions(
+		current: string,
+		includeSelf = true
+	): { groups: () => MergeTagGroup[]; intro: string; button: string } {
 		return {
-			groups: () => recallGroups( this.schema?.fields ?? [], except ),
+			groups: () => recallGroups( this.schema?.fields ?? [], current, includeSelf ),
 			intro: 'Show one of their answers here. It fills in live while they answer, and is blank until they do.',
 			button: 'Insert an answer',
 		};

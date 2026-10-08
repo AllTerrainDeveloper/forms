@@ -12,6 +12,7 @@
 
 import { calculate } from './shared/calc';
 import { insertAtCursor, taggable } from './merge-tags';
+import { readableLabel } from './shared/recall';
 import { button, el, row } from './ui';
 import type { Field, MergeTagGroup, Values } from './types';
 
@@ -222,7 +223,7 @@ export function formulaInput(
 				id: 'references',
 				label: 'Your questions',
 				items: formulaTargets( fields, except ).map( ( field ) => ( {
-					label: field.label || field.id,
+					label: readableLabel( field, fields ),
 					tag: `{${ field.id }}`,
 					hint: formulaReferenceHint( field ),
 					sample: pricedSample( field ),
@@ -363,7 +364,7 @@ export function openFormulaEditor( options: FormulaEditorOptions ): void {
 		children:
 			targets.length || repeaters.length
 				? [
-						...targets.map( ( field ) => chip( field.label || field.id, `{${ field.id }}`, 0, formulaReferenceHint( field ) ) ),
+						...targets.map( ( field ) => chip( readableLabel( field, options.fields ), `{${ field.id }}`, 0, formulaReferenceHint( field ) ) ),
 						...repeaters.map( ( reference ) => chip( reference.label, reference.insert, 0, reference.hint ) ),
 				  ]
 				: [ el( 'p', { class: 'atfb-hint', text: 'No number-shaped questions yet — add a number, scale or priced choice field and it appears here.' } ) ],
