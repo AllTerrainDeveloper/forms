@@ -130,6 +130,11 @@ function alltfo_process_submission( $form_id, $request, $files = array() ) {
 
 	$spam = alltfo_screen_for_spam( $schema, $values, $request );
 
+	// After screening, so a spam check still sees everything that was posted:
+	// from here on a field hidden by logic holds no answer, which is what the
+	// entry, the notifications, the confirmations and the actions all read.
+	$values = alltfo_drop_hidden_values( $schema, $values );
+
 	if ( $is_preview ) {
 		return array(
 			'success'      => true,
@@ -256,6 +261,46 @@ function alltfo_sanitize_request( $request, $depth = 0 ) {
 	}
 
 	return $clean;
+}
+
+/**
+ * Empties the answer of every field that logic hides for this submission.
+ *
+ * Validation already skips a hidden field (see `alltfo_visible_fields()`), but
+ * its value was still stored, and notification, confirmation and action rules
+ * read the stored values. A value for a hidden field comes from a browser that
+ * did not run the form's script (which disables hidden controls), from a field's
+ * default or pre-fill that was never shown, or from a client that never rendered
+ * the form. None of those is an answer the visitor gave, so it is replaced with
+ * the field's own empty value, exactly as if nothing had been posted for it. A
+ * hidden file field's uploads are deleted, as a refused submission's are.
+ *
+ * @since 1.4.0
+ *
+ * @param array $schema The form schema.
+ * @param array $values Field id => sanitised value.
+ * @return array The values, hidden fields emptied.
+ */
+function alltfo_drop_hidden_values( $schema, $values ) {
+	$visible = alltfo_visible_fields( $schema, $values );
+
+	foreach ( alltfo_input_fields( $schema ) as $field ) {
+		$id = $field['id'];
+
+		if ( ! empty( $visible[ $id ] ) || ! array_key_exists( $id, $values ) ) {
+			continue;
+		}
+
+		if ( 'file' === $field['type'] ) {
+			alltfo_delete_upload_attachments( $values[ $id ] );
+			unset( $values[ $id ] );
+			continue;
+		}
+
+		$values[ $id ] = alltfo_sanitize_field_value( '', $field );
+	}
+
+	return $values;
 }
 
 /**
