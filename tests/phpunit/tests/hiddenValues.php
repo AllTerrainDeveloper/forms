@@ -2,7 +2,8 @@
 /**
  * Values posted for fields that logic hides are not kept.
  *
- * @package AllTerrainForms
+ * @package AllTerrain_Forms
+ * @group allterrain-forms
  */
 
 /**
@@ -11,6 +12,8 @@
  * Validation has always skipped a hidden field. These pin that the stored entry
  * and the rules that read it (confirmations, notifications, actions) skip it
  * too, and that the spam screening still sees what was posted.
+ *
+ * @group allterrain-forms
  */
 class ALLTFO_Test_Hidden_Values extends WP_UnitTestCase {
 
