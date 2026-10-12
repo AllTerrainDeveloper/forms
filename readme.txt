@@ -333,6 +333,7 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * Show a visitor's earlier answers inside the form: "Nice to meet you, {field:name}" in a label, hint or placeholder fills in live as they answer. Choices show the option they picked; passwords, files and signatures are never shown.
 * The value list now explains every entry and shows an example of what it becomes. Formula references say what they count as (an option's price, 1 or 0 for a switch, quiz points), and the formula editor explains every function.
 * Required-field errors read a label with its recalled answer filled in.
+* Fixed answers to fields hidden by conditional logic being stored with the entry and used by confirmation, notification and action rules.
 
 = 1.3.0 =
 
