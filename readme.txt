@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: desktop-mode
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -338,6 +338,11 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 
 == Changelog ==
 
+= 1.4.1 =
+
+* A Support link under AllTerrain Forms on the Plugins screen opens the WordPress.org support forum. Sites can point it elsewhere with the `alltfo_support_url` filter.
+* Refreshed the plugin description, including the list of built-in form templates and a new "Where do I get help?" FAQ.
+
 = 1.4.0 =
 
 * Type { in any box that takes a value to pick it from a list: labels, hints, placeholders, headings, HTML blocks and consent text — in the field settings and directly on the canvas — as well as notifications, confirmations, the success screen and formulas.
@@ -403,6 +408,9 @@ API, importer hooks, and a REST namespace. Full reference in the repository.
 * First release.
 
 == Upgrade Notice ==
+
+= 1.4.1 =
+Adds a Support link on the Plugins screen. Forms and entries are unchanged.
 
 = 1.4.0 =
 Type { anywhere a value belongs, and show earlier answers in labels, hints and placeholders. Existing forms and entries are unchanged.
