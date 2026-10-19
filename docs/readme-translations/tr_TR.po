@@ -1,0 +1,399 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - AllTerrain Forms - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: AllTerrain Forms\n"
+"Language-Team: tr_TR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: tr_TR\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#. Plugin name.
+msgid "AllTerrain Forms – Survey Builder, Quiz Builder &amp; Contact Form"
+msgstr "AllTerrain Forms – İletişim formu, form oluşturucu, anket &amp; sınav"
+
+#. Short description.
+msgid "Free survey builder, quiz builder and contact form builder with drag &amp; drop, conditional logic, calculated fields, multi-step forms and NPS."
+msgstr "Ücretsiz anket, sınav ve iletişim formu oluşturucu: sürükle &amp; bırak, koşullu mantık, hesaplama alanları, çok adımlı formlar ve NPS."
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever."
+msgstr "AllTerrain Forms eksiksiz bir WordPress form oluşturucudur — iletişim formları, anket formları, sınav formları, kayıt formları, sipariş formları, rezervasyon formları, geri bildirim formları — tüm özellikler dahil, ücretsiz, sonsuza dek."
+
+#. Found in description paragraph.
+msgid "Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.\nSave and resume. Entry management with CSV export. Webhooks. Form analytics\nwith Net Promoter Score. User registration. Ten form themes you can rebuild\nwithout writing CSS."
+msgstr "Koşullu mantık. Hesaplamalar. Çok sayfalı formlar. Dosya yüklemeleri. İmzalar. Kaydedip sonra devam etme. CSV dışa aktarımlı girdi yönetimi. Webhook'lar. Net Promoter Score içeren form analizleri. Kullanıcı kaydı. CSS yazmadan yeniden oluşturabileceğiniz on form teması."
+
+#. Found in description paragraph.
+msgid "There is no Pro version, no upsell notice in your dashboard, no feature that\nturns out to need a licence key. None of these things are hard to build. They\nwere only ever sold separately because somebody could."
+msgstr "Pro sürüm yok, yönetim panelinizde ek satış bildirimi yok, sonradan lisans anahtarı gerektirdiği ortaya çıkan bir özellik yok. Bunların hiçbirini yapmak zor değil. Ayrı satılmalarının tek nedeni, birilerinin bunu yapabilmesiydi."
+
+#. Found in description header.
+msgid "Drag and drop form builder"
+msgstr "Sürükle ve bırak form oluşturucu"
+
+#. Found in description paragraph.
+msgid "Create a form by dragging. Pull a field from the palette onto the canvas, drop\nit where you want it, type the label. That is the whole learning curve — 37\nfield types, from a simple text box to a signature pad to a Likert matrix, and\nevery one behaves the same way."
+msgstr "Formu sürükleyerek oluşturun. Paletten bir alanı tuvale çekin, istediğiniz yere bırakın, etiketini yazın. Öğrenmeniz gereken her şey bu kadar — basit bir metin kutusundan imza alanına ve Likert matrisine kadar 37 alan türü var ve hepsi aynı şekilde çalışır."
+
+#. Found in description paragraph.
+msgid "Or start from a template: contact form, event RSVP, job application, survey,\nquiz, order form, registration form, feedback form, booking form and bug report."
+msgstr "Ya da bir şablonla başlayın: iletişim formu, etkinlik katılım bildirimi (RSVP), iş başvurusu, anket, sınav, sipariş formu, kayıt formu, geri bildirim formu, rezervasyon formu ve hata raporu."
+
+#. Found in description paragraph.
+msgid "Then paste one shortcode into a page, or drop in the <strong>Form</strong> block and pick\nyour form from a list:"
+msgstr "Ardından bir sayfaya tek bir kısa kod yapıştırın ya da <strong>Form</strong> bloğunu ekleyip formunuzu listeden seçin:"
+
+#. Found in description header.
+msgid "Conditional logic you can actually see"
+msgstr "Gerçekten görebildiğiniz koşullu mantık"
+
+#. Found in description paragraph.
+msgid "Show and hide fields, pages, emails and confirmations based on answers. Most\nform builders tell you a field <em>has</em> a rule and leave you to go and find out\nwhat it says. This one writes it on the card — <strong>Shown when · Can you make it?\n· is · Yes</strong> — and draws a line from the question that decides to the fields it\ndecides, labelled with the answer that triggers them."
+msgstr "Yanıtlara göre alanları, sayfaları, e-postaları ve onay mesajlarını gösterin veya gizleyin. Çoğu form oluşturucu size bir alanın kuralı <em>olduğunu</em> söyler ve kuralın ne dediğini bulmayı size bırakır. Bu eklenti kuralı kartın üzerine yazar — <strong>Gösterilme koşulu · Katılabilecek misiniz? · eşittir · Evet</strong> — ve karar veren sorudan etkilediği alanlara, onları tetikleyen yanıtla etiketlenmiş bir çizgi çizer."
+
+#. Found in description paragraph.
+msgid "Hover a field and everything it does not touch fades. A rule pointing at a\nquestion you deleted turns red, because that form is stuck and you would never\notherwise know."
+msgstr "Bir alanın üzerine gelin; etkilemediği her şey soluklaşır. Sildiğiniz bir soruyu gösteren kural kırmızıya döner, çünkü o form takılıp kalmıştır ve aksi hâlde bunu asla fark etmezdiniz."
+
+#. Found in description header.
+msgid "Multi-step forms, calculations and totals"
+msgstr "Çok adımlı formlar, hesaplamalar ve toplamlar"
+
+#. Found in description paragraph.
+msgid "Break long forms into pages with per-step validation and a progress indicator.\nAdd calculated fields and running totals — an order form that adds up, a quote\nform that quotes. Payment-style product and option fields keep their prices."
+msgstr "Uzun formları adım bazında doğrulama ve ilerleme göstergesiyle sayfalara bölün. Hesaplama alanları ve anlık toplamlar ekleyin — toplamı kendisi hesaplayan bir sipariş formu, fiyat teklifini kendisi çıkaran bir teklif formu. Ödeme tarzı ürün ve seçenek alanları fiyatlarını korur."
+
+#. Found in description header.
+msgid "File upload forms and signatures"
+msgstr "Dosya yükleme formları ve imzalar"
+
+#. Found in description paragraph.
+msgid "Accept file uploads with per-field type and size limits, stored in a protected\ndirectory and attached to the entry. Collect a real drawn signature. Uploads\nare parented to their submission, so deleting the entry cleans up after itself."
+msgstr "Alan bazında tür ve boyut sınırlarıyla dosya yüklemelerini kabul edin; dosyalar korumalı bir dizinde saklanır ve girdiye eklenir. Elle çizilmiş gerçek bir imza toplayın. Yüklenen dosyalar ait oldukları gönderime bağlıdır, bu yüzden girdiyi sildiğinizde onlar da temizlenir."
+
+#. Found in description header.
+msgid "Survey builder, quiz builder and NPS"
+msgstr "Anket oluşturucu, sınav oluşturucu ve NPS"
+
+#. Found in description paragraph.
+msgid "The survey builder makes survey forms with rating scales, opinion scales,\nLikert matrices and 0–10 questions. The quiz builder adds scoring and\nper-answer feedback. The Analytics window turns responses into answers: submissions over time,\nconversion and completion rates, per-question distributions, a Net Promoter\nScore panel, and any question broken down by any other question."
+msgstr "Anket oluşturucu; derecelendirme ölçekleri, görüş ölçekleri, Likert matrisleri ve 0–10 arası sorularla anket formları hazırlar. Sınav oluşturucu puanlama ve yanıt bazında geri bildirim ekler. Analiz penceresi yanıtları sonuçlara dönüştürür: zaman içindeki gönderimler, dönüşüm ve tamamlanma oranları, soru bazında dağılımlar, bir Net Promoter Score paneli ve herhangi bir sorunun başka herhangi bir soruya göre kırılımı."
+
+#. Found in description header.
+msgid "Entry management, search and CSV export"
+msgstr "Girdi yönetimi, arama ve CSV dışa aktarma"
+
+#. Found in description paragraph.
+msgid "Every submission is saved as an entry. Search answers, filter by form, status\nand star, read one beside the list, add private notes, and export to CSV or\nJSON. Unread counts, a spam folder, and bulk actions included."
+msgstr "Her gönderim bir girdi olarak kaydedilir. Yanıtlarda arama yapın, forma, duruma ve yıldıza göre filtreleyin, bir girdiyi listenin yanında okuyun, özel notlar ekleyin ve CSV ya da JSON olarak dışa aktarın. Okunmamış sayıları, istenmeyen (spam) klasörü ve toplu işlemler dahildir."
+
+#. Found in description header.
+msgid "Email notifications, confirmations and webhooks"
+msgstr "E-posta bildirimleri, onay mesajları ve webhook'lar"
+
+#. Found in description paragraph.
+msgid "Send conditional notification emails with CC, BCC, reply-to and attachments.\nShow a message, redirect, or send visitors to a page — conditionally, per\nanswer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and\nhook <code>alltfo_entry_created</code> for anything else."
+msgstr "CC, BCC, yanıt adresi (reply-to) ve eklerle koşullu bildirim e-postaları gönderin. Bir mesaj gösterin, başka bir adrese yönlendirin ya da ziyaretçileri bir sayfaya gönderin — yanıta göre, koşullu olarak. Her girdiyi HMAC-SHA256 ile imzalanmış JSON olarak herhangi bir URL'ye POST edin; geri kalan her şey için <code>alltfo_entry_created</code> kancasını kullanın."
+
+#. Found in description header.
+msgid "Grows your MailPoet lists"
+msgstr "MailPoet listelerinizi büyütür"
+
+#. Found in description paragraph.
+msgid "With MailPoet installed, any form can subscribe visitors to your lists —\nbound to an opt-in box they actually tick, with MailPoet's own double opt-in\nconfirming every address. Map the email and name fields, pick the lists, done.\nThe kind of integration that is a paid addon elsewhere, free here."
+msgstr "MailPoet kuruluysa herhangi bir form ziyaretçileri listelerinize abone edebilir — ziyaretçinin gerçekten işaretlediği bir onay kutusuna bağlı olarak ve her adresi MailPoet'in kendi çift onay (double opt-in) adımıyla doğrulayarak. E-posta ve ad alanlarını eşleştirin, listeleri seçin, bu kadar. Başka yerlerde ücretli bir eklenti olan türden bir entegrasyon, burada ücretsiz."
+
+#. Found in description paragraph.
+msgid "Every email and confirmation has an <strong>Insert a value</strong> button that lists your\nown questions by the label you wrote — not <code>{field:f2}</code> — with a live preview\nof the finished text."
+msgstr "Her e-postada ve onay mesajında, kendi sorularınızı yazdığınız etiketle listeleyen bir <strong>Değer ekle</strong> (Insert a value) düğmesi vardır — <code>{field:f2}</code> şeklinde değil — ve bitmiş metnin canlı önizlemesini gösterir."
+
+#. Found in description header.
+msgid "Import from Contact Form 7, WPForms and Gravity Forms — entries too"
+msgstr "Contact Form 7, WPForms ve Gravity Forms'tan içe aktarma — girdiler de dahil"
+
+#. Found in description paragraph.
+msgid "Switching form plugins? You do not have to go looking. Activate AllTerrain\nForms and it tells you what it found — <em>\"AllTerrain Forms found 6 forms in\nContact Form 7\"</em> — with one button that migrates all of them. Conditional\nlogic carries across, payment fields keep their prices, an order total keeps\ncalculating, and a Gravity Forms List becomes a real repeater."
+msgstr "Form eklentisi mi değiştiriyorsunuz? Aramanıza gerek yok. AllTerrain Forms'u etkinleştirin, ne bulduğunu size söylesin — <em>\"AllTerrain Forms, Contact Form 7'de 6 form buldu\"</em> — ve hepsini taşıyan tek bir düğme sunsun. Koşullu mantık aktarılır, ödeme alanları fiyatlarını korur, sipariş toplamı hesaplanmaya devam eder ve Gravity Forms'un List alanı gerçek bir tekrarlayıcıya (repeater) dönüşür."
+
+#. Found in description paragraph.
+msgid "The stored submissions come too. Messages Flamingo kept for Contact Form 7,\nGravity Forms entries, and WPForms Pro entries can all be brought across after\ntheir form is — each with its original date, spam filed as spam, and the\noriginals left untouched. Running an import twice never imports anything\ntwice, and everything still works after the old plugin is deactivated, because\nthe data outlives the plugin."
+msgstr "Kayıtlı gönderimler de gelir. Flamingo'nun Contact Form 7 için sakladığı mesajlar, Gravity Forms girdileri ve WPForms Pro girdileri, ait oldukları form aktarıldıktan sonra taşınabilir — her biri orijinal tarihiyle, spam olanlar spam olarak işaretlenmiş ve orijinallere dokunulmadan. Bir içe aktarmayı iki kez çalıştırmak hiçbir şeyi iki kez aktarmaz ve eski eklenti devre dışı bırakıldıktan sonra da her şey çalışmaya devam eder, çünkü veriler eklentiden daha uzun yaşar."
+
+#. Found in description header.
+msgid "Ten form themes, and an eleventh you make yourself"
+msgstr "On form teması ve kendi yaptığınız on birincisi"
+
+#. Found in description paragraph.
+msgid "Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial and\nHolo. A theme here is a flat list of 69 design tokens — no theme PHP, no\ntemplate, no stylesheet to edit."
+msgstr "Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial ve Holo. Buradaki bir tema, 69 tasarım token'ından oluşan düz bir listedir — tema PHP'si yok, şablon yok, düzenlenecek stil dosyası yok."
+
+#. Found in description paragraph.
+msgid "<strong>Theme Studio</strong> gives you a control for every token and a live preview that\nupdates the instant you click. Six plain-language dials cover the common case:\nAccent, Roundness, Density, Depth, Fields, Labels. Nobody thinks\n<em>\"radius-field: 14px\"</em> — they think <em>rounder</em>. Save your changes as a theme,\npick it on any form, export it as JSON, import it on another site."
+msgstr "<strong>Theme Studio</strong> her token için bir kontrol ve tıkladığınız anda güncellenen canlı bir önizleme sunar. Sade dille adlandırılmış altı ayar düğmesi yaygın ihtiyaçları karşılar: Vurgu (Accent), Yuvarlaklık (Roundness), Yoğunluk (Density), Derinlik (Depth), Alanlar (Fields), Etiketler (Labels). Kimse <em>\"radius-field: 14px\"</em> diye düşünmez — <em>daha yuvarlak</em> diye düşünür. Değişikliklerinizi bir tema olarak kaydedin, herhangi bir formda seçin, JSON olarak dışa aktarın, başka bir sitede içe aktarın."
+
+#. Found in description header.
+msgid "Spam protection without a CAPTCHA"
+msgstr "CAPTCHA olmadan spam koruması"
+
+#. Found in description paragraph.
+msgid "A honeypot, a signed time trap, a per-address rate limit, a word blocklist,\nand — if you already have it and switch it on for a form — Akismet. Nothing\nasks a visitor to identify traffic lights, because a CAPTCHA charges the\nvisitor for the site's spam problem and fails accessibility for a good number\nof people."
+msgstr "Bir bal küpü (honeypot), imzalı bir zaman tuzağı, adres başına hız sınırı, bir kelime engelleme listesi ve — zaten kuruluysa ve bir form için açarsanız — Akismet. Hiçbir şey ziyaretçiden trafik ışıklarını bulmasını istemez, çünkü CAPTCHA sitenin spam sorununun bedelini ziyaretçiye ödetir ve azımsanmayacak sayıda kişi için erişilebilirlik açısından başarısız olur."
+
+#. Found in description paragraph.
+msgid "Anything judged spam is <strong>kept</strong>, in a spam folder, never silently thrown away."
+msgstr "Spam olarak değerlendirilen her şey bir istenmeyen klasöründe <strong>saklanır</strong>, asla sessizce atılmaz."
+
+#. Found in description header.
+msgid "Accessible (WCAG AA) and works without JavaScript"
+msgstr "Erişilebilir (WCAG AA) ve JavaScript olmadan çalışır"
+
+#. Found in description paragraph.
+msgid "Real labels bound to real controls. Grouped inputs in a fieldset with a\nlegend. Hints and errors wired with <code>aria-describedby</code>. An error summary that\ntakes focus. Every theme meets WCAG AA contrast, and the test suite fails if\none stops."
+msgstr "Gerçek kontrollere bağlı gerçek etiketler. Başlığı (legend) olan bir fieldset içinde gruplanmış giriş alanları. <code>aria-describedby</code> ile bağlanmış ipuçları ve hatalar. Odağı üzerine alan bir hata özeti. Her tema WCAG AA kontrast gereksinimini karşılar ve biri karşılamaz hâle gelirse test paketi başarısız olur."
+
+#. Found in description paragraph.
+msgid "And the form works with JavaScript switched off — a real POST, real\nserver-side validation, errors against the right fields, answers still in the\nboxes."
+msgstr "Form JavaScript kapalıyken de çalışır — gerçek bir POST, gerçek sunucu tarafı doğrulama, doğru alanların yanında gösterilen hatalar ve kutularda duran yanıtlar."
+
+#. Found in description header.
+msgid "GDPR-friendly by structure"
+msgstr "Yapısı gereği GDPR dostu"
+
+#. Found in description paragraph.
+msgid "A form is a post. An entry is a post. A note on an entry is a comment. Nothing\nlives in a custom table, so WordPress's own privacy exporter and eraser, user\ncapabilities, search and the trash already work on your form data. A consent\nfield, IP anonymisation and per-form storage controls are built in — and\nnothing is ever sent to us. The only third parties your data can reach are the\nones you configure yourself, listed under <em>External services</em> below."
+msgstr "Bir form bir yazıdır. Bir girdi bir yazıdır. Bir girdiye eklenen not bir yorumdur. Hiçbir şey özel bir tabloda tutulmaz, bu yüzden WordPress'in kendi kişisel veri dışa aktarma ve silme araçları, kullanıcı yetkileri, arama ve çöp kutusu form verileriniz üzerinde zaten çalışır. Onay alanı, IP anonimleştirme ve form bazında saklama denetimleri yerleşiktir — ve hiçbir şey asla bize gönderilmez. Verilerinizin ulaşabileceği tek üçüncü taraflar sizin kendiniz yapılandırdıklarınızdır; bunlar aşağıda <em>Harici hizmetler</em> başlığı altında listelenmiştir."
+
+#. Found in description header.
+msgid "Ready for AI agents — WordPress Abilities API and MCP"
+msgstr "Yapay zekâ ajanlarına hazır — WordPress Abilities API ve MCP"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms describes itself to AI agents. Nine abilities registered\nthrough WordPress's Abilities API let an agent — over MCP or the REST API —\nlist your forms, read a form's questions, <strong>build a whole form from a\ndescription</strong>, apply a theme, submit entries through the same validated\nanti-spam pipeline a visitor uses, query submissions with human-readable\nanswers, and pull the full analytics report (conversion, distributions, NPS)\nas structured data."
+msgstr "AllTerrain Forms kendini yapay zekâ ajanlarına tanıtır. WordPress'in Abilities API'si üzerinden kaydedilen dokuz yetenek, bir ajanın — MCP ya da REST API üzerinden — formlarınızı listelemesini, bir formun sorularını okumasını, <strong>bir açıklamadan eksiksiz bir form oluşturmasını</strong>, tema uygulamasını, ziyaretçinin kullandığı aynı doğrulamalı spam karşıtı süreçten girdi göndermesini, gönderimleri okunabilir yanıtlarla sorgulamasını ve tam analiz raporunu (dönüşüm, dağılımlar, NPS) yapılandırılmış veri olarak almasını sağlar."
+
+#. Found in description paragraph.
+msgid "The nine, by name:"
+msgstr "İsimleriyle dokuz yetenek:"
+
+#. Found in description list item.
+msgid "<strong>list-forms</strong> — every form with its id, title, theme, shortcode, entry count and questions. The starting point; its ids feed everything else."
+msgstr "<strong>list-forms</strong> — kimliği, başlığı, teması, kısa kodu, girdi sayısı ve sorularıyla birlikte her form. Başlangıç noktasıdır; döndürdüğü kimlikler diğer her şeyi besler."
+
+#. Found in description list item.
+msgid "<strong>get-form</strong> — one form's questions in full: field ids, types, labels, required flags and choices. Read it before submitting or interpreting entries."
+msgstr "<strong>get-form</strong> — bir formun soruları eksiksiz: alan kimlikleri, türleri, etiketleri, zorunluluk işaretleri ve seçenekleri. Girdi göndermeden veya girdileri yorumlamadan önce bunu okuyun."
+
+#. Found in description list item.
+msgid "<strong>list-field-types</strong> — the vocabulary for building: all 37 field types with what each stores."
+msgstr "<strong>list-field-types</strong> — form oluşturmanın sözlüğü: 37 alan türünün tamamı ve her birinin ne sakladığı."
+
+#. Found in description list item.
+msgid "<strong>create-form</strong> — builds a form from a title and a plain list of fields, and returns the shortcode ready to paste."
+msgstr "<strong>create-form</strong> — bir başlık ve düz bir alan listesinden form oluşturur ve yapıştırmaya hazır kısa kodu döndürür."
+
+#. Found in description list item.
+msgid "<strong>set-form-theme</strong> — dresses a form in any installed theme, by slug."
+msgstr "<strong>set-form-theme</strong> — bir forma, kısa adına (slug) göre yüklü herhangi bir temayı uygular."
+
+#. Found in description list item.
+msgid "<strong>submit-form</strong> — submits answers through the visitor pipeline: availability, validation, anti-spam, storage, notifications. Refusals return per-field errors and store nothing."
+msgstr "<strong>submit-form</strong> — yanıtları ziyaretçi sürecinden geçirerek gönderir: uygunluk denetimi, doğrulama, spam koruması, saklama, bildirimler. Reddedilen gönderimler alan bazında hatalar döndürür ve hiçbir şey saklamaz."
+
+#. Found in description list item.
+msgid "<strong>list-entries</strong> — queries submissions with search, date range, status and pagination; answers come back raw and human-readable."
+msgstr "<strong>list-entries</strong> — gönderimleri arama, tarih aralığı, durum ve sayfalama ile sorgular; yanıtlar hem ham hem de okunabilir biçimde döner."
+
+#. Found in description list item.
+msgid "<strong>get-entry</strong> — one submission in full, every answer labelled and formatted."
+msgstr "<strong>get-entry</strong> — tek bir gönderimin tamamı; her yanıt etiketlenmiş ve biçimlendirilmiş olarak."
+
+#. Found in description list item.
+msgid "<strong>form-report</strong> — the analytics as data: views, conversion, completion, a 90-day timeline, per-question distributions, NPS, and breakdowns by any grouping question."
+msgstr "<strong>form-report</strong> — veri olarak analizler: görüntülenmeler, dönüşüm, tamamlanma, 90 günlük zaman çizelgesi, soru bazında dağılımlar, NPS ve gruplama için seçilen herhangi bir soruya göre kırılımlar."
+
+#. Found in description paragraph.
+msgid "Every ability carries a JSON Schema and a capability check, and none of them\nhas logic of its own — an agent and a human clicking the same button get the\nsame behaviour. Ask your assistant to \"make a booking form and show me last\nweek's responses\", and this is what it calls."
+msgstr "Her yeteneğin bir JSON Schema'sı ve yetki denetimi vardır ve hiçbirinin kendine ait bir mantığı yoktur — bir ajan da aynı düğmeye tıklayan bir insan da aynı davranışı elde eder. Asistanınıza \"bir rezervasyon formu oluştur ve bana geçen haftanın yanıtlarını göster\" deyin; çağıracağı şey bunlardır."
+
+#. Found in description header.
+msgid "Built on OpenStation"
+msgstr "OpenStation üzerine kurulu"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is an <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a>\ndesktop app, and OpenStation is <strong>required</strong> — WordPress installs it alongside\nthis plugin and keeps the two together. OpenStation turns wp-admin into a\nwindowed desktop: the builder is a real window you can put beside your\nentries, drag a field from one form into another, and drop an image straight\nfrom the media browser onto a choice. That spatial way of working is the\nproduct, which is why the plugin does not ship a lesser version of itself\nwithout it."
+msgstr "AllTerrain Forms bir <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a> masaüstü uygulamasıdır ve OpenStation <strong>gereklidir</strong> — WordPress onu bu eklentiyle birlikte kurar ve ikisini bir arada tutar. OpenStation, wp-admin'i pencereli bir masaüstüne dönüştürür: form oluşturucu, girdilerinizin yanına koyabileceğiniz gerçek bir penceredir; bir alanı bir formdan diğerine sürükleyebilir, bir görseli doğrudan ortam tarayıcısından bir seçeneğin üzerine bırakabilirsiniz. Bu mekânsal çalışma biçimi ürünün ta kendisidir; eklentinin, bu olmadan kendisinin daha zayıf bir sürümünü sunmamasının nedeni de budur."
+
+#. Found in description paragraph.
+msgid "Your visitors are never part of that dependency: published forms render and\nsubmit on the front end regardless of what is happening in the admin."
+msgstr "Ziyaretçileriniz bu bağımlılığın asla parçası olmaz: yayımlanmış formlar, yönetim panelinde ne olursa olsun ön yüzde görüntülenir ve gönderilir."
+
+#. Found in description header.
+msgid "External services"
+msgstr "Harici hizmetler"
+
+#. Found in description paragraph.
+msgid "The plugin makes no connection of its own to us or to anyone else — no\naccounts, no license checks, no telemetry, no updates outside WordPress.org.\nTwo optional features send data to a destination <strong>you</strong> choose:"
+msgstr "Eklenti kendi başına ne bize ne de başka birine bağlantı kurar — hesap yok, lisans denetimi yok, telemetri yok, WordPress.org dışından güncelleme yok. İsteğe bağlı iki özellik, <strong>sizin</strong> seçtiğiniz bir hedefe veri gönderir:"
+
+#. Found in description list item.
+msgid "<strong>Akismet</strong> — off by default on every form, even when the\n<a href=\"https://wordpress.org/plugins/akismet/\">Akismet plugin</a> is installed and\nconfigured on your site. Only when you switch it on for a form is each\nsubmission to that form (the answers, plus the sender's IP and user agent)\nsent to Akismet's servers for a spam verdict, with spam/ham corrections you\nmake in the entries screen reported back. Corrections obey the same per-form\nswitch: marking an entry spam or not-spam on a form that has Akismet off\nsends nothing. Without the Akismet plugin, or with the per-form switch off,\nnothing is ever sent. See the\n<a href=\"https://akismet.com/tos/\">Akismet Terms of Service</a> and the\n<a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>Akismet</strong> — sitenizde <a href=\"https://wordpress.org/plugins/akismet/\">Akismet eklentisi</a> kurulu ve yapılandırılmış olsa bile her formda varsayılan olarak kapalıdır. Yalnızca bir form için açtığınızda, o forma yapılan her gönderim (yanıtlar ile birlikte gönderenin IP adresi ve tarayıcı kimliği (user agent)) spam değerlendirmesi için Akismet'in sunucularına gönderilir; girdiler ekranında yaptığınız spam/ham (spam/spam değil) düzeltmeleri de Akismet'e geri bildirilir. Düzeltmeler de aynı form bazındaki anahtara tabidir: Akismet'in kapalı olduğu bir formda bir girdiyi spam ya da spam değil olarak işaretlemek hiçbir şey göndermez. Akismet eklentisi yoksa ya da form bazındaki anahtar kapalıysa hiçbir zaman hiçbir şey gönderilmez. Ayrıntılar için <a href=\"https://akismet.com/tos/\">Akismet Hizmet Şartları</a>'na ve <a href=\"https://automattic.com/privacy/\">Automattic Gizlilik Politikası</a>'na bakın."
+
+#. Found in description list item.
+msgid "<strong>Webhooks</strong> — a form can POST each entry as JSON to a URL you enter,\nsigned with HMAC-SHA256. Entries go only to the address you configured, and\nthe feature is off until you configure one."
+msgstr "<strong>Webhook'lar</strong> — bir form her girdiyi, HMAC-SHA256 ile imzalanmış JSON olarak sizin girdiğiniz bir URL'ye POST edebilir. Girdiler yalnızca sizin yapılandırdığınız adrese gider ve siz bir adres yapılandırana kadar bu özellik kapalıdır."
+
+#. Found in description header.
+msgid "Built in the open"
+msgstr "Herkese açık olarak geliştirildi"
+
+#. Found in description paragraph.
+msgid "Source, issue tracker and full developer documentation:\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+msgstr "Kaynak kod, hata takip sistemi ve eksiksiz geliştirici belgeleri:\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+
+#. Found in description paragraph.
+msgid "Over 800 automated tests, and the conditional-logic and calculation engines\nare tested against one shared table of cases in both PHP and JavaScript —\nbecause if the browser and the server ever disagreed about which fields were\nrequired, you would be shown a form you could not submit."
+msgstr "800'ün üzerinde otomatik test var; koşullu mantık ve hesaplama motorları hem PHP'de hem de JavaScript'te tek bir ortak vaka tablosuna karşı test edilir — çünkü tarayıcı ile sunucu hangi alanların zorunlu olduğu konusunda bir gün anlaşamazsa, size gönderemeyeceğiniz bir form gösterilirdi."
+
+#. Found in installation list item.
+msgid "Install through <strong>Plugins → Add New</strong>, or upload the ZIP under\n<strong>Plugins → Add New → Upload Plugin</strong>. WordPress installs OpenStation\nalongside it automatically."
+msgstr "<strong>Eklentiler → Yeni ekle</strong> üzerinden kurun ya da ZIP dosyasını <strong>Eklentiler → Yeni ekle → Eklenti yükle</strong> altından yükleyin. WordPress, OpenStation'ı onunla birlikte otomatik olarak kurar."
+
+#. Found in installation list item.
+msgid "Activate it."
+msgstr "Etkinleştirin."
+
+#. Found in installation list item.
+msgid "Open <strong>AllTerrain Forms</strong> from the dock and build a form by dragging."
+msgstr "<strong>AllTerrain Forms</strong> uygulamasını Dock'tan açın ve sürükleyerek bir form oluşturun."
+
+#. Found in installation list item.
+msgid "Paste the shortcode it shows you into any page or post, or add the <strong>Form</strong>\nblock."
+msgstr "Gösterdiği kısa kodu herhangi bir sayfaya ya da yazıya yapıştırın veya <strong>Form</strong> bloğunu ekleyin."
+
+#. Found in installation paragraph.
+msgid "No account, no licence key, and no connection to any service of ours — the\nonly external services it can talk to are the ones you configure, listed under\n<em>External services</em> above."
+msgstr "Hesap yok, lisans anahtarı yok ve bize ait herhangi bir hizmete bağlantı yok — iletişim kurabileceği harici hizmetler yalnızca sizin yapılandırdıklarınızdır ve yukarıda <em>Harici hizmetler</em> başlığı altında listelenmiştir."
+
+#. Found in faq header.
+msgid "Is AllTerrain Forms really free? What's the catch?"
+msgstr "AllTerrain Forms gerçekten ücretsiz mi? İşin içinde bir bit yeniği var mı?"
+
+#. Found in faq paragraph.
+msgid "It is, and there isn't one. There is no Pro version and no paid add-on.\nConditional logic, multi-step forms, file uploads, entry management, CSV\nexport, webhooks, quizzes, surveys, analytics — everything described on this\npage is in this plugin."
+msgstr "Evet, ücretsiz ve hiçbir bit yeniği yok. Pro sürüm yok, ücretli eklenti (add-on) yok. Koşullu mantık, çok adımlı formlar, dosya yüklemeleri, girdi yönetimi, CSV dışa aktarma, webhook'lar, sınavlar, anketler, analizler — bu sayfada anlatılan her şey bu eklentinin içinde."
+
+#. Found in faq header.
+msgid "How do I create a contact form?"
+msgstr "İletişim formu nasıl oluşturabilirim?"
+
+#. Found in faq paragraph.
+msgid "Activate the plugin, open <strong>AllTerrain Forms</strong> from the dock, and drag fields\nfrom the palette onto the canvas — or start from the contact form template.\nPaste the shortcode into a page, or use the <strong>Form</strong> block. The whole thing\ntakes about a minute."
+msgstr "Eklentiyi etkinleştirin, Dock'tan <strong>AllTerrain Forms</strong> uygulamasını açın ve alanları paletten tuvale sürükleyin — ya da iletişim formu şablonuyla başlayın. Kısa kodu bir sayfaya yapıştırın veya <strong>Form</strong> bloğunu kullanın. Hepsi yaklaşık bir dakika sürer."
+
+#. Found in faq header.
+msgid "Do I need the OpenStation plugin?"
+msgstr "OpenStation eklentisine ihtiyacım var mı?"
+
+#. Found in faq paragraph.
+msgid "Yes. The builder is an OpenStation desktop app — a real window you can drag\nthings between — and WordPress installs and activates OpenStation for you when\nyou install this plugin. Your visitors never need it: published forms render\nand submit on the front end without any of the admin machinery."
+msgstr "Evet. Form oluşturucu bir OpenStation masaüstü uygulamasıdır — öğeleri pencereler arasında sürükleyebileceğiniz gerçek bir pencere — ve bu eklentiyi kurduğunuzda WordPress, OpenStation'ı sizin için kurar ve etkinleştirir. Ziyaretçilerinizin buna hiç ihtiyacı olmaz: yayımlanmış formlar, yönetim panelindeki bu altyapının hiçbiri olmadan ön yüzde görüntülenir ve gönderilir."
+
+#. Found in faq header.
+msgid "Can I import forms from Contact Form 7, WPForms or Gravity Forms?"
+msgstr "Contact Form 7, WPForms veya Gravity Forms'tan form içe aktarabilir miyim?"
+
+#. Found in faq paragraph.
+msgid "Yes, and it offers before you ask: if the plugin finds forms from Contact Form\n7, WPForms or Gravity Forms it says so and gives you a single button that\nimports all of them. <strong>Forms → Import</strong> lists them individually whenever you\nwant it, including forms whose plugin has already been deactivated, because\nthe data outlives the plugin. Each import creates a new AllTerrain form and\nleaves the original untouched."
+msgstr "Evet, üstelik siz sormadan önerir: eklenti Contact Form 7, WPForms veya Gravity Forms'a ait formlar bulursa bunu söyler ve hepsini içe aktaran tek bir düğme sunar. <strong>Formlar → İçe aktar</strong> (Forms → Import) ekranı, eklentisi zaten devre dışı bırakılmış formlar dahil, istediğiniz zaman onları tek tek listeler, çünkü veriler eklentiden daha uzun yaşar. Her içe aktarma yeni bir AllTerrain formu oluşturur ve orijinali olduğu gibi bırakır."
+
+#. Found in faq header.
+msgid "Can I import my old entries and submissions too?"
+msgstr "Eski girdilerimi ve gönderimlerimi de aktarabilir miyim?"
+
+#. Found in faq paragraph.
+msgid "Yes. Stored submissions from all three sources — Flamingo's messages for\nContact Form 7, Gravity Forms entries, WPForms Pro entries — can be brought\nacross after their form is imported, each keeping its original date, with spam\nfiled as spam and the originals left untouched. Running it twice never imports\nanything twice."
+msgstr "Evet. Üç kaynağın tamamından kayıtlı gönderimler — Contact Form 7 için Flamingo'nun mesajları, Gravity Forms girdileri, WPForms Pro girdileri — ait oldukları form içe aktarıldıktan sonra taşınabilir; her biri orijinal tarihini korur, spam olanlar spam olarak işaretlenir ve orijinallere dokunulmaz. İşlemi iki kez çalıştırmak hiçbir şeyi iki kez aktarmaz."
+
+#. Found in faq header.
+msgid "Will my forms keep working if I deactivate the plugin?"
+msgstr "Eklentiyi devre dışı bırakırsam formlarım çalışmaya devam eder mi?"
+
+#. Found in faq paragraph.
+msgid "Your data stays: forms and entries are ordinary posts, so deactivating leaves\nthem in your database untouched. Uninstalling removes them, which is what\nuninstalling should do — export your entries to CSV first if you want them."
+msgstr "Verileriniz yerinde kalır: formlar ve girdiler sıradan yazılardır, bu yüzden devre dışı bırakmak onları veritabanınızda olduğu gibi bırakır. Eklentiyi silmek (kaldırmak) ise onları da kaldırır; kaldırmanın yapması gereken de budur — saklamak istiyorsanız önce girdilerinizi CSV olarak dışa aktarın."
+
+#. Found in faq header.
+msgid "Can I move a form to another site?"
+msgstr "Bir formu başka bir siteye taşıyabilir miyim?"
+
+#. Found in faq paragraph.
+msgid "Yes. Export the form as YAML and import it on the other site. The package\nincludes its base theme, only changed design tokens, form settings and image-choice\nattachments. Validate YAML checks a file first; import creates a new draft.\nVersioned JSON packages are accepted too. Standalone Theme Studio exports remain JSON."
+msgstr "Evet. Formu YAML olarak dışa aktarın ve diğer sitede içe aktarın. Paket; temel temasını, yalnızca değiştirilmiş tasarım token'larını, form ayarlarını ve görselli seçeneklerin eklerini içerir. YAML'ı doğrula (Validate YAML) önce dosyayı denetler; içe aktarma yeni bir taslak oluşturur. Sürümlü JSON paketleri de kabul edilir. Bağımsız Theme Studio dışa aktarımları JSON olarak kalır."
+
+#. Found in faq header.
+msgid "Does it work with page builders and the block editor?"
+msgstr "Sayfa oluşturucular ve blok düzenleyici ile çalışır mı?"
+
+#. Found in faq paragraph.
+msgid "Yes. Use the <strong>Form</strong> block in the block editor, or the shortcode anywhere a\nshortcode works, including page builders and widgets."
+msgstr "Evet. Blok düzenleyicide <strong>Form</strong> bloğunu ya da kısa kodun çalıştığı her yerde kısa kodu kullanın; sayfa oluşturucular ve bileşenler de buna dahildir."
+
+#. Found in faq header.
+msgid "Does it send my data anywhere? Is it GDPR-friendly?"
+msgstr "Verilerimi herhangi bir yere gönderiyor mu? GDPR dostu mu?"
+
+#. Found in faq paragraph.
+msgid "Nothing is sent to us, ever. Entries are ordinary WordPress posts, so the\nprivacy exporter and eraser already cover them; a consent field, IP\nanonymisation and per-form storage controls are built in. The two optional\nfeatures that can send data elsewhere — Akismet spam checking and webhooks —\nare off until you configure them, and are documented under <em>External services</em>\nabove with links to Akismet's terms and privacy policy."
+msgstr "Bize asla hiçbir şey gönderilmez. Girdiler sıradan WordPress yazılarıdır, bu yüzden kişisel veri dışa aktarma ve silme araçları onları zaten kapsar; onay alanı, IP anonimleştirme ve form bazında saklama denetimleri yerleşiktir. Verileri başka bir yere gönderebilen iki isteğe bağlı özellik — Akismet spam denetimi ve webhook'lar — siz yapılandırana kadar kapalıdır ve yukarıda <em>Harici hizmetler</em> başlığı altında, Akismet'in şartlarına ve gizlilik politikasına bağlantılarla birlikte belgelenmiştir."
+
+#. Found in faq header.
+msgid "Is it accessible?"
+msgstr "Erişilebilir mi?"
+
+#. Found in faq paragraph.
+msgid "That was a design requirement rather than an afterthought — real labels,\nfieldsets, <code>aria-describedby</code>, a focus-taking error summary, WCAG AA contrast\nin every theme, and a form that works without JavaScript. If you find\nsomething that is not accessible, please report it on the support forum; it\nwill be treated as a bug."
+msgstr "Bu, sonradan akla gelen bir şey değil, bir tasarım gereksinimiydi — gerçek etiketler, fieldset'ler, <code>aria-describedby</code>, odağı üzerine alan bir hata özeti, her temada WCAG AA kontrastı ve JavaScript olmadan çalışan bir form. Erişilebilir olmayan bir şey bulursanız lütfen destek forumunda bildirin; bir hata olarak ele alınacaktır."
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "Nereden yardım alabilirim?"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">AllTerrain Forms support forum</a>\nhere on WordPress.org — the <strong>Support</strong> link under the plugin's name on your\nPlugins screen goes straight there. Questions are answered in the open, so the\nnext person with the same question finds the answer too. Bug reports with\nsteps to reproduce are welcome on the forum or on GitHub."
+msgstr "Burada, WordPress.org'daki <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">AllTerrain Forms destek forumunda</a> sorun — Eklentiler ekranınızda eklentinin adının altındaki <strong>Destek</strong> bağlantısı doğrudan oraya gider. Sorular herkesin görebileceği şekilde yanıtlanır, böylece aynı soruyu soran bir sonraki kişi de yanıtı bulur. Yeniden oluşturma adımlarını içeren hata raporlarını forumda ya da GitHub'da memnuniyetle karşılarız."
+
+#. Found in faq header.
+msgid "Can developers extend it?"
+msgstr "Geliştiriciler eklentiyi genişletebilir mi?"
+
+#. Found in faq paragraph.
+msgid "Yes, and it is documented. 55 filters and 15 actions, a field-type registry\nthat built-in fields use exactly as a third-party plugin would, a theme token\nAPI, importer hooks, and a REST namespace. Full reference in the repository."
+msgstr "Evet, üstelik belgelenmiştir. 55 filtre ve 15 eylem, yerleşik alanların tıpkı üçüncü taraf bir eklentinin yapacağı gibi kullandığı bir alan türü kaydı, bir tema token API'si, içe aktarıcı kancaları ve bir REST ad alanı. Tam başvuru belgesi depoda."
+
+#. Found in Screenshot description.
+msgid "The form builder, open as a window on the OpenStation desktop. Drag a field from the palette onto the canvas; the inspector on the right changes what you selected."
+msgstr "Form oluşturucu, OpenStation masaüstünde bir pencere olarak açık. Paletten bir alanı tuvale sürükleyin; sağdaki denetçi seçtiğiniz öğeyi değiştirir."
+
+#. Found in Screenshot description.
+msgid "The Theme tab wearing Neon — ten built-in themes across the top, plain-language dials on the left, and a live preview that updates the instant you click."
+msgstr "Neon temasıyla Tema sekmesi — üstte on yerleşik tema, solda sade dille adlandırılmış ayar düğmeleri ve tıkladığınız anda güncellenen canlı önizleme."
+
+#. Found in Screenshot description.
+msgid "Entries beside the builder. Search, filter and star submissions; read one beside the list; export to CSV or JSON."
+msgstr "Form oluşturucunun yanında girdiler. Gönderimlerde arama yapın, filtreleyin ve yıldızlayın; bir girdiyi listenin yanında okuyun; CSV ya da JSON olarak dışa aktarın."
+
+#. Found in Screenshot description.
+msgid "Analytics: submissions over time, conversion and completion, and a Net Promoter Score panel — grouped by any question you ask."
+msgstr "Analiz: zaman içindeki gönderimler, dönüşüm ve tamamlanma ile bir Net Promoter Score paneli — sorduğunuz herhangi bir soruya göre gruplanmış."
+
+#. Found in Screenshot description.
+msgid "Conditional logic drawn on the canvas — every card states its condition, and a line joins the question that decides to the fields it decides."
+msgstr "Tuval üzerinde çizilen koşullu mantık — her kart kendi koşulunu belirtir ve bir çizgi karar veren soruyu etkilediği alanlara bağlar."
+
+#. Found in Screenshot description.
+msgid "The Insert a value picker, listing your questions by name with descriptive value previews."
+msgstr "Kendi sorularınızı adlarıyla listeleyen ve değerlerin açıklayıcı önizlemelerini gösteren Değer ekle (Insert a value) seçicisi."

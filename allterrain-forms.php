@@ -225,6 +225,7 @@ require_once ALLTFO_DIR . 'includes/admin-page.php';
 require_once ALLTFO_DIR . 'includes/openstation.php';
 require_once ALLTFO_DIR . 'includes/openstation-explorer.php';
 require_once ALLTFO_DIR . 'includes/privacy.php';
+require_once ALLTFO_DIR . 'includes/plugin-links.php';
 
 register_activation_hook( __FILE__, 'alltfo_activate' );
 register_deactivation_hook( __FILE__, 'alltfo_deactivate' );

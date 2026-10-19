@@ -1,0 +1,399 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - AllTerrain Forms - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: AllTerrain Forms\n"
+"Language-Team: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt_BR\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#. Plugin name.
+msgid "AllTerrain Forms – Survey Builder, Quiz Builder &amp; Contact Form"
+msgstr "AllTerrain Forms – Construtor de formulários, formulário de contato, pesquisa &amp; quiz"
+
+#. Short description.
+msgid "Free survey builder, quiz builder and contact form builder with drag &amp; drop, conditional logic, calculated fields, multi-step forms and NPS."
+msgstr "Construtor de formulários grátis: pesquisa, questionário, formulário de contato. Arrastar &amp; soltar, lógica condicional, cálculos, várias etapas e NPS."
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever."
+msgstr "O AllTerrain Forms é um construtor de formulários completo para WordPress — formulários de contato, formulários de pesquisa, questionários, formulários de cadastro, formulários de pedido, formulários de reserva, formulários de feedback — com todos os recursos incluídos, grátis, para sempre."
+
+#. Found in description paragraph.
+msgid "Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.\nSave and resume. Entry management with CSV export. Webhooks. Form analytics\nwith Net Promoter Score. User registration. Ten form themes you can rebuild\nwithout writing CSS."
+msgstr "Lógica condicional. Cálculos. Formulários de várias páginas. Upload de arquivos. Assinaturas. Salvar e continuar depois. Gerenciamento de entradas com exportação para CSV. Webhooks. Análises de formulário com Net Promoter Score. Cadastro de usuários. Dez temas de formulário que você pode refazer sem escrever CSS."
+
+#. Found in description paragraph.
+msgid "There is no Pro version, no upsell notice in your dashboard, no feature that\nturns out to need a licence key. None of these things are hard to build. They\nwere only ever sold separately because somebody could."
+msgstr "Não existe versão Pro, nenhum aviso oferecendo upgrade no seu Painel, nenhum recurso que no fim exige uma chave de licença. Nada disso é difícil de construir. Essas coisas só foram vendidas separadamente porque alguém podia."
+
+#. Found in description header.
+msgid "Drag and drop form builder"
+msgstr "Construtor de formulários com arrastar e soltar"
+
+#. Found in description paragraph.
+msgid "Create a form by dragging. Pull a field from the palette onto the canvas, drop\nit where you want it, type the label. That is the whole learning curve — 37\nfield types, from a simple text box to a signature pad to a Likert matrix, and\nevery one behaves the same way."
+msgstr "Crie um formulário arrastando. Puxe um campo da paleta para a tela, solte-o onde quiser e digite o rótulo. Essa é toda a curva de aprendizado — 37 tipos de campo, de uma simples caixa de texto a um quadro de assinatura e uma matriz Likert, e todos se comportam da mesma forma."
+
+#. Found in description paragraph.
+msgid "Or start from a template: contact form, event RSVP, job application, survey,\nquiz, order form, registration form, feedback form, booking form and bug report."
+msgstr "Ou comece a partir de um modelo: formulário de contato, confirmação de presença em evento (RSVP), candidatura a vaga, pesquisa, quiz, formulário de pedido, formulário de cadastro, formulário de feedback, formulário de reserva e relatório de bug."
+
+#. Found in description paragraph.
+msgid "Then paste one shortcode into a page, or drop in the <strong>Form</strong> block and pick\nyour form from a list:"
+msgstr "Depois, cole um shortcode em uma página ou adicione o bloco <strong>Formulário</strong> (Form) e escolha seu formulário em uma lista:"
+
+#. Found in description header.
+msgid "Conditional logic you can actually see"
+msgstr "Lógica condicional que você realmente consegue ver"
+
+#. Found in description paragraph.
+msgid "Show and hide fields, pages, emails and confirmations based on answers. Most\nform builders tell you a field <em>has</em> a rule and leave you to go and find out\nwhat it says. This one writes it on the card — <strong>Shown when · Can you make it?\n· is · Yes</strong> — and draws a line from the question that decides to the fields it\ndecides, labelled with the answer that triggers them."
+msgstr "Mostre e oculte campos, páginas, e-mails e confirmações com base nas respostas. A maioria dos construtores de formulários diz que um campo <em>tem</em> uma regra e deixa você ir descobrir o que ela diz. Este escreve a regra no cartão — <strong>Exibido quando · Você pode vir? · é · Sim</strong> — e traça uma linha da pergunta que decide até os campos que ela controla, rotulada com a resposta que os ativa."
+
+#. Found in description paragraph.
+msgid "Hover a field and everything it does not touch fades. A rule pointing at a\nquestion you deleted turns red, because that form is stuck and you would never\notherwise know."
+msgstr "Passe o mouse sobre um campo e tudo aquilo em que ele não interfere fica esmaecido. Uma regra que aponta para uma pergunta que você excluiu fica vermelha, porque esse formulário está travado e, de outra forma, você nunca saberia."
+
+#. Found in description header.
+msgid "Multi-step forms, calculations and totals"
+msgstr "Formulário de várias etapas, cálculos e totais"
+
+#. Found in description paragraph.
+msgid "Break long forms into pages with per-step validation and a progress indicator.\nAdd calculated fields and running totals — an order form that adds up, a quote\nform that quotes. Payment-style product and option fields keep their prices."
+msgstr "Divida formulários longos em páginas, com validação por etapa e um indicador de progresso. Adicione campos calculados e totais acumulados — um formulário de pedido que soma, um formulário de orçamento que orça. Campos de produto e de opção no estilo de pagamento mantêm seus preços."
+
+#. Found in description header.
+msgid "File upload forms and signatures"
+msgstr "Formulários com upload de arquivos e assinatura"
+
+#. Found in description paragraph.
+msgid "Accept file uploads with per-field type and size limits, stored in a protected\ndirectory and attached to the entry. Collect a real drawn signature. Uploads\nare parented to their submission, so deleting the entry cleans up after itself."
+msgstr "Receba upload de arquivos com limites de tipo e tamanho por campo; os arquivos ficam armazenados em um diretório protegido e anexados à entrada. Colete uma assinatura desenhada de verdade. Os arquivos enviados ficam vinculados ao envio a que pertencem, então excluir a entrada também limpa tudo o que ela deixou para trás."
+
+#. Found in description header.
+msgid "Survey builder, quiz builder and NPS"
+msgstr "Construtor de pesquisas, construtor de quiz e NPS"
+
+#. Found in description paragraph.
+msgid "The survey builder makes survey forms with rating scales, opinion scales,\nLikert matrices and 0–10 questions. The quiz builder adds scoring and\nper-answer feedback. The Analytics window turns responses into answers: submissions over time,\nconversion and completion rates, per-question distributions, a Net Promoter\nScore panel, and any question broken down by any other question."
+msgstr "O construtor de pesquisas cria formulários de pesquisa com escalas de avaliação, escalas de opinião, matrizes Likert e perguntas de 0 a 10. O construtor de quiz adiciona pontuação e feedback por resposta. A janela Análises (Analytics) transforma respostas em resultados: envios ao longo do tempo, taxas de conversão e de conclusão, distribuições por pergunta, um painel de Net Promoter Score e qualquer pergunta segmentada por qualquer outra pergunta."
+
+#. Found in description header.
+msgid "Entry management, search and CSV export"
+msgstr "Gerenciamento de entradas, busca e exportação para CSV"
+
+#. Found in description paragraph.
+msgid "Every submission is saved as an entry. Search answers, filter by form, status\nand star, read one beside the list, add private notes, and export to CSV or\nJSON. Unread counts, a spam folder, and bulk actions included."
+msgstr "Cada envio é salvo como uma entrada. Pesquise nas respostas, filtre por formulário, status e estrela, leia uma entrada ao lado da lista, adicione notas privadas e exporte para CSV ou JSON. Contagem de não lidas, uma pasta de spam e ações em massa incluídas."
+
+#. Found in description header.
+msgid "Email notifications, confirmations and webhooks"
+msgstr "Notificações por e-mail, confirmações e webhooks"
+
+#. Found in description paragraph.
+msgid "Send conditional notification emails with CC, BCC, reply-to and attachments.\nShow a message, redirect, or send visitors to a page — conditionally, per\nanswer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and\nhook <code>alltfo_entry_created</code> for anything else."
+msgstr "Envie e-mails de notificação condicionais com CC, CCO, responder para (reply-to) e anexos. Mostre uma mensagem, redirecione ou envie os visitantes para uma página — de forma condicional, conforme a resposta. Envie cada entrada via POST como JSON para qualquer URL, assinada com HMAC-SHA256, e use o hook <code>alltfo_entry_created</code> para todo o resto."
+
+#. Found in description header.
+msgid "Grows your MailPoet lists"
+msgstr "Faz suas listas do MailPoet crescerem"
+
+#. Found in description paragraph.
+msgid "With MailPoet installed, any form can subscribe visitors to your lists —\nbound to an opt-in box they actually tick, with MailPoet's own double opt-in\nconfirming every address. Map the email and name fields, pick the lists, done.\nThe kind of integration that is a paid addon elsewhere, free here."
+msgstr "Com o MailPoet instalado, qualquer formulário pode inscrever visitantes nas suas listas — vinculado a uma caixa de consentimento (opt-in) que eles realmente marcam, com a confirmação dupla (double opt-in) do próprio MailPoet validando cada endereço. Mapeie os campos de e-mail e de nome, escolha as listas, pronto. O tipo de integração que em outros lugares é um add-on pago, aqui é grátis."
+
+#. Found in description paragraph.
+msgid "Every email and confirmation has an <strong>Insert a value</strong> button that lists your\nown questions by the label you wrote — not <code>{field:f2}</code> — with a live preview\nof the finished text."
+msgstr "Cada e-mail e confirmação tem um botão <strong>Inserir um valor</strong> (Insert a value) que lista as suas próprias perguntas pelo rótulo que você escreveu — não <code>{field:f2}</code> — com uma prévia ao vivo do texto final."
+
+#. Found in description header.
+msgid "Import from Contact Form 7, WPForms and Gravity Forms — entries too"
+msgstr "Importe do Contact Form 7, WPForms e Gravity Forms — entradas também"
+
+#. Found in description paragraph.
+msgid "Switching form plugins? You do not have to go looking. Activate AllTerrain\nForms and it tells you what it found — <em>\"AllTerrain Forms found 6 forms in\nContact Form 7\"</em> — with one button that migrates all of them. Conditional\nlogic carries across, payment fields keep their prices, an order total keeps\ncalculating, and a Gravity Forms List becomes a real repeater."
+msgstr "Mudando de plugin de formulários? Você não precisa sair procurando. Ative o AllTerrain Forms e ele informa o que encontrou — <em>\"O AllTerrain Forms encontrou 6 formulários no Contact Form 7\"</em> — com um único botão que migra todos eles. A lógica condicional é mantida, os campos de pagamento mantêm seus preços, um total de pedido continua calculando e uma Lista do Gravity Forms se torna um repetidor de verdade."
+
+#. Found in description paragraph.
+msgid "The stored submissions come too. Messages Flamingo kept for Contact Form 7,\nGravity Forms entries, and WPForms Pro entries can all be brought across after\ntheir form is — each with its original date, spam filed as spam, and the\noriginals left untouched. Running an import twice never imports anything\ntwice, and everything still works after the old plugin is deactivated, because\nthe data outlives the plugin."
+msgstr "Os envios armazenados vêm junto. As mensagens que o Flamingo guardou para o Contact Form 7, as entradas do Gravity Forms e as entradas do WPForms Pro podem ser trazidas depois que o formulário correspondente for importado — cada uma com sua data original, spam arquivado como spam e os originais intactos. Executar uma importação duas vezes nunca importa nada duas vezes, e tudo continua funcionando depois que o plugin antigo é desativado, porque os dados sobrevivem ao plugin."
+
+#. Found in description header.
+msgid "Ten form themes, and an eleventh you make yourself"
+msgstr "Dez temas de formulário, e um décimo primeiro que você mesmo cria"
+
+#. Found in description paragraph.
+msgid "Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial and\nHolo. A theme here is a flat list of 69 design tokens — no theme PHP, no\ntemplate, no stylesheet to edit."
+msgstr "Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial e Holo. Aqui, um tema é uma lista simples de 69 tokens de design — sem PHP de tema, sem modelo, sem folha de estilo para editar."
+
+#. Found in description paragraph.
+msgid "<strong>Theme Studio</strong> gives you a control for every token and a live preview that\nupdates the instant you click. Six plain-language dials cover the common case:\nAccent, Roundness, Density, Depth, Fields, Labels. Nobody thinks\n<em>\"radius-field: 14px\"</em> — they think <em>rounder</em>. Save your changes as a theme,\npick it on any form, export it as JSON, import it on another site."
+msgstr "O <strong>Theme Studio</strong> oferece um controle para cada token e uma prévia ao vivo que se atualiza no instante em que você clica. Seis controles em linguagem simples cobrem o caso mais comum: Destaque (Accent), Arredondamento (Roundness), Densidade (Density), Profundidade (Depth), Campos (Fields) e Rótulos (Labels). Ninguém pensa <em>\"radius-field: 14px\"</em> — as pessoas pensam <em>mais arredondado</em>. Salve suas alterações como um tema, escolha-o em qualquer formulário, exporte-o como JSON e importe-o em outro site."
+
+#. Found in description header.
+msgid "Spam protection without a CAPTCHA"
+msgstr "Proteção antispam sem CAPTCHA"
+
+#. Found in description paragraph.
+msgid "A honeypot, a signed time trap, a per-address rate limit, a word blocklist,\nand — if you already have it and switch it on for a form — Akismet. Nothing\nasks a visitor to identify traffic lights, because a CAPTCHA charges the\nvisitor for the site's spam problem and fails accessibility for a good number\nof people."
+msgstr "Um honeypot, uma armadilha de tempo assinada, um limite de taxa por endereço, uma lista de palavras bloqueadas e — se você já o tiver e ativá-lo em um formulário — o Akismet. Nada pede para um visitante identificar semáforos, porque um CAPTCHA cobra do visitante pelo problema de spam do site e não é acessível para um bom número de pessoas."
+
+#. Found in description paragraph.
+msgid "Anything judged spam is <strong>kept</strong>, in a spam folder, never silently thrown away."
+msgstr "Tudo o que for considerado spam é <strong>mantido</strong> em uma pasta de spam, nunca descartado silenciosamente."
+
+#. Found in description header.
+msgid "Accessible (WCAG AA) and works without JavaScript"
+msgstr "Acessível (WCAG AA) e funciona sem JavaScript"
+
+#. Found in description paragraph.
+msgid "Real labels bound to real controls. Grouped inputs in a fieldset with a\nlegend. Hints and errors wired with <code>aria-describedby</code>. An error summary that\ntakes focus. Every theme meets WCAG AA contrast, and the test suite fails if\none stops."
+msgstr "Rótulos de verdade vinculados a controles de verdade. Campos agrupados em um fieldset com legend. Dicas e erros conectados com <code>aria-describedby</code>. Um resumo de erros que recebe o foco. Todos os temas atendem ao contraste WCAG AA, e o conjunto de testes falha se algum deixar de atender."
+
+#. Found in description paragraph.
+msgid "And the form works with JavaScript switched off — a real POST, real\nserver-side validation, errors against the right fields, answers still in the\nboxes."
+msgstr "E o formulário funciona com o JavaScript desativado — um POST de verdade, validação de verdade no servidor, erros nos campos certos e as respostas ainda preenchidas nos campos."
+
+#. Found in description header.
+msgid "GDPR-friendly by structure"
+msgstr "Amigável ao GDPR pela própria estrutura"
+
+#. Found in description paragraph.
+msgid "A form is a post. An entry is a post. A note on an entry is a comment. Nothing\nlives in a custom table, so WordPress's own privacy exporter and eraser, user\ncapabilities, search and the trash already work on your form data. A consent\nfield, IP anonymisation and per-form storage controls are built in — and\nnothing is ever sent to us. The only third parties your data can reach are the\nones you configure yourself, listed under <em>External services</em> below."
+msgstr "Um formulário é um post. Uma entrada é um post. Uma nota em uma entrada é um comentário. Nada fica em uma tabela personalizada, então as ferramentas de exportação e de exclusão de dados pessoais do próprio WordPress, as permissões de usuário, a busca e a lixeira já funcionam com os dados dos seus formulários. Um campo de consentimento, anonimização de IP e controles de armazenamento por formulário já vêm integrados — e nada é enviado para nós, nunca. Os únicos terceiros que os seus dados podem alcançar são os que você mesmo configurar, listados em <em>Serviços externos</em> abaixo."
+
+#. Found in description header.
+msgid "Ready for AI agents — WordPress Abilities API and MCP"
+msgstr "Pronto para agentes de IA — Abilities API do WordPress e MCP"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms describes itself to AI agents. Nine abilities registered\nthrough WordPress's Abilities API let an agent — over MCP or the REST API —\nlist your forms, read a form's questions, <strong>build a whole form from a\ndescription</strong>, apply a theme, submit entries through the same validated\nanti-spam pipeline a visitor uses, query submissions with human-readable\nanswers, and pull the full analytics report (conversion, distributions, NPS)\nas structured data."
+msgstr "O AllTerrain Forms se descreve para agentes de IA. Nove habilidades registradas pela Abilities API do WordPress permitem que um agente — via MCP ou REST API — liste seus formulários, leia as perguntas de um formulário, <strong>crie um formulário inteiro a partir de uma descrição</strong>, aplique um tema, envie entradas pelo mesmo fluxo antispam validado que um visitante usa, consulte envios com respostas legíveis e obtenha o relatório completo de análises (conversão, distribuições, NPS) como dados estruturados."
+
+#. Found in description paragraph.
+msgid "The nine, by name:"
+msgstr "As nove, por nome:"
+
+#. Found in description list item.
+msgid "<strong>list-forms</strong> — every form with its id, title, theme, shortcode, entry count and questions. The starting point; its ids feed everything else."
+msgstr "<strong>list-forms</strong> — todos os formulários com id, título, tema, shortcode, número de entradas e perguntas. O ponto de partida; seus ids alimentam todo o resto."
+
+#. Found in description list item.
+msgid "<strong>get-form</strong> — one form's questions in full: field ids, types, labels, required flags and choices. Read it before submitting or interpreting entries."
+msgstr "<strong>get-form</strong> — as perguntas de um formulário na íntegra: ids dos campos, tipos, rótulos, indicação de obrigatório e opções. Leia antes de enviar ou interpretar entradas."
+
+#. Found in description list item.
+msgid "<strong>list-field-types</strong> — the vocabulary for building: all 37 field types with what each stores."
+msgstr "<strong>list-field-types</strong> — o vocabulário para construir: todos os 37 tipos de campo, com o que cada um armazena."
+
+#. Found in description list item.
+msgid "<strong>create-form</strong> — builds a form from a title and a plain list of fields, and returns the shortcode ready to paste."
+msgstr "<strong>create-form</strong> — cria um formulário a partir de um título e de uma lista simples de campos, e retorna o shortcode pronto para colar."
+
+#. Found in description list item.
+msgid "<strong>set-form-theme</strong> — dresses a form in any installed theme, by slug."
+msgstr "<strong>set-form-theme</strong> — veste um formulário com qualquer tema instalado, pelo slug."
+
+#. Found in description list item.
+msgid "<strong>submit-form</strong> — submits answers through the visitor pipeline: availability, validation, anti-spam, storage, notifications. Refusals return per-field errors and store nothing."
+msgstr "<strong>submit-form</strong> — envia respostas pelo fluxo do visitante: disponibilidade, validação, antispam, armazenamento, notificações. Recusas retornam erros por campo e não armazenam nada."
+
+#. Found in description list item.
+msgid "<strong>list-entries</strong> — queries submissions with search, date range, status and pagination; answers come back raw and human-readable."
+msgstr "<strong>list-entries</strong> — consulta envios com busca, intervalo de datas, status e paginação; as respostas voltam brutas e em formato legível."
+
+#. Found in description list item.
+msgid "<strong>get-entry</strong> — one submission in full, every answer labelled and formatted."
+msgstr "<strong>get-entry</strong> — um envio completo, com cada resposta rotulada e formatada."
+
+#. Found in description list item.
+msgid "<strong>form-report</strong> — the analytics as data: views, conversion, completion, a 90-day timeline, per-question distributions, NPS, and breakdowns by any grouping question."
+msgstr "<strong>form-report</strong> — as análises como dados: visualizações, conversão, conclusão, uma linha do tempo de 90 dias, distribuições por pergunta, NPS e segmentações por qualquer pergunta de agrupamento."
+
+#. Found in description paragraph.
+msgid "Every ability carries a JSON Schema and a capability check, and none of them\nhas logic of its own — an agent and a human clicking the same button get the\nsame behaviour. Ask your assistant to \"make a booking form and show me last\nweek's responses\", and this is what it calls."
+msgstr "Cada habilidade traz um JSON Schema e uma verificação de permissão, e nenhuma delas tem lógica própria — um agente e uma pessoa clicando no mesmo botão obtêm o mesmo comportamento. Peça ao seu assistente para \"criar um formulário de reserva e me mostrar as respostas da semana passada\", e é isto que ele chama."
+
+#. Found in description header.
+msgid "Built on OpenStation"
+msgstr "Construído sobre o OpenStation"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is an <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a>\ndesktop app, and OpenStation is <strong>required</strong> — WordPress installs it alongside\nthis plugin and keeps the two together. OpenStation turns wp-admin into a\nwindowed desktop: the builder is a real window you can put beside your\nentries, drag a field from one form into another, and drop an image straight\nfrom the media browser onto a choice. That spatial way of working is the\nproduct, which is why the plugin does not ship a lesser version of itself\nwithout it."
+msgstr "O AllTerrain Forms é um aplicativo de desktop do <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a>, e o OpenStation é <strong>obrigatório</strong> — o WordPress o instala junto com este plugin e mantém os dois juntos. O OpenStation transforma o wp-admin em um desktop com janelas: o construtor é uma janela de verdade que você pode colocar ao lado das suas entradas, arrastar um campo de um formulário para outro e soltar uma imagem direto do navegador de mídia em uma opção. Essa forma espacial de trabalhar é o produto, e é por isso que o plugin não oferece uma versão inferior de si mesmo sem ele."
+
+#. Found in description paragraph.
+msgid "Your visitors are never part of that dependency: published forms render and\nsubmit on the front end regardless of what is happening in the admin."
+msgstr "Seus visitantes nunca fazem parte dessa dependência: os formulários publicados são exibidos e enviados no front-end independentemente do que estiver acontecendo no painel administrativo."
+
+#. Found in description header.
+msgid "External services"
+msgstr "Serviços externos"
+
+#. Found in description paragraph.
+msgid "The plugin makes no connection of its own to us or to anyone else — no\naccounts, no license checks, no telemetry, no updates outside WordPress.org.\nTwo optional features send data to a destination <strong>you</strong> choose:"
+msgstr "O plugin não faz nenhuma conexão própria conosco nem com qualquer outra pessoa ou empresa — sem contas, sem verificação de licença, sem telemetria, sem atualizações fora do WordPress.org. Dois recursos opcionais enviam dados para um destino escolhido por <strong>você</strong>:"
+
+#. Found in description list item.
+msgid "<strong>Akismet</strong> — off by default on every form, even when the\n<a href=\"https://wordpress.org/plugins/akismet/\">Akismet plugin</a> is installed and\nconfigured on your site. Only when you switch it on for a form is each\nsubmission to that form (the answers, plus the sender's IP and user agent)\nsent to Akismet's servers for a spam verdict, with spam/ham corrections you\nmake in the entries screen reported back. Corrections obey the same per-form\nswitch: marking an entry spam or not-spam on a form that has Akismet off\nsends nothing. Without the Akismet plugin, or with the per-form switch off,\nnothing is ever sent. See the\n<a href=\"https://akismet.com/tos/\">Akismet Terms of Service</a> and the\n<a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>Akismet</strong> — desativado por padrão em todos os formulários, mesmo quando o <a href=\"https://wordpress.org/plugins/akismet/\">plugin Akismet</a> está instalado e configurado no seu site. Somente quando você o ativa em um formulário, cada envio desse formulário (as respostas, além do IP e do user agent de quem enviou) é enviado aos servidores do Akismet para uma avaliação de spam, e as correções de spam/ham (não spam) que você fizer na tela de entradas são informadas de volta. As correções obedecem à mesma opção por formulário: marcar uma entrada como spam ou como não spam em um formulário com o Akismet desativado não envia nada. Sem o plugin Akismet, ou com a opção por formulário desativada, nada é enviado, nunca. Consulte os <a href=\"https://akismet.com/tos/\">Termos de Serviço do Akismet</a> e a <a href=\"https://automattic.com/privacy/\">Política de Privacidade da Automattic</a>."
+
+#. Found in description list item.
+msgid "<strong>Webhooks</strong> — a form can POST each entry as JSON to a URL you enter,\nsigned with HMAC-SHA256. Entries go only to the address you configured, and\nthe feature is off until you configure one."
+msgstr "<strong>Webhooks</strong> — um formulário pode enviar cada entrada via POST como JSON para uma URL que você informar, assinada com HMAC-SHA256. As entradas vão apenas para o endereço que você configurou, e o recurso fica desativado até que você configure um."
+
+#. Found in description header.
+msgid "Built in the open"
+msgstr "Desenvolvido de forma aberta"
+
+#. Found in description paragraph.
+msgid "Source, issue tracker and full developer documentation:\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+msgstr "Código-fonte, rastreador de issues e documentação completa para desenvolvedores:\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+
+#. Found in description paragraph.
+msgid "Over 800 automated tests, and the conditional-logic and calculation engines\nare tested against one shared table of cases in both PHP and JavaScript —\nbecause if the browser and the server ever disagreed about which fields were\nrequired, you would be shown a form you could not submit."
+msgstr "Mais de 800 testes automatizados, e os motores de lógica condicional e de cálculo são testados com uma única tabela compartilhada de casos, tanto em PHP quanto em JavaScript — porque, se o navegador e o servidor algum dia discordassem sobre quais campos são obrigatórios, você veria um formulário que não conseguiria enviar."
+
+#. Found in installation list item.
+msgid "Install through <strong>Plugins → Add New</strong>, or upload the ZIP under\n<strong>Plugins → Add New → Upload Plugin</strong>. WordPress installs OpenStation\nalongside it automatically."
+msgstr "Instale por <strong>Plugins → Adicionar novo</strong> ou envie o ZIP em <strong>Plugins → Adicionar novo → Enviar plugin</strong>. O WordPress instala o OpenStation junto, automaticamente."
+
+#. Found in installation list item.
+msgid "Activate it."
+msgstr "Ative-o."
+
+#. Found in installation list item.
+msgid "Open <strong>AllTerrain Forms</strong> from the dock and build a form by dragging."
+msgstr "Abra o <strong>AllTerrain Forms</strong> pelo dock e monte um formulário arrastando."
+
+#. Found in installation list item.
+msgid "Paste the shortcode it shows you into any page or post, or add the <strong>Form</strong>\nblock."
+msgstr "Cole o shortcode exibido em qualquer página ou post, ou adicione o bloco <strong>Formulário</strong>."
+
+#. Found in installation paragraph.
+msgid "No account, no licence key, and no connection to any service of ours — the\nonly external services it can talk to are the ones you configure, listed under\n<em>External services</em> above."
+msgstr "Sem conta, sem chave de licença e sem conexão com nenhum serviço nosso — os únicos serviços externos com que ele pode se comunicar são os que você configurar, listados em <em>Serviços externos</em> acima."
+
+#. Found in faq header.
+msgid "Is AllTerrain Forms really free? What's the catch?"
+msgstr "O AllTerrain Forms é realmente grátis? Qual é a pegadinha?"
+
+#. Found in faq paragraph.
+msgid "It is, and there isn't one. There is no Pro version and no paid add-on.\nConditional logic, multi-step forms, file uploads, entry management, CSV\nexport, webhooks, quizzes, surveys, analytics — everything described on this\npage is in this plugin."
+msgstr "É, e não há pegadinha. Não existe versão Pro nem add-on pago. Lógica condicional, formulários de várias etapas, upload de arquivos, gerenciamento de entradas, exportação para CSV, webhooks, quizzes, pesquisas, análises — tudo o que está descrito nesta página está neste plugin."
+
+#. Found in faq header.
+msgid "How do I create a contact form?"
+msgstr "Como criar um formulário de contato?"
+
+#. Found in faq paragraph.
+msgid "Activate the plugin, open <strong>AllTerrain Forms</strong> from the dock, and drag fields\nfrom the palette onto the canvas — or start from the contact form template.\nPaste the shortcode into a page, or use the <strong>Form</strong> block. The whole thing\ntakes about a minute."
+msgstr "Ative o plugin, abra o <strong>AllTerrain Forms</strong> pelo dock e arraste campos da paleta para a tela — ou comece pelo modelo de formulário de contato. Cole o shortcode em uma página ou use o bloco <strong>Formulário</strong>. Tudo isso leva cerca de um minuto."
+
+#. Found in faq header.
+msgid "Do I need the OpenStation plugin?"
+msgstr "Eu preciso do plugin OpenStation?"
+
+#. Found in faq paragraph.
+msgid "Yes. The builder is an OpenStation desktop app — a real window you can drag\nthings between — and WordPress installs and activates OpenStation for you when\nyou install this plugin. Your visitors never need it: published forms render\nand submit on the front end without any of the admin machinery."
+msgstr "Sim. O construtor é um aplicativo de desktop do OpenStation — uma janela de verdade, de onde e para onde você pode arrastar coisas — e o WordPress instala e ativa o OpenStation para você quando você instala este plugin. Seus visitantes nunca precisam dele: os formulários publicados são exibidos e enviados no front-end sem nada da estrutura do painel administrativo."
+
+#. Found in faq header.
+msgid "Can I import forms from Contact Form 7, WPForms or Gravity Forms?"
+msgstr "Posso importar formulários do Contact Form 7, WPForms ou Gravity Forms?"
+
+#. Found in faq paragraph.
+msgid "Yes, and it offers before you ask: if the plugin finds forms from Contact Form\n7, WPForms or Gravity Forms it says so and gives you a single button that\nimports all of them. <strong>Forms → Import</strong> lists them individually whenever you\nwant it, including forms whose plugin has already been deactivated, because\nthe data outlives the plugin. Each import creates a new AllTerrain form and\nleaves the original untouched."
+msgstr "Sim, e ele oferece antes mesmo de você pedir: se o plugin encontrar formulários do Contact Form 7, WPForms ou Gravity Forms, ele avisa e oferece um único botão que importa todos eles. <strong>Formulários → Importar</strong> (Forms → Import) lista cada um individualmente sempre que você quiser, incluindo formulários cujo plugin já foi desativado, porque os dados sobrevivem ao plugin. Cada importação cria um novo formulário do AllTerrain e mantém o original intacto."
+
+#. Found in faq header.
+msgid "Can I import my old entries and submissions too?"
+msgstr "Também posso importar minhas entradas e envios antigos?"
+
+#. Found in faq paragraph.
+msgid "Yes. Stored submissions from all three sources — Flamingo's messages for\nContact Form 7, Gravity Forms entries, WPForms Pro entries — can be brought\nacross after their form is imported, each keeping its original date, with spam\nfiled as spam and the originals left untouched. Running it twice never imports\nanything twice."
+msgstr "Sim. Os envios armazenados das três origens — as mensagens do Flamingo para o Contact Form 7, as entradas do Gravity Forms e as entradas do WPForms Pro — podem ser trazidos depois que o formulário correspondente for importado, cada um mantendo sua data original, com spam arquivado como spam e os originais intactos. Executar a importação duas vezes nunca importa nada duas vezes."
+
+#. Found in faq header.
+msgid "Will my forms keep working if I deactivate the plugin?"
+msgstr "Meus formulários continuam funcionando se eu desativar o plugin?"
+
+#. Found in faq paragraph.
+msgid "Your data stays: forms and entries are ordinary posts, so deactivating leaves\nthem in your database untouched. Uninstalling removes them, which is what\nuninstalling should do — export your entries to CSV first if you want them."
+msgstr "Seus dados permanecem: formulários e entradas são posts comuns, então desativar o plugin os deixa intactos no seu banco de dados. Desinstalar os remove, que é o que uma desinstalação deve fazer — exporte suas entradas para CSV antes, se quiser mantê-las."
+
+#. Found in faq header.
+msgid "Can I move a form to another site?"
+msgstr "Posso mover um formulário para outro site?"
+
+#. Found in faq paragraph.
+msgid "Yes. Export the form as YAML and import it on the other site. The package\nincludes its base theme, only changed design tokens, form settings and image-choice\nattachments. Validate YAML checks a file first; import creates a new draft.\nVersioned JSON packages are accepted too. Standalone Theme Studio exports remain JSON."
+msgstr "Sim. Exporte o formulário como YAML e importe-o no outro site. O pacote inclui o tema base, apenas os tokens de design alterados, as configurações do formulário e os anexos das opções com imagem. Validar YAML (Validate YAML) verifica um arquivo antes; a importação cria um novo rascunho. Pacotes JSON versionados também são aceitos. As exportações avulsas do Theme Studio continuam sendo em JSON."
+
+#. Found in faq header.
+msgid "Does it work with page builders and the block editor?"
+msgstr "Funciona com construtores de páginas e com o editor de blocos?"
+
+#. Found in faq paragraph.
+msgid "Yes. Use the <strong>Form</strong> block in the block editor, or the shortcode anywhere a\nshortcode works, including page builders and widgets."
+msgstr "Sim. Use o bloco <strong>Formulário</strong> no editor de blocos, ou o shortcode em qualquer lugar onde shortcodes funcionem, incluindo construtores de páginas e widgets."
+
+#. Found in faq header.
+msgid "Does it send my data anywhere? Is it GDPR-friendly?"
+msgstr "Ele envia meus dados para algum lugar? É amigável ao GDPR?"
+
+#. Found in faq paragraph.
+msgid "Nothing is sent to us, ever. Entries are ordinary WordPress posts, so the\nprivacy exporter and eraser already cover them; a consent field, IP\nanonymisation and per-form storage controls are built in. The two optional\nfeatures that can send data elsewhere — Akismet spam checking and webhooks —\nare off until you configure them, and are documented under <em>External services</em>\nabove with links to Akismet's terms and privacy policy."
+msgstr "Nada é enviado para nós, nunca. As entradas são posts comuns do WordPress, então as ferramentas de exportação e de exclusão de dados pessoais já as cobrem; um campo de consentimento, anonimização de IP e controles de armazenamento por formulário já vêm integrados. Os dois recursos opcionais que podem enviar dados para outros lugares — a verificação de spam do Akismet e os webhooks — ficam desativados até que você os configure, e estão documentados em <em>Serviços externos</em> acima, com links para os termos e a política de privacidade do Akismet."
+
+#. Found in faq header.
+msgid "Is it accessible?"
+msgstr "Ele é acessível?"
+
+#. Found in faq paragraph.
+msgid "That was a design requirement rather than an afterthought — real labels,\nfieldsets, <code>aria-describedby</code>, a focus-taking error summary, WCAG AA contrast\nin every theme, and a form that works without JavaScript. If you find\nsomething that is not accessible, please report it on the support forum; it\nwill be treated as a bug."
+msgstr "Esse foi um requisito de design, não algo pensado depois — rótulos de verdade, fieldsets, <code>aria-describedby</code>, um resumo de erros que recebe o foco, contraste WCAG AA em todos os temas e um formulário que funciona sem JavaScript. Se você encontrar algo que não seja acessível, informe no fórum de suporte; será tratado como um bug."
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "Onde consigo ajuda?"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">AllTerrain Forms support forum</a>\nhere on WordPress.org — the <strong>Support</strong> link under the plugin's name on your\nPlugins screen goes straight there. Questions are answered in the open, so the\nnext person with the same question finds the answer too. Bug reports with\nsteps to reproduce are welcome on the forum or on GitHub."
+msgstr "Pergunte no <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">fórum de suporte do AllTerrain Forms</a> aqui no WordPress.org — o link <strong>Suporte</strong> (Support) abaixo do nome do plugin na sua tela de Plugins leva direto para lá. As perguntas são respondidas publicamente, então a próxima pessoa com a mesma dúvida também encontra a resposta. Relatos de bugs com passos para reproduzir são bem-vindos no fórum ou no GitHub."
+
+#. Found in faq header.
+msgid "Can developers extend it?"
+msgstr "Os desenvolvedores podem estendê-lo?"
+
+#. Found in faq paragraph.
+msgid "Yes, and it is documented. 55 filters and 15 actions, a field-type registry\nthat built-in fields use exactly as a third-party plugin would, a theme token\nAPI, importer hooks, and a REST namespace. Full reference in the repository."
+msgstr "Sim, e está documentado. 55 filtros e 15 ações, um registro de tipos de campo que os campos nativos usam exatamente como um plugin de terceiros usaria, uma API de tokens de tema, hooks de importação e um namespace REST. Referência completa no repositório."
+
+#. Found in Screenshot description.
+msgid "The form builder, open as a window on the OpenStation desktop. Drag a field from the palette onto the canvas; the inspector on the right changes what you selected."
+msgstr "O construtor de formulários, aberto como uma janela no desktop do OpenStation. Arraste um campo da paleta para a tela; o inspetor à direita altera o que você selecionou."
+
+#. Found in Screenshot description.
+msgid "The Theme tab wearing Neon — ten built-in themes across the top, plain-language dials on the left, and a live preview that updates the instant you click."
+msgstr "A aba Tema (Theme) usando o Neon — dez temas nativos no topo, controles em linguagem simples à esquerda e uma prévia ao vivo que se atualiza no instante em que você clica."
+
+#. Found in Screenshot description.
+msgid "Entries beside the builder. Search, filter and star submissions; read one beside the list; export to CSV or JSON."
+msgstr "As entradas ao lado do construtor. Pesquise, filtre e marque envios com estrela; leia um ao lado da lista; exporte para CSV ou JSON."
+
+#. Found in Screenshot description.
+msgid "Analytics: submissions over time, conversion and completion, and a Net Promoter Score panel — grouped by any question you ask."
+msgstr "Análises: envios ao longo do tempo, conversão e conclusão, e um painel de Net Promoter Score — agrupados por qualquer pergunta que você fizer."
+
+#. Found in Screenshot description.
+msgid "Conditional logic drawn on the canvas — every card states its condition, and a line joins the question that decides to the fields it decides."
+msgstr "Lógica condicional desenhada na tela — cada cartão mostra sua condição, e uma linha liga a pergunta que decide aos campos que ela controla."
+
+#. Found in Screenshot description.
+msgid "The Insert a value picker, listing your questions by name with descriptive value previews."
+msgstr "O seletor Inserir um valor (Insert a value), que lista suas perguntas pelo nome com prévias descritivas dos valores."
