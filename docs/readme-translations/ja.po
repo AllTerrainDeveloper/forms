@@ -1,0 +1,399 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - AllTerrain Forms - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: AllTerrain Forms\n"
+"Language-Team: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. Plugin name.
+msgid "AllTerrain Forms – Survey Builder, Quiz Builder &amp; Contact Form"
+msgstr "AllTerrain Forms – フォームビルダー：お問い合わせフォーム・アンケート &amp; クイズ"
+
+#. Short description.
+msgid "Free survey builder, quiz builder and contact form builder with drag &amp; drop, conditional logic, calculated fields, multi-step forms and NPS."
+msgstr "無料のアンケート・クイズ・お問い合わせフォームビルダー。ドラッグ&amp;ドロップ、条件分岐、計算フィールド、ステップフォーム、NPS に対応しています。"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is a complete WordPress form builder — contact forms, survey forms, quiz forms, registration forms, order forms, booking forms, feedback forms — with every feature included, free, forever."
+msgstr "AllTerrain Forms は、WordPress 向けの本格的なフォームビルダーです。お問い合わせフォーム、アンケートフォーム、クイズフォーム、登録フォーム、注文フォーム、予約フォーム、フィードバックフォームを作成でき、すべての機能をずっと無料で利用できます。"
+
+#. Found in description paragraph.
+msgid "Conditional logic. Calculations. Multi-page forms. File uploads. Signatures.\nSave and resume. Entry management with CSV export. Webhooks. Form analytics\nwith Net Promoter Score. User registration. Ten form themes you can rebuild\nwithout writing CSS."
+msgstr "条件分岐。計算。複数ページのフォーム。ファイルアップロード。署名。途中保存と再開。CSV エクスポート付きのエントリー管理。Webhook。Net Promoter Score（NPS）付きのフォーム分析。ユーザー登録。CSS を書かずに作り変えられる 10 種類のフォームテーマ。"
+
+#. Found in description paragraph.
+msgid "There is no Pro version, no upsell notice in your dashboard, no feature that\nturns out to need a licence key. None of these things are hard to build. They\nwere only ever sold separately because somebody could."
+msgstr "Pro 版はありません。ダッシュボードにアップグレードを促す通知も、実はライセンスキーが必要だったという機能もありません。どれも作るのが難しいものではありません。これまで別売りにされてきたのは、単にそうできる人がいたからにすぎません。"
+
+#. Found in description header.
+msgid "Drag and drop form builder"
+msgstr "ドラッグ＆ドロップのフォームビルダー"
+
+#. Found in description paragraph.
+msgid "Create a form by dragging. Pull a field from the palette onto the canvas, drop\nit where you want it, type the label. That is the whole learning curve — 37\nfield types, from a simple text box to a signature pad to a Likert matrix, and\nevery one behaves the same way."
+msgstr "フォームはドラッグして作成します。パレットからフィールドをキャンバスに引き出し、好きな位置にドロップして、ラベルを入力するだけです。覚えることはこれだけです。シンプルなテキストボックスから署名パッド、リッカート尺度のマトリクスまで 37 種類のフィールドタイプがあり、どれも同じように動作します。"
+
+#. Found in description paragraph.
+msgid "Or start from a template: contact form, event RSVP, job application, survey,\nquiz, order form, registration form, feedback form, booking form and bug report."
+msgstr "テンプレートから始めることもできます。お問い合わせフォーム、イベントの出欠確認（RSVP）、求人応募、アンケート、クイズ、注文フォーム、登録フォーム、フィードバックフォーム、予約フォーム、バグ報告のテンプレートを用意しています。"
+
+#. Found in description paragraph.
+msgid "Then paste one shortcode into a page, or drop in the <strong>Form</strong> block and pick\nyour form from a list:"
+msgstr "あとは固定ページに次のショートコードを 1 つ貼り付けるか、<strong>フォーム（Form）</strong>ブロックを追加して一覧からフォームを選ぶだけです。"
+
+#. Found in description header.
+msgid "Conditional logic you can actually see"
+msgstr "目に見える条件分岐"
+
+#. Found in description paragraph.
+msgid "Show and hide fields, pages, emails and confirmations based on answers. Most\nform builders tell you a field <em>has</em> a rule and leave you to go and find out\nwhat it says. This one writes it on the card — <strong>Shown when · Can you make it?\n· is · Yes</strong> — and draws a line from the question that decides to the fields it\ndecides, labelled with the answer that triggers them."
+msgstr "回答に応じて、フィールド、ページ、メール、確認メッセージを表示・非表示にできます。多くのフォームビルダーは、フィールドにルールが<em>ある</em>ことを示すだけで、その内容は自分で探しに行かなければなりません。このビルダーはルールをカード上に書き出し（<strong>表示条件 · 参加できますか？ · 次と等しい · はい</strong>）、判定する質問から、その質問によって切り替わるフィールドへ線を引いて、きっかけとなる回答をラベルとして表示します。"
+
+#. Found in description paragraph.
+msgid "Hover a field and everything it does not touch fades. A rule pointing at a\nquestion you deleted turns red, because that form is stuck and you would never\notherwise know."
+msgstr "フィールドにカーソルを合わせると、そのフィールドが影響しないものはすべて薄く表示されます。削除した質問を参照しているルールは赤く表示されます。そのフォームは動かなくなっているのに、ほかに気づく方法がないからです。"
+
+#. Found in description header.
+msgid "Multi-step forms, calculations and totals"
+msgstr "ステップフォーム（複数ページ）、計算、合計"
+
+#. Found in description paragraph.
+msgid "Break long forms into pages with per-step validation and a progress indicator.\nAdd calculated fields and running totals — an order form that adds up, a quote\nform that quotes. Payment-style product and option fields keep their prices."
+msgstr "長いフォームを複数のページに分割し、ステップごとの入力チェック（バリデーション）と進捗インジケーターを表示できます。計算フィールドや累計を追加すれば、合計を自動計算する注文フォームや、見積もりを出す見積もりフォームを作成できます。支払いフォーム形式の商品フィールドとオプションフィールドは、それぞれの価格を保持します。"
+
+#. Found in description header.
+msgid "File upload forms and signatures"
+msgstr "ファイルアップロードフォームと署名"
+
+#. Found in description paragraph.
+msgid "Accept file uploads with per-field type and size limits, stored in a protected\ndirectory and attached to the entry. Collect a real drawn signature. Uploads\nare parented to their submission, so deleting the entry cleans up after itself."
+msgstr "フィールドごとにファイル形式とサイズの上限を設定して、ファイルアップロードを受け付けられます。ファイルは保護されたディレクトリに保存され、エントリーに添付されます。手書きの本物の署名も収集できます。アップロードされたファイルは送信データに紐付けられているため、エントリーを削除すると関連ファイルも一緒に削除されます。"
+
+#. Found in description header.
+msgid "Survey builder, quiz builder and NPS"
+msgstr "アンケートビルダー、クイズビルダー、NPS"
+
+#. Found in description paragraph.
+msgid "The survey builder makes survey forms with rating scales, opinion scales,\nLikert matrices and 0–10 questions. The quiz builder adds scoring and\nper-answer feedback. The Analytics window turns responses into answers: submissions over time,\nconversion and completion rates, per-question distributions, a Net Promoter\nScore panel, and any question broken down by any other question."
+msgstr "アンケートビルダーでは、評価スケール、意見スケール、リッカート尺度のマトリクス、0〜10 の質問を使ってアンケートフォームを作成できます。クイズビルダーでは、採点と回答ごとのフィードバックを追加できます。「分析（Analytics）」ウィンドウは、集まった回答から答えを導き出します。期間ごとの送信数、コンバージョン率と完了率、質問ごとの回答分布、Net Promoter Score パネル、そして任意の質問を別の任意の質問で分類した内訳を確認できます。"
+
+#. Found in description header.
+msgid "Entry management, search and CSV export"
+msgstr "エントリー管理、検索、CSV エクスポート"
+
+#. Found in description paragraph.
+msgid "Every submission is saved as an entry. Search answers, filter by form, status\nand star, read one beside the list, add private notes, and export to CSV or\nJSON. Unread counts, a spam folder, and bulk actions included."
+msgstr "すべての送信はエントリーとして保存されます。回答を検索し、フォーム、ステータス、スターで絞り込み、一覧の横で個別のエントリーを読み、非公開メモを追加し、CSV または JSON にエクスポートできます。未読数の表示、スパムフォルダー、一括操作も備えています。"
+
+#. Found in description header.
+msgid "Email notifications, confirmations and webhooks"
+msgstr "メール通知、確認メッセージ、Webhook"
+
+#. Found in description paragraph.
+msgid "Send conditional notification emails with CC, BCC, reply-to and attachments.\nShow a message, redirect, or send visitors to a page — conditionally, per\nanswer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and\nhook <code>alltfo_entry_created</code> for anything else."
+msgstr "CC、BCC、返信先（Reply-To）、添付ファイル付きの通知メールを、条件に応じて送信できます。メッセージの表示、リダイレクト、指定ページへの移動も、回答ごとに条件付きで設定できます。すべてのエントリーを HMAC-SHA256 で署名した JSON として任意の URL に POST でき、そのほかの処理にはフック <code>alltfo_entry_created</code> を利用できます。"
+
+#. Found in description header.
+msgid "Grows your MailPoet lists"
+msgstr "MailPoet のメールリストを増やす"
+
+#. Found in description paragraph.
+msgid "With MailPoet installed, any form can subscribe visitors to your lists —\nbound to an opt-in box they actually tick, with MailPoet's own double opt-in\nconfirming every address. Map the email and name fields, pick the lists, done.\nThe kind of integration that is a paid addon elsewhere, free here."
+msgstr "MailPoet がインストールされていれば、どのフォームからでも訪問者をメールリストに登録できます。登録は訪問者が実際にチェックを入れるオプトインのチェックボックスに紐付けられ、すべてのアドレスは MailPoet 自身のダブルオプトインで確認されます。メールアドレスと名前のフィールドを対応付け、リストを選べば完了です。ほかでは有料アドオンになるような連携が、ここでは無料です。"
+
+#. Found in description paragraph.
+msgid "Every email and confirmation has an <strong>Insert a value</strong> button that lists your\nown questions by the label you wrote — not <code>{field:f2}</code> — with a live preview\nof the finished text."
+msgstr "すべてのメールと確認メッセージには<strong>値を挿入（Insert a value）</strong>ボタンがあり、自分で付けたラベルで質問を一覧表示します（<code>{field:f2}</code> のような表記ではありません）。完成した文面はライブプレビューで確認できます。"
+
+#. Found in description header.
+msgid "Import from Contact Form 7, WPForms and Gravity Forms — entries too"
+msgstr "Contact Form 7、WPForms、Gravity Forms からインポート（エントリーも）"
+
+#. Found in description paragraph.
+msgid "Switching form plugins? You do not have to go looking. Activate AllTerrain\nForms and it tells you what it found — <em>\"AllTerrain Forms found 6 forms in\nContact Form 7\"</em> — with one button that migrates all of them. Conditional\nlogic carries across, payment fields keep their prices, an order total keeps\ncalculating, and a Gravity Forms List becomes a real repeater."
+msgstr "フォームプラグインを乗り換えますか？探し回る必要はありません。AllTerrain Forms を有効化すると、見つかったものを知らせてくれます（<em>「AllTerrain Forms は Contact Form 7 で 6 件のフォームを見つけました」</em>）。ボタン 1 つで、そのすべてを移行できます。条件分岐はそのまま引き継がれ、支払いフィールドは価格を保持し、注文合計は計算を続け、Gravity Forms のリストフィールドは本物の繰り返しフィールド（リピーター）になります。"
+
+#. Found in description paragraph.
+msgid "The stored submissions come too. Messages Flamingo kept for Contact Form 7,\nGravity Forms entries, and WPForms Pro entries can all be brought across after\ntheir form is — each with its original date, spam filed as spam, and the\noriginals left untouched. Running an import twice never imports anything\ntwice, and everything still works after the old plugin is deactivated, because\nthe data outlives the plugin."
+msgstr "保存済みの送信データも移行できます。Flamingo が Contact Form 7 用に保存していたメッセージ、Gravity Forms のエントリー、WPForms Pro のエントリーは、フォームを移行した後にすべて取り込めます。それぞれ元の日付を保持し、スパムはスパムとして振り分けられ、元のデータには手を加えません。インポートを 2 回実行しても、同じものが二重に取り込まれることはありません。また、データはプラグインより長く残るため、古いプラグインを無効化した後もすべてそのまま動作します。"
+
+#. Found in description header.
+msgid "Ten form themes, and an eleventh you make yourself"
+msgstr "10 種類のフォームテーマと、自分で作る 11 番目のテーマ"
+
+#. Found in description paragraph.
+msgid "Clean, Midnight, Glass, Brutal, Paper, Neon, Terminal, Soft, Editorial and\nHolo. A theme here is a flat list of 69 design tokens — no theme PHP, no\ntemplate, no stylesheet to edit."
+msgstr "Clean、Midnight、Glass、Brutal、Paper、Neon、Terminal、Soft、Editorial、Holo。このプラグインのテーマは、69 個のデザイントークンを並べたフラットなリストです。テーマ用の PHP も、テンプレートも、編集するスタイルシートもありません。"
+
+#. Found in description paragraph.
+msgid "<strong>Theme Studio</strong> gives you a control for every token and a live preview that\nupdates the instant you click. Six plain-language dials cover the common case:\nAccent, Roundness, Density, Depth, Fields, Labels. Nobody thinks\n<em>\"radius-field: 14px\"</em> — they think <em>rounder</em>. Save your changes as a theme,\npick it on any form, export it as JSON, import it on another site."
+msgstr "<strong>Theme Studio</strong> では、すべてのトークンに対応するコントロールと、クリックした瞬間に更新されるライブプレビューを利用できます。よくある調整は、わかりやすい言葉の 6 つのダイヤルで行えます。アクセント（Accent）、角の丸み（Roundness）、密度（Density）、奥行き（Depth）、フィールド（Fields）、ラベル（Labels）です。<em>「radius-field: 14px」</em>と考える人はいません。考えるのは<em>「もっと丸く」</em>です。変更内容はテーマとして保存して任意のフォームで選択でき、JSON としてエクスポートして別のサイトでインポートすることもできます。"
+
+#. Found in description header.
+msgid "Spam protection without a CAPTCHA"
+msgstr "CAPTCHA なしのスパム対策"
+
+#. Found in description paragraph.
+msgid "A honeypot, a signed time trap, a per-address rate limit, a word blocklist,\nand — if you already have it and switch it on for a form — Akismet. Nothing\nasks a visitor to identify traffic lights, because a CAPTCHA charges the\nvisitor for the site's spam problem and fails accessibility for a good number\nof people."
+msgstr "ハニーポット、署名付きのタイムトラップ、アドレスごとの送信回数制限（レート制限）、禁止ワードリスト、そして（すでに導入済みで、フォームごとに有効にした場合は）Akismet。訪問者に信号機の画像を選ばせることはありません。CAPTCHA はサイトのスパム問題の負担を訪問者に押し付けるうえ、少なくない人にとってアクセシビリティの面でも使えないものだからです。"
+
+#. Found in description paragraph.
+msgid "Anything judged spam is <strong>kept</strong>, in a spam folder, never silently thrown away."
+msgstr "スパムと判定されたものも<strong>保持</strong>され、スパムフォルダーに入ります。知らないうちに破棄されることはありません。"
+
+#. Found in description header.
+msgid "Accessible (WCAG AA) and works without JavaScript"
+msgstr "アクセシブル（WCAG AA）で、JavaScript なしでも動作"
+
+#. Found in description paragraph.
+msgid "Real labels bound to real controls. Grouped inputs in a fieldset with a\nlegend. Hints and errors wired with <code>aria-describedby</code>. An error summary that\ntakes focus. Every theme meets WCAG AA contrast, and the test suite fails if\none stops."
+msgstr "本物のラベルを本物のコントロールに関連付けています。グループ化された入力は legend 付きの fieldset にまとめています。ヒントとエラーは <code>aria-describedby</code> で関連付けています。エラーの概要にはフォーカスが移動します。すべてのテーマが WCAG AA のコントラスト基準を満たしており、満たさなくなればテストスイートが失敗します。"
+
+#. Found in description paragraph.
+msgid "And the form works with JavaScript switched off — a real POST, real\nserver-side validation, errors against the right fields, answers still in the\nboxes."
+msgstr "さらに、フォームは JavaScript をオフにしても動作します。本物の POST 送信と本物のサーバー側バリデーションを行い、エラーは該当するフィールドに表示され、入力した回答もボックスに残ったままです。"
+
+#. Found in description header.
+msgid "GDPR-friendly by structure"
+msgstr "構造そのものが GDPR に配慮"
+
+#. Found in description paragraph.
+msgid "A form is a post. An entry is a post. A note on an entry is a comment. Nothing\nlives in a custom table, so WordPress's own privacy exporter and eraser, user\ncapabilities, search and the trash already work on your form data. A consent\nfield, IP anonymisation and per-form storage controls are built in — and\nnothing is ever sent to us. The only third parties your data can reach are the\nones you configure yourself, listed under <em>External services</em> below."
+msgstr "フォームは投稿です。エントリーも投稿です。エントリーへのメモはコメントです。独自テーブルには何も保存しないため、WordPress 標準の個人データのエクスポート・消去ツール、ユーザー権限、検索、ゴミ箱が、そのままフォームデータにも使えます。同意フィールド、IP アドレスの匿名化、フォームごとの保存設定を標準で備えており、私たちにデータが送信されることは一切ありません。データが届く可能性のある第三者は、あなた自身が設定したものだけです。それらは下記の<em>外部サービス</em>に記載しています。"
+
+#. Found in description header.
+msgid "Ready for AI agents — WordPress Abilities API and MCP"
+msgstr "AI エージェント対応：WordPress Abilities API と MCP"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms describes itself to AI agents. Nine abilities registered\nthrough WordPress's Abilities API let an agent — over MCP or the REST API —\nlist your forms, read a form's questions, <strong>build a whole form from a\ndescription</strong>, apply a theme, submit entries through the same validated\nanti-spam pipeline a visitor uses, query submissions with human-readable\nanswers, and pull the full analytics report (conversion, distributions, NPS)\nas structured data."
+msgstr "AllTerrain Forms は、AI エージェントに自らの機能を説明します。WordPress の Abilities API を通じて登録された 9 つのアビリティにより、エージェントは MCP または REST API 経由で次のことを行えます。フォームの一覧取得、フォームの質問の読み取り、<strong>説明文からのフォーム全体の作成</strong>、テーマの適用、訪問者と同じ検証済みのスパム対策パイプラインを通したエントリーの送信、人が読める形式の回答を含む送信データの検索、そして分析レポート全体（コンバージョン、回答分布、NPS）の構造化データとしての取得です。"
+
+#. Found in description paragraph.
+msgid "The nine, by name:"
+msgstr "9 つのアビリティの名前は次のとおりです。"
+
+#. Found in description list item.
+msgid "<strong>list-forms</strong> — every form with its id, title, theme, shortcode, entry count and questions. The starting point; its ids feed everything else."
+msgstr "<strong>list-forms</strong>：すべてのフォームを、ID、タイトル、テーマ、ショートコード、エントリー数、質問とともに返します。出発点となるアビリティで、その ID がほかのすべてのアビリティで使われます。"
+
+#. Found in description list item.
+msgid "<strong>get-form</strong> — one form's questions in full: field ids, types, labels, required flags and choices. Read it before submitting or interpreting entries."
+msgstr "<strong>get-form</strong>：1 つのフォームの質問全体（フィールド ID、種類、ラベル、必須フラグ、選択肢）を返します。エントリーを送信・解釈する前に読み込みます。"
+
+#. Found in description list item.
+msgid "<strong>list-field-types</strong> — the vocabulary for building: all 37 field types with what each stores."
+msgstr "<strong>list-field-types</strong>：フォームを作成するための語彙です。37 種類すべてのフィールドタイプと、それぞれが保存する内容を返します。"
+
+#. Found in description list item.
+msgid "<strong>create-form</strong> — builds a form from a title and a plain list of fields, and returns the shortcode ready to paste."
+msgstr "<strong>create-form</strong>：タイトルとフィールドのシンプルなリストからフォームを作成し、そのまま貼り付けられるショートコードを返します。"
+
+#. Found in description list item.
+msgid "<strong>set-form-theme</strong> — dresses a form in any installed theme, by slug."
+msgstr "<strong>set-form-theme</strong>：インストール済みの任意のテーマをスラッグで指定して、フォームに適用します。"
+
+#. Found in description list item.
+msgid "<strong>submit-form</strong> — submits answers through the visitor pipeline: availability, validation, anti-spam, storage, notifications. Refusals return per-field errors and store nothing."
+msgstr "<strong>submit-form</strong>：訪問者と同じパイプライン（受付状況の確認、バリデーション、スパム対策、保存、通知）を通して回答を送信します。拒否された場合はフィールドごとのエラーを返し、何も保存しません。"
+
+#. Found in description list item.
+msgid "<strong>list-entries</strong> — queries submissions with search, date range, status and pagination; answers come back raw and human-readable."
+msgstr "<strong>list-entries</strong>：検索、期間、ステータス、ページ送りを指定して送信データを検索します。回答は、生の値と人が読める形式の両方で返されます。"
+
+#. Found in description list item.
+msgid "<strong>get-entry</strong> — one submission in full, every answer labelled and formatted."
+msgstr "<strong>get-entry</strong>：1 件の送信データ全体を、すべての回答にラベルと書式を付けて返します。"
+
+#. Found in description list item.
+msgid "<strong>form-report</strong> — the analytics as data: views, conversion, completion, a 90-day timeline, per-question distributions, NPS, and breakdowns by any grouping question."
+msgstr "<strong>form-report</strong>：分析結果をデータとして返します。閲覧数、コンバージョン、完了率、90 日間のタイムライン、質問ごとの回答分布、NPS、そして任意のグループ化用の質問による内訳です。"
+
+#. Found in description paragraph.
+msgid "Every ability carries a JSON Schema and a capability check, and none of them\nhas logic of its own — an agent and a human clicking the same button get the\nsame behaviour. Ask your assistant to \"make a booking form and show me last\nweek's responses\", and this is what it calls."
+msgstr "すべてのアビリティには JSON Schema と権限チェックがあり、独自のロジックを持つアビリティは 1 つもありません。エージェントでも、同じボタンをクリックする人間でも、同じ動作になります。アシスタントに「予約フォームを作って、先週の回答を見せて」と頼めば、呼び出されるのはこれらのアビリティです。"
+
+#. Found in description header.
+msgid "Built on OpenStation"
+msgstr "OpenStation 上に構築"
+
+#. Found in description paragraph.
+msgid "AllTerrain Forms is an <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a>\ndesktop app, and OpenStation is <strong>required</strong> — WordPress installs it alongside\nthis plugin and keeps the two together. OpenStation turns wp-admin into a\nwindowed desktop: the builder is a real window you can put beside your\nentries, drag a field from one form into another, and drop an image straight\nfrom the media browser onto a choice. That spatial way of working is the\nproduct, which is why the plugin does not ship a lesser version of itself\nwithout it."
+msgstr "AllTerrain Forms は <a href=\"https://wordpress.org/plugins/desktop-mode/\">OpenStation</a> のデスクトップアプリであり、OpenStation は<strong>必須</strong>です。WordPress はこのプラグインと一緒に OpenStation をインストールし、2 つを常にセットで扱います。OpenStation は wp-admin をウィンドウ型のデスクトップに変えます。ビルダーはエントリーの横に並べられる本物のウィンドウになり、あるフォームから別のフォームへフィールドをドラッグしたり、メディアブラウザーから画像を選択肢に直接ドロップしたりできます。この空間的な作業スタイルこそが製品そのものです。だからこそ、このプラグインはそれを省いた劣化版を提供していません。"
+
+#. Found in description paragraph.
+msgid "Your visitors are never part of that dependency: published forms render and\nsubmit on the front end regardless of what is happening in the admin."
+msgstr "訪問者はこの依存関係とは無関係です。公開済みのフォームは、管理画面で何が起きていても、フロントエンドで表示・送信されます。"
+
+#. Found in description header.
+msgid "External services"
+msgstr "外部サービス"
+
+#. Found in description paragraph.
+msgid "The plugin makes no connection of its own to us or to anyone else — no\naccounts, no license checks, no telemetry, no updates outside WordPress.org.\nTwo optional features send data to a destination <strong>you</strong> choose:"
+msgstr "このプラグインが独自に、私たちやほかの誰かに接続することはありません。アカウント、ライセンスチェック、テレメトリー、WordPress.org 以外からの更新は一切ありません。オプションの 2 つの機能だけが、<strong>あなた</strong>が選んだ送信先にデータを送信します。"
+
+#. Found in description list item.
+msgid "<strong>Akismet</strong> — off by default on every form, even when the\n<a href=\"https://wordpress.org/plugins/akismet/\">Akismet plugin</a> is installed and\nconfigured on your site. Only when you switch it on for a form is each\nsubmission to that form (the answers, plus the sender's IP and user agent)\nsent to Akismet's servers for a spam verdict, with spam/ham corrections you\nmake in the entries screen reported back. Corrections obey the same per-form\nswitch: marking an entry spam or not-spam on a form that has Akismet off\nsends nothing. Without the Akismet plugin, or with the per-form switch off,\nnothing is ever sent. See the\n<a href=\"https://akismet.com/tos/\">Akismet Terms of Service</a> and the\n<a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>Akismet</strong>：サイトに <a href=\"https://wordpress.org/plugins/akismet/\">Akismet プラグイン</a>がインストール・設定されている場合でも、すべてのフォームでデフォルトはオフです。フォームごとにオンにした場合にのみ、そのフォームへの各送信（回答に加え、送信者の IP アドレスとユーザーエージェント）がスパム判定のために Akismet のサーバーへ送信され、エントリー画面で行ったスパム／非スパム（ham）の修正も Akismet に報告されます。修正にも同じフォームごとのスイッチが適用されます。Akismet がオフになっているフォームでエントリーをスパムまたは非スパムとしてマークしても、何も送信されません。Akismet プラグインがない場合、またはフォームごとのスイッチがオフの場合は、何も送信されることはありません。詳しくは <a href=\"https://akismet.com/tos/\">Akismet 利用規約</a>および <a href=\"https://automattic.com/privacy/\">Automattic プライバシーポリシー</a>をご覧ください。"
+
+#. Found in description list item.
+msgid "<strong>Webhooks</strong> — a form can POST each entry as JSON to a URL you enter,\nsigned with HMAC-SHA256. Entries go only to the address you configured, and\nthe feature is off until you configure one."
+msgstr "<strong>Webhook</strong>：フォームは、各エントリーを HMAC-SHA256 で署名した JSON として、あなたが入力した URL に POST 送信できます。エントリーはあなたが設定したアドレスにのみ送信され、送信先を設定するまでこの機能はオフです。"
+
+#. Found in description header.
+msgid "Built in the open"
+msgstr "オープンに開発"
+
+#. Found in description paragraph.
+msgid "Source, issue tracker and full developer documentation:\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+msgstr "ソースコード、課題トラッカー、完全な開発者向けドキュメント：\n<a href=\"https://github.com/AllTerrainDeveloper/forms\">github.com/AllTerrainDeveloper/forms</a>"
+
+#. Found in description paragraph.
+msgid "Over 800 automated tests, and the conditional-logic and calculation engines\nare tested against one shared table of cases in both PHP and JavaScript —\nbecause if the browser and the server ever disagreed about which fields were\nrequired, you would be shown a form you could not submit."
+msgstr "800 件を超える自動テストがあり、条件分岐と計算のエンジンは、PHP と JavaScript の両方で、共通の 1 つのテストケース表に対してテストされています。どのフィールドが必須かについてブラウザーとサーバーの判断が食い違えば、送信できないフォームが表示されてしまうからです。"
+
+#. Found in installation list item.
+msgid "Install through <strong>Plugins → Add New</strong>, or upload the ZIP under\n<strong>Plugins → Add New → Upload Plugin</strong>. WordPress installs OpenStation\nalongside it automatically."
+msgstr "<strong>プラグイン → 新規追加</strong>からインストールするか、<strong>プラグイン → 新規追加 → プラグインのアップロード</strong>から ZIP ファイルをアップロードします。OpenStation は WordPress によって自動的に一緒にインストールされます。"
+
+#. Found in installation list item.
+msgid "Activate it."
+msgstr "プラグインを有効化します。"
+
+#. Found in installation list item.
+msgid "Open <strong>AllTerrain Forms</strong> from the dock and build a form by dragging."
+msgstr "ドックから <strong>AllTerrain Forms</strong> を開き、ドラッグしてフォームを作成します。"
+
+#. Found in installation list item.
+msgid "Paste the shortcode it shows you into any page or post, or add the <strong>Form</strong>\nblock."
+msgstr "表示されたショートコードを任意の固定ページや投稿に貼り付けるか、<strong>フォーム</strong>ブロックを追加します。"
+
+#. Found in installation paragraph.
+msgid "No account, no licence key, and no connection to any service of ours — the\nonly external services it can talk to are the ones you configure, listed under\n<em>External services</em> above."
+msgstr "アカウントもライセンスキーも不要で、私たちのサービスへの接続も一切ありません。プラグインが通信できる外部サービスは、あなたが設定したものだけです。それらは上記の<em>外部サービス</em>に記載しています。"
+
+#. Found in faq header.
+msgid "Is AllTerrain Forms really free? What's the catch?"
+msgstr "AllTerrain Forms は本当に無料ですか？何か裏があるのでは？"
+
+#. Found in faq paragraph.
+msgid "It is, and there isn't one. There is no Pro version and no paid add-on.\nConditional logic, multi-step forms, file uploads, entry management, CSV\nexport, webhooks, quizzes, surveys, analytics — everything described on this\npage is in this plugin."
+msgstr "はい、無料です。裏は何もありません。Pro 版も有料アドオンもありません。条件分岐、ステップフォーム、ファイルアップロード、エントリー管理、CSV エクスポート、Webhook、クイズ、アンケート、分析など、このページで説明しているものはすべてこのプラグインに含まれています。"
+
+#. Found in faq header.
+msgid "How do I create a contact form?"
+msgstr "お問い合わせフォームはどうやって作成しますか？"
+
+#. Found in faq paragraph.
+msgid "Activate the plugin, open <strong>AllTerrain Forms</strong> from the dock, and drag fields\nfrom the palette onto the canvas — or start from the contact form template.\nPaste the shortcode into a page, or use the <strong>Form</strong> block. The whole thing\ntakes about a minute."
+msgstr "プラグインを有効化し、ドックから <strong>AllTerrain Forms</strong> を開いて、パレットからキャンバスへフィールドをドラッグします。お問い合わせフォームのテンプレートから始めることもできます。ショートコードを固定ページに貼り付けるか、<strong>フォーム</strong>ブロックを使ってください。全体で 1 分ほどで完了します。"
+
+#. Found in faq header.
+msgid "Do I need the OpenStation plugin?"
+msgstr "OpenStation プラグインは必要ですか？"
+
+#. Found in faq paragraph.
+msgid "Yes. The builder is an OpenStation desktop app — a real window you can drag\nthings between — and WordPress installs and activates OpenStation for you when\nyou install this plugin. Your visitors never need it: published forms render\nand submit on the front end without any of the admin machinery."
+msgstr "はい。ビルダーは OpenStation のデスクトップアプリ（ウィンドウ間でドラッグ操作ができる本物のウィンドウ）であり、このプラグインをインストールすると、WordPress が OpenStation をインストールして有効化します。訪問者には必要ありません。公開済みのフォームは、管理画面の仕組みを一切使わずにフロントエンドで表示・送信されます。"
+
+#. Found in faq header.
+msgid "Can I import forms from Contact Form 7, WPForms or Gravity Forms?"
+msgstr "Contact Form 7、WPForms、Gravity Forms からフォームをインポートできますか？"
+
+#. Found in faq paragraph.
+msgid "Yes, and it offers before you ask: if the plugin finds forms from Contact Form\n7, WPForms or Gravity Forms it says so and gives you a single button that\nimports all of them. <strong>Forms → Import</strong> lists them individually whenever you\nwant it, including forms whose plugin has already been deactivated, because\nthe data outlives the plugin. Each import creates a new AllTerrain form and\nleaves the original untouched."
+msgstr "はい。しかも、尋ねる前に提案してくれます。Contact Form 7、WPForms、Gravity Forms のフォームが見つかると、プラグインがそのことを知らせ、すべてを一括でインポートできるボタンを表示します。<strong>フォーム → インポート（Forms → Import）</strong>では、いつでもそれらを個別に一覧表示できます。データはプラグインより長く残るため、プラグインがすでに無効化されているフォームも含まれます。インポートのたびに新しい AllTerrain Forms のフォームが作成され、元のフォームはそのまま残ります。"
+
+#. Found in faq header.
+msgid "Can I import my old entries and submissions too?"
+msgstr "以前のエントリーや送信データもインポートできますか？"
+
+#. Found in faq paragraph.
+msgid "Yes. Stored submissions from all three sources — Flamingo's messages for\nContact Form 7, Gravity Forms entries, WPForms Pro entries — can be brought\nacross after their form is imported, each keeping its original date, with spam\nfiled as spam and the originals left untouched. Running it twice never imports\nanything twice."
+msgstr "はい。3 つのソースすべて（Contact Form 7 用の Flamingo のメッセージ、Gravity Forms のエントリー、WPForms Pro のエントリー）の保存済み送信データを、フォームのインポート後に取り込めます。それぞれ元の日付を保持し、スパムはスパムとして振り分けられ、元のデータはそのまま残ります。2 回実行しても、同じものが二重に取り込まれることはありません。"
+
+#. Found in faq header.
+msgid "Will my forms keep working if I deactivate the plugin?"
+msgstr "プラグインを無効化しても、フォームは動作し続けますか？"
+
+#. Found in faq paragraph.
+msgid "Your data stays: forms and entries are ordinary posts, so deactivating leaves\nthem in your database untouched. Uninstalling removes them, which is what\nuninstalling should do — export your entries to CSV first if you want them."
+msgstr "データは残ります。フォームとエントリーは通常の投稿なので、無効化してもデータベースにそのまま残ります。プラグインを削除（アンインストール）するとそれらも削除されますが、それがアンインストールの本来の動作です。残しておきたい場合は、先にエントリーを CSV にエクスポートしてください。"
+
+#. Found in faq header.
+msgid "Can I move a form to another site?"
+msgstr "フォームを別のサイトに移行できますか？"
+
+#. Found in faq paragraph.
+msgid "Yes. Export the form as YAML and import it on the other site. The package\nincludes its base theme, only changed design tokens, form settings and image-choice\nattachments. Validate YAML checks a file first; import creates a new draft.\nVersioned JSON packages are accepted too. Standalone Theme Studio exports remain JSON."
+msgstr "はい。フォームを YAML としてエクスポートし、別のサイトでインポートします。パッケージには、ベースとなるテーマ、変更したデザイントークンのみ、フォーム設定、画像選択肢の添付ファイルが含まれます。「YAML を検証（Validate YAML）」で事前にファイルをチェックでき、インポートすると新しい下書きが作成されます。バージョン付きの JSON パッケージにも対応しています。Theme Studio 単体のエクスポートは引き続き JSON 形式です。"
+
+#. Found in faq header.
+msgid "Does it work with page builders and the block editor?"
+msgstr "ページビルダーやブロックエディターで使えますか？"
+
+#. Found in faq paragraph.
+msgid "Yes. Use the <strong>Form</strong> block in the block editor, or the shortcode anywhere a\nshortcode works, including page builders and widgets."
+msgstr "はい。ブロックエディターでは<strong>フォーム</strong>ブロックを使い、それ以外では、ページビルダーやウィジェットを含め、ショートコードが使える場所ならどこでもショートコードを使えます。"
+
+#. Found in faq header.
+msgid "Does it send my data anywhere? Is it GDPR-friendly?"
+msgstr "データはどこかに送信されますか？GDPR に配慮していますか？"
+
+#. Found in faq paragraph.
+msgid "Nothing is sent to us, ever. Entries are ordinary WordPress posts, so the\nprivacy exporter and eraser already cover them; a consent field, IP\nanonymisation and per-form storage controls are built in. The two optional\nfeatures that can send data elsewhere — Akismet spam checking and webhooks —\nare off until you configure them, and are documented under <em>External services</em>\nabove with links to Akismet's terms and privacy policy."
+msgstr "私たちにデータが送信されることは一切ありません。エントリーは通常の WordPress 投稿なので、個人データのエクスポート・消去ツールがそのまま対象にします。同意フィールド、IP アドレスの匿名化、フォームごとの保存設定も標準で備えています。データを外部に送信しうるオプション機能は 2 つ（Akismet によるスパムチェックと Webhook）で、どちらも設定するまではオフです。これらは、Akismet の利用規約とプライバシーポリシーへのリンクとともに、上記の<em>外部サービス</em>で説明しています。"
+
+#. Found in faq header.
+msgid "Is it accessible?"
+msgstr "アクセシビリティに対応していますか？"
+
+#. Found in faq paragraph.
+msgid "That was a design requirement rather than an afterthought — real labels,\nfieldsets, <code>aria-describedby</code>, a focus-taking error summary, WCAG AA contrast\nin every theme, and a form that works without JavaScript. If you find\nsomething that is not accessible, please report it on the support forum; it\nwill be treated as a bug."
+msgstr "アクセシビリティは後付けではなく、設計上の要件でした。本物のラベル、fieldset、<code>aria-describedby</code>、フォーカスを受け取るエラーの概要、すべてのテーマでの WCAG AA のコントラスト、そして JavaScript なしでも動作するフォーム。アクセシブルでない部分を見つけたら、サポートフォーラムで報告してください。バグとして対応します。"
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "サポートはどこで受けられますか？"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">AllTerrain Forms support forum</a>\nhere on WordPress.org — the <strong>Support</strong> link under the plugin's name on your\nPlugins screen goes straight there. Questions are answered in the open, so the\nnext person with the same question finds the answer too. Bug reports with\nsteps to reproduce are welcome on the forum or on GitHub."
+msgstr "WordPress.org の <a href=\"https://wordpress.org/support/plugin/allterrain-forms/\">AllTerrain Forms サポートフォーラム</a>で質問してください。「プラグイン」画面でプラグイン名の下にある<strong>サポート</strong>リンクから直接アクセスできます。質問にはオープンな場で回答するため、同じ疑問を持った次の人も答えを見つけられます。再現手順付きのバグ報告は、フォーラムまたは GitHub で歓迎します。"
+
+#. Found in faq header.
+msgid "Can developers extend it?"
+msgstr "開発者は機能を拡張できますか？"
+
+#. Found in faq paragraph.
+msgid "Yes, and it is documented. 55 filters and 15 actions, a field-type registry\nthat built-in fields use exactly as a third-party plugin would, a theme token\nAPI, importer hooks, and a REST namespace. Full reference in the repository."
+msgstr "はい。ドキュメントも用意しています。55 個のフィルターと 15 個のアクション、組み込みフィールド自身もサードパーティ製プラグインとまったく同じ方法で使っているフィールドタイプのレジストリ、テーマトークン API、インポーター用のフック、そして REST 名前空間があります。完全なリファレンスはリポジトリにあります。"
+
+#. Found in Screenshot description.
+msgid "The form builder, open as a window on the OpenStation desktop. Drag a field from the palette onto the canvas; the inspector on the right changes what you selected."
+msgstr "OpenStation のデスクトップ上でウィンドウとして開いたフォームビルダー。パレットからキャンバスにフィールドをドラッグします。右側のインスペクターで、選択した項目を変更できます。"
+
+#. Found in Screenshot description.
+msgid "The Theme tab wearing Neon — ten built-in themes across the top, plain-language dials on the left, and a live preview that updates the instant you click."
+msgstr "Neon を適用した「テーマ」タブ。上部に 10 種類の組み込みテーマ、左側にわかりやすい言葉のダイヤル、そしてクリックした瞬間に更新されるライブプレビュー。"
+
+#. Found in Screenshot description.
+msgid "Entries beside the builder. Search, filter and star submissions; read one beside the list; export to CSV or JSON."
+msgstr "ビルダーの横に表示したエントリー。送信データの検索、絞り込み、スター付けができ、一覧の横で 1 件ずつ読み、CSV または JSON にエクスポートできます。"
+
+#. Found in Screenshot description.
+msgid "Analytics: submissions over time, conversion and completion, and a Net Promoter Score panel — grouped by any question you ask."
+msgstr "分析：期間ごとの送信数、コンバージョンと完了率、Net Promoter Score パネル。いずれも任意の質問でグループ化できます。"
+
+#. Found in Screenshot description.
+msgid "Conditional logic drawn on the canvas — every card states its condition, and a line joins the question that decides to the fields it decides."
+msgstr "キャンバス上に描かれた条件分岐。すべてのカードに条件が書かれ、判定する質問と、その質問によって切り替わるフィールドが線で結ばれます。"
+
+#. Found in Screenshot description.
+msgid "The Insert a value picker, listing your questions by name with descriptive value previews."
+msgstr "「値を挿入（Insert a value）」ピッカー。質問を名前で一覧表示し、値の内容がわかるプレビューを表示します。"

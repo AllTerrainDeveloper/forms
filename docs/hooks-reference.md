@@ -1101,6 +1101,26 @@ apply_filters( 'alltfo_script_config', array $config );
 
 The blob printed as `window.allTerrainForms`.
 
+---
+
+## Plugins screen
+
+### `alltfo_support_url` — Filter — *Stable*
+
+```php
+apply_filters( 'alltfo_support_url', string $url );
+```
+
+Where the **Support** link under the plugin's name on the Plugins screen points.
+Defaults to the WordPress.org support forum. Return an empty string to remove the
+link, for example on a managed host that runs its own help desk.
+
+```php
+add_filter( 'alltfo_support_url', function () {
+	return 'https://help.example.com/forms/';
+} );
+```
+
 ## Portable form packages (Experimental)
 
 See [form-packages.md](form-packages.md) for the YAML/JSON model and REST routes.

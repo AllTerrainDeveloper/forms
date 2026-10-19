@@ -1,6 +1,6 @@
-=== AllTerrain Forms ===
+=== AllTerrain Forms – Survey Builder, Quiz Builder & Contact Form ===
 Contributors: allterraindeveloper, juanml
-Tags: contact form, form builder, survey, quiz, conditional logic
+Tags: contact form, form builder, survey, quiz, calculated fields
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
@@ -9,7 +9,7 @@ Stable tag: 1.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Drag & drop contact form builder with conditional logic, multi-step forms, file uploads, surveys, quizzes, entries and 10 themes. All free.
+Free survey builder, quiz builder and contact form builder with drag & drop, conditional logic, calculated fields, multi-step forms and NPS.
 
 == Description ==
 
@@ -30,6 +30,9 @@ Create a form by dragging. Pull a field from the palette onto the canvas, drop
 it where you want it, type the label. That is the whole learning curve — 37
 field types, from a simple text box to a signature pad to a Likert matrix, and
 every one behaves the same way.
+
+Or start from a template: contact form, event RSVP, job application, survey,
+quiz, order form, registration form, feedback form, booking form and bug report.
 
 Then paste one shortcode into a page, or drop in the **Form** block and pick
 your form from a list:
@@ -60,11 +63,11 @@ Accept file uploads with per-field type and size limits, stored in a protected
 directory and attached to the entry. Collect a real drawn signature. Uploads
 are parented to their submission, so deleting the entry cleans up after itself.
 
-= Surveys, quizzes and NPS =
+= Survey builder, quiz builder and NPS =
 
-Build survey forms with rating scales, opinion scales, Likert matrices and
-0–10 questions. Build quizzes with scoring and per-answer feedback. The
-Analytics window turns responses into answers: submissions over time,
+The survey builder makes survey forms with rating scales, opinion scales,
+Likert matrices and 0–10 questions. The quiz builder adds scoring and
+per-answer feedback. The Analytics window turns responses into answers: submissions over time,
 conversion and completion rates, per-question distributions, a Net Promoter
 Score panel, and any question broken down by any other question.
 
@@ -78,8 +81,8 @@ JSON. Unread counts, a spam folder, and bulk actions included.
 
 Send conditional notification emails with CC, BCC, reply-to and attachments.
 Show a message, redirect, or send visitors to a page — conditionally, per
-answer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and hook
-`alltfo_entry_created` for anything else.
+answer. POST every entry as JSON to any URL, signed with HMAC-SHA256, and
+hook `alltfo_entry_created` for anything else.
 
 = Grows your MailPoet lists =
 
@@ -307,8 +310,16 @@ above with links to Akismet's terms and privacy policy.
 That was a design requirement rather than an afterthought — real labels,
 fieldsets, `aria-describedby`, a focus-taking error summary, WCAG AA contrast
 in every theme, and a form that works without JavaScript. If you find
-something that is not accessible, please open an issue; it will be treated as
-a bug.
+something that is not accessible, please report it on the support forum; it
+will be treated as a bug.
+
+= Where do I get help? =
+
+Ask on the [AllTerrain Forms support forum](https://wordpress.org/support/plugin/allterrain-forms/)
+here on WordPress.org — the **Support** link under the plugin's name on your
+Plugins screen goes straight there. Questions are answered in the open, so the
+next person with the same question finds the answer too. Bug reports with
+steps to reproduce are welcome on the forum or on GitHub.
 
 = Can developers extend it? =
 
